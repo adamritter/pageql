@@ -1,0 +1,7 @@
+---
+description: Short code
+globs: *.py
+alwaysApply: false
+---
+- Use short code always. The less lines the better
+- Only modify the code with as small change as possible to make reviewing very easy

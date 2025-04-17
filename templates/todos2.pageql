@@ -1,0 +1,61 @@
+Cool, this is a test for creating a todos app from nothing
+{{#partial public add}}
+  {{#param text required}}
+  {{#insert into todos (text, completed) values (:text, 0)}}
+  {{#redirect '/todos2'}}
+{{/partial}}
+{{#partial public toggle}}
+{{#param id integer}}
+{{#update todos set completed = 1-completed where id=:id}}
+{{#redirect '/todos2'}}
+{{/partial}}
+
+{{#statuscode 201}}
+
+<form method="POST" action="/todos2/add">
+  <input type="text" name="text" placeholder="What needs to be done?" required>
+  <button type="submit">Add Todo</button>
+</form>
+</form>
+
+<table>
+{{#from todos}}
+<tr><td>
+<a href="/todos2/toggle?id={{id}}" style="text-decoration: none">
+{{#if completed}}
+[✓]
+{{#else}}
+[&nbsp;]
+{{/if}}
+</a>
+
+</td><td>  {{text}}</td></tr>
+{{/from}}
+</table>
+{{#set total count(*) from todos}}
+{{#set active count(*) from todos where completed>0}}
+
+Active: {{active}}/{{total}}
+
+{{#log "Active: " || :active || '/' || :total}}
+
+
+OK, now if testing
+
+{{#if 2>1}}
+2>1
+{{/if}}
+
+
+{{#if 2<1}}
+2<1
+{{/if}}
+
+
+{{#if 2<1}}
+2<1
+{{#elif 2<2}}
+2<2
+{{#elif 2<3}}
+2<3
+{{/if}}

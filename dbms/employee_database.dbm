@@ -1,0 +1,223 @@
+Employee Database (Behind the Scenes)
+[ << Back to Example ]
+Overview
+The employee database example demonstrates selecting and updating records within the Employees table of the examples database. Users can choose to add a new employee to the database or update a employee who already appears in the database.
+
+The key technique demonstrated by this example is the use of DBQUERY to retrieve records stored in the database and DBUPDATE to make changes to the records.
+
+
+Implementation Files
+Directory Name: EMPLOYEE
+File Name       Type       Function                         
+
+MAIN.DBM        Template   Allows the user to specify   
+                           the record to be edited or      
+                           to add a new record.  
+                                        
+
+UPDATE.DBM      Template   Displays the detailed             
+                           information about the employee 
+                           selected, allowing editting of 
+                           the values.  
+
+NEW.DBM         Template   Presents a blank form to allow 
+                           the addition of a new record
+                           to the database.  
+MAIN.DBM
+<!--- This template is the main template that displays a list of 
+employees in the database --->
+
+
+<!--- If the update parameter is sent then run this update --->
+<DBIF #ParameterExists(Employee_ID)# is "yes">
+
+	<DBUPDATE DATASOURCE="CF Examples" TABLENAME="Employees">
+
+<DBELSE>
+
+<!--- If the insert parameter is sent then run this insert --->
+	<DBIF #ParameterExists(Email)# is "Yes">
+		<DBINSERT DATASOURCE="CF Examples" TABLENAME="Employees">
+	</DBIF>
+
+</DBIF>
+
+
+
+<!--- Use DBQUERY to retrieve all information from the table 'Employees'
+in the Data Source 'CF Examples'. --->
+
+<DBQUERY NAME="Employees" DATASOURCE="CF Examples"
+	SQL="SELECT * FROM Employees ORDER BY LastName">
+
+<HTML>
+
+<HEAD><TITLE>Employee Database Example</TITLE></HEAD>
+
+<BODY>
+
+<H1>Employee Database</H1>
+<P>
+<a href="/cfpro/examples/employee/detail.htm"><img src="/cfpro/examples/how.gif" border=0 align=middle></a> 
+<a href="/cfpro/examples/employee/detail.htm">Behind the Scenes</a>
+<HR>
+<P>
+
+
+<H3>Current Employees</H3>
+
+<!--- This DBOUTPUT takes all records from the Employees table (selected above) and displays
+the Name Values as hyperlinks.  Note that the Employee ID is passed in the URL which will
+allow the next template to use the ID to gather more detailed information about that 
+employee --->
+
+<TABLE><TR>
+
+<FORM ACTION="/cgi-shl/dbml.exe?action=query&template=/cfpro/examples/employee/update.dbm" METHOD="POST">
+
+<INPUT TYPE="hidden" NAME="Employee_ID_required" 
+         VALUE="You must select an employee to edit.">
+
+<TD>
+
+<SELECT NAME="Employee_ID" SIZE=10>
+<DBOUTPUT QUERY="Employees">
+<OPTION VALUE="#Employee_ID#">#FirstName# #LastName#
+</DBOUTPUT>
+</SELECT>
+
+</TD>
+
+<TD VALIGN=TOP>
+
+    <INPUT TYPE="Submit" VALUE="   Edit...   "> <BR>
+
+</FORM>
+
+	<FORM ACTION="/cgi-shl/dbml.exe?action=query&template=/cfpro/examples/employee/new.dbm"
+	      METHOD="POST">
+
+    <INPUT TYPE="Submit" VALUE="   Add...   "> 
+
+</FORM>
+
+
+</TD>
+
+
+</TR></TABLE>
+
+<P>To modify the attributes of an employee, select their name and click the
+<B>Edit</B> button. To create a new employee, click the <B>Add</B> button.
+
+
+
+<P>
+<HR>
+[ <a href="/cfpro/examples/examples.htm">Example Applications</a> ] 
+[ <a href="/cfpro/getstart.htm">Getting Started with Cold Fusion</a> ]
+ 
+</BODY>
+
+</HTML>
+UPDATE.DBM
+<!--- This template allows a user to update data about an employee in
+the database --->
+
+
+<!--- This query retrieves the employee information
+from the Employee database using the employee ID to search --->
+
+<DBQUERY NAME="GetEmployee" DATASOURCE="CF Examples"
+	SQL="SELECT * FROM Employees WHERE Employee_ID=#Employee_ID#">
+
+
+<HTML>
+
+<HEAD><TITLE>Employee Database Example</TITLE></HEAD>
+
+<BODY>
+
+<H2>Edit Employee Record</H2>
+<HR>
+
+<DBOUTPUT QUERY="GetEmployee">
+
+<H3>#FirstName# #LastName#</H3>
+
+<FORM ACTION="/cgi-shl/dbml.exe?template=/cfpro/examples/employee/main.dbm" METHOD=POST>
+
+<!--- Primary Key Fields --->
+<INPUT TYPE="Hidden" NAME="Employee_ID" VALUE="#Employee_ID#">
+
+<!--- The 'DBIFs' below are used to determine which value should be
+selected as the default when the information is displayed --->
+<pre>
+  Dept:<SELECT NAME="Department">
+			
+			<OPTION VALUE="Sales" <DBIF #Department# is "Sales">selected</DBIF>>Sales
+			<OPTION VALUE="Accounting" <DBIF #Department# is "Accounting">selected</DBIF>>Accounting
+			<OPTION VALUE="Engineering" <DBIF #Department# is "Engineering">selected</DBIF>>Engineering
+			<OPTION VALUE="Administration" <DBIF #Department# is "Administration">selected</DBIF>>Administration
+			</SELECT>
+
+  Name:<INPUT TYPE="Text" NAME="FirstName" VALUE="#FirstName#" SIZE=12> <INPUT TYPE="Text" NAME="LastName" VALUE="#LastName#">
+ Email:<INPUT TYPE="Text" NAME="Email" VALUE="#Email#">
+ Phone:<INPUT TYPE="Text" NAME="Phone" VALUE="#Phone#">
+
+</pre>
+<INPUT TYPE="Submit" VALUE=" Update Record ">
+</FORM>
+</DBOUTPUT>
+<HR>
+[ <a href="/cfpro/examples/examples.htm">Example Applications</a> ] 
+[ <a href="/cfpro/getstart.htm">Getting Started with Cold Fusion</a> ]
+
+</BODY>
+</HTML>
+NEW.DBM
+<!--- This template allows a user to insert a new employee 
+record into the database --->
+
+
+<HTML>
+
+<HEAD><TITLE>Employee Database Example</TITLE></HEAD>
+
+<BODY>
+
+<H2>Add Employee Record</H2>
+<HR>
+
+<H3>Enter Employee Data:</H3>
+
+<FORM ACTION="/cgi-shl/dbml.exe?template=/cfpro/examples/employee/main.dbm" METHOD=POST>
+
+<INPUT TYPE="Hidden" NAME="FirstName_required">
+<INPUT TYPE="Hidden" NAME="LastName_required">
+<INPUT TYPE="Hidden" NAME="EMail_required">
+<INPUT TYPE="Hidden" NAME="Phone_required">
+
+<pre>
+  Dept:<SELECT NAME="Department">
+			
+			<OPTION VALUE="Sales">Sales
+			<OPTION VALUE="Accounting">Accounting
+			<OPTION VALUE="Engineering">Engineering
+			<OPTION VALUE="Administration">Administration
+			</SELECT>
+
+  Name:<INPUT TYPE="Text" NAME="FirstName" SIZE=12> <INPUT TYPE="Text" NAME="LastName">
+ Email:<INPUT TYPE="Text" NAME="Email">
+ Phone:<INPUT TYPE="Text" NAME="Phone">
+
+</pre>
+<INPUT TYPE="Submit" VALUE=" Add Record ">
+</FORM>
+</DBOUTPUT>
+<HR>
+[ <a href="/cfpro/examples/examples.htm">Example Applications</a> ] 
+[ <a href="/cfpro/getstart.htm">Getting Started with Cold Fusion</a> ]
+
+</BODY>
+</HTML>

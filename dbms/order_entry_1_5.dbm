@@ -1,0 +1,125 @@
+ Order Entry (Behind the Scenes)
+[ << Back to Example ]
+Overview
+The Order Entry example demonstrates the most basic use of the DBINSERT tag to append data to a database table. The form is used to enter records into the Orders table of the examples database.
+
+Each field in the Orders table has a like-named field in the input form. When the form is submitted, Cold Fusion matches the form fields with the appropriate database fields and inserts the data into the table.
+
+Besides the simple inserting of user-entered data, the example also demonstrates the entry of date/time and CGI environment information (using the DateEntered and ClientBrowser fields, respectively).
+
+This example does not demonstrate any of Cold Fusion's data entry and validation features (these features are demonstrated in the Event Registration example).
+
+
+Implementation Files
+Directory Name: ORDERS
+File Name       Type       Function                         
+
+MAIN.HTM        HTML       Allows the user to submit an order.  
+                         
+THANKS.DBM      Template   Inserts the order and then thanks 
+                           the user for submitting the order.                       
+MAIN.HTM
+<HTML>
+
+<HEAD>
+<TITLE>Order Entry Example</TITLE>
+</HEAD>
+
+<BODY>
+
+<H1>Order Entry Example</H1>
+<a href="details.htm"><img src="../how.gif" border=0 align=middle></a> 
+<a href="details.htm">Behind the Scenes</a>
+<HR>
+<P>
+
+
+<H3>WebDeveloper Subscription Order Form</H3>
+
+<FORM ACTION="/cgi-shl/dbml.exe?Template=/cfpro/examples/orders/thanks.dbm" 
+      METHOD="POST">
+   
+  <!-- Hidden fields for entering additional information about the 
+       submission -->
+
+  <INPUT TYPE="hidden" NAME="DateEntered" VALUE="CurrentDateTime()">
+  <INPUT TYPE="hidden" NAME="ClientBrowser" VALUE="CGI.HTTP_USER_AGENT">
+
+
+  <!-- Data entry fields -->
+
+<PRE>
+<B>Subscription Options:</B>
+
+      <INPUT TYPE="radio" NAME="SubscriptionType" CHECKED 
+          VALUE=1> 1 Year (12 months for $49.95)
+      <INPUT TYPE="radio" NAME="SubscriptionType" 
+          VALUE=2> 2 Years (24 months for $69.95)
+      <INPUT TYPE="radio" NAME="SubscriptionType" 
+          VALUE=3> 3 Years (36 months for $89.95)
+
+      <INPUT TYPE="checkbox" NAME="SendInfo" 
+          VALUE="Yes"> Send me more information about products
+          related to web development.      
+
+<B>Mailing Address:</B>
+
+       Name:<INPUT NAME="FirstName" size=15> <INPUT NAME="LastName" size=28>
+    Company:<INPUT NAME="CompanyName" size=45>
+    Address:<INPUT NAME="Address1" size=45>
+            <INPUT NAME="Address2" size=45>
+       City:<INPUT NAME="City" size=15> State:<INPUT NAME="State" size=5> Zip:<input NAME="PostalCode" size=10> 
+    Country:<INPUT NAME="Country" size=20> 
+
+<B>Credit Card Information:</B>
+
+       Type:<SELECT NAME="CreditCardType"> 
+         <OPTION SELECTED>Visa
+         <OPTION>MasterCard
+         <OPTION>Discover
+      </SELECT> Name:<INPUT NAME="CreditCardName" size=25>
+     Number:<INPUT NAME="CreditCardNumber" SIZE=20> Expires:<INPUT NAME="CreditCardExpDate" SIZE=7>
+
+      <INPUT Type="submit" Value="  Submit Order  ">  <INPUT Type="reset"
+                                                      Value="Clear Entries">
+</PRE>
+
+
+<P>
+<HR>
+[ <a href="../examples.htm">Example Applications</a> ]
+[ <a href="../../getstart.htm">Getting Started with Cold Fusion</a> ]
+
+</BODY>
+</HTML>
+
+THANKS.DBM
+<!--- Insert the data passed from the form --->
+
+<DBINSERT DATASOURCE="CF Examples" TABLENAME="Orders">
+
+<!--- Display a message to the user indicating that the 
+      order was received --->
+
+<HTML>
+
+<HEAD>
+<TITLE>Order for Subscription Received</TITLE>
+</HEAD>
+
+<BODY>
+<H1>Order for Subscription Received</H1>
+<HR>
+
+<P>Thank you for your subscription to WebDeveloper magazine.
+You will receive your first issue in 4-6 weeks.
+
+<P>
+<HR>
+[ <a href="/cfpro/examples/orders/main.htm">Order Entry Example</a> ]
+[ <a href="/cfpro/examples/examples.htm">Example Applications</a> ]
+
+
+</BODY>
+
+</HTML>

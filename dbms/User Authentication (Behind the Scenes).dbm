@@ -1,0 +1,226 @@
+ User Authentication (Behind the Scenes)
+[ << Back to Example ]
+Overview
+This example demonstrates a simple authentication system that is used to protect template files from users who are not authorized to view them.
+
+The key techniques demonstrated by this example are the use of DBINCLUDE and DBABORT to authenticate users at the top of each template file. Using DBCOOKIE to save user authentication information in the client browser is also demonstrated.
+
+
+Implementation Files
+Directory Name: SECURE
+File Name       Type       Function                         
+
+MAIN.HTM        HTML       This allows the user to enter   
+                           their username and password for
+                           authentication.     
+                                                                 
+
+SECURE.DBM      Template   This file is included at the             
+                           top of each template and checks  
+                           user authentication.
+                         
+CHECK.DBM       Template   This serves as a demonstration 
+                           template -- it is protected by 
+                           including SECURE.DBM.  
+MAIN.HTM
+<HTML>
+
+<HEAD><TITLE>User Authentication Example</TITLE></HEAD>
+
+
+<BODY>
+
+<H1>User Authentication</H2>
+<P>
+<a href="/cfpro/examples/secure/detail.htm"><img src="/cfpro/examples/how.gif" border=0 align=middle></a> 
+<a href="/cfpro/examples/secure/detail.htm">Behind the Scenes</a>
+
+<HR>
+<P>
+<H3>System Login</H3>
+
+<!--- This is the form that submits the data to be verified against a database of users --->
+
+<FORM ACTION="/cgi-shl/dbml.exe?Template=/cfpro/examples/secure/check.dbm" METHOD=POST>
+
+<!--- Mark the Username and Password fields as required --->
+<INPUT TYPE="Hidden" NAME="LoginName_Required" VALUE="You must enter a LoginName.">
+<INPUT TYPE="Hidden" NAME="Password_Required" VALUE="You must enter a Password.">
+
+<PRE>
+Username: <INPUT TYPE="Text" NAME="LoginName" Size=20>  <INPUT TYPE="Submit" VALUE="  Login  ">
+Password: <INPUT TYPE="Password" NAME="Password" Size=20>
+</PRE>
+
+<HR>
+<P>
+Valid accounts in the example database include:
+
+<BLOCKQUOTE>
+<P>
+Username: RJONES <BR> 
+Password: RED <BR>
+
+<P>
+Username: JSMITH <BR>
+Password: GREEN <BR>
+
+<P>
+Username: TWILSON <BR>
+Password: BLUE <BR>
+
+</BLOCKQUOTE>
+
+  
+
+</FORM>
+<HR>
+[ <a href="/cfpro/examples/examples.htm">Example Applications</a> ]
+[ <a href="/cfpro/getstart.htm">Getting Started With Cold Fusion</a> ]
+<P>
+
+</BODY>
+</HTML>
+SECURE.DBM
+<!--- Check to see if the user is logging on --->
+<DBIF #ParameterExists(LoginName)# is "Yes">
+
+	<!--- This query retrieves the user information based upon 
+	the login name and password --->
+
+	<DBQUERY NAME="CheckName" DATASOURCE="CF Examples"
+		SQL="SELECT * FROM Users WHERE LoginName = '#LoginName#' 
+			 AND Password = '#Password#'">
+	
+	<!--- If there is no information in the database that matches
+	the user entered information, reject the authorization --->
+
+	<DBIF #CheckName.RecordCount# is 0>
+		
+	    <HTML>
+	    <BODY>
+
+	    <H2>Invalid Username or Password</H2>
+	    <HR>
+	    <P>
+	    You must enter a valid username and password in order to access
+	    the system. Please return to the login page and re-enter your
+	    account information (be sure to verify that you have used the correct
+	    spelling for your username and password).
+	    <P>
+	    <A href="/cfpro/examples/secure/main.htm">Return to Login Page</a>
+	    <P>
+	    <HR>
+
+            </BODY>
+            </HTML>
+
+	    <DBABORT>
+
+	<!--- If the user is in the database, set the cookie in the user's browser-
+	it can be used in future security checks --->
+	<DBELSE>
+
+	    <DBCOOKIE NAME="User_ID" VALUE="#CheckName.User_ID#">
+	
+	</DBIF>	
+
+<!--- If the user is not logging on --->
+<DBELSE>
+	
+	<!--- If no cookie exists, reject user --->
+	<DBIF #ParameterExists(Cookie.User_ID)# is "No">
+
+	<HTML>
+	<BODY>
+	
+	<H2>Login Required for Access</H2>
+	<HR>
+	<P>
+	You must provide a username and password in order to access
+	this system. Please proceed the login page and enter your
+	account information.
+	<P>
+	<A href="/cfpro/examples/secure/main.htm">Go to Login Page</a>
+	<P>
+	<HR>
+
+        </BODY>
+	</HTML>
+
+	<DBABORT>
+
+	<!--- If there is a cookie, check it against the database --->
+	<DBELSE>
+
+	   <!--- This query retrieves information about the user based upon
+	   the ID stored in the HTTP cookie --->
+	
+           <DBQUERY NAME="CheckCookie" DATASOURCE="CF Examples"
+		SQL="SELECT * FROM Users WHERE User_ID=#Cookie.User_ID#">
+
+	   <!--- If the user is not in the database, reject them --->
+		
+           <DBIF #CheckCookie.RecordCount# is 0>
+
+	      <HTML>
+	      <BODY>	  
+		  
+              <H2>Login Required for Access</H2>
+	      <HR>
+	      <P>
+	      You must provide a username and password in order to access
+	      this system. Please proceed the login page and enter your
+	      account information.
+	      <P>
+	      <A href="/cfpro/examples/secure/main.htm">Go to Login Page</a>
+	      <P>
+	      <HR>
+
+              </BODY>
+              </HTML>
+
+              <DBABORT>
+	   
+           <DBELSE> 
+
+	      <DBCOOKIE NAME="User_ID" VALUE="#CheckCookie.User_ID#">
+	      <DBSET #LoginName# = #CheckCookie.LoginName#>
+
+	   </DBIF>
+	</DBIF>
+</DBIF>
+CHECK.DBM
+<!--- This includes the security check file.  The security
+check file should be located at the top of every template that
+is protected --->
+
+<DBINCLUDE TEMPLATE="/cfpro/examples/secure/secure.dbm">
+
+<HTML>
+
+<HEAD><TITLE>User Authentication Example</TITLE></HEAD>
+
+<BODY>
+
+<H2>Authentication Succeeded</H2>
+<HR>
+<P>
+
+<DBOUTPUT>
+Welcome to the system. Your authenticated username is #LoginName#.
+</DBOUTPUT>
+
+<P>
+<a href="/cfpro/examples/secure/main.htm">Go to the Login Page</a>.
+
+<P>	
+
+<HR>
+[ <a href="/cfpro/examples/examples.htm">Example Applications</a> ]
+[ <a href="/cfpro/getstart.htm">Getting Started With Cold Fusion</a> ]
+
+</BODY>
+</HTML>
+
+[ Example Applications ]

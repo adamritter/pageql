@@ -1,0 +1,135 @@
+<DBINSERT DATASOURCE="CF Examples" TABLENAME="Orders">
+
+
+https://web.archive.org/web/19961019031325/http://www.allaire.com/cfpro/examples/parks/detail.htm
+
+<DBQUERY NAME="GetType" DATASOURCE="CF Examples" 
+	SQL="SELECT ParkType FROM Parks GROUP BY ParkType">
+	
+<!--- Get information about the region of park --->
+<DBQUERY NAME="GetRegion" DATASOURCE="CF Examples"
+	SQL="SELECT Region FROM Parks GROUP BY Region"> 
+
+<BODY>
+<H1>National Parks Search</H1>
+<a href="/cfpro/examples/park/details.htm"><img src="/cfpro/examples/how.gif" border=0 align=middle></a> 
+<a href="/cfpro/examples/park/details.htm">Behind the Scenes</a>
+<HR>
+<P>
+
+Please enter your search criteria below (all fields are optional): 
+
+<FORM ACTION="/cgi-shl/dbml.exe?template=/cfpro/examples/parks/search.dbm" METHOD=POST>
+
+<!--- The two select boxes below are dynamically populated using the queries 
+above.  Note the location of DBOUTPUT inside the select, but around the
+option value which is dynamically filled. --->
+
+<PRE>
+Park Name:<INPUT TYPE="Text" NAME="ParkName" Size="41">
+
+Park Type:<SELECT NAME="ParkType">
+              <OPTION VALUE="AllTypes" SELECTED>(All Park Types)
+			  <DBOUTPUT Query="GetType">
+			  <OPTION VALUE="#ParkType#">#ParkType#
+			  </DBOUTPUT>
+			</SELECT>
+
+   Region:<SELECT NAME="Region">
+              <OPTION VALUE="AllRegions" SELECTED>(All Regions)
+	          <DBOUTPUT Query="GetRegion">
+	          <OPTION VALUE="#region#">#region# 
+	          </DBOUTPUT>
+            </SELECT>   State:<INPUT TYPE="Text" NAME="State" Size="5">
+
+<INPUT TYPE="Submit" VALUE=" Find Matching Parks ">
+ 
+ </PRE>
+ </FORM>
+
+
+
+
+<HEAD><TITLE>National Parks Search Example</TITLE></HEAD>
+
+<!--- This query uses dynamic querying to construct a query that 
+fits what information was sent from the previous form (main.dbm).
+The use of the DBSET statement allows for the user to input no
+information and see all the records. --->
+
+<DBQUERY NAME="GetParkList" DATASOURCE="CF Examples"
+	SQL="SELECT * FROM Parks" >
+
+	<DBSET #Prefix#="WHERE">
+
+    <DBIF #ParkName# is not "">
+		<DBSQL SQL="#Prefix# ParkName LIKE '%#ParkName#%'">
+		<DBSET #Prefix#="AND">
+	</DBIF>
+
+	<DBIF #ParkType# is not "AllTypes">
+		<DBSQL SQL="#Prefix# ParkType = '#ParkType#'">
+		<DBSET #Prefix#="AND">
+	</DBIF>
+	
+	<DBIF #Region# is not "AllRegions">
+		<DBSQL SQL="#Prefix# Region = '#Region#'">
+		<DBSET #Prefix#="AND">
+	</DBIF>
+		
+	<DBIF #State# is not "">
+		<DBSQL SQL="#Prefix# State = '#State#'">
+	</DBIF>
+
+</DBQUERY>
+
+<BODY>
+
+<H2>Search Results: National Parks</H2>
+<HR>
+<P>
+<DBOUTPUT>
+<H3>#GetParkList.RecordCount# parks matching your search criteria were found.</H3>
+</DBOUTPUT>
+
+
+
+<DBOUTPUT Query="GetParkList">
+<TR>
+<TD><a href="/cgi-shl/dbml.exe?template=/cfpro/examples/parks/detail.dbm&ParkName=#URLEncodedFormat(ParkName)#">#ParkName#</a></TD>
+<TD ALIGN=LEFT>#City#</TD>
+<TD ALIGN="CENTER">#State#</TD>
+</TR>
+</DBOUTPUT>
+</TABLE>
+
+
+
+<DBQUERY NAME="GetDetails" DATASOURCE="CF Examples"
+	SQL="SELECT * FROM Parks WHERE ParkName='#Url.ParkName#'">
+
+<BODY>
+<DBOUTPUT Query="GetDetails">
+<H3>#ParkName#</H3>
+<HR>
+<P>
+<PRE>
+        <B>Address 1:</B> #Address1#				  	 
+        <B>Address 2:</b> #Address2#				  
+        <B>Address 3:</B> #Address3#	
+             <B>City:</b> #city#	           
+            <B>State:</B> #state#
+              <B>Zip:</B> #zipcode#
+            <B>Phone:</B> #comphone#
+          <B>Manager:</B> #SuptMgr#
+     <B>Office Hours:</B> #offhrs#
+
+           <B>Region:</B> #region#
+         <B>ParkType:</B> #parkType#
+ <B>Date Established:</B> #DateEstb#
+
+</pre>
+</DBOUTPUT>
+
+
+

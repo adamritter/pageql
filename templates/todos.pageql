@@ -1,0 +1,176 @@
+
+
+{{!-- ============================================= --}}
+{{!--          ACTION PARTIALS (CRUD etc.)        --}}
+{{!-- ============================================= --}}
+
+{{!-- Add a new Todo --}}
+{{#partial public add}}
+  {{#param text required minlength=0}}
+  {{#insert into todos (text, completed) values (:text, 0)}}
+  {{#redirect '/todos?filter=' || :filter}} {{!-- Redirect to base path --}}
+{{/partial}}
+
+{{!-- Delete a Todo --}}
+{{#partial public delete}}
+  {{#param id required type=integer min=1}}
+  {{#delete from todos WHERE id = :id}}
+  {{#redirect '/todos?filter=' || :filter}} {{!-- Redirect to base path --}}
+{{/partial}}
+
+{{!-- Toggle a single Todo's completion status --}}
+{{#partial public toggle}}
+  {{#param id required type=integer min=1}}
+  {{#update todos set completed = 1 - completed WHERE id = :id}}
+  {{#redirect '/todos?filter=' || :filter}} {{!-- Redirect to base path --}}
+{{/partial}}
+
+{{!-- Save edited Todo text --}}
+{{#partial public save}}
+  {{#param id required type=integer min=1}}
+  {{#param text required minlength=1}}
+  {{#param filter default='all'}} {{!-- Preserve filter for redirect --}}
+  {{#update todos set text = :text WHERE id = :id}}
+  {{#redirect '/todos?filter=' || :filter}} {{!-- Redirect to base path --}}
+{{/partial}}
+
+{{!-- Delete all completed Todos --}}
+{{#partial public clear_completed}}
+  {{#param filter default='all'}} {{!-- Preserve filter for redirect --}}
+  {{#delete from todos WHERE completed = 1}}
+  {{#redirect '/todos?filter=' || :filter}} {{!-- Redirect to base path --}}
+{{/partial}}
+
+{{!-- Toggle all Todos' completion status --}}
+{{#partial public toggle_all}}
+  {{#param filter default='all'}} {{!-- Preserve filter for redirect --}}
+  {{!-- Check if all are currently complete to decide toggle direction --}}
+  {{#set :active_count COUNT(*) from todos WHERE completed = 0}}
+  {{#set :new_status 1}} {{!-- Default to marking all complete --}}
+  {{#if :active_count == 0}} {{!-- If none active, mark all incomplete --}}
+    {{#set :new_status 0}}
+  {{/if}}
+  {{#update todos set completed = :new_status}}
+  {{#redirect '/todos?filter=' || :filter}} {{!-- Redirect to base path --}}
+{{/partial}}
+
+
+{{!-- ============================================= --}}
+{{!--           MAIN DISPLAY PARTIAL              --}}
+{{!-- ============================================= --}}
+
+{{!-- Ensure the 'todos' table exists before proceeding --}}
+{{#create table if not exists todos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    text TEXT NOT NULL,
+    completed INTEGER DEFAULT 0 CHECK(completed IN (0, 1))
+)}}
+
+
+{{!-- Default view (maps to /todos), displays the list and handles edit state --}}
+{{#param filter default='all' pattern="^(all|active|completed)$" optional}}
+{{#param edit_id type=integer optional}}
+
+
+{{!-- Get counts for footer and toggle-all logic --}}
+{{#set active_count COUNT(*) from todos WHERE completed = 0}}
+{{#set completed_count COUNT(*) from todos WHERE completed = 1}}
+{{#set total_count  COUNT(*) from todos}}
+{{#set all_complete (:active_count == 0 AND :total_count > 0)}}
+
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ReactiveSQL • TodoMVC</title>
+<!-- Link to TodoMVC base CSS -->
+<link rel="stylesheet" href="base.css">
+<link rel="stylesheet" href="index.css">
+<!-- Your custom CSS might go here -->
+
+</head>
+<body>
+<section class="todoapp">
+    <header class="header">
+    <h1>todos</h1>
+    <form method="POST" action="/todos/add">
+        <input type="hidden" name="filter" value="{{filter}}">
+        <input name="text" class="new-todo" placeholder="What needs to be done?" autofocus>
+    </form>
+    </header>
+
+    {{!-- This section should be hidden if there are no todos --}}
+    {{#if :total_count > 0}}
+    <section class="main">
+        <form method="POST" action="/todos/toggle_all" id="toggle-all-form" style="display: block;">
+            <input type="hidden" name="filter" value="{{filter}}">
+            <input id="toggle-all" class="toggle-all" type="checkbox" {{#if all_complete}}checked{{/if}} onchange="document.getElementById('toggle-all-form').submit();">
+            <label for="toggle-all">Mark all as complete</label>
+        </form>
+
+        <ul class="todo-list">
+
+        {{#from todos WHERE (:filter == 'all') OR (:filter == 'active' AND completed = 0) OR (:filter == 'completed' AND completed == 1) ORDER BY id}}
+            {{!-- TODO:  completed isn't part of the sql expression here. There shouldn't be difference between param and column I guess,
+                 we need to shallow dup params for all rows for now. New rule: : is optional only for 1 word expressions, in that case sql eval is skipped, just direct --}}
+            <li {{#if completed}}class="completed"{{/if}} {{#if :edit_id == :id}}class="editing"{{/if}}>
+
+            {{#if :edit_id == :id}}
+                {{!-- Edit State --}}
+                <form method="POST" action="/todos/save" style="margin: 0; padding: 0; display: inline;">
+                <input type="hidden" name="id" value="{{id}}">
+                <input type="hidden" name="filter" value="{{filter}}">
+                <input class="edit" name="text" value="{{text}}" autofocus>
+                </form>
+            {{#else}}
+                {{!-- View State --}}
+                <div class="view">
+                <form method="POST" action="/todos/toggle" style="display: inline;">
+                    <input type="hidden" name="id" value="{{id}}">
+                    <input type="hidden" name="filter" value="{{filter}}">
+                    <input class="toggle" type="checkbox" {{#if completed}}checked{{/if}} onchange="this.form.submit();">
+                </form>
+                {{!-- Edit link points to base path --}}
+                <label ondblclick="window.location.href='/todos?filter={{filter}}&edit_id={{id}}'">{{text}}</label>
+                    <form method="POST" action="/todos/delete" style="display: inline;">
+                    <input type="hidden" name="id" value="{{id}}">
+                    <input type="hidden" name="filter" value="{{filter}}">
+                    <button class="destroy"></button>
+                </form>
+                </div>
+            {{/if}}
+
+            </li>
+        {{/from}}
+        </ul>
+    </section>
+
+    {{!-- This footer should be hidden if there are no todos --}}
+    <footer class="footer">
+        <span class="todo-count"><strong>{{active_count}}</strong> item{{#if :active_count != 1}}s{{/if}} left
+         {{#if :total_count > :active_count}}from {{ total_count}}{{/if}}</span>
+       
+        <ul class="filters">
+            {{!-- Filter links point to base path --}}
+        <li><a {{#if :filter == 'all'}}class="selected"{{/if}} href="/todos?filter=all">All</a></li>
+        <li><a {{#if :filter == 'active'}}class="selected"{{/if}} href="/todos?filter=active">Active</a></li>
+        <li><a {{#if :filter == 'completed'}}class="selected"{{/if}} href="/todos?filter=completed">Completed</a></li>
+        </ul>
+        {{!-- This should be hidden if there are no completed todos --}}
+        {{#if :completed_count > 0}}
+        <form method="POST" action="/todos/clear_completed" style="display: inline;">
+            <input type="hidden" name="filter" value="{{filter}}">
+            <button class="clear-completed">Clear completed</button>
+        </form>
+        {{/if}}
+    </footer>
+    {{/if}} {{!-- End total_count > 0 --}}
+
+</section>
+<footer class="info">
+    <p>Double-click to edit a todo</p>
+</footer>
+
+</body>
+</html>

@@ -1,0 +1,217 @@
+Comment Box (Behind the Scenes)
+[ << Back to Example ]
+Overview
+The Comment Box example demonstrates a simple fill out form which visitors to a Web site can use to provide suggestions, submit problem reports, and request information. The comments submitted are saved to the Comments table of the examples database.
+
+Review of submitted comments is done through a Web-based interface to the Comments table. New comments are retrieved and displayed for review, and the user is then able to send e-mail replies to comments as well as archive the comments to indicate that they have been reviewed.
+
+
+Implementation Files
+Directory Name: COMMENTS
+File Name       Type       Function                         
+
+COMMENT.HTM     HTML       Allows the user to submit         
+                           comments.       
+
+THANKS.DBM      Template   Submits the comment to the
+                           database and thanks the user        
+                           for their comments.                        
+
+REVIEW.DBM      Template   Review and process comments      
+                           which have been submitted to     
+                           the comment box.                 
+COMMENT.HTM
+<HTML>
+<HEAD>
+<TITLE>Cold Fusion Comment Box</TITLE>
+</HEAD>
+<BODY>
+
+<h2>Submit Comments and Feedback</h2>
+<hr>
+<p>
+
+<FORM ACTION="/cgi-shl/dbml.exe?Template=/cfpro/examples/comments/thanks.dbm" 
+      METHOD=POST>
+
+<!-- Using a standard INSERT, you can collect basic comment 
+     information on person, e-mail, subject, and actual text.  
+     Also, using hidden fields, you can automatically 
+     time-stamp the input for later use  -->
+
+       <INPUT TYPE="hidden" NAME="Posted" VALUE="CurrentDateTime()">
+<PRE>
+ Your Name: <INPUT SIZE=40 NAME="FromUser">
+Your Email: <INPUT SIZE=40 NAME="EMail">
+   Subject: <INPUT  SIZE=40 NAME="Subject">
+    Nature: <SELECT NAME="CommentType" size=1>
+                   <option selected>Suggestion
+                   <option>Problem
+                   <option>Request
+</select></PRE>
+ </PRE>
+
+<TEXTAREA ROWS=15 COLS=55 NAME="MessageText"></TEXTAREA><P>
+
+<INPUT TYPE="submit" VALUE="  Submit Comment  ">
+<INPUT TYPE="reset" VALUE="Clear Entries"><BR>
+
+<!-- Note: You can use hidden fields to require that certain 
+     other fields have values before submission.  In this 
+     example, an E-mail adress and user name is required 
+     before the entry can be submitted  -->
+
+<input type="hidden" name="EMail_required" 
+    value="You must enter an E-Mail Address.">
+
+<input type="hidden" name="FromUser_required" 
+    value="You must enter your name.">
+
+</FORM>
+
+<P>
+<HR>
+[ <a href="main.htm">Comment Box Example</a> ]
+[ <a href="../examples.htm">Example Applications</a> ]
+
+</BODY>
+</HTML>
+
+THANKS.DBM
+<!--- Insert the data passed from the form --->
+
+<DBINSERT DATASOURCE="CF Examples" TABLENAME="Comments">
+
+
+<!--- Display a message to the user indicating that the 
+      comment was received --->
+
+<html>
+<head>
+<title>Thanks for the Comment!</title>
+</head>
+<body>
+<h1>Thanks for the Comment!</h1>
+<p>
+<hr>
+<P>
+
+Your message has been received and will be read and considered soon.
+<p>
+
+<HR>
+[ <a href="/cfpro/examples/comments/main.htm">Comment Box Example</a> ]
+[ <a href="/cfpro/examples/examples.htm">Example Applications</a> ]
+</body>
+</html>
+
+REVIEW.DBM
+<!--- If we are coming to this page as a result of an 
+      "Archive Comment" action then do the appropriate
+	  database update to archive the comment. --->
+
+<DBIF #ParameterExists(Form.CommentID)# is "Yes">
+  <DBUPDATE DATASOURCE="CF Examples" TABLENAME="Comments">
+</DBIF>
+
+
+
+<!--- Show the unarchived comments --->
+
+<html>
+<head>
+<title>
+Comment Review and Archiving
+</title>
+<body >
+
+<h2>Comment Review and Archiving</h2>
+<HR>
+
+<!-- Run a query to get unprocessed comments -->
+
+<DBQUERY NAME="CommentQuery" DATASOURCE="CF Examples" 
+    SQL="SELECT * FROM Comments WHERE (Comments.Processed=No)">
+
+
+<!-- Using a DBIF statement, a special message can be sent back to the
+     administrator informing them that there are no new messages-->
+
+<DBIF #CommentQuery.RecordCount# is 0>
+
+      <P>There are no new comments to review.
+
+<DBELSE>
+
+<A NAME="Top"></A>
+
+<h3>Summary of New Comments</h3>
+
+<!-- Note that in the DBTABLE we use escape quotes and pound signs --> 
+
+<dbtable query="CommentQuery" colheaders headerlines=2 colspacing=2>
+
+   <dbcol header="Subject" width=28 align=left 
+      text="<a href=""###CommentID#"">#Subject#</a>">
+   <dbcol header="User" width=16 align=left text="#FromUser#">
+   <dbcol header="Date" width=10 align=left text="#DateFormat(Posted)#">
+
+</dbtable>
+
+<PRE>
+</PRE>
+
+
+<!-- This section provides the detailed output for each comment in the 
+     comment box. Using internal anchors, it is possible to create 
+     'Threaded' views of postings. Note also that in order to use 
+     internal anchors, one must escape out pound signs with an 
+     additional pound sign.  That sends Cold fusion a cue to ignore 
+     the other pound -->
+
+<DBOUTPUT QUERY="CommentQuery">
+
+<hr>
+
+<!-- You can use an UPDATE statement to process comments. After 
+     processing the comment, the database no longer sees messages 
+     as new.  All processed comments are stored in the COMMENTS 
+     table as an archive.  -->
+
+<P>
+<a name="#CommentID#"></a>
+<PRE>
+<B>Subject:</B>  #Subject#
+<B>User:   </B>  <a href="mailto:#EMail#">#FromUser#</a>
+<B>Date:   </B>  #DateFormat(Posted)#
+<B>Type:   </B>  #CommentType#</PRE>
+<p>
+#ParagraphFormat(MessageText)#
+
+<!--- This template calls itself to implement an Update. This allows the 
+      update to occur and the new list to be displayed at the same time. --->
+
+<FORM ACTION="/cgi-shl/dbml.exe?Template=/cfpro/examples/comments/review.dbm"
+      METHOD="POST">
+	  
+     <INPUT TYPE="hidden" NAME="CommentID" VALUE="#CommentID#">
+     <INPUT TYPE="hidden" NAME="Processed" VALUE="Yes">
+ 
+     <INPUT TYPE="submit" VALUE="  Archive Comment  ">
+
+</FORM>
+
+<p>
+
+</DBOUTPUT>
+
+</DBIF>
+
+<P>
+<HR>
+[ <a href="/cfpro/examples/comments/main.htm">Comment Box Example</a> ]
+[ <a href="/cfpro/examples/examples.htm">Example Applications</a> ]
+
+
+</BODY>
+</HTML>

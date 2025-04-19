@@ -11,7 +11,7 @@ Classes:
 
 # Instructions for LLMs and devs: Keep the code short. Make changes minimal. Don't change even tests too much.
 
-import re, time
+import re, time, sys    
 import doctest
 import sqlite3
 import html
@@ -109,16 +109,21 @@ class PageQL:
             True
         """
         # Parse the source and store the list of node tuples
-        self._modules[name] = self.parse_simple(source) # Use self.parse_simple
+        self._modules[name] = self.parse(source) # Use self.parse
 
-    def parse_simple(self, source):
+    def parse(self, source):
         """Parses source into ('text', content) and ('comment', content) tuples."""
         nodes = []
-        parts = re.split(r'({{.*?}})', source, flags=re.DOTALL)
+        parts = re.split(r'({{.*?}}}?)', source, flags=re.DOTALL)
         for part in parts:
+            # print to stderr
+            print(part, file=sys.stderr)
             if not part: # Skip empty strings that can result from split
                 continue
-            if part.startswith('{{') and part.endswith('}}'):
+            if part.startswith('{{{') and part.endswith('}}}'):
+                part = part[3:-3].strip()
+                nodes.append(('render_raw', part))
+            elif part.startswith('{{') and part.endswith('}}'):
                 part = part[2:-2].strip()
                 if part.startswith('!--') and part.endswith('--'):
                     pass # Skip comment nodes
@@ -182,6 +187,8 @@ class PageQL:
             ... {{#elif 2<3}}
             ... 2<3
             ... {{/if}}
+            ... {{'&amp;'}}
+            ... {{{'&amp;'}}}
             ... End Text.
             ... '''
             >>> r.load_module("comment_test", source_with_comment)
@@ -200,6 +207,8 @@ class PageQL:
             hello second row
             hello world
             2<3
+            &amp;amp;
+            &amp;
             End Text.
             >>> # Simulate GET /nonexistent
             >>> print(r.render("/nonexistent").status_code)
@@ -490,6 +499,8 @@ class PageQL:
                     output_buffer.append(f"<p>Dumping {node_content} took {(end_time - t)*1000:.2f} ms</p>")
                 elif node_type == '#log':
                     print("Logging: " + str(evalone(self.db, node_content, params)))
+                elif node_type == 'render_raw':
+                    output_buffer.append(str(evalone(self.db, node_content, params)))
                 else:
                     raise Exception(f"Unknown node type: {node_type}")
                 # --- End Main node processing ---

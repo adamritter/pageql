@@ -129,11 +129,11 @@ The engine distinguishes between binding these variables *into* SQL queries and 
     *   Example: `{{ my_var }}` is allowed (equivalent to `{{ :my_var }}`).
     *   Example: `#if my_var` is allowed (equivalent to `#if :my_var`).
     *   This shorthand **cannot** be used for more complex expressions within `{{ }}` or `#if`. For instance, `{{ my_var + 1 }}` or `#if my_var > 0` would require evaluation by the SQL engine and thus necessitate the colon prefix for clarity and proper parsing (e.g., `#if :my_var > 0`). The exact handling of complex expressions within `{{ }}` is still under consideration, but simple variable output is the primary use case.
-*   **HTML Escaped Output (`{{ :variable }}` or `{{ variable }}`):**
+*   **HTML Escaped Output (`{{ expression }}` or `{{ variable }}`):**
     *   This is the default and recommended way to output data.
     *   It automatically escapes HTML special characters (like `<`, `>`, `&`) to prevent Cross-Site Scripting (XSS) attacks.
     *   **Context-Aware Quoting:** When used inside an HTML attribute value (`<input value={{ :username }}>` or `<input value={{ username }}>`) or within a `<script>` tag for generating JSON-like structures, it *should ideally* automatically wrap string values in appropriate quotes (`<input value="Adam">`). *(Implementation detail)*
-*   **Raw/Unescaped Output (`{{{ :variable }}}` or `{{{ variable }}}`):**
+*   **Raw/Unescaped Output (`{{{ expression }}}` or `{{{ variable }}}`):**
     *   Outputs the variable's value directly without any HTML escaping. The same optional colon rule applies.
     *   **Use with extreme caution!** Only use this if you are certain the variable contains safe, pre-sanitized HTML or content that should not be escaped. Incorrect use can easily lead to XSS vulnerabilities.
 

@@ -1,4 +1,3 @@
-import uvicorn
 import asyncio
 import argparse
 import os, time
@@ -336,6 +335,12 @@ class PageQLApp:
             await self.pageql_handler(scope, receive, send)
 
 if __name__ == "__main__":
+    try:
+        import uvicorn
+    except ImportError:
+        print("Error: uvicorn is not installed. Please install it with 'pip install uvicorn'.")
+        exit(1)
+
     parser = argparse.ArgumentParser(description="Run the PageQL development server.")
     parser.add_argument('--db', required=True, help="Path to the SQLite database file.")
     parser.add_argument('--dir', required=True, help="Path to the directory containing .pageql template files.")

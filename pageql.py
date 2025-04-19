@@ -116,8 +116,6 @@ class PageQL:
         nodes = []
         parts = re.split(r'({{.*?}}}?)', source, flags=re.DOTALL)
         for part in parts:
-            # print to stderr
-            print(part, file=sys.stderr)
             if not part: # Skip empty strings that can result from split
                 continue
             if part.startswith('{{{') and part.endswith('}}}'):

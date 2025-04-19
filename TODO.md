@@ -7,7 +7,6 @@ Missing Tags: The README.md mentions several tags as planned or out-of-scope tha
 #each (or similar looping): Needed for iterating over data structures passed as parameters, not just database results from #from.
 #header, #cookie, #contenttype: Crucial for controlling HTTP responses (caching, sessions, API content types, etc.).
 
-Raw Output: The README.md discusses {{{ variable }}} for unescaped output, but it doesn't seem to be implemented in pageql.py. This is sometimes necessary but needs careful handling.
 View Definition (#view): While mentioned, it's unclear if #view is fully implemented for defining reusable SQL views within the templates.
 
 Parsing Robustness: The parse_simple function in pageql.py is very basic (simple regex split). It might struggle with nested tags, complex attribute quoting, or minor syntax variations, making templates potentially brittle.

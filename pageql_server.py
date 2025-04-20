@@ -57,7 +57,31 @@ class PageQLApp:
         self.should_reload = should_reload
         self.to_reload = []
         self.static_files = {}
+        self.before_hooks = {}
         self.prepare_server(db_path, template_dir, create_db)
+    
+    def before(self, path):
+        """
+        Decorator for registering a before hook for a specific path.
+        
+        Example usage:
+        @app.before('/path')
+        async def before_handler(params):
+            params['title'] = 'Custom Title'
+            return params
+        """
+        def decorator(func):
+            # Check if the function is async or sync and store it appropriately
+            if asyncio.iscoroutinefunction(func):
+                self.before_hooks[path] = func
+            else:
+                # Wrap sync function in an async function
+                async def async_wrapper(params):
+                    return func(params)
+                self.before_hooks[path] = async_wrapper
+            return func
+        return decorator
+
 
     def load(self, template_dir, filename):
         filepath = os.path.join(template_dir, filename)
@@ -139,7 +163,11 @@ class PageQLApp:
         try:
             # The render method in pageql.py handles path resolution (e.g., /todos/add)
             t = time.time()
-            print(f"Rendering {path_cleaned} with params: {params}")
+            path = parsed_path.path
+            print(f"Rendering {path} as {path_cleaned} with params: {params}")
+            if path in self.before_hooks:
+                print(f"Before hook for {path}")
+                await self.before_hooks[path](params)
             result = self.pageql_engine.render(path_cleaned, params)
             print(f"{method} {path_cleaned} Params: {params} ({(time.time() - t) * 1000:.2f} ms)")
             print(f"Result: {result.status_code} {result.redirect_to} {result.headers}")

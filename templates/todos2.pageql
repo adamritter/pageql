@@ -1,3 +1,4 @@
+<a href="/">Main</a><br>
 Cool, this is a test for creating a todos app from nothing
 {{#partial public add}}
   {{#param text required}}
@@ -32,7 +33,7 @@ Cool, this is a test for creating a todos app from nothing
 
 <form method="POST" action="/todos2/add">
   <input type="text" name="text" placeholder="What needs to be done?" required>
-  <button type="submit">Add To do</button>
+  <button type="submit">Add to do</button>
 </form>
 </form>
 

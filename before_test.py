@@ -12,8 +12,9 @@ parser.add_argument('--no-reload', action='store_true', help="Do not reload and 
 args = parser.parse_args()
 app = pageql_server.PageQLApp(args.db, args.dir, create_db=args.create, should_reload=not args.no_reload)
 
-@app.before('/todos2')
+@app.before('/before')
 async def get(params):
+    print("params", params)
     params['title'] = 'horse'
 
 print(f"\nPageQL server running on http://localhost:{args.port}")

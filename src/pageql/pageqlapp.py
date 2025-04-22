@@ -7,7 +7,7 @@ from urllib.parse import urlparse, parse_qs
 from watchfiles import awatch
 
 # Assuming pageql.py is in the same directory or Python path
-import pageql
+from .pageql import PageQL
 
 # Global PageQL engine instance (simpler for this example)
 reload_script = """
@@ -310,7 +310,7 @@ class PageQLApp:
         print(f"Loading database from: {db_path}")
 
         try:
-            self.pageql_engine = pageql.PageQL(db_path)
+            self.pageql_engine = PageQL(db_path)
         except Exception as e:
             print(f"Error initializing PageQL engine: {e}")
             exit(1)

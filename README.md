@@ -3,7 +3,8 @@ PageQL is a template / application language that is trying to be a modern versio
 Usage: python pageql_server.py --db data.db --dir templates --port 8000 --create
 
 
-## TODO before alpha release: use it for mo
+## TODO before alpha release: use it for more concrete examples.
+I believe the current state is great, of course it needs a pip install
 
 ## Core Philosophy
 

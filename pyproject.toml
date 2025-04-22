@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pageql"
+version = "0.1.0"
+description = "A template language for embedding SQL inside HTML directly"
+readme = "README.md"
+authors = [
+    {name = "adamritter"}
+]
+license = {text = "MIT"}
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+requires-python = ">=3.7"
+dependencies = [
+    "uvicorn",
+    "watchfiles",
+]
+
+[project.scripts]
+pageql = "pageql.cli:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+packages = ["pageql"] 

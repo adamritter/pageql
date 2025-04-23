@@ -311,6 +311,7 @@ class PageQLApp:
 
         try:
             self.pageql_engine = PageQL(db_path)
+            self.conn = self.pageql_engine.db
         except Exception as e:
             print(f"Error initializing PageQL engine: {e}")
             exit(1)

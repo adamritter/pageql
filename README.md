@@ -1,6 +1,6 @@
 PageQL is a template / application language that is trying to be a modern version of embedding SQL inside HTML directly.
 
-Usage: python pageql_server.py --db data.db --dir templates --port 8000 --create
+Usage: ```python pageql_server.py --db data.db --dir templates --port 8000 --create```
 
 
 ## TODO before alpha release: use it for more concrete examples.
@@ -23,7 +23,7 @@ A key long-term goal for PageQL is to support **live, reactive SQL queries**. Th
 This goal is a primary driver behind several core design choices:
 
 *   **Declarative Nature:** By using declarative tags like `#from` to define data requirements, the system can potentially understand the data dependencies of a template fragment.
-*   **Minimal Scripting ("Logic-less"):** Limiting imperative scripting makes it feasible to analyze template dependencies statically. Complex scripting logic would make it extremely difficult, if not impossible, to reliably track which data changes should trigger which UI updates.
+*   **Minimal Scripting (`Logic-less`):** Limiting imperative scripting makes it feasible to analyze template dependencies statically. Complex scripting logic would make it extremely difficult, if not impossible, to reliably track which data changes should trigger which UI updates.
 *   **Focus on SQL:** Leveraging the database allows potential integration with database-specific notification or change-tracking mechanisms (e.g., triggers, event systems, logical replication) in the future to power this reactivity.
 
 By keeping the templates focused on declaring *what* data is needed rather than *how* to fetch and update it imperatively, PageQL aims to lay the groundwork for automatically reflecting database changes in the rendered HTML with minimal developer effort in future versions.
@@ -62,7 +62,8 @@ pageql --db path/to/your/database.sqlite --dir ./templates --port 8080
 ## Proposed Tag Syntax
 
 **Database/Query:**
-*(Note: All database modification tags (`#insert`, `#update`, `#delete`) executed within a single request lifecycle are typically treated as a single atomic transaction. Processing stops on the first error, and prior modifications within the same request are rolled back.)*
+
+* (Note: All database modification tags (`#insert`, `#update`, `#delete`) executed within a single request lifecycle are typically treated as a single atomic transaction. Processing stops on the first error, and prior modifications within the same request are rolled back.)*
 *   `#from <table> [WHERE ...] [ORDER BY ...]`: Executes a `SELECT` query against a table (or potentially a view) and iterates over the results. Supports binding parameters (e.g., `:limit`).
 *   `#view <name> from <table> [WHERE ...]`: Creates a reusable SQL view definition. Supports binding parameters (e.g., `:halfusers`).
 *   `#insert into <table> [(col1, col2, ...)] values (val1, val2, ...)`: Executes an `INSERT` SQL command. The column list is optional if values are provided for all columns in order. Values (`val1`, `val2`, etc.) can be literals or bound parameters (e.g., `:form_field_name`).
@@ -70,6 +71,7 @@ pageql --db path/to/your/database.sqlite --dir ./templates --port 8080
 *   `#delete from <table> [WHERE ...]`: Executes a `DELETE` SQL command. Supports binding parameters in the `WHERE` clause.
 
 **Partials/Modules:**
+
 *   `#render <partial> [param=value ...]`: Renders a partial (defined locally or imported), optionally passing parameters.
 *   `#partial [public] <name>`: Defines a reusable partial block.
     *   **Public Access:** If the optional `public` keyword is included, the partial block becomes directly accessible via an HTTP GET request at the URL path `/<filename>/<partial_name>` (where `<filename>` is the name of the template file without the `.pageql` extension).
@@ -78,6 +80,7 @@ pageql --db path/to/your/database.sqlite --dir ./templates --port 8080
 *   [NOT IMPLEMENTED] `#import <module> [as <alias>]`: Imports modules relative to the template root directory, optionally assigning an alias. Assumes `.pageql` extension (e.g., `#import "components/button"` loads `components/button.pageql`).
 
 **Variable Manipulation:**
+
 *   `#set :<variable> <expression> [from <table> [WHERE ...]]`: Sets a variable. The value can be a literal (string, integer, float, `NULL`), or the result of a SQL expression, optionally evaluated against a table with a `WHERE` clause.
 *   `#param <name> [type=<type>] [optional | required] [default=<expression>] [min=<num>] [max=<num>] [minlength=<num>] [maxlength=<num>] [pattern="<regex>"]`: Declares and optionally validates an expected request parameter (URL query string or POST form variable) named `<name>`.
     *   **Behavior:** Choose `optional` or `required`. **If neither is specified, the default is `required`.**
@@ -88,6 +91,7 @@ pageql --db path/to/your/database.sqlite --dir ./templates --port 8080
     *   **Access:** The validated (and potentially defaulted) parameter value is made available as `:<name>`. Direct access via `:<name>` without this tag bypasses validation and defaults.
 
 **Flow Control:**
+
 *   `#if <expression>`: Conditional rendering based on an expression.
 *   `#else`: Else condition within an `#if` block.
 *   `#elif <expression>`: Else-if condition within an `#if` block.
@@ -98,6 +102,7 @@ pageql --db path/to/your/database.sqlite --dir ./templates --port 8080
 *   `#log <message>`: Writes a message to a log.
 
 **Page Processing:**
+
 *   `#statuscode <expression>`: Sets the HTTP response status code.
 *   `#redirect <url_expression>`: Performs an HTTP redirect by setting the `Location` header and status code to 302.
 *   [NOT IMPLEMENTED] `#header <name> <value_expression>`: Sets an HTTP response header. The `<name>` (e.g., `Cache-Control`, `"X-Custom-Header"`) and `<value_expression>` (e.g., `"no-cache"`, `:some_variable`) are required positional arguments. Must typically be used before any HTML output. Example: `#header Cache-Control "no-cache, no-store, must-revalidate"`
@@ -143,6 +148,7 @@ The engine distinguishes between binding these variables *into* SQL queries and 
 PageQL does not define its own expression language. Instead, it leverages the expression evaluation capabilities of the underlying SQL database engine (e.g., SQLite).
 
 Expressions are primarily used in:
+
 *   **`#if <expression>` / `#elif <expression>`:** To conditionally render blocks of content. The expression should evaluate to a boolean-like value (in SQLite, 0 is false, non-zero is true). If the expression is more complex than a single variable name, it **must** use the colon prefix for variables (e.g., `#if :count > 10`).
 *   **`#set :<variable> <expression> [from ...]`:** To compute a value to assign to a variable. Variables used within the `<expression>` **must** use the colon prefix (e.g., `#set :total_price :quantity * :unit_price`).
 *   **`WHERE <expression>` clauses:** Within database query tags (`#from`, `#update`, `#delete`, `#view`, `#set ... from`) to filter data. Variables **must** use the colon prefix (e.g., `WHERE user_id = :id`).
@@ -151,6 +157,7 @@ Expressions are primarily used in:
 **Allowed Expressions:**
 
 Generally, you can use standard SQL expressions supported by your database, such as:
+
 *   Comparisons (`=`, `!=`, `<`, `>`, `<=`, `>=`, `IS NULL`, `IS NOT NULL`, `LIKE`, `IN`)
 *   Logical operators (`AND`, `OR`, `NOT`)
 *   Basic arithmetic (`+`, `-`, `*`, `/`)
@@ -160,6 +167,7 @@ Generally, you can use standard SQL expressions supported by your database, such
 
 Current example:
 
+```
 <!-- Define a reusable partial -->
 {{#partial shownumusers}}
     Partial Scope: Half of the users is {{ halfusers }}
@@ -214,3 +222,4 @@ Render after param:
     {{/from}}
   </tbody>
 </table>
+```

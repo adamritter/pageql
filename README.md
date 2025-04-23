@@ -162,7 +162,7 @@ Generally, you can use standard SQL expressions supported by your database, such
 Example:
 
 
-```
+```html
 <!-- Define a reusable partial -->
 {{#partial shownumusers}}
     Partial Scope: Half of the users is {{ halfusers }}

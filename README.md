@@ -159,8 +159,10 @@ Generally, you can use standard SQL expressions supported by your database, such
 
 **Important:** Since expressions are evaluated by the database, their exact syntax and available functions depend on the specific SQL database being used (primarily SQLite in the initial design). Variables within these expressions must be prefixed with `:`.
 
-Current example:
+Example:
 
+
+```
 <!-- Define a reusable partial -->
 {{#partial shownumusers}}
     Partial Scope: Half of the users is {{ halfusers }}
@@ -215,3 +217,4 @@ Render after param:
     {{/from}}
   </tbody>
 </table>
+```

@@ -1,10 +1,10 @@
-PageQL is a template / application language that is trying to be a modern version of embedding SQL inside HTML directly.
+PageQL is a template / application language / micro python web framework that allows embedding SQL inside HTML directly.
 
-Usage: ```python pageql_server.py --db data.db --dir templates --port 8000 --create```
+Usage: ```pageql data.db templates --create```
 
+Usage: ```pageql data.db templates --create```
 
-## TODO before alpha release: use it for more concrete examples.
-I believe the current state is great, of course it needs a pip install
+Install: pip install pageql
 
 ## Core Philosophy
 
@@ -50,11 +50,11 @@ To maintain focus and simplicity, several design choices have been made:
 PageQL is intended to be run via a command-line tool. The basic usage involves pointing the tool at a directory of `.pageql` files and specifying the SQLite database to use.
 
 ```bash
-pageql --db path/to/your/database.sqlite --dir ./templates --port 8080
+pageql -path/to/your/database.sqlite ./templates
 ```
 
-*   `--db <path>`: (Required) Path to the SQLite database file.
-*   `--dir <path>`: (Required) Path to the directory containing the PageQL template files (`.pageql`) to be served.
+*   `<path>`: (Required) Path to the SQLite database file.
+*   `<path>`: (Required) Path to the directory containing the PageQL template files (`.pageql`) to be served.
 *   `--port <number>`: (Optional) Port number to run the development server on. Defaults to a standard port (e.g., 8000 or 8080).
 
 *(Note: Actual command name and argument flags are subject to change.)*
@@ -165,9 +165,9 @@ Generally, you can use standard SQL expressions supported by your database, such
 
 **Important:** Since expressions are evaluated by the database, their exact syntax and available functions depend on the specific SQL database being used (primarily SQLite in the initial design). Variables within these expressions must be prefixed with `:`.
 
-Current example:
+Example:
 
-```
+```html
 <!-- Define a reusable partial -->
 {{#partial shownumusers}}
     Partial Scope: Half of the users is {{ halfusers }}

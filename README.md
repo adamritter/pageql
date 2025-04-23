@@ -4,9 +4,6 @@ Usage: pageql data.db templates --create
 
 Install: pip install pageql
 
-## TODO before alpha release: use it for more concrete examples.
-I believe the current state is great, of course it needs a pip install
-
 ## Core Philosophy
 
 PageQL aims to simplify web development involving relational data by allowing direct embedding of SQL-like queries within HTML templates. It draws inspiration from ColdFusion Markup Language (CFML) but focuses specifically on rendering reactive relational data.

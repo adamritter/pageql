@@ -112,6 +112,7 @@ pageql -path/to/your/database.sqlite ./templates
 ## Parameter Binding & Output
 
 PageQL uses a unified namespace for variables originating from different sources:
+
 *   Request parameters declared and validated via `#param`.
 *   Variables explicitly set using `#set`.
 *   Columns selected within a `#from` loop (each column becomes a variable within the loop's scope).

@@ -120,6 +120,7 @@ class PageQLApp:
             content_type, _ = mimetypes.guess_type(path_cleaned)
             print(f"Serving static file: {path_cleaned} as {content_type}")
             if content_type == 'text/html':
+                content_type = 'text/html; charset=utf-8'
                 # add reload script to the body
                 body = (reload_script.encode('utf-8') + self.static_files[path_cleaned])
             else:
@@ -127,9 +128,7 @@ class PageQLApp:
             await send({
                 'type': 'http.response.start',
                 'status': 200,
-                'headers': [(b'content-type', content_type.encode('utf-8')),
-                            (b'content-length', str(len(body)).encode('utf-8')),
-                            (b'content-encoding', b'utf-8')],
+                'headers': [(b'content-type', content_type.encode('utf-8'))],
             })
             await send({
                 'type': 'http.response.body',

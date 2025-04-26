@@ -395,16 +395,16 @@
   <p>Inside the <code>&lt;footer class="footer"&gt;</code> block (just after the item‑count), add:</p>
 
   <pre class="code-block"><code class="language-html">
-&lt;<span class="keyword">ul</span> <span class="attribute">class</span>=<span class="string">"filters"</span>&gt;
-  &lt;<span class="keyword">li</span>&gt;&lt;<span class="keyword">a</span> &#123;&#123;<span class="keyword">#if</span> :<span class="variable">filter</span> == <span class="string">'all'</span>&#125;&#125;<span class="attribute">class</span>=<span class="string">"selected"</span>&#123;&#123;/<span class="keyword">if</span>&#125;&#125; <span class="attribute">href</span>=<span class="string">"/todos?filter=all"</span>&gt;All&lt;/<span class="keyword">a</span>&gt;&lt;/<span class="keyword">li</span>&gt;
-  &lt;<span class="keyword">li</span>&gt;&lt;<span class="keyword">a</span> &#123;&#123;<span class="keyword">#if</span> :<span class="variable">filter</span> == <span class="string">'active'</span>&#125;&#125;<span class="attribute">class</span>=<span class="string">"selected"</span>&#123;&#123;/<span class="keyword">if</span>&#125;&#125; <span class="attribute">href</span>=<span class="string">"/todos?filter=active"</span>&gt;Active&lt;/<span class="keyword">a</span>&gt;&lt;/<span class="keyword">li</span>&gt;
-  &lt;<span class="keyword">li</span>&gt;&lt;<span class="keyword">a</span> &#123;&#123;<span class="keyword">#if</span> :<span class="variable">filter</span> == <span class="string">'completed'</span>&#125;&#125;<span class="attribute">class</span>=<span class="string">"selected"</span>&#123;&#123;/<span class="keyword">if</span>&#125;&#125; <span class="attribute">href</span>=<span class="string">"/todos?filter=completed"</span>&gt;Completed&lt;/<span class="keyword">a</span>&gt;&lt;/<span class="keyword">li</span>&gt;
-&lt;/<span class="keyword">ul</span>&gt;
-</code><div class="clean-code"><ul class="filters">
-  <li><a {{#if :filter == 'all'}}class="selected"{{/if}} href="/todos?filter=all">All</a></li>
-  <li><a {{#if :filter == 'active'}}class="selected"{{/if}} href="/todos?filter=active">Active</a></li>
-  <li><a {{#if :filter == 'completed'}}class="selected"{{/if}} href="/todos?filter=completed">Completed</a></li>
-</ul></div></pre>
+&lt;<span class="keyword">div</span> <span class="attribute">class</span>=<span class="string">"filters"</span>&gt;
+  &lt;<span class="keyword">a</span> &#123;&#123;<span class="keyword">#if</span> :<span class="variable">filter</span> == <span class="string">'all'</span>&#125;&#125;<span class="attribute">class</span>=<span class="string">"selected"</span>&#123;&#123;/<span class="keyword">if</span>&#125;&#125; <span class="attribute">href</span>=<span class="string">"/todos?filter=all"</span>&gt;All&lt;/<span class="keyword">a</span>&gt; |
+  &lt;<span class="keyword">a</span> &#123;&#123;<span class="keyword">#if</span> :<span class="variable">filter</span> == <span class="string">'active'</span>&#125;&#125;<span class="attribute">class</span>=<span class="string">"selected"</span>&#123;&#123;/<span class="keyword">if</span>&#125;&#125; <span class="attribute">href</span>=<span class="string">"/todos?filter=active"</span>&gt;Active&lt;/<span class="keyword">a</span>&gt; |
+  &lt;<span class="keyword">a</span> &#123;&#123;<span class="keyword">#if</span> :<span class="variable">filter</span> == <span class="string">'completed'</span>&#125;&#125;<span class="attribute">class</span>=<span class="string">"selected"</span>&#123;&#123;/<span class="keyword">if</span>&#125;&#125; <span class="attribute">href</span>=<span class="string">"/todos?filter=completed"</span>&gt;Completed&lt;/<span class="keyword">a</span>&gt;
+&lt;/<span class="keyword">div</span>&gt;
+</code><div class="clean-code">&lt;div class="filters"&gt;
+  &lt;a {{#if :filter == 'all'}}class="selected"{{/if}} href="/todos?filter=all"&gt;All&lt;/a&gt; |
+  &lt;a {{#if :filter == 'active'}}class="selected"{{/if}} href="/todos?filter=active"&gt;Active&lt;/a&gt; |
+  &lt;a {{#if :filter == 'completed'}}class="selected"{{/if}} href="/todos?filter=completed"&gt;Completed&lt;/a&gt;
+&lt;/div&gt;</div></pre>
 
   <p>The CSS from TodoMVC highlights the link that carries <code>class="selected"</code>.</p>
 

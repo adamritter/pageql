@@ -1,0 +1,393 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PageQL Tutorial – Hello, Database! (read-only list)</title>
+
+  <!-- Google Font for pleasant typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+
+  <!-- Self-contained styling -->
+  <style>
+    :root {
+      --bg-gradient-start: #1a2233;   /* Dark blue */
+      --bg-gradient-end:   #2d3748;   /* Dark slate */
+      --card-bg:  #2a2e3a;
+      --text:     #e2e2e2;
+      --text-muted: #b0b8c4;          /* Slightly muted text */
+      --primary:  #be5028;            /* More subdued blue */
+      --code-bg:  #1a1f2b;
+      --code-text:#d8e0ff;            /* Slightly warmer code text */
+      --border-subtle: #3a4259;       /* Subtle border color */
+      --terminal-bg: #1c2333;         /* Terminal background */
+      --terminal-text: #e8ecf5;       /* Terminal text color - light green */
+    }
+    * { box-sizing: border-box; font-family: 'Inter', sans-serif; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, var(--bg-gradient-start), var(--bg-gradient-end));
+      padding: 2rem;
+      color: var(--text);
+    }
+    article {
+      background: var(--card-bg);
+      max-width: 780px;
+      width: 100%;
+      border-radius: 12px;
+      padding: 3rem 3.5rem;
+      box-shadow: 0 12px 30px rgba(0,0,0,0.3);
+      border: 1px solid var(--border-subtle);
+    }
+    .github-banner {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      margin-bottom: 2rem;
+      padding-bottom: 1.5rem;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+    .github-banner a.github-link {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: white;
+      font-weight: 600;
+      text-decoration: none;
+      padding: 8px 14px;
+      background: rgba(0,0,0,0.2);
+      border-radius: 6px;
+      border: 1px solid var(--border-subtle);
+      transition: all 0.2s;
+    }
+    .github-banner a.github-link:hover {
+      background: rgba(0,0,0,0.3);
+      transform: translateY(-2px);
+    }
+    .github-banner svg {
+      width: 20px;
+      height: 20px;
+      fill: white;
+      
+    }
+    .github-banner .logo {
+      font-size: 1.8rem;
+      font-weight: 700;
+      color: #4a7dbd;
+      margin-right: auto;
+    }
+    .github-banner .logo a {
+      color: var(--primary); 
+      /* no underline */
+      border-bottom: none;
+    }
+    h1 { 
+      margin-top: 0; 
+      font-size: 2.4rem; 
+      color: var(--primary);
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      line-height: 1.2;
+    }
+    h1 small { 
+      font-size: 1rem; 
+      font-weight: 400;
+      color: var(--text-muted);
+      display: block;
+    }
+    h2 { margin-top: 2.2rem; font-size: 1.5rem; border-bottom: 1px solid var(--border-subtle); padding-bottom: 0.5rem; }
+    h3 { margin-top: 1.8rem; font-size: 1.2rem; }
+    ol, ul { padding-left: 1.4rem; }
+    li { margin-bottom: 0.5rem; }
+    pre {
+      background: var(--code-bg);
+      padding: 1rem 1.25rem;
+      overflow-x: auto;
+      border-radius: 6px;
+      margin: 1rem 0 1.5rem;
+      border: 1px solid var(--border-subtle);
+      position: relative;
+    }
+    /* Terminal code block styling */
+    pre.terminal {
+      background: var(--terminal-bg);
+      border-color: #253046;
+      cursor: pointer;
+    }
+    pre.terminal code {
+      color: var(--terminal-text);
+      font-family: 'JetBrains Mono', Menlo, Consolas, monospace;
+    }
+    pre.terminal code * {
+      font-family: 'JetBrains Mono', Menlo, Consolas, monospace;
+    }
+    pre.terminal::before {
+      content: "Click to copy";
+      position: absolute;
+      top: 0.5rem;
+      right: 0.5rem;
+      background: rgba(80, 92, 124, 0.6);
+      color: white;
+      padding: 0.3rem 0.5rem;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    pre.terminal:hover::before {
+      opacity: 1;
+    }
+    pre.terminal.copied::before {
+      content: "Copied!";
+      background: rgba(56, 161, 105, 0.8);
+    }
+    code { color: var(--code-text); font-family: Menlo, Consolas, monospace; }
+    .next-link {
+      display: inline-block;
+      margin-top: 2rem;
+      padding: 0.75rem 1.5rem;
+      background: var(--primary);
+      color: #fff;
+      border-radius: 6px;
+      text-decoration: none;
+      font-weight: 600;
+      transition: all 0.2s;
+      border: none;
+    }
+    .next-link:hover { 
+      background: #3b6ca8; 
+      transform: translateY(-2px);
+      box-shadow: 0 4px 10px rgba(59, 108, 168, 0.3);
+    }
+    a { 
+      color: var(--primary); 
+      text-decoration: none;
+      border-bottom: 1px dotted rgba(91, 173, 255, 0.4);
+      transition: border-color 0.2s;
+    }
+    a:hover {
+      border-bottom: 1px solid var(--primary);
+    }
+    footer { 
+      margin-top: 3rem; 
+      font-size: 0.9rem; 
+      color: var(--text-muted);
+      text-align: center;
+      border-top: 1px solid var(--border-subtle);
+      padding-top: 1.5rem;
+    }
+    em, strong { color: #ffffff; }
+    p { line-height: 1.6; }
+    .file-label {
+      background: var(--primary);
+      color: white;
+      font-family: 'JetBrains Mono', Menlo, Consolas, monospace;
+      font-size: 0.85rem;
+      padding: 0.5rem 1rem;
+      border-radius: 6px 6px 0 0;
+      margin-top: 1.5rem;
+      display: inline-block;
+      font-weight: 500;
+    }
+    .file-label + pre.terminal {
+      margin-top: 0;
+      border-top-left-radius: 0;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1.5rem 0;
+    }
+    th, td {
+      padding: 0.75rem;
+      border: 1px solid var(--border-subtle);
+      text-align: left;
+    }
+    th {
+      background-color: rgba(0, 0, 0, 0.2);
+    }
+    blockquote {
+      background: rgba(0, 0, 0, 0.15);
+      border-left: 4px solid var(--primary);
+      margin: 1.5rem 0;
+      padding: 1rem;
+      border-radius: 0 6px 6px 0;
+    }
+    blockquote p {
+      margin: 0;
+    }
+  </style>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      // Find all terminal code blocks and make them copyable
+      const terminalBlocks = document.querySelectorAll('pre.terminal');
+      
+      terminalBlocks.forEach(block => {
+        block.addEventListener('click', function() {
+          const code = this.querySelector('code').innerText;
+          navigator.clipboard.writeText(code).then(() => {
+            this.classList.add('copied');
+            setTimeout(() => {
+              this.classList.remove('copied');
+            }, 2000);
+          });
+        });
+      });
+    });
+  </script>
+</head>
+
+<body>
+<article>
+
+  <div class="github-banner">
+    <div class="logo"><a href="/index.html">PageQL</a> Tutorial</div>
+    <a class="github-link" href="https://github.com/adamritter/pageql" target="_blank" rel="noopener noreferrer">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">
+        <path d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"></path>
+      </svg>
+    </a>
+  </div>
+
+  <h1>Hello, Database! <small>(read‑only list)</small></h1>
+
+  <p><strong>Goal:</strong> Render a live list of Todos coming straight from SQLite—no forms, no JavaScript, just PageQL.</p>
+
+  <blockquote>
+    <p><em>Estimated time: 10 minutes.</em></p>
+  </blockquote>
+
+  <h2>1 Prerequisites</h2>
+  <ul>
+    <li><strong>Python 3.9 +</strong> with <code>pip</code></li>
+    <li>A shell (Bash, PowerShell, zsh …)</li>
+  </ul>
+
+  <p>If you have not installed PageQL yet:</p>
+
+  <pre class="terminal"><code class="language-bash"><span style="color: #ff7b72;">pip</span> <span style="color: #ffcb6b;">install</span> <span style="color: #79c0ff;">--upgrade</span> <span style="color: #d2a8ff;">pageql</span></code></pre>
+
+  <h2>2 Create a tiny project</h2>
+
+  <pre class="terminal"><code class="language-bash"><span style="color: #ff7b72;">mkdir</span> <span style="color: #d2a8ff;">todomvc-pageql</span>
+<span style="color: #ff7b72;">cd</span> <span style="color: #d2a8ff;">todomvc-pageql</span>
+<span style="color: #7f848e;"># Creates templates/, an empty SQLite file (todos.db), **and starts the dev server on port 8000**</span>
+<span style="color: #ff7b72;">pageql</span> <span style="color: #e5c07b;">todos.db</span> <span style="color: #e5c07b;">templates</span> <span style="color: #79c0ff;">--create</span></code></pre>
+
+  <p>You now have:</p>
+
+  <pre><code>📂 todomvc-pageql/
+ ├─ templates/
+ │   └─ (empty for now)
+ └─ todos.db            # blank SQLite database</code></pre>
+
+  <h2>3 Add <strong>todos.pageql</strong></h2>
+
+  <p>Create <code>templates/todos.pageql</code> with the contents below. We keep it deliberately short—only <strong>25 lines</strong> of template code.</p>
+
+  <div class="file-label">templates/todos.pageql</div>
+  <pre class="terminal"><code class="language-html"><span style="color: #7f848e;">&#123;&#123;!-- Ensure the table exists (harmless if already created) --&#125;&#125;</span>
+<span style="color: #c586c0;">&#123;&#123;#create table if not exists</span> <span style="color: #e06c75;">todos</span> <span style="color: #c586c0;">(</span>
+    <span style="color: #e5c07b;">id</span> <span style="color: #569cd6;">INTEGER</span> <span style="color: #d7ba7d;">PRIMARY KEY AUTOINCREMENT</span>,
+    <span style="color: #e5c07b;">text</span> <span style="color: #569cd6;">TEXT</span> <span style="color: #d7ba7d;">NOT NULL</span>,
+    <span style="color: #e5c07b;">completed</span> <span style="color: #569cd6;">INTEGER</span> <span style="color: #d7ba7d;">DEFAULT</span> <span style="color: #b5cea8;">0</span> <span style="color: #d7ba7d;">CHECK</span>(<span style="color: #e5c07b;">completed</span> <span style="color: #d7ba7d;">IN</span> (<span style="color: #b5cea8;">0</span>,<span style="color: #b5cea8;">1</span>))
+<span style="color: #c586c0;">)&#125;&#125;</span>
+
+<span style="color: #61afef;">&lt;!doctype</span> <span style="color: #e5c07b;">html</span><span style="color: #61afef;">&gt;</span>
+<span style="color: #61afef;">&lt;html</span> <span style="color: #e5c07b;">lang</span>=<span style="color: #98c379;">"en"</span><span style="color: #61afef;">&gt;</span>
+<span style="color: #61afef;">&lt;head&gt;</span>
+  <span style="color: #61afef;">&lt;meta</span> <span style="color: #e5c07b;">charset</span>=<span style="color: #98c379;">"utf-8"</span><span style="color: #61afef;">&gt;</span>
+  <span style="color: #61afef;">&lt;title&gt;</span>Todos (read‑only)<span style="color: #61afef;">&lt;/title&gt;</span>
+<span style="color: #61afef;">&lt;/head&gt;</span>
+<span style="color: #61afef;">&lt;body&gt;</span>
+  <span style="color: #61afef;">&lt;h1&gt;</span>Todos<span style="color: #61afef;">&lt;/h1&gt;</span>
+  <span style="color: #61afef;">&lt;ul&gt;</span>
+    <span style="color: #7f848e;">&#123;&#123;!-- 🚀  Query & loop in one tag --&#125;&#125;</span>
+    <span style="color: #c586c0;">&#123;&#123;#from</span> <span style="color: #e06c75;">todos</span> <span style="color: #d7ba7d;">ORDER BY</span> <span style="color: #e5c07b;">id</span><span style="color: #c586c0;">&#125;&#125;</span>
+      <span style="color: #61afef;">&lt;li&gt;</span><span style="color: #c586c0;">&#123;&#123;</span><span style="color: #e06c75;">text</span><span style="color: #c586c0;">&#125;&#125;</span><span style="color: #61afef;">&lt;/li&gt;</span>
+    <span style="color: #c586c0;">&#123;&#123;/from&#125;&#125;</span>
+  <span style="color: #61afef;">&lt;/ul&gt;</span>
+
+  <span style="color: #61afef;">&lt;p&gt;</span><span style="color: #61afef;">&lt;em&gt;</span>This page is read‑only—for now!<span style="color: #61afef;">&lt;/em&gt;</span><span style="color: #61afef;">&lt;/p&gt;</span>
+<span style="color: #61afef;">&lt;/body&gt;</span>
+<span style="color: #61afef;">&lt;/html&gt;</span></code></pre>
+
+  <h3>What did we use?</h3>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Tag</th>
+        <th>Purpose</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code><a href="https://www.sqlite.org/lang_createtable.html" target="_blank" rel="noopener" style="color: var(--code-text);">#create table</a></code></td>
+        <td>One‑off schema bootstrap—safe to run every request.</td>
+      </tr>
+      <tr>
+        <td><code><a href="https://www.sqlite.org/lang_select.html" target="_blank" rel="noopener" style="color: var(--code-text);">#from</a></code></td>
+        <td>Runs a <code><a href="https://www.sqlite.org/lang_select.html" target="_blank" rel="noopener" style="color: var(--code-text);">SELECT</a></code> and <strong>streams each row</strong> into the surrounding HTML.</td>
+      </tr>
+      <tr>
+        <td><code>&#123;&#123;text&#125;&#125;</code></td>
+        <td>Outputs the <code>text</code> column. The single‑word shorthand omits the leading <code>:</code>.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <blockquote>
+    <p><strong>Why no controllers?</strong> PageQL routes every <strong>public partial</strong> and every <strong>top‑level template</strong> automatically. Because we wrote plain markup at the top level, visiting <code>/todos</code> just works.</p>
+  </blockquote>
+
+  <h2>4 View in your browser</h2>
+
+  <p>Open <a href="http://localhost:8000/todos">http://localhost:8000/todos</a> in your browser. You should see an empty bullet list—that means the template ran and the table exists.</p>
+
+  <p>Add a couple of rows directly in SQLite to prove the loop is live:</p>
+
+  <pre class="terminal"><code class="language-bash">sqlite3 todos.db "insert into todos(text) values ('Taste PageQL'), ('Profit!');"</code></pre>
+  <p>Reload the page → the two items appear instantly. 🎉</p>
+
+  <h2>5 Recap & next step</h2>
+
+  <p>You have already learned:</p>
+
+  <ul>
+    <li>How PageQL <strong>bootstraps a database</strong> inside a template.</li>
+    <li>The core of its philosophy: <strong>SQL is the expression language.</strong></li>
+    <li>The zero‑config routing model (file name ➜ path).</li>
+  </ul>
+
+  <p>Next up: <strong>Adding data</strong>—we will create a small form, a public partial that handles POST, and our first <code>#insert</code>. Ready? ➡︎ <a href="./02_adding_data.html">Part 2 »</a></p>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      // Find all terminal code blocks and make them copyable
+      const terminalBlocks = document.querySelectorAll('pre.terminal');
+      
+      terminalBlocks.forEach(block => {
+        block.addEventListener('click', function() {
+          const code = this.querySelector('code').innerText;
+          navigator.clipboard.writeText(code).then(() => {
+            this.classList.add('copied');
+            setTimeout(() => {
+              this.classList.remove('copied');
+            }, 2000);
+          });
+        });
+      });
+    });
+  </script>
+</article>
+</body>
+</html> 

@@ -58,6 +58,7 @@ class PageQLApp:
         self.to_reload = []
         self.static_files = {}
         self.before_hooks = {}
+        self.template_dir = template_dir
         self.prepare_server(db_path, template_dir, create_db)
     
     def before(self, path):
@@ -109,7 +110,7 @@ class PageQLApp:
         
         while self.to_reload:
             f = self.to_reload.pop()
-            self.load('templates', f)
+            self.load(self.template_dir, f)
 
         parsed_path = urlparse(scope['path'])
         path_cleaned = parsed_path.path.strip('/')
@@ -277,7 +278,7 @@ class PageQLApp:
 
             if message["type"] == "lifespan.startup":
                 if self.should_reload:
-                    asyncio.create_task(self.watch_directory('templates', self.stop_event))
+                    asyncio.create_task(self.watch_directory(self.template_dir, self.stop_event))
                 await send({"type": "lifespan.startup.complete"})
 
             elif message["type"] == "lifespan.shutdown":
@@ -381,10 +382,12 @@ if __name__ == "__main__":
     parser.add_argument('--db', required=True, help="Path to the SQLite database file.")
     parser.add_argument('--dir', required=True, help="Path to the directory containing .pageql template files.")
     parser.add_argument('--port', type=int, default=8000, help="Port number to run the server on.")
-    parser.add_argument('--create', action='store_true', help="Create the database file if it doesn't exist.")
+    parser.add_argument('--create', action='store_true', help="Create the database file and directory if it doesn't exist.")
     parser.add_argument('--no-reload', action='store_true', help="Do not reload and refresh the templates on file changes.")
 
     args = parser.parse_args()
+    if args.create:
+        os.makedirs(args.dir, exist_ok=True)
     app = PageQLApp(args.db, args.dir, create_db=args.create, should_reload=not args.no_reload)
 
     config = uvicorn.Config(app, host="0.0.0.0", port=args.port)

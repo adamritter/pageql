@@ -1,0 +1,531 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PageQL Tutorial – Updating State (toggle &amp; edit)</title>
+
+  <!-- Google Font for pleasant typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+
+  <!-- Self-contained styling (same palette as Parts 1 & 2) -->
+  <style>
+    :root {
+      --bg-gradient-start: #1a2233;   /* Dark blue */
+      --bg-gradient-end:   #2d3748;   /* Dark slate */
+      --card-bg:  #2a2e3a;
+      --text:     #e2e2e2;
+      --text-muted: #b0b8c4;          /* Slightly muted text */
+      --primary:  #be5028;            /* More subdued blue */
+      --code-bg:  #1a1f2b;
+      --code-text:#d8e0ff;            /* Slightly warmer code text */
+      --border-subtle: #3a4259;       /* Subtle border color */
+      --terminal-bg: #1c2333;         /* Terminal background */
+      --terminal-text: #e8ecf5;       /* Terminal text color - light bluish */
+      --diff-add: #204829;
+      --diff-add-text: #7cbe8c;
+      --syntax-keyword: #c586c0;      /* Purple for keywords */
+      --syntax-string: #98c379;       /* Green for strings */
+      --syntax-function: #e06c75;     /* Red-pink for functions */
+      --syntax-variable: #e5c07b;     /* Yellow for variables */
+      --syntax-comment: #6a9955;      /* Green for comments */
+      --syntax-attribute: #d7ba7d;    /* Gold for attributes */
+    }
+    * { box-sizing: border-box; font-family: 'Inter', sans-serif; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, var(--bg-gradient-start), var(--bg-gradient-end));
+      padding: 2rem;
+      color: var(--text);
+    }
+    article {
+      background: var(--card-bg);
+      max-width: 780px;
+      width: 100%;
+      border-radius: 12px;
+      padding: 3rem 3.5rem;
+      box-shadow: 0 12px 30px rgba(0,0,0,0.3);
+      border: 1px solid var(--border-subtle);
+    }
+    .github-banner {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      margin-bottom: 2rem;
+      padding-bottom: 1.5rem;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+    .github-banner a {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: white;
+      font-weight: 600;
+      text-decoration: none;
+      padding: 8px 14px;
+      background: rgba(0,0,0,0.2);
+      border-radius: 6px;
+      border: 1px solid var(--border-subtle);
+      transition: all 0.2s;
+    }
+    .github-banner a:hover {
+      background: rgba(0,0,0,0.3);
+      transform: translateY(-2px);
+    }
+    .github-banner svg {
+      width: 20px;
+      height: 20px;
+      fill: white;
+    }
+    .github-banner .logo {
+      font-size: 1.8rem;
+      font-weight: 700;
+      background: linear-gradient(to right, #4a7dbd, #569dd6);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-right: auto;
+    }
+    h1 { 
+      margin-top: 0; 
+      font-size: 2.4rem; 
+      color: var(--primary);
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      line-height: 1.2;
+    }
+    h1 small { 
+      font-size: 1rem; 
+      font-weight: 400;
+      color: var(--text-muted);
+      display: block;
+    }
+    h2 { margin-top: 2.2rem; font-size: 1.5rem; border-bottom: 1px solid var(--border-subtle); padding-bottom: 0.5rem; }
+    h3 { margin-top: 1.8rem; font-size: 1.2rem; }
+    ol, ul { padding-left: 1.4rem; }
+    li { margin-bottom: 0.5rem; }
+    pre {
+      background: var(--code-bg);
+      padding: 1rem 1.25rem;
+      overflow-x: auto;
+      border-radius: 6px;
+      margin: 1rem 0 1.5rem;
+      border: 1px solid var(--border-subtle);
+      position: relative;
+    }
+    /* Terminal code block styling */
+    pre.terminal {
+      background: var(--terminal-bg);
+      border-color: #253046;
+      cursor: pointer;
+    }
+    pre.terminal code {
+      color: var(--terminal-text);
+      font-family: 'JetBrains Mono', Menlo, Consolas, monospace;
+    }
+    pre.terminal code * {
+      font-family: 'JetBrains Mono', Menlo, Consolas, monospace;
+    }
+    pre.terminal::before {
+      content: "Click to copy";
+      position: absolute;
+      top: 0.5rem;
+      right: 0.5rem;
+      background: rgba(80, 92, 124, 0.6);
+      color: white;
+      padding: 0.3rem 0.5rem;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    pre.terminal:hover::before {
+      opacity: 1;
+    }
+    pre.terminal.copied::before {
+      content: "Copied!";
+      background: rgba(56, 161, 105, 0.8);
+    }
+    code { color: var(--code-text); font-family: Menlo, Consolas, monospace; }
+    .next-link {
+      display: inline-block;
+      margin-top: 2rem;
+      padding: 0.75rem 1.5rem;
+      background: var(--primary);
+      color: #fff;
+      border-radius: 6px;
+      text-decoration: none;
+      font-weight: 600;
+      transition: all 0.2s;
+      border: none;
+    }
+    .next-link:hover { 
+      background: #3b6ca8; 
+      transform: translateY(-2px);
+      box-shadow: 0 4px 10px rgba(59, 108, 168, 0.3);
+    }
+    a { 
+      color: var(--primary); 
+      text-decoration: none;
+      border-bottom: 1px dotted rgba(91, 173, 255, 0.4);
+      transition: border-color 0.2s;
+    }
+    a:hover {
+      border-bottom: 1px solid var(--primary);
+    }
+    footer { 
+      margin-top: 3rem; 
+      font-size: 0.9rem; 
+      color: var(--text-muted);
+      text-align: center;
+      border-top: 1px solid var(--border-subtle);
+      padding-top: 1.5rem;
+    }
+    em, strong { color: #ffffff; }
+    p { line-height: 1.6; }
+    .file-label {
+      background: var(--primary);
+      color: white;
+      font-family: 'JetBrains Mono', Menlo, Consolas, monospace;
+      font-size: 0.85rem;
+      padding: 0.5rem 1rem;
+      border-radius: 6px 6px 0 0;
+      margin-top: 1.5rem;
+      display: inline-block;
+      font-weight: 500;
+    }
+    .file-label + pre.terminal {
+      margin-top: 0;
+      border-top-left-radius: 0;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1.5rem 0;
+    }
+    th, td {
+      padding: 0.75rem;
+      border: 1px solid var(--border-subtle);
+      text-align: left;
+    }
+    th {
+      background-color: rgba(0, 0, 0, 0.2);
+    }
+    blockquote {
+      background: rgba(0, 0, 0, 0.15);
+      border-left: 4px solid var(--primary);
+      margin: 1.5rem 0;
+      padding: 1rem;
+      border-radius: 0 6px 6px 0;
+    }
+    blockquote p {
+      margin: 0;
+    }
+    img {
+      max-width: 100%;
+      height: auto;
+      border-radius: 6px;
+    }
+    .keyword, code span.keyword {
+      color: var(--syntax-keyword);
+    }
+    .string, code span.string {
+      color: var(--syntax-string);
+    }
+    .function, code span.function {
+      color: var(--syntax-function);
+    }
+    .variable, code span.variable {
+      color: var(--syntax-variable);
+    }
+    .comment, code span.comment {
+      color: var(--syntax-comment);
+    }
+    .attribute, code span.attribute {
+      color: var(--syntax-attribute);
+    }
+    .comment {
+      color: var(--syntax-comment);
+      font-style: italic;
+    }
+    pre.code-block {
+      background: var(--code-bg);
+      padding: 1rem 1.25rem;
+      overflow-x: auto;
+      border-radius: 6px;
+      margin: 1rem 0 1.5rem;
+      border: 1px solid var(--border-subtle);
+      position: relative;
+      cursor: pointer;
+    }
+    pre.code-block::before {
+      content: "Click to copy";
+      position: absolute;
+      top: 0.5rem;
+      right: 0.5rem;
+      background: rgba(80, 92, 124, 0.6);
+      color: white;
+      padding: 0.3rem 0.5rem;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    pre.code-block:hover::before {
+      opacity: 1;
+    }
+    pre.code-block.copied::before {
+      content: "Copied!";
+      background: rgba(56, 161, 105, 0.8);
+    }
+    .clean-code {
+      display: none;
+    }
+  </style>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      // Find all terminal code blocks and make them copyable
+      const terminalBlocks = document.querySelectorAll('pre.terminal');
+      
+      terminalBlocks.forEach(block => {
+        block.addEventListener('click', function() {
+          const code = this.querySelector('code').innerText;
+          navigator.clipboard.writeText(code).then(() => {
+            this.classList.add('copied');
+            setTimeout(() => {
+              this.classList.remove('copied');
+            }, 2000);
+          });
+        });
+      });
+
+      // Add copy support for code examples
+      const codeBlocks = document.querySelectorAll('pre.code-block');
+      
+      codeBlocks.forEach(block => {
+        block.addEventListener('click', function() {
+          const cleanCode = this.querySelector('.clean-code').innerText;
+          navigator.clipboard.writeText(cleanCode).then(() => {
+            this.classList.add('copied');
+            setTimeout(() => {
+              this.classList.remove('copied');
+            }, 2000);
+          });
+        });
+      });
+    });
+  </script>
+</head>
+
+<body>
+<article>
+
+  <div class="github-banner">
+    <div class="logo">PageQL Tutorial</div>
+    <a href="https://github.com/adamritter/pageql" target="_blank" rel="noopener noreferrer">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">
+        <path d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"></path>
+      </svg>
+    </a>
+  </div>
+
+  <h1>Updating State <small>(toggle &amp; edit)</small></h1>
+
+  <p><strong>Goal:</strong> Let users flip a Todo between <em>active</em> and <em>completed</em> and edit its text. You'll meet
+    <code>#update</code>, <code>#set</code>, stronger <code>#param</code> validation and conditional <code>#if</code>.</p>
+
+  <blockquote><p><em>Estimated time: 20 minutes.</em></p></blockquote>
+
+  <p><a href="./tutorial2_o3.html">« Part 2: Adding Data</a></p>
+
+  <!-- 1 -->
+  <h2>1 What we're building</h2>
+  <ul>
+    <li><strong>Before:</strong> you can list and add Todos (Parts 1-2).</li>
+    <li><strong>After:</strong> you can toggle completion, double-click to edit text, bulk-toggle all, and watch counts update live.</li>
+  </ul>
+
+  <!-- 2 -->
+  <h2>2 Extend <em>templates/todos.pageql</em></h2>
+  <h3>2.1 Computed counts &amp; flags</h3>
+
+  <pre class="code-block"><code class="language-diff">
+&#123;&#123;<span class="keyword">#set</span> <span class="variable">active_count</span>    COUNT(*) from todos WHERE completed = 0&#125;&#125;
+&#123;&#123;<span class="keyword">#set</span> <span class="variable">completed_count</span> COUNT(*) from todos WHERE completed = 1&#125;&#125;
+&#123;&#123;<span class="keyword">#set</span> <span class="variable">total_count</span>     COUNT(*) from todos&#125;&#125;
+&#123;&#123;<span class="keyword">#set</span> <span class="variable">all_complete</span>    (:<span class="variable">active_count</span> == 0 AND :<span class="variable">total_count</span> &gt; 0)&#125;&#125;
+
+&#123;&#123;<span class="keyword">#param</span> <span class="variable">edit_id</span> <span class="attribute">type</span>=<span class="string">integer</span> <span class="attribute">optional</span>&#125;&#125;
+</code><div class="clean-code">&#123;&#123;#set active_count    COUNT(*) from todos WHERE completed = 0&#125;&#125;
+&#123;&#123;#set completed_count COUNT(*) from todos WHERE completed = 1&#125;&#125;
+&#123;&#123;#set total_count     COUNT(*) from todos&#125;&#125;
+&#123;&#123;#set all_complete    (:active_count == 0 AND :total_count &gt; 0)&#125;&#125;
+
+&#123;&#123;#param edit_id type=integer optional&#125;&#125;</div></pre>
+
+  <h3>2.2 Toggle checkbox inside the list</h3>
+  <pre class="code-block"><code class="language-diff">
+&lt;<span class="keyword">li</span> &#123;&#123;<span class="keyword">#if</span> completed&#125;&#125;<span class="attribute">class</span>=<span class="string">"completed"</span>&#123;&#123;/<span class="keyword">if</span>&#125;&#125;&gt;
+  &lt;<span class="keyword">form</span> <span class="attribute">method</span>=<span class="string">"POST"</span> <span class="attribute">action</span>=<span class="string">"/todos/toggle"</span> <span class="attribute">style</span>=<span class="string">"display:inline"</span>&gt;
+    &lt;<span class="keyword">input</span> <span class="attribute">type</span>=<span class="string">"hidden"</span> <span class="attribute">name</span>=<span class="string">"id"</span> <span class="attribute">value</span>=<span class="string">"&#123;&#123;id&#125;&#125;"</span>&gt;
+    &lt;<span class="keyword">input</span> <span class="attribute">class</span>=<span class="string">"toggle"</span> <span class="attribute">type</span>=<span class="string">"checkbox"</span>
+           &#123;&#123;<span class="keyword">#if</span> completed&#125;&#125;checked&#123;&#123;/<span class="keyword">if</span>&#125;&#125;
+           <span class="attribute">onchange</span>=<span class="string">"this.form.submit();"</span>&gt;
+  &lt;/<span class="keyword">form</span>&gt;
+  &lt;<span class="keyword">label</span> <span class="attribute">ondblclick</span>=<span class="string">"window.location='/todos?edit_id=&#123;&#123;id&#125;&#125;'"</span>&gt;&#123;&#123;text&#125;&#125;&lt;/<span class="keyword">label</span>&gt;
+&lt;/<span class="keyword">li</span>&gt;
+</code><div class="clean-code">&lt;li {{#if completed}}class="completed"{{/if}}&gt;
+  &lt;form method="POST" action="/todos/toggle" style="display:inline"&gt;
+    &lt;input type="hidden" name="id" value="{{id}}"&gt;
+    &lt;input class="toggle" type="checkbox" {{#if completed}}checked{{/if}}
+           onchange="this.form.submit();"&gt;
+  &lt;/form&gt;
+  &lt;label ondblclick="window.location='/todos?edit_id={{id}}'"&gt;{{text}}&lt;/label&gt;
+&lt;/li&gt;</div></pre>
+
+  <h3>2.3 Edit mode (conditional)</h3>
+  <pre class="code-block"><code class="language-diff">
+&#123;&#123;<span class="keyword">#if</span> :<span class="variable">edit_id</span> == :<span class="variable">id</span>&#125;&#125;
+  &lt;<span class="keyword">li</span> <span class="attribute">class</span>=<span class="string">"editing"</span>&gt;
+    &lt;<span class="keyword">form</span> <span class="attribute">method</span>=<span class="string">"POST"</span> <span class="attribute">action</span>=<span class="string">"/todos/save"</span> <span class="attribute">style</span>=<span class="string">"margin:0"</span>&gt;
+      &lt;<span class="keyword">input</span> <span class="attribute">type</span>=<span class="string">"hidden"</span> <span class="attribute">name</span>=<span class="string">"id"</span> <span class="attribute">value</span>=<span class="string">"&#123;&#123;id&#125;&#125;"</span>&gt;
+      &lt;<span class="keyword">input</span> <span class="attribute">class</span>=<span class="string">"edit"</span> <span class="attribute">name</span>=<span class="string">"text"</span> <span class="attribute">value</span>=<span class="string">"&#123;&#123;text&#125;&#125;"</span> <span class="attribute">autofocus</span>&gt;
+    &lt;/<span class="keyword">form</span>&gt;
+  &lt;/<span class="keyword">li</span>&gt;
+&#123;&#123;<span class="keyword">#else</span>&#125;&#125;
+  …view version from 2.2…
+&#123;&#123;/<span class="keyword">if</span>&#125;&#125;
+</code><div class="clean-code">{{#if :edit_id == :id}}
+  &lt;li class="editing"&gt;
+    &lt;form method="POST" action="/todos/save" style="margin:0"&gt;
+      &lt;input type="hidden" name="id" value="{{id}}"&gt;
+      &lt;input class="edit" name="text" value="{{text}}" autofocus&gt;
+    &lt;/form&gt;
+  &lt;/li&gt;
+{{#else}}
+  …view version from 2.2…
+{{/if}}</div></pre>
+
+  <h3>2.4 Toggle-all checkbox &amp; footer counts</h3>
+  <pre class="code-block"><code class="language-diff">
+&lt;<span class="keyword">form</span> <span class="attribute">method</span>=<span class="string">"POST"</span> <span class="attribute">action</span>=<span class="string">"/todos/toggle_all"</span> <span class="attribute">id</span>=<span class="string">"toggle-all-form"</span> <span class="attribute">style</span>=<span class="string">"display:block"</span>&gt;
+  &lt;<span class="keyword">input</span> <span class="attribute">id</span>=<span class="string">"toggle-all"</span> <span class="attribute">class</span>=<span class="string">"toggle-all"</span> <span class="attribute">type</span>=<span class="string">"checkbox"</span>
+         &#123;&#123;<span class="keyword">#if</span> all_complete&#125;&#125;checked&#123;&#123;/<span class="keyword">if</span>&#125;&#125;
+         <span class="attribute">onchange</span>=<span class="string">"document.getElementById('toggle-all-form').submit();"</span>&gt;
+  &lt;<span class="keyword">label</span> <span class="attribute">for</span>=<span class="string">"toggle-all"</span>&gt;Mark all as complete&lt;/<span class="keyword">label</span>&gt;
+&lt;/<span class="keyword">form</span>&gt;
+
+&lt;<span class="keyword">span</span> <span class="attribute">class</span>=<span class="string">"todo-count"</span>&gt;
+  &lt;<span class="keyword">strong</span>&gt;&#123;&#123;active_count&#125;&#125;&lt;/<span class="keyword">strong</span>&gt;
+  item&#123;&#123;<span class="keyword">#if</span> :<span class="variable">active_count</span> != 1&#125;&#125;s&#123;&#123;/<span class="keyword">if</span>&#125;&#125; left
+&lt;/<span class="keyword">span</span>&gt;
+</code><div class="clean-code">&lt;form method="POST" action="/todos/toggle_all" id="toggle-all-form" style="display:block"&gt;
+  &lt;input id="toggle-all" class="toggle-all" type="checkbox"
+         {{#if all_complete}}checked{{/if}}
+         onchange="document.getElementById('toggle-all-form').submit();"&gt;
+  &lt;label for="toggle-all"&gt;Mark all as complete&lt;/label&gt;
+&lt;/form&gt;
+
+&lt;span class="todo-count"&gt;
+  &lt;strong&gt;{{active_count}}&lt;/strong&gt;
+  item{{#if :active_count != 1}}s{{/if}} left
+&lt;/span&gt;</div></pre>
+
+  <h3>2.5 New public partials</h3>
+  <pre class="code-block"><code class="language-diff">
+&#123;&#123;<span class="keyword">#partial</span> <span class="attribute">public</span> <span class="function">toggle</span>&#125;&#125;
+  &#123;&#123;<span class="keyword">#param</span> <span class="variable">id</span> <span class="attribute">required</span> <span class="attribute">type</span>=<span class="string">integer</span> <span class="attribute">min</span>=1&#125;&#125;
+  &#123;&#123;<span class="keyword">#update</span> todos <span class="keyword">set</span> completed = 1 - completed <span class="keyword">WHERE</span> id = :<span class="variable">id</span>&#125;&#125;
+  &#123;&#123;<span class="keyword">#redirect</span> <span class="string">'/todos'</span>&#125;&#125;
+&#123;&#123;/<span class="keyword">partial</span>&#125;&#125;
+
+&#123;&#123;<span class="keyword">#partial</span> <span class="attribute">public</span> <span class="function">save</span>&#125;&#125;
+  &#123;&#123;<span class="keyword">#param</span> <span class="variable">id</span> <span class="attribute">required</span> <span class="attribute">type</span>=<span class="string">integer</span> <span class="attribute">min</span>=1&#125;&#125;
+  &#123;&#123;<span class="keyword">#param</span> <span class="variable">text</span> <span class="attribute">required</span> <span class="attribute">minlength</span>=1&#125;&#125;
+  &#123;&#123;<span class="keyword">#update</span> todos <span class="keyword">set</span> text = :<span class="variable">text</span> <span class="keyword">WHERE</span> id = :<span class="variable">id</span>&#125;&#125;
+  &#123;&#123;<span class="keyword">#redirect</span> <span class="string">'/todos'</span>&#125;&#125;
+&#123;&#123;/<span class="keyword">partial</span>&#125;&#125;
+
+&#123;&#123;<span class="keyword">#partial</span> <span class="attribute">public</span> <span class="function">toggle_all</span>&#125;&#125;
+  &#123;&#123;<span class="keyword">#set</span> <span class="variable">new_status</span> 1&#125;&#125;
+  &#123;&#123;<span class="keyword">#if</span> :<span class="variable">active_count</span> == 0&#125;&#125;
+    &#123;&#123;<span class="keyword">#set</span> <span class="variable">new_status</span> 0&#125;&#125;
+  &#123;&#123;/<span class="keyword">if</span>&#125;&#125;
+  &#123;&#123;<span class="keyword">#update</span> todos <span class="keyword">set</span> completed = :<span class="variable">new_status</span>&#125;&#125;
+  &#123;&#123;<span class="keyword">#redirect</span> <span class="string">'/todos'</span>&#125;&#125;
+&#123;&#123;/<span class="keyword">partial</span>&#125;&#125;
+</code><div class="clean-code">{{#partial public toggle}}
+  {{#param id required type=integer min=1}}
+  {{#update todos set completed = 1 - completed WHERE id = :id}}
+  {{#redirect '/todos'}}
+{{/partial}}
+
+{{#partial public save}}
+  {{#param id required type=integer min=1}}
+  {{#param text required minlength=1}}
+  {{#update todos set text = :text WHERE id = :id}}
+  {{#redirect '/todos'}}
+{{/partial}}
+
+{{#partial public toggle_all}}
+  {{#set new_status 1}}
+  {{#if :active_count == 0}}
+    {{#set new_status 0}}
+  {{/if}}
+  {{#update todos set completed = :new_status}}
+  {{#redirect '/todos'}}
+{{/partial}}</div></pre>
+
+  <!-- 3 -->
+  <h2>3 Walk-through</h2>
+  <table>
+    <thead><tr><th>Piece</th><th>Purpose</th></tr></thead>
+    <tbody>
+      <tr><td><code>#update</code></td><td>Mutate an existing row (toggle, edit, bulk).</td></tr>
+      <tr><td><code>#set</code></td><td>Compute derived counts used in the UI.</td></tr>
+      <tr><td><code>#if …</code></td><td>Swaps markup between view and edit modes.</td></tr>
+      <tr><td><code>1 - completed</code></td><td>A SQL trick to flip <code>0⇄1</code> with one statement.</td></tr>
+    </tbody>
+  </table>
+
+  <h3>3.1 Request cycle (toggle example)</h3>
+  <ol>
+    <li><strong>Browser:</strong> POST <code>/todos/toggle</code></li>
+    <li><strong>Server:</strong> <code>toggle</code> partial updates row → 302 Redirect to <code>/todos</code></li>
+    <li><strong>Browser:</strong> GET <code>/todos</code> → counts &amp; list refresh.</li>
+  </ol>
+
+  <p style="text-align:center;font-family:monospace;font-size:18px;padding:10px">
+    POST / todos/toggle → 302 → GET / todos
+  </p>
+
+  <!-- 4 -->
+  <h2>4 Try it out</h2>
+  <ol>
+    <li>Open <a href="http://localhost:8000/todos">http://localhost:8000/todos</a>.</li>
+    <li>Click a checkbox—row turns grey and page reloads.</li>
+    <li>Double-click a label, edit text, hit <strong>Enter</strong>.</li>
+    <li>Use the header checkbox to toggle all items on/off.</li>
+  </ol>
+
+  <!-- 5 -->
+  <h2>5 Recap</h2>
+  <ul>
+    <li><strong>#update</strong> powers both inline edits and mass updates.</li>
+    <li><strong>#set</strong> variables keep UI reactive without JavaScript.</li>
+    <li><strong>#if</strong> renders alternate markup based on query params.</li>
+  </ul>
+
+  <p>Next stop: <strong>Deleting &amp; bulk clear</strong>—we'll cover <code>#delete</code> and implicit transactions.
+     ➡︎ <a href="./04_deleting_and_bulk.html">Part 4 »</a></p>
+
+</article>
+</body>
+</html>

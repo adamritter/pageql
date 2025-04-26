@@ -1,0 +1,36 @@
+name: Deploy site to GitHub Pages
+
+on:
+  push:
+    branches: [main]      # Change if your default branch is different
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write         # needed for GitHub Pages OIDC
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1️⃣ Check out the repo
+      - uses: actions/checkout@v4
+
+      # 2️⃣ (Optional) Install deps & build
+      #    Delete or adapt if you have no build step right now.
+      #    Example for a Node build that outputs to website/ :
+      # - name: Build
+      #   run: |
+      #     npm ci
+      #     npm run build         # make sure build output is website/
+
+      # 3️⃣ Tell the Pages runner which folder to publish
+      - uses: actions/configure-pages@v4
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: 'website'        # <-- publish this directory
+
+      # 4️⃣ Deploy!
+      - uses: actions/deploy-pages@v4 

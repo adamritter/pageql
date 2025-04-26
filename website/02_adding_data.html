@@ -355,7 +355,7 @@
   </ul>
 
   <h2>2 Extend <em>templates/todos.pageql</em></h2>
-  <p>Add the highlighted lines <strong>inside the <code>&lt;header&gt;</code></strong> and <strong>append a new public partial</strong> at the bottom of the file.</p>
+  <p>Add the lines <strong>after the <code>&lt;h1&gt;...&lt;/h1&gt;</code></strong> and <strong>append a new public partial</strong> at the top of the file.</p>
 
   <pre class="code-block"><code class="language-diff"> <span class="comment">&lt;!-- Add the following lines after &lt;h1&gt;Todos&lt;/h1&gt; inside &lt;header&gt; --&gt;</span>
   &lt;<span class="keyword">form</span> <span class="attribute">method</span>=<span class="string">"POST"</span> <span class="attribute">action</span>=<span class="string">"/todos/add"</span>&gt;
@@ -365,7 +365,7 @@
   &lt;input name="text" placeholder="What needs to be done?" autofocus&gt;
 &lt;/form&gt;</div></pre>
 
-  <pre class="code-block"><span class="comment">&lt;!-- Add this partial at the top or bottom of the file --&gt;</span>
+  <pre class="code-block"><span class="comment">&lt;!-- Add this partial at the top of the file --&gt;</span>
 &#123;&#123;<span class="keyword">#partial</span> <span class="attribute">public</span> <span class="function">add</span>&#125;&#125;
   &#123;&#123;<span class="keyword">#param</span> <span class="variable">text</span> <span class="attribute">required minlength</span>=1&#125;&#125;
 

@@ -343,7 +343,7 @@
 
   <blockquote><p><em>Estimated time: 20 minutes.</em></p></blockquote>
 
-  <p><a href="./tutorial2_o3.html">« Part 2: Adding Data</a></p>
+  <p><a href="./02_adding_data.html">« Part 2: Adding Data</a></p>
 
   <!-- 1 -->
   <h2>1 What we're building</h2>
@@ -370,6 +370,12 @@
 
 &#123;&#123;#param edit_id type=integer optional&#125;&#125;</div></pre>
 
+  <p>The <code>#set</code> directive calculates values that will be used throughout the template. Here we're computing counts of todos in various states (active, completed, total) and deriving a flag to indicate if all todos are complete. These variables are scoped to the current template or partial.</p>
+  
+  <p>Note how the <code>all_complete</code> flag uses the colon syntax <code>:variable</code> to reference other variables in expressions. In PageQL, the colon prefix is required when using variables in SQL-like expressions to distinguish them from column names and prevent SQL injection. <code>:active_count</code> refers to the previously set variable.</p>
+  
+  <p>The <code>#param</code> directive declares and validates incoming request parameters. Here, <code>edit_id</code> is declared as an optional integer parameter that will be used to track which todo is being edited.</p>
+
   <h3>2.2 Toggle checkbox inside the list</h3>
   <pre class="code-block"><code class="language-diff">
 &lt;<span class="keyword">li</span> &#123;&#123;<span class="keyword">#if</span> completed&#125;&#125;<span class="attribute">class</span>=<span class="string">"completed"</span>&#123;&#123;/<span class="keyword">if</span>&#125;&#125;&gt;
@@ -389,6 +395,14 @@
   &lt;/form&gt;
   &lt;label ondblclick="window.location='/todos?edit_id={{id}}'"&gt;{{text}}&lt;/label&gt;
 &lt;/li&gt;</div></pre>
+
+  <p>This markup creates a list item for each todo with a checkbox for toggling completion status. Note how PageQL conditional syntax <code>#if completed</code> is used twice:</p>
+  <ol>
+    <li>To conditionally add a CSS class when a todo is completed</li>
+    <li>To check the checkbox for completed todos</li>
+  </ol>
+  <p>In simple variable cases like <code>{{#if completed}}</code>, PageQL allows omitting the colon prefix. Inside the <code>#from</code> loop (not shown here), <code>completed</code>, <code>id</code>, and <code>text</code> become available as variables from the query results.</p>
+  <p>The <code>ondblclick</code> handler redirects to the same page with an <code>edit_id</code> parameter, triggering edit mode.</p>
 
   <h3>2.3 Edit mode (conditional)</h3>
   <pre class="code-block"><code class="language-diff">
@@ -412,6 +426,12 @@
 {{#else}}
   …view version from 2.2…
 {{/if}}</div></pre>
+
+  <p>This conditional section demonstrates how PageQL handles more complex expressions. Notice that when comparing variables (<code>:edit_id == :id</code>), the colon prefix is required on both sides because we're using a complex expression rather than a simple variable check.</p>
+  
+  <p>When a todo's ID matches the <code>edit_id</code> parameter, we show an edit form instead of the regular view. This creates an "inline editing" experience without requiring JavaScript for the basic functionality.</p>
+  
+  <p>The <code>#else</code> directive provides alternative content when the condition isn't met - in this case, showing the normal view mode from section 2.2.</p>
 
   <h3>2.4 Toggle-all checkbox &amp; footer counts</h3>
   <pre class="code-block"><code class="language-diff">
@@ -438,6 +458,15 @@
   item{{#if :active_count != 1}}s{{/if}} left
 &lt;/span&gt;</div></pre>
 
+  <p>This section showcases how PageQL variables can be used to:</p>
+  <ol>
+    <li>Control UI state - the <code>all_complete</code> flag determines whether the toggle-all checkbox is checked</li> 
+    <li>Display dynamic counts - <code>active_count</code> shows how many todos remain active</li>
+    <li>Control pluralization - adding "s" conditionally based on count (<code>#if :active_count != 1</code>)</li>
+  </ol>
+  
+  <p>Notice that we need the colon syntax in <code>:active_count != 1</code> because we're using a comparison operator, while the simple variable reference <code>{{active_count}}</code> doesn't need it when just outputting the value.</p>
+
   <h3>2.5 New public partials</h3>
   <pre class="code-block"><code class="language-diff">
 &#123;&#123;<span class="keyword">#partial</span> <span class="attribute">public</span> <span class="function">toggle</span>&#125;&#125;
@@ -454,11 +483,8 @@
 &#123;&#123;/<span class="keyword">partial</span>&#125;&#125;
 
 &#123;&#123;<span class="keyword">#partial</span> <span class="attribute">public</span> <span class="function">toggle_all</span>&#125;&#125;
-  &#123;&#123;<span class="keyword">#set</span> <span class="variable">new_status</span> 1&#125;&#125;
-  &#123;&#123;<span class="keyword">#if</span> :<span class="variable">active_count</span> == 0&#125;&#125;
-    &#123;&#123;<span class="keyword">#set</span> <span class="variable">new_status</span> 0&#125;&#125;
-  &#123;&#123;/<span class="keyword">if</span>&#125;&#125;
-  &#123;&#123;<span class="keyword">#update</span> todos <span class="keyword">set</span> completed = :<span class="variable">new_status</span>&#125;&#125;
+  &#123;&#123;<span class="keyword">#set</span> <span class="variable">active_count</span> COUNT(*) from todos WHERE completed = 0&#125;&#125;
+  &#123;&#123;<span class="keyword">#update</span> todos <span class="keyword">set</span> completed = <span class="keyword">IIF</span>(:<span class="variable">active_count</span> = 0, 0, 1)&#125;&#125;
   &#123;&#123;<span class="keyword">#redirect</span> <span class="string">'/todos'</span>&#125;&#125;
 &#123;&#123;/<span class="keyword">partial</span>&#125;&#125;
 </code><div class="clean-code">{{#partial public toggle}}
@@ -475,13 +501,23 @@
 {{/partial}}
 
 {{#partial public toggle_all}}
-  {{#set new_status 1}}
-  {{#if :active_count == 0}}
-    {{#set new_status 0}}
-  {{/if}}
-  {{#update todos set completed = :new_status}}
+  {{#set active_count COUNT(*) from todos WHERE completed = 0}}
+  {{#update todos set completed = IIF(:active_count = 0, 0, 1)}}
   {{#redirect '/todos'}}
 {{/partial}}</div></pre>
+
+  <p>These partials define server-side endpoints that handle data modifications. The <code>public</code> keyword exposes them directly via HTTP POST requests, making them accessible at paths like <code>/todos/toggle</code>.</p>
+  
+  <p>Each partial follows a consistent pattern:</p>
+  <ol>
+    <li><strong>Validate inputs</strong>: The <code>#param</code> directive enforces type checking and validation rules</li>
+    <li><strong>Modify data</strong>: Using <code>#update</code> to change database records</li>
+    <li><strong>Redirect</strong>: Send the user back to the main todo list</li>
+  </ol>
+  
+  <p>Note that <code>toggle_all</code> needs its own <code>active_count</code> variable inside its scope. In PageQL, each partial has its own variable scope if it is called as a page, so we must recalculate values needed within the partial rather than referencing those from the outer template.</p>
+  
+  <p>The <code>toggle</code> partial uses a clever SQL trick <code>completed = 1 - completed</code> to flip between 0 and 1 without needing an <code>if</code> statement, since <code>1-0=1</code> and <code>1-1=0</code>.</p>
 
   <!-- 3 -->
   <h2>3 Walk-through</h2>

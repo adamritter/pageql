@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PageQL Tutorial – Adding Filters</title>
+  <title>PageQL Tutorial – Integration & Extensibility</title>
 
   <!-- Google Font for pleasant typography -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -336,120 +336,129 @@
     </a>
   </div>
 
-  <h1>Adding Filters <small>(All • Active • Completed)</small></h1>
+  <h1>Integration & Extensibility <small>(ASGI & Python hooks)</small></h1>
 
-  <p><strong>Goal:</strong> Finish our TodoMVC by letting users slice the list between <strong>All</strong>, <strong>Active</strong>, and <strong>Completed</strong> items. You'll declare one more query‑parameter, adjust the <code>#from</code> query, and add a footer navigation that highlights the selected filter.</p>
+  <p>So far we have run PageQL from the command line. In real projects you often need to <strong>embed</strong> it in a larger Python stack—add authentication, custom SQL functions, or inject data before a template executes. This chapter shows how.</p>
 
-  <blockquote><p><em>Estimated time: 10 minutes.</em></p></blockquote>
+  <blockquote><p><em>The code below relies only on <code>uvicorn</code>, <code>pageql</code>, and the Python std‑lib.</em></p></blockquote>
 
-  <p><a href="./04_deleting_and_bulk.html">« Part 4: Deleting &amp; Bulk Actions</a></p>
+  <p><a href="./05_adding_filters.html">« Part 5: Adding Filters</a></p>
 
   <!-- 1 -->
-  <h2>1 New concepts</h2>
+  <h2>1 A minimal programmable server</h2>
+
+  <pre class="code-block"><code class="language-python">
+<span class="keyword">import</span> pageql, argparse, uvicorn, base64
+
+parser = argparse.ArgumentParser(description=<span class="string">"PageQL programmable server"</span>)
+parser.add_argument(<span class="string">'--db'</span>,   default=<span class="string">'data.db'</span>)
+parser.add_argument(<span class="string">'--dir'</span>,  default=<span class="string">'templates'</span>)
+parser.add_argument(<span class="string">'--port'</span>, type=int, default=8000)
+parser.add_argument(<span class="string">'--create'</span>, action=<span class="string">'store_true'</span>)
+parser.add_argument(<span class="string">'--no-reload'</span>, action=<span class="string">'store_true'</span>)
+args = parser.parse_args()
+
+app = pageql.PageQLApp(
+    args.db,
+    args.dir,
+    create_db=args.create,
+    should_reload=<span class="keyword">not</span> args.no_reload,
+)
+
+<span class="comment"># 1️⃣  Add a custom SQLite function</span>
+app.conn.create_function(<span class="string">'base64_encode'</span>, 1,
+    <span class="keyword">lambda</span> blob: base64.b64encode(blob).decode())
+
+<span class="comment"># 2️⃣  Inject data before rendering any template that matches /before</span>
+<span class="keyword">@app</span>.before(<span class="string">'/before'</span>)
+<span class="keyword">async def</span> <span class="function">inject</span>(params):
+    params[<span class="string">'title'</span>] = <span class="string">'Horse Power 🐴'</span>
+    <span class="keyword">with</span> open(<span class="string">'horse.jpg'</span>, <span class="string">'rb'</span>) <span class="keyword">as</span> f:
+        params[<span class="string">'image'</span>] = f.read()  <span class="comment"># raw bytes</span>
+    <span class="keyword">return</span> params  <span class="comment"># merged into template namespace</span>
+
+<span class="function">print</span>(f<span class="string">"Visit http://localhost:{args.port}/before to test the hook"</span>)
+uvicorn.run(app, host=<span class="string">'0.0.0.0'</span>, port=args.port)
+</code><div class="clean-code">import pageql, argparse, uvicorn, base64
+
+parser = argparse.ArgumentParser(description="PageQL programmable server")
+parser.add_argument('--db',   default='data.db')
+parser.add_argument('--dir',  default='templates')
+parser.add_argument('--port', type=int, default=8000)
+parser.add_argument('--create', action='store_true')
+parser.add_argument('--no-reload', action='store_true')
+args = parser.parse_args()
+
+app = pageql.PageQLApp(
+    args.db,
+    args.dir,
+    create_db=args.create,
+    should_reload=not args.no_reload,
+)
+
+# 1️⃣  Add a custom SQLite function
+app.conn.create_function('base64_encode', 1,
+    lambda blob: base64.b64encode(blob).decode())
+
+# 2️⃣  Inject data before rendering any template that matches /before
+@app.before('/before')
+async def inject(params):
+    params['title'] = 'Horse Power 🐴'
+    with open('horse.jpg', 'rb') as f:
+        params['image'] = f.read()  # raw bytes
+    return params  # merged into template namespace
+
+print(f"Visit http://localhost:{args.port}/before to test the hook")
+uvicorn.run(app, host='0.0.0.0', port=args.port)</div></pre>
+
+  <h3>How it works</h3>
+
   <table>
-    <thead><tr><th>Concept</th><th>Purpose</th></tr></thead>
+    <thead><tr><th>Line</th><th>What happens</th></tr></thead>
     <tbody>
-      <tr><td><code>#param … pattern="…" default</code></td><td>Declare and validate a query parameter (<code>filter</code>) in GET requests.</td></tr>
-      <tr><td>Context‑aware <code>#if</code></td><td>Dynamically add the <code>selected</code> CSS class to the active link.</td></tr>
-      <tr><td>SQL condition using bound params</td><td>Show only the rows that match the chosen filter.</td></tr>
+      <tr><td><code>PageQLApp(...)</code></td><td>Embeds the template engine in an <strong>ASGI</strong> app compatible with any framework/server.</td></tr>
+      <tr><td><code>create_function</code></td><td>Exposes pure‑Python helpers to <strong>every SQL statement</strong> in your templates.</td></tr>
+      <tr><td><code>@app.before('/before')</code></td><td>Registers an async function that runs <strong>before</strong> the template. You can also use <code>@app.after()</code> for post‑processing.</td></tr>
     </tbody>
   </table>
 
   <!-- 2 -->
-  <h2>2 Declare the <code>filter</code> parameter</h2>
+  <h2>2 Tiny template that consumes the hook</h2>
 
-  <p>Near the top of <strong>templates/todos.pageql</strong>, right after any existing <code>#set</code> or <code>#create</code> tags, insert:</p>
+  <p>Create <em>templates/before.pageql</em>:</p>
 
   <pre class="code-block"><code class="language-html">
-&#123;&#123;<span class="keyword">#param</span> <span class="variable">filter</span> <span class="attribute">default</span>=<span class="string">'all'</span> <span class="attribute">pattern</span>=<span class="string">"^(all|active|completed)$"</span> <span class="attribute">optional</span>&#125;&#125;
-</code><div class="clean-code">{{#param filter default='all' pattern="^(all|active|completed)$" optional}}</div></pre>
+&lt;<span class="keyword">h1</span>&gt;&#123;&#123;title&#125;&#125;&lt;/<span class="keyword">h1</span>&gt;
+&lt;<span class="keyword">img</span> <span class="attribute">src</span>=<span class="string">"data:image/jpeg;base64,{{{ base64_encode(image) }}}"</span> <span class="attribute">width</span>=<span class="string">"320"</span>&gt;
+&lt;<span class="keyword">p</span>&gt;This page was populated entirely from the &lt;<span class="keyword">code</span>&gt;@before&lt;/<span class="keyword">code</span>&gt; hook.&lt;/<span class="keyword">p</span>&gt;
+</code><div class="clean-code">&lt;h1&gt;{{title}}&lt;/h1&gt;
+&lt;img src="data:image/jpeg;base64,{{{ base64_encode(image) }}}" width="320"&gt;
+&lt;p&gt;This page was populated entirely from the &lt;code&gt;@before&lt;/code&gt; hook.&lt;/p&gt;</div></pre>
 
-  <p><em><code>optional</code> means the page also works without the query string.</em></p>
+  <p>Reload the browser and you should see your local <em>horse.jpg</em> embedded via Data‑URI. Switch images at runtime or add extra parameters—no template change required.</p>
+
+  <blockquote><p><strong>Tip:</strong> If you don't have a <code>horse.jpg</code>, drop any JPEG into the project root or modify the hook to fetch from the internet.</p></blockquote>
 
   <!-- 3 -->
-  <h2>3 Update the <code>#from</code> loop</h2>
-
-  <p>Replace the simple query with a conditional one:</p>
-
-  <pre class="code-block"><code class="language-html">
-&#123;&#123;<span class="keyword">#from</span> todos
-  <span class="keyword">WHERE</span> (:<span class="variable">filter</span> == <span class="string">'all'</span>)
-        <span class="keyword">OR</span> (:<span class="variable">filter</span> == <span class="string">'active'</span>     <span class="keyword">AND</span> completed = 0)
-        <span class="keyword">OR</span> (:<span class="variable">filter</span> == <span class="string">'completed'</span>  <span class="keyword">AND</span> completed = 1)
-  <span class="keyword">ORDER BY</span> id&#125;&#125;
-  … list‑item markup …
-&#123;&#123;/<span class="keyword">from</span>&#125;&#125;
-</code><div class="clean-code">{{#from todos
-  WHERE (:filter == 'all')
-        OR (:filter == 'active'     AND completed = 0)
-        OR (:filter == 'completed'  AND completed = 1)
-  ORDER BY id}}
-  … list‑item markup …
-{{/from}}</div></pre>
-
-  <p>The entire boolean expression is <strong>sent to SQLite</strong>; <code>:filter</code> is safely bound.</p>
-
-  <!-- 4 -->
-  <h2>4 Add the filter links in the footer</h2>
-
-  <p>Inside the <code>&lt;footer class="footer"&gt;</code> block (just after the item‑count), add:</p>
-
-  <pre class="code-block"><code class="language-html">
-&lt;<span class="keyword">div</span> <span class="attribute">class</span>=<span class="string">"filters"</span>&gt;
-  &lt;<span class="keyword">a</span> &#123;&#123;<span class="keyword">#if</span> :<span class="variable">filter</span> == <span class="string">'all'</span>&#125;&#125;<span class="attribute">class</span>=<span class="string">"selected"</span>&#123;&#123;/<span class="keyword">if</span>&#125;&#125; <span class="attribute">href</span>=<span class="string">"/todos?filter=all"</span>&gt;All&lt;/<span class="keyword">a</span>&gt; |
-  &lt;<span class="keyword">a</span> &#123;&#123;<span class="keyword">#if</span> :<span class="variable">filter</span> == <span class="string">'active'</span>&#125;&#125;<span class="attribute">class</span>=<span class="string">"selected"</span>&#123;&#123;/<span class="keyword">if</span>&#125;&#125; <span class="attribute">href</span>=<span class="string">"/todos?filter=active"</span>&gt;Active&lt;/<span class="keyword">a</span>&gt; |
-  &lt;<span class="keyword">a</span> &#123;&#123;<span class="keyword">#if</span> :<span class="variable">filter</span> == <span class="string">'completed'</span>&#125;&#125;<span class="attribute">class</span>=<span class="string">"selected"</span>&#123;&#123;/<span class="keyword">if</span>&#125;&#125; <span class="attribute">href</span>=<span class="string">"/todos?filter=completed"</span>&gt;Completed&lt;/<span class="keyword">a</span>&gt;
-&lt;/<span class="keyword">div</span>&gt;
-</code><div class="clean-code">&lt;div class="filters"&gt;
-  &lt;a {{#if :filter == 'all'}}class="selected"{{/if}} href="/todos?filter=all"&gt;All&lt;/a&gt; |
-  &lt;a {{#if :filter == 'active'}}class="selected"{{/if}} href="/todos?filter=active"&gt;Active&lt;/a&gt; |
-  &lt;a {{#if :filter == 'completed'}}class="selected"{{/if}} href="/todos?filter=completed"&gt;Completed&lt;/a&gt;
-&lt;/div&gt;</div></pre>
-
-  <p>The CSS from TodoMVC highlights the link that carries <code>class="selected"</code>.</p>
-
-  <!-- 5 -->
-  <h2>5 Try it out</h2>
-
-  <ol>
-    <li>Open <a href="http://localhost:8000/todos">http://localhost:8000/todos</a> — <strong>All</strong> is selected by default.</li>
-    <li>Click <strong>Active</strong> — only incomplete items remain.</li>
-    <li>Tick a few checkboxes so they disappear from the Active view, then click <strong>Completed</strong> to confirm they moved.</li>
-    <li>Manually tamper with the URL (e.g. <code>?filter=hack</code>) → PageQL blocks the request because it fails the regex pattern.</li>
-  </ol>
-
-  <!-- 6 -->
-  <h2>6 How it works</h2>
+  <h2>3 Recap</h2>
 
   <ul>
-    <li><code>#param</code> <strong>validates early</strong>—before any SQL—so you never build an unsafe query.</li>
-    <li>The three‑way <code>WHERE</code> clause is still a single index‑friendly query.</li>
-    <li>Highlighting uses a tiny <code>#if</code>—no loops or enums required.</li>
+    <li><strong>Programmable hooks</strong> let you keep business logic in Python while PageQL handles rendering.</li>
+    <li><strong>Custom SQL functions</strong> turn the database into your number‑cruncher or encoder.</li>
+    <li>The engine is an <strong>ASGI component</strong>—compose it with your favourite web stack.</li>
   </ul>
 
-  <!-- 7 -->
-  <h2>7 Wrap‑up</h2>
-
-  <p>Congratulations 🎉 You have:</p>
+  <p>Because <strong>PageQLApp is just ASGI</strong>, you can:</p>
 
   <ul>
-    <li><strong>Full CRUD</strong> (add, edit, toggle, delete)</li>
-    <li><strong>Bulk actions</strong> (toggle‑all, clear‑completed)</li>
-    <li><strong>Dynamic filtering</strong> — all without JavaScript beyond form submission helpers.</li>
+    <li>Mount it under FastAPI or Starlette and add JWT auth middleware.</li>
+    <li>Pipe it through <code>asgiref.wsgi.WsgiToAsgi</code> to reuse Flask blueprints.</li>
+    <li>Deploy on any host that understands ASGI (Uvicorn, Hypercorn, Daphne, AWS Lambda via <code>mangum</code>).</li>
   </ul>
 
-  <p>PageQL let us ship a reactive, database‑driven TodoMVC in <strong>≈120 lines of HTML+SQL</strong>. From here you can explore:</p>
+  <p>That concludes the tutorial series—happy hacking! 🎉</p>
 
-  <ul>
-    <li><strong>Component extraction</strong> (<code>#import</code>, <code>#render</code>) to DRY up markup.</li>
-    <li><strong>Deployment</strong> — serve with any WSGI host or container.</li>
-    <li><strong>Live query reactivity</strong> (alpha) to auto‑push DB changes to connected browsers.</li>
-  </ul>
-
-  <p>Enjoy building with PageQL, and thanks for following the tutorial! 🎊</p>
-  <p><a href="./06_integration_extensibility.html">Next: Part 6: Integration & Extensibility »</a></p>
-
-  <p><a href="./04_deleting_and_bulk.html">« Part 4: Deleting &amp; Bulk Actions</a></p>
+  <p><a href="./05_adding_filters.html">« Part 5: Adding Filters</a></p>
 
 </article>
 

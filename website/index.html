@@ -268,7 +268,7 @@
       <div class="card">
         <h2>What is PageQL?</h2>
         <p>
-          PageQL is a template language and micro Python web framework that allows embedding SQL inside HTML directly. 
+          PageQL is an experimental template language and micro Python web framework that allows embedding SQL inside HTML directly. 
           It was inspired by ColdFusion language that allows embedding SQL and Handlebars / Moustache logic-less templates 
           and also HTMX that simplifies web development.
         </p>
@@ -297,12 +297,13 @@ pageql data.db templates --create</code></pre>
           
           <div class="features">
             <div class="feature-item">
-              <div class="feature-icon">✦</div>
-              <div class="feature-text">
-                <h3>Data-Centric</h3>
-                <p>The primary goal is displaying and manipulating data from a relational database.</p>
+                <div class="feature-icon">✦</div>
+                <div class="feature-text">
+                  <h3>Minimal</h3>
+                  <p>The language fully embraces SQL and HTML and adds as few features as needed to implement
+                      the common 80 % of web site features—lists, forms, CRUD—while leaving power-user cases to extensions</p>
+                </div>
               </div>
-            </div>
             
             <div class="feature-item">
               <div class="feature-icon">✦</div>
@@ -375,9 +376,41 @@ pageql data.db templates --create</code></pre>
 <span style="color: #61afef;">&lt;/html&gt;</span></code></pre>
         </div>
       </div>
-    </main>
+
+  <div class="card">
+    <h2>Future plans</h2>
+    <p>PageQL was built with a simple core language but lots of extensibility in mind</p>
+    
+    <div class="features">
+      <div class="feature-item">
+        <div class="feature-icon">✦</div>
+        <div class="feature-text">
+          <h3>Embeddable, simple, performant</h3>
+          <p>While the current implementation is in Python, the language is designed to be simple enough to be reimplemented in any language (C / C++ / Rust / JavaScript...)</p>
+        </div>
+      </div>
+      
+      <div class="feature-item">
+        <div class="feature-icon">✦</div>
+        <div class="feature-text">
+          <h3>Reactivity</h3>
+          <p>The language was designed to have a relational reactive mode. As both HTML and SQL are declarative, it's much easier to reason about then if an imperative language is used as a glue .
+          </p>
+        </div>
+      </div>
+      
+      <div class="feature-item">
+        <div class="feature-icon">✦</div>
+        <div class="feature-text">
+          <h3>Client based, offline mode with SQL database automatic syncing.</h3>
+          <p>Lots of web frameworks get very complex when client and server code is mixed. PageQL solves it by creating a simple SQL change synchronization protocol as an orthogonal project. As long as reactive SQL updates are used, and SQL database is the main data store, the cognitive overhead remains low with this approach.</p>
+        </div>
+      </div>
+    </div>
   </div>
 
+    </main>
+  </div>
   <script>
     function copyTerminalCode(button) {
       const codeBlock = button.closest('.terminal-block').querySelector('code');

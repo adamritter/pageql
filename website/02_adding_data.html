@@ -292,6 +292,43 @@
     .clean-code {
       display: none;
     }
+    @media (max-width: 768px) {
+      body {
+        padding: 0.5rem;
+      }
+      article {
+        padding: 1.5rem 1rem;
+        border-left: none;
+        border-right: none;
+        border-radius: 0;
+        box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+        width: calc(100% + 1rem);
+        margin: 0 -0.5rem;
+      }
+      pre {
+        margin-left: -0.5rem;
+        margin-right: -0.5rem;
+        border-radius: 4px;
+        font-size: 0.9rem;
+        padding: 0.75rem;
+      }
+      h1 {
+        font-size: 2rem;
+      }
+      .github-banner {
+        margin-bottom: 1.5rem;
+        padding-bottom: 1rem;
+      }
+      .file-label {
+        margin-left: -0.5rem;
+        padding: 0.4rem 0.75rem;
+      }
+      table {
+        display: block;
+        overflow-x: auto;
+        font-size: 0.9rem;
+      }
+    }
   </style>
 
   <script>

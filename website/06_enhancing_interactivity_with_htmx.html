@@ -1,0 +1,643 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PageQL Tutorial – Enhancing Interactivity with HTMX</title>
+
+  <!-- Google Font for pleasant typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+
+  <!-- Self-contained styling (same palette as previous parts) -->
+  <style>
+    :root {
+      --bg-gradient-start: #1a2233;   /* Dark blue */
+      --bg-gradient-end:   #2d3748;   /* Dark slate */
+      --card-bg:  #2a2e3a;
+      --text:     #e2e2e2;
+      --text-muted: #b0b8c4;          /* Slightly muted text */
+      --primary:  #be5028;            /* More subdued blue */
+      --code-bg:  #1a1f2b;
+      --code-text:#d8e0ff;            /* Slightly warmer code text */
+      --border-subtle: #3a4259;       /* Subtle border color */
+      --terminal-bg: #1c2333;         /* Terminal background */
+      --terminal-text: #e8ecf5;       /* Terminal text color - light bluish */
+      --diff-add: #204829;
+      --diff-add-text: #7cbe8c;
+      --syntax-keyword: #c586c0;      /* Purple for keywords */
+      --syntax-string: #98c379;       /* Green for strings */
+      --syntax-function: #e06c75;     /* Red-pink for functions */
+      --syntax-variable: #e5c07b;     /* Yellow for variables */
+      --syntax-comment: #6a9955;      /* Green for comments */
+      --syntax-attribute: #d7ba7d;    /* Gold for attributes */
+    }
+    * { box-sizing: border-box; font-family: 'Inter', sans-serif; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, var(--bg-gradient-start), var(--bg-gradient-end));
+      padding: 2rem;
+      color: var(--text);
+    }
+    article {
+      background: var(--card-bg);
+      max-width: 780px;
+      width: 100%;
+      border-radius: 12px;
+      padding: 3rem 3.5rem;
+      box-shadow: 0 12px 30px rgba(0,0,0,0.3);
+      border: 1px solid var(--border-subtle);
+    }
+    .github-banner {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      margin-bottom: 2rem;
+      padding-bottom: 1.5rem;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+    .github-banner a.github-link {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: white;
+      font-weight: 600;
+      text-decoration: none;
+      padding: 8px 14px;
+      background: rgba(0,0,0,0.2);
+      border-radius: 6px;
+      border: 1px solid var(--border-subtle);
+      transition: all 0.2s;
+    }
+    .github-banner a.github-link:hover {
+      background: rgba(0,0,0,0.3);
+      transform: translateY(-2px);
+    }
+    .github-banner svg {
+      width: 20px;
+      height: 20px;
+      fill: white;
+    }
+    .github-banner .logo {
+      font-size: 1.8rem;
+      font-weight: 700;
+      color: #4a7dbd;
+      margin-right: auto;
+    }
+    .github-banner .logo a {
+      color: var(--primary); 
+      /* no underline */
+      border-bottom: none;
+    }
+    h1 { 
+      margin-top: 0; 
+      font-size: 2.4rem; 
+      color: var(--primary);
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      line-height: 1.2;
+    }
+    h1 small { 
+      font-size: 1rem; 
+      font-weight: 400;
+      color: var(--text-muted);
+      display: block;
+    }
+    h2 { margin-top: 2.2rem; font-size: 1.5rem; border-bottom: 1px solid var(--border-subtle); padding-bottom: 0.5rem; }
+    h3 { margin-top: 1.8rem; font-size: 1.2rem; }
+    ol, ul { padding-left: 1.4rem; }
+    li { margin-bottom: 0.5rem; }
+    pre {
+      background: var(--code-bg);
+      padding: 1rem 1.25rem;
+      overflow-x: auto;
+      border-radius: 6px;
+      margin: 1rem 0 1.5rem;
+      border: 1px solid var(--border-subtle);
+      position: relative;
+    }
+    /* Terminal code block styling */
+    pre.terminal {
+      background: var(--terminal-bg);
+      border-color: #253046;
+      cursor: pointer;
+    }
+    pre.terminal code {
+      color: var(--terminal-text);
+      font-family: 'JetBrains Mono', Menlo, Consolas, monospace;
+    }
+    pre.terminal code * {
+      font-family: 'JetBrains Mono', Menlo, Consolas, monospace;
+    }
+    pre.terminal::before {
+      content: "Click to copy";
+      position: absolute;
+      top: 0.5rem;
+      right: 0.5rem;
+      background: rgba(80, 92, 124, 0.6);
+      color: white;
+      padding: 0.3rem 0.5rem;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    pre.terminal:hover::before {
+      opacity: 1;
+    }
+    pre.terminal.copied::before {
+      content: "Copied!";
+      background: rgba(56, 161, 105, 0.8);
+    }
+    code { color: var(--code-text); font-family: Menlo, Consolas, monospace; }
+    .next-link {
+      display: inline-block;
+      margin-top: 2rem;
+      padding: 0.75rem 1.5rem;
+      background: var(--primary);
+      color: #fff;
+      border-radius: 6px;
+      text-decoration: none;
+      font-weight: 600;
+      transition: all 0.2s;
+      border: none;
+    }
+    .next-link:hover { 
+      background: #3b6ca8; 
+      transform: translateY(-2px);
+      box-shadow: 0 4px 10px rgba(59, 108, 168, 0.3);
+    }
+    a { 
+      color: var(--primary); 
+      text-decoration: none;
+      border-bottom: 1px dotted rgba(91, 173, 255, 0.4);
+      transition: border-color 0.2s;
+    }
+    a:hover {
+      border-bottom: 1px solid var(--primary);
+    }
+    footer { 
+      margin-top: 3rem; 
+      font-size: 0.9rem; 
+      color: var(--text-muted);
+      text-align: center;
+      border-top: 1px solid var(--border-subtle);
+      padding-top: 1.5rem;
+    }
+    em, strong { color: #ffffff; }
+    p { line-height: 1.6; }
+    .file-label {
+      background: var(--primary);
+      color: white;
+      font-family: 'JetBrains Mono', Menlo, Consolas, monospace;
+      font-size: 0.85rem;
+      padding: 0.5rem 1rem;
+      border-radius: 6px 6px 0 0;
+      margin-top: 1.5rem;
+      display: inline-block;
+      font-weight: 500;
+    }
+    .file-label + pre.terminal {
+      margin-top: 0;
+      border-top-left-radius: 0;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1.5rem 0;
+    }
+    th, td {
+      padding: 0.75rem;
+      border: 1px solid var(--border-subtle);
+      text-align: left;
+    }
+    th {
+      background-color: rgba(0, 0, 0, 0.2);
+    }
+    blockquote {
+      background: rgba(0, 0, 0, 0.15);
+      border-left: 4px solid var(--primary);
+      margin: 1.5rem 0;
+      padding: 1rem;
+      border-radius: 0 6px 6px 0;
+    }
+    blockquote p {
+      margin: 0;
+    }
+    img {
+      max-width: 100%;
+      height: auto;
+      border-radius: 6px;
+    }
+    .keyword, code span.keyword {
+      color: var(--syntax-keyword);
+    }
+    .string, code span.string {
+      color: var(--syntax-string);
+    }
+    .function, code span.function {
+      color: var(--syntax-function);
+    }
+    .variable, code span.variable {
+      color: var(--syntax-variable);
+    }
+    .comment, code span.comment {
+      color: var(--syntax-comment);
+    }
+    .attribute, code span.attribute {
+      color: var(--syntax-attribute);
+    }
+    .comment {
+      color: var(--syntax-comment);
+      font-style: italic;
+    }
+    pre.code-block {
+      background: var(--code-bg);
+      padding: 1rem 1.25rem;
+      overflow-x: auto;
+      border-radius: 6px;
+      margin: 1rem 0 1.5rem;
+      border: 1px solid var(--border-subtle);
+      position: relative;
+      cursor: pointer;
+    }
+    pre.code-block::before {
+      content: "Click to copy";
+      position: absolute;
+      top: 0.5rem;
+      right: 0.5rem;
+      background: rgba(80, 92, 124, 0.6);
+      color: white;
+      padding: 0.3rem 0.5rem;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    pre.code-block:hover::before {
+      opacity: 1;
+    }
+    pre.code-block.copied::before {
+      content: "Copied!";
+      background: rgba(56, 161, 105, 0.8);
+    }
+    .clean-code {
+      display: none;
+    }
+    @media (max-width: 768px) {
+      body {
+        padding: 0.5rem;
+      }
+      article {
+        padding: 1.5rem 1rem;
+        border-left: none;
+        border-right: none;
+        border-radius: 0;
+        box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+        width: calc(100% + 1rem);
+        margin: 0 -0.5rem;
+      }
+      pre {
+        margin-left: -0.5rem;
+        margin-right: -0.5rem;
+        border-radius: 4px;
+        font-size: 0.9rem;
+        padding: 0.75rem;
+      }
+      h1 {
+        font-size: 2rem;
+      }
+      .github-banner {
+        margin-bottom: 1.5rem;
+        padding-bottom: 1rem;
+      }
+      .file-label {
+        margin-left: -0.5rem;
+        padding: 0.4rem 0.75rem;
+      }
+      table {
+        display: block;
+        overflow-x: auto;
+        font-size: 0.9rem;
+      }
+      pre.code-block, pre.terminal {
+        font-size: 0.85rem;
+      }
+      blockquote {
+        margin-left: -0.5rem;
+        margin-right: -0.5rem;
+      }
+      .github-banner .github-link span {
+        display: none;
+      }
+    }
+  </style>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      // Find all terminal code blocks and make them copyable
+      const terminalBlocks = document.querySelectorAll('pre.terminal');
+      
+      terminalBlocks.forEach(block => {
+        block.addEventListener('click', function() {
+          const code = this.querySelector('code').innerText;
+          navigator.clipboard.writeText(code).then(() => {
+            this.classList.add('copied');
+            setTimeout(() => {
+              this.classList.remove('copied');
+            }, 2000);
+          });
+        });
+      });
+
+      // Add copy support for code examples
+      const codeBlocks = document.querySelectorAll('pre.code-block');
+      
+      codeBlocks.forEach(block => {
+        block.addEventListener('click', function() {
+          const cleanCode = this.querySelector('.clean-code').innerText;
+          navigator.clipboard.writeText(cleanCode).then(() => {
+            this.classList.add('copied');
+            setTimeout(() => {
+              this.classList.remove('copied');
+            }, 2000);
+          });
+        });
+      });
+    });
+  </script>
+</head>
+
+<body>
+<article>
+
+  <div class="github-banner">
+    <div class="logo"><a href="/index.html">PageQL</a> Tutorial</div>
+    <a class="github-link" href="https://github.com/adamritter/pageql" target="_blank" rel="noopener noreferrer">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">
+        <path d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"></path>
+      </svg>
+      <span>GitHub</span>
+    </a>
+  </div>
+
+  <h1>Enhancing Interactivity with HTMX <small>without repeating yourself</small></h1>
+
+  <p><strong>Goal:</strong> So far every change (add, edit, toggle) sends the browser on a full round-trip: POST → 302 → GET. That is fine, but a modern UI can feel snappier. Instead of pulling in a heavy front-end framework we'll sprinkle one tiny script—HTMX—that turns our existing PageQL endpoints into AJAX fragment providers.</p>
+
+  <p>We still want:</p>
+  <ul>
+    <li>One source of truth for list-item HTML — no copy-pasting the same &lt;li&gt; in five places.</li>
+    <li>A graceful fallback for visitors without JavaScript.</li>
+  </ul>
+
+  <p>We'll achieve that by refactoring the current view / edit blocks into partials first, then letting HTMX ask those same partials for tiny bits of HTML.</p>
+
+  <blockquote><p><em>Hands-on time: about 15 minutes.</em></p></blockquote>
+
+  <p><a href="./05_adding_filters.html">« Part 5: Adding Filters</a></p>
+
+  <!-- 1 -->
+  <h2>1 Add HTMX once</h2>
+
+  <p>At the end of the &lt;head&gt; section in templates/todos.pageql (or in your shared layout) drop in:</p>
+
+  <pre class="code-block"><code class="language-html">
+&lt;<span class="keyword">script</span> <span class="attribute">src</span>=<span class="string">"https://unpkg.com/htmx.org@1.9.10"</span>&gt;&lt;/<span class="keyword">script</span>&gt;
+</code><div class="clean-code">&lt;script src="https://unpkg.com/htmx.org@1.9.10"&gt;&lt;/script&gt;</div></pre>
+
+  <p>That's the only JavaScript we'll write today.</p>
+
+  <!-- 2 -->
+  <h2>2 Refactor list rows into partials (no behaviour change yet)</h2>
+
+  <p>Before we touch HTMX attributes, move the two &lt;li&gt; variants into local partials. Add them near the bottom of the same file:</p>
+
+  <pre class="code-block"><code class="language-html">
+&#123;&#123;<span class="keyword">#partial</span> <span class="variable">row_view</span>&#125;&#125;
+  &lt;<span class="keyword">li</span> &#123;&#123;<span class="keyword">#if</span> <span class="variable">completed</span>&#125;&#125;<span class="attribute">class</span>=<span class="string">"completed"</span>&#123;&#123;/<span class="keyword">if</span>&#125;&#125;&gt;
+    &lt;<span class="keyword">form</span> <span class="attribute">method</span>=<span class="string">"POST"</span> <span class="attribute">action</span>=<span class="string">"/todos/toggle"</span> <span class="attribute">style</span>=<span class="string">"display:inline"</span>&gt;
+      &lt;<span class="keyword">input</span> <span class="attribute">type</span>=<span class="string">"hidden"</span> <span class="attribute">name</span>=<span class="string">"id"</span> <span class="attribute">value</span>=<span class="string">"&#123;&#123;id&#125;&#125;"</span>&gt;
+      &lt;<span class="keyword">input</span> <span class="attribute">class</span>=<span class="string">"toggle"</span> <span class="attribute">type</span>=<span class="string">"checkbox"</span> &#123;&#123;<span class="keyword">#if</span> <span class="variable">completed</span>&#125;&#125;<span class="attribute">checked</span>&#123;&#123;/<span class="keyword">if</span>&#125;&#125; <span class="attribute">onchange</span>=<span class="string">"this.form.submit();"</span>&gt;
+    &lt;/<span class="keyword">form</span>&gt;
+    &lt;<span class="keyword">label</span> <span class="attribute">ondblclick</span>=<span class="string">"window.location='/todos?edit_id=&#123;&#123;id&#125;&#125;'"</span>&gt;&#123;&#123;<span class="variable">text</span>&#125;&#125;&lt;/<span class="keyword">label</span>&gt;
+    &lt;<span class="keyword">form</span> <span class="attribute">method</span>=<span class="string">"POST"</span> <span class="attribute">action</span>=<span class="string">"/todos/delete"</span> <span class="attribute">style</span>=<span class="string">"display:inline"</span>&gt;
+      &lt;<span class="keyword">input</span> <span class="attribute">type</span>=<span class="string">"hidden"</span> <span class="attribute">name</span>=<span class="string">"id"</span> <span class="attribute">value</span>=<span class="string">"&#123;&#123;id&#125;&#125;"</span>&gt;
+      &lt;<span class="keyword">button</span> <span class="attribute">class</span>=<span class="string">"destroy"</span> <span class="attribute">style</span>=<span class="string">"cursor:pointer; background:none; border:none; color:#ac4a1a;"</span>&gt;✕&lt;/<span class="keyword">button</span>&gt;
+    &lt;/<span class="keyword">form</span>&gt;
+  &lt;/<span class="keyword">li</span>&gt;
+&#123;&#123;/<span class="keyword">partial</span>&#125;&#125;
+
+&#123;&#123;<span class="keyword">#partial</span> <span class="variable">row_edit</span>&#125;&#125;
+  &lt;<span class="keyword">li</span> <span class="attribute">class</span>=<span class="string">"editing"</span>&gt;
+    &lt;<span class="keyword">form</span> <span class="attribute">method</span>=<span class="string">"POST"</span> <span class="attribute">action</span>=<span class="string">"/todos/save"</span> <span class="attribute">style</span>=<span class="string">"margin:0"</span>&gt;
+      &lt;<span class="keyword">input</span> <span class="attribute">type</span>=<span class="string">"hidden"</span> <span class="attribute">name</span>=<span class="string">"id"</span> <span class="attribute">value</span>=<span class="string">"&#123;&#123;id&#125;&#125;"</span>&gt;
+      &lt;<span class="keyword">input</span> <span class="attribute">class</span>=<span class="string">"edit"</span> <span class="attribute">name</span>=<span class="string">"text"</span> <span class="attribute">value</span>=<span class="string">"&#123;&#123;text&#125;&#125;"</span> <span class="attribute">autofocus</span>&gt;
+    &lt;/<span class="keyword">form</span>&gt;
+  &lt;/<span class="keyword">li</span>&gt;
+&#123;&#123;/<span class="keyword">partial</span>&#125;&#125;
+</code><div class="clean-code">&#123;&#123;#partial row_view&#125;&#125;
+    &lt;li &#123;&#123;#if completed&#125;&#125;class="completed"&#123;&#123;/if&#125;&#125;&gt;
+      &lt;form method="POST" action="/todos/toggle" style="display:inline"&gt;
+        &lt;input type="hidden" name="id" value="&#123;&#123;id&#125;&#125;"&gt;
+        &lt;input class="toggle" type="checkbox" &#123;&#123;#if completed&#125;&#125;checked&#123;&#123;/if&#125;&#125; onchange="this.form.submit();"&gt;
+      &lt;/form&gt;
+      &lt;label ondblclick="window.location='/todos?edit_id=&#123;&#123;id&#125;&#125;'"&gt;&#123;&#123;text&#125;&#125;&lt;/label&gt;
+      &lt;form method="POST" action="/todos/delete" style="display:inline"&gt;
+        &lt;input type="hidden" name="id" value="&#123;&#123;id&#125;&#125;"&gt;
+        &lt;button class="destroy" style="cursor:pointer; background:none; border:none; color:#ac4a1a;"&gt;✕&lt;/button&gt;
+      &lt;/form&gt;
+    &lt;/li&gt;
+  &#123;&#123;/partial&#125;&#125;
+  
+  &#123;&#123;#partial row_edit&#125;&#125;
+    &lt;li class="editing"&gt;
+      &lt;form method="POST" action="/todos/save" style="margin:0"&gt;
+        &lt;input type="hidden" name="id" value="&#123;&#123;id&#125;&#125;"&gt;
+        &lt;input class="edit" name="text" value="&#123;&#123;text&#125;&#125;" autofocus&gt;
+      &lt;/form&gt;
+    &lt;/li&gt;
+  &#123;&#123;/partial&#125;&#125;</div></pre>
+
+  <p>Now update the original #from loop to render those partials instead of hard-coding &lt;li&gt; markup:</p>
+
+  <pre class="code-block"><code class="language-html">
+&#123;&#123;<span class="keyword">#from</span> todos
+  <span class="keyword">WHERE</span> (:<span class="variable">filter</span> == <span class="string">'all'</span>)
+        <span class="keyword">OR</span> (:<span class="variable">filter</span> == <span class="string">'active'</span>    <span class="keyword">AND</span> completed = 0)
+        <span class="keyword">OR</span> (:<span class="variable">filter</span> == <span class="string">'completed'</span> <span class="keyword">AND</span> completed = 1)
+  <span class="keyword">ORDER BY</span> id&#125;&#125;
+  &#123;&#123;<span class="keyword">#if</span> :<span class="variable">edit_id</span> == :<span class="variable">id</span>&#125;&#125;
+    &#123;&#123;<span class="keyword">#render</span> <span class="variable">row_edit</span>&#125;&#125;
+  &#123;&#123;<span class="keyword">#else</span>&#125;&#125;
+    &#123;&#123;<span class="keyword">#render</span> <span class="variable">row_view</span>&#125;&#125;
+  &#123;&#123;/<span class="keyword">if</span>&#125;&#125;
+&#123;&#123;/<span class="keyword">from</span>&#125;&#125;
+</code><div class="clean-code">&#123;&#123;#from todos
+  WHERE (:filter == 'all')
+        OR (:filter == 'active'    AND completed = 0)
+        OR (:filter == 'completed' AND completed = 1)
+  ORDER BY id&#125;&#125;
+  &#123;&#123;#if :edit_id == :id&#125;&#125;
+    &#123;&#123;#render row_edit&#125;&#125;
+  &#123;&#123;#else&#125;&#125;
+    &#123;&#123;#render row_view&#125;&#125;
+  &#123;&#123;/if&#125;&#125;
+&#123;&#123;/from&#125;&#125;</div></pre>
+
+  <p>Reload the page—nothing should look different. We've simply centralised the HTML.</p>
+
+  <!-- 3 -->
+  <h2>3 Make Add Todo feel instant</h2>
+
+  <h3>3.1 Add HTMX attributes to the header form</h3>
+
+  <p>Replace the old &lt;form&gt; with:</p>
+
+  <pre class="code-block"><code class="language-html">
+&lt;<span class="keyword">form</span> <span class="attribute">hx-post</span>=<span class="string">"/todos/add"</span>
+      <span class="attribute">hx-target</span>=<span class="string">"ul"</span> <span class="attribute">hx-swap</span>=<span class="string">"beforeend"</span> <span class="attribute">hx-include</span>=<span class="string">"this"</span>&gt;
+  &lt;<span class="keyword">input</span> <span class="attribute">name</span>=<span class="string">"text"</span> <span class="attribute">placeholder</span>=<span class="string">"What needs to be done?"</span> <span class="attribute">autofocus</span>&gt;
+&lt;/<span class="keyword">form</span>&gt;
+</code><div class="clean-code">&lt;form hx-post="/todos/add"
+      hx-target="ul" hx-swap="beforeend" hx-include="this"&gt;
+  &lt;input name="text" placeholder="What needs to be done?" autofocus&gt;
+&lt;/form&gt;</div></pre>
+
+  <ul>
+    <li>hx-post turns the submission into an AJAX call.</li>
+    <li>hx-target tells HTMX where to inject the server's reply.</li>
+    <li>hx-swap="beforeend" appends the fragment as the last child.</li>
+  </ul>
+
+  <h3>3.2 Teach the existing add endpoint to answer HTMX nicely</h3>
+
+  <p>Modify the same add partial—not a new one:</p>
+
+  <pre class="code-block"><code class="language-html">
+&#123;&#123;<span class="keyword">#partial</span> <span class="attribute">public</span> <span class="variable">add</span>&#125;&#125;
+  &#123;&#123;<span class="keyword">#param</span> <span class="variable">text</span> <span class="attribute">required</span> <span class="attribute">minlength</span>=<span class="variable">1</span>&#125;&#125;
+  &#123;&#123;<span class="keyword">#insert</span> <span class="keyword">into</span> todos(text, completed) <span class="keyword">values</span> (:<span class="variable">text</span>, 0)&#125;&#125;
+
+  &#123;&#123;<span class="keyword">#if</span> :<span class="variable">headers.HX_Request</span> == <span class="string">'true'</span>&#125;&#125;
+    &#123;&#123;<span class="keyword">#from</span> todos <span class="keyword">WHERE</span> id = <span class="function">last_insert_rowid</span>()&#125;&#125;
+      &#123;&#123;<span class="keyword">#render</span> <span class="variable">row_view</span>&#125;&#125;
+    &#123;&#123;/<span class="keyword">from</span>&#125;&#125;
+  &#123;&#123;<span class="keyword">#else</span>&#125;&#125;
+    &#123;&#123;<span class="keyword">#redirect</span> <span class="string">'/todos'</span>&#125;&#125;
+  &#123;&#123;/<span class="keyword">if</span>&#125;&#125;
+&#123;&#123;/<span class="keyword">partial</span>&#125;&#125;
+</code><div class="clean-code">&#123;&#123;#partial public add&#125;&#125;
+  &#123;&#123;#param text required minlength=1&#125;&#125;
+  &#123;&#123;#insert into todos(text, completed) values (:text, 0)&#125;&#125;
+
+  &#123;&#123;#if :headers.HX_Request == 'true'&#125;&#125;
+    &#123;&#123;#from todos WHERE id = last_insert_rowid()&#125;&#125;
+      &#123;&#123;#render row_view&#125;&#125;
+    &#123;&#123;/from&#125;&#125;
+  &#123;&#123;#else&#125;&#125;
+    &#123;&#123;#redirect '/todos'&#125;&#125;
+  &#123;&#123;/if&#125;&#125;
+&#123;&#123;/partial&#125;&#125;</div></pre>
+
+  <p>HX-Request is automatically sent by htmx.js; PageQL exposes it here as HX_Request (underscore instead of hyphen).</p>
+
+  <p>Result: HTMX callers get a fresh &lt;li&gt; back, non-JS browsers still follow a normal redirect.</p>
+
+  <!-- 4 -->
+  <h2>4 Inline Edit Todo without duplicate HTML</h2>
+
+  <h3>4.1 First, let a label request the edit form</h3>
+
+  <p>Edit the label inside row_view so it becomes the trigger:</p>
+
+  <pre class="code-block"><code class="language-html">
+&lt;<span class="keyword">label</span> <span class="attribute">hx-get</span>=<span class="string">"/todos/edit_form?id=&#123;&#123;id&#125;&#125;"</span>
+       <span class="attribute">hx-target</span>=<span class="string">"closest li"</span> <span class="attribute">hx-swap</span>=<span class="string">"outerHTML"</span> <span class="attribute">ondblclick</span>=<span class="string">"return false;"</span>&gt;&#123;&#123;<span class="variable">text</span>&#125;&#125;&lt;/<span class="keyword">label</span>&gt;
+</code><div class="clean-code">&lt;label hx-get="/todos/edit_form?id=&#123;&#123;id&#125;&#125;"
+       hx-target="closest li" hx-swap="outerHTML" ondblclick="return false;"&gt;&#123;&#123;text&#125;&#125;&lt;/label&gt;</div></pre>
+
+  <h3>4.2 Create the tiny edit_form partial</h3>
+
+  <pre class="code-block"><code class="language-html">
+&#123;&#123;<span class="keyword">#partial</span> <span class="attribute">public</span> <span class="variable">edit_form</span>&#125;&#125;
+  &#123;&#123;<span class="keyword">#param</span> <span class="variable">id</span> <span class="attribute">required</span> <span class="attribute">type</span>=<span class="keyword">integer</span> <span class="attribute">min</span>=<span class="variable">1</span>&#125;&#125;
+  &#123;&#123;<span class="keyword">#from</span> todos <span class="keyword">WHERE</span> id = :<span class="variable">id</span>&#125;&#125;
+    &#123;&#123;<span class="keyword">#render</span> <span class="variable">row_edit</span>&#125;&#125;
+  &#123;&#123;/<span class="keyword">from</span>&#125;&#125;
+&#123;&#123;/<span class="keyword">partial</span>&#125;&#125;
+</code><div class="clean-code">&#123;&#123;#partial public edit_form&#125;&#125;
+  &#123;&#123;#param id required type=integer min=1&#125;&#125;
+  &#123;&#123;#from todos WHERE id = :id&#125;&#125;
+    &#123;&#123;#render row_edit&#125;&#125;
+  &#123;&#123;/from&#125;&#125;
+&#123;&#123;/partial&#125;&#125;</div></pre>
+
+  <h3>4.3 Enhance the existing save endpoint</h3>
+
+  <p>Append an HTMX branch so it returns a view row fragment on success:</p>
+
+  <pre class="code-block"><code class="language-html">
+&#123;&#123;<span class="keyword">#partial</span> <span class="attribute">public</span> <span class="variable">save</span>&#125;&#125;
+  &#123;&#123;<span class="keyword">#param</span> <span class="variable">id</span> <span class="attribute">required</span> <span class="attribute">type</span>=<span class="keyword">integer</span> <span class="attribute">min</span>=<span class="variable">1</span>&#125;&#125;
+  &#123;&#123;<span class="keyword">#param</span> <span class="variable">text</span> <span class="attribute">required</span> <span class="attribute">minlength</span>=<span class="variable">1</span>&#125;&#125;
+  &#123;&#123;<span class="keyword">#update</span> todos <span class="keyword">set</span> text = :<span class="variable">text</span> <span class="keyword">WHERE</span> id = :<span class="variable">id</span>&#125;&#125;
+
+  &#123;&#123;<span class="keyword">#if</span> :<span class="variable">headers.HX_Request</span> == <span class="string">'true'</span>&#125;&#125;
+    &#123;&#123;<span class="keyword">#from</span> todos <span class="keyword">WHERE</span> id = :<span class="variable">id</span>&#125;&#125;
+      &#123;&#123;<span class="keyword">#render</span> <span class="variable">row_view</span>&#125;&#125;
+    &#123;&#123;/<span class="keyword">from</span>&#125;&#125;
+  &#123;&#123;<span class="keyword">#else</span>&#125;&#125;
+    &#123;&#123;<span class="keyword">#redirect</span> <span class="string">'/todos'</span>&#125;&#125;
+  &#123;&#123;/<span class="keyword">if</span>&#125;&#125;
+&#123;&#123;/<span class="keyword">partial</span>&#125;&#125;
+</code><div class="clean-code">&#123;&#123;#partial public save&#125;&#125;
+  &#123;&#123;#param id required type=integer min=1&#125;&#125;
+  &#123;&#123;#param text required minlength=1&#125;&#125;
+  &#123;&#123;#update todos set text = :text WHERE id = :id&#125;&#125;
+
+  &#123;&#123;#if :headers.HX_Request == 'true'&#125;&#125;
+    &#123;&#123;#from todos WHERE id = :id&#125;&#125;
+      &#123;&#123;#render row_view&#125;&#125;
+    &#123;&#123;/from&#125;&#125;
+  &#123;&#123;#else&#125;&#125;
+    &#123;&#123;#redirect '/todos'&#125;&#125;
+  &#123;&#123;/if&#125;&#125;
+&#123;&#123;/partial&#125;&#125;</div></pre>
+
+  <p>The row HTML lives only once—in row_view—yet serves classic and HTMX flows.</p>
+
+  <!-- 5 -->
+  <h2>5 Check it live</h2>
+  <ul>
+    <li>Add a Todo ➜ new item appears instantly, URL never changes.</li>
+    <li>Double-click a Todo ➜ swaps into edit mode; submit ➜ swaps back.</li>
+    <li>Disable JS ➜ every action still works via page reloads—progressive enhancement.</li>
+  </ul>
+
+  <!-- 6 -->
+  <h2>6 What we gained</h2>
+  <ul>
+    <li>Interactivity: inline adds and edits with ~6 HTMX attributes total.</li>
+    <li>Zero duplication: one partial for view, one for edit; endpoints choose what to render.</li>
+    <li>Graceful fallback: the redirect branch stays for non-HTMX clients (or search-engine bots).</li>
+  </ul>
+
+  <p>Next experiments: push live updates with Server-Sent Events, animate swaps with hx-swap-oob, or move the toggle checkbox into its own partial. Enjoy your streamlined, reactive PageQL app! 🚀</p>
+
+  <p><a href="./07_integration_extensibility.html">Next: Part 7: Integration & Extensibility »</a></p>
+
+  <p><a href="./05_adding_filters.html">« Part 5: Adding Filters</a></p>
+
+</article>
+
+<script>
+  // Enable code copying functionality
+</script>
+</rewritten_file>

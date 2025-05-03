@@ -141,6 +141,7 @@ class PageQLApp:
         # Add decoded headers to params
         headers = {k.decode('utf-8').replace('-', '_'): v.decode('utf-8') for k, v in scope['headers']}
         params['headers'] = headers
+        params['method'] = scope['method']
 
         # --- Parse Parameters ---
         # Query string parameters (for GET and potentially POST)

@@ -448,7 +448,7 @@ class PageQL:
                     skip_if += 1 # Skip this block and subsequent elif/else blocks
                 elif node_type == '#else':
                     skip_if += 1  # Skip the else block because the if or an elif was true
-                elif node_type == '/if' or node_type == '/ifdef':
+                elif node_type == '/if' or node_type == '/ifdef' or node_type == '/endif':
                     pass
                 elif node_type == 'render_expression':
                     output_buffer.append(html.escape(str(evalone(self.db, node_content, params))))

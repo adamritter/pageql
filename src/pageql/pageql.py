@@ -16,6 +16,32 @@ import doctest
 import sqlite3
 import html
 
+def flatten_params(params):
+    """
+    Recursively flattens a nested dictionary using __ separator.
+    
+    Args:
+        params: A dictionary, potentially containing nested dictionaries
+        
+    Returns:
+        A flattened dictionary
+        
+    Example:
+        >>> flatten_params({"a": {"b": "c"}})
+        {'a__b': 'c'}
+        >>> flatten_params({"x": 1, "y": {"z": 2, "w": {"v": 3}}})
+        {'x': 1, 'y__z': 2, 'y__w__v': 3}
+    """
+    result = {}
+    for key, value in params.items():
+        if isinstance(value, dict):
+            flattened = flatten_params(value)
+            for k, v in flattened.items():
+                result[f"{key}__{k}"] = v
+        else:
+            result[key] = value
+    return result
+
 def parse_param_attrs(s):
     """
     Parses a simple set of attributes from a string like:
@@ -128,9 +154,10 @@ class PageQL:
                 elif part.startswith('#') or part.startswith('/'):
                     nodes.append(parsefirstword(part))
                 else:
-                    if re.match("^:?[a-zA-z]+$", part):
+                    if re.match("^:?[a-zA-z.]+$", part):
                         if part[0] == ':':
                             part = part[1:]
+                        part = part.replace('.', '__')
                         nodes.append(('render_param', part))
                     else:
                         nodes.append(('render_expression', part))
@@ -168,6 +195,21 @@ class PageQL:
             ... :(
             ... {{/if}}
             ... {{/if}}
+            ... {{#ifdef :hello}}
+            ... Hello is defined!
+            ... {{#else}}
+            ... Nothing is defined!
+            ... {{/ifdef}}
+            ... {{#ifdef :hello2}}
+            ... Hello is defined!
+            ... {{#else}}
+            ... Hello2 isn't defined!
+            ... {{/ifdef}}
+            ... {{#ifdef :he.lo}}
+            ... He.lo is defined: {{he.lo}}
+            ... {{#else}}
+            ... He.lo isn't defined!
+            ... {{/ifdef}}
             ... {{#create table if not exists todos (id primary key, text text, done boolean) }}
             ... {{#insert into todos (text) values ('hello sql')}}
             ... {{#insert into todos (text) values ('hello second row')}}
@@ -190,7 +232,7 @@ class PageQL:
             ... End Text.
             ... '''
             >>> r.load_module("comment_test", source_with_comment)
-            >>> result1 = r.render("/comment_test", {'hello': 'world'})
+            >>> result1 = r.render("/comment_test", {'hello': 'world', 'he': {'lo': 'wor'}})
             >>> print(result1.status_code)
             200
             >>> print(result1.body.strip())
@@ -198,6 +240,9 @@ class PageQL:
             world
             10
             :)
+            Hello is defined!
+            Hello2 isn't defined!
+            He.lo is defined: wor
             2
             hello sql
             hello second row
@@ -217,6 +262,7 @@ class PageQL:
             hello world
         """
         module_name = path.strip('/')
+        params = flatten_params(params)
 
         # --- Execute Node List ---
         result = RenderResult()
@@ -273,9 +319,9 @@ class PageQL:
                     continue
 
                 if skip_if:
-                    if node_type == '#if':
+                    if node_type == '#if' or node_type == '#ifdef':
                         skip_if += 1
-                    elif node_type == '/if':
+                    elif node_type == '/if' or node_type == '/ifdef':
                         skip_if -= 1
                     elif node_type == "#elif" and skip_if == 1: # If we are skipping because the previous if/elif was false
                         if evalone(self.db, node_content, params):
@@ -386,15 +432,23 @@ class PageQL:
                     var, args = parsefirstword(node_content)
                     if var[0] == ':':
                         var = var[1:]
+                    var = var.replace('.', '__')
                     params[var]=evalone(self.db, args, params)
                 elif node_type == '#if':
                     if not evalone(self.db, node_content, params):
+                        skip_if += 1
+                elif node_type == '#ifdef':
+                    param_name = node_content.strip()
+                    if param_name.startswith(':'):
+                        param_name = param_name[1:]
+                    param_name = param_name.replace('.', '__')
+                    if param_name not in params:
                         skip_if += 1
                 elif node_type == '#elif': # Encountered elif while NOT skipping (previous if/elif was true)
                     skip_if += 1 # Skip this block and subsequent elif/else blocks
                 elif node_type == '#else':
                     skip_if += 1  # Skip the else block because the if or an elif was true
-                elif node_type == '/if':
+                elif node_type == '/if' or node_type == '/ifdef':
                     pass
                 elif node_type == 'render_expression':
                     output_buffer.append(html.escape(str(evalone(self.db, node_content, params))))

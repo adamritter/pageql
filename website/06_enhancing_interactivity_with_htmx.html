@@ -549,6 +549,26 @@
   <p>HX-Request is automatically sent by htmx.js; PageQL exposes it here as HX_Request (underscore instead of hyphen).</p>
 
   <p>Result: HTMX callers get a fresh &lt;li&gt; back, non-JS browsers still follow a normal redirect.</p>
+  
+  <h3>3.3 Clear the input field after submission</h3>
+
+  <p>One final enhancement: we should clear the input box after a todo is added. Modify the add form:</p>
+
+  <pre class="code-block"><code class="language-html">
+&lt;<span class="keyword">form</span> <span class="attribute">hx-post</span>=<span class="string">"/todos/add"</span>
+      <span class="attribute">hx-target</span>=<span class="string">"ul"</span> <span class="attribute">hx-swap</span>=<span class="string">"beforeend"</span> <span class="attribute">hx-include</span>=<span class="string">"this"</span>
+      <span class="attribute">hx-on</span>=<span class="string">"htmx:afterOnLoad: this.reset()"</span>&gt;
+  &lt;<span class="keyword">input</span> <span class="attribute">name</span>=<span class="string">"text"</span> <span class="attribute">placeholder</span>=<span class="string">"What needs to be done?"</span> <span class="attribute">autofocus</span> <span class="attribute">autocomplete</span>=<span class="string">"off"</span>&gt;
+&lt;/<span class="keyword">form</span>&gt;
+</code><div class="clean-code">&lt;form hx-post="/todos/add"
+      hx-target="ul" hx-swap="beforeend" hx-include="this"
+      hx-on="htmx:afterOnLoad: this.reset()" autocomplete="off"&gt;
+  &lt;input name="text" placeholder="What needs to be done?" autofocus&gt;
+&lt;/form&gt;</div></pre>
+
+  <p>The <code>hx-on="htmx:afterOnLoad: this.reset()"</code> attribute tells HTMX to reset the form after the AJAX request completes successfully. This clears the input field, allowing the user to immediately add another todo without having to manually delete the previous text.</p>
+
+  <p>Now your app feels truly interactive: Add a todo, the item appears at the bottom of the list, and the input box clears automatically!</p>
 
   <!-- 4 -->
   <h2>4 Inline Edit Todo without duplicate HTML</h2>
@@ -612,6 +632,38 @@
 &#123;&#123;/partial&#125;&#125;</div></pre>
 
   <p>The row HTML lives only once—in row_view—yet serves classic and HTMX flows.</p>
+
+  <h3>4.4 Enhance the edit form with HTMX</h3>
+
+  <p>Now let's also modify the <code>row_edit</code> partial to use HTMX for submitting edits:</p>
+
+  <pre class="code-block"><code class="language-html">
+&#123;&#123;<span class="keyword">#partial</span> <span class="variable">row_edit</span>&#125;&#125;
+  &lt;<span class="keyword">li</span> <span class="attribute">class</span>=<span class="string">"editing"</span>&gt;
+    &lt;<span class="keyword">form</span> <span class="attribute">hx-post</span>=<span class="string">"/todos/save"</span> <span class="attribute">hx-target</span>=<span class="string">"this"</span> <span class="attribute">hx-swap</span>=<span class="string">"outerHTML"</span> <span class="attribute">style</span>=<span class="string">"margin:0"</span>&gt;
+      &lt;<span class="keyword">input</span> <span class="attribute">type</span>=<span class="string">"hidden"</span> <span class="attribute">name</span>=<span class="string">"id"</span> <span class="attribute">value</span>=<span class="string">"&#123;&#123;id&#125;&#125;"</span>&gt;
+      &lt;<span class="keyword">input</span> <span class="attribute">class</span>=<span class="string">"edit"</span> <span class="attribute">name</span>=<span class="string">"text"</span> <span class="attribute">value</span>=<span class="string">"&#123;&#123;text&#125;&#125;"</span> <span class="attribute">autofocus</span>&gt;
+    &lt;/<span class="keyword">form</span>&gt;
+  &lt;/<span class="keyword">li</span>&gt;
+&#123;&#123;/<span class="keyword">partial</span>&#125;&#125;
+</code><div class="clean-code">&#123;&#123;#partial row_edit&#125;&#125;
+  &lt;li class="editing"&gt;
+    &lt;form hx-post="/todos/save" hx-target="this" hx-swap="outerHTML" style="margin:0"&gt;
+      &lt;input type="hidden" name="id" value="&#123;&#123;id&#125;&#125;"&gt;
+      &lt;input class="edit" name="text" value="&#123;&#123;text&#125;&#125;" autofocus&gt;
+    &lt;/form&gt;
+  &lt;/li&gt;
+&#123;&#123;/partial&#125;&#125;</div></pre>
+
+  <p>Here we've replaced the regular <code>method="POST" action="/todos/save"</code> with HTMX attributes. When the form is submitted:</p>
+  
+  <ul>
+    <li><code>hx-post</code> sends an AJAX POST to the same endpoint we used before</li>
+    <li><code>hx-target="this"</code> means "target this form element"</li>
+    <li><code>hx-swap="outerHTML"</code> replaces the form with the row_view returned by the save endpoint</li>
+  </ul>
+
+  <p>This creates a seamless edit experience without any page reloads.</p>
 
   <!-- 5 -->
   <h2>5 Check it live</h2>

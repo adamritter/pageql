@@ -82,14 +82,42 @@ def parsefirstword(s):
         return s, None
     return s[:s.find(' ')], s[s.find(' '):].strip()
 
+def db_execute_dot(db, exp, params):
+    """
+    Executes an SQL expression after converting dot notation parameters to double underscore format.
+    
+    Args:
+        db: SQLite database connection
+        exp: SQL expression string
+        params: Parameters dictionary
+        
+    Returns:
+        The result of db.execute()
+        
+    Example:
+        >>> db = sqlite3.connect(":memory:")
+        >>> cursor = db_execute_dot(db, "select :user.name", {"user__name": "John"})
+        >>> cursor.fetchone()[0]
+        'John'
+        >>> cursor = db_execute_dot(db, "select :headers.meta.title", {"headers__meta__title": "Page"})
+        >>> cursor.fetchone()[0]
+        'Page'
+    """
+    # Convert :param.name.subname to :param__name__subname in the expression
+    converted_exp = re.sub(r':([a-zA-Z0-9_]+(?:\.[a-zA-Z0-9_]+)+)', 
+                          lambda m: ':' + m.group(1).replace('.', '__'), 
+                          exp)
+    return db.execute(converted_exp, params)
+
 def evalone(db, exp, params):
     exp = exp.strip()
-    if re.match("^:?[a-zA-z]+$", exp):
+    if re.match("^:?[a-zA-z._]+$", exp):
         if exp[0] == ':':
             exp = exp[1:]
+        exp = exp.replace('.', '__')
         return params[exp]
     try:
-        r = db.execute("select " + exp, params).fetchone()
+        r = db_execute_dot(db, "select " + exp, params).fetchone()
         return r[0]
     except sqlite3.Error as e:
         raise ValueError(f"Error evaluating SQL expression `select {exp}` with params `{params}`: {e}")
@@ -154,7 +182,7 @@ class PageQL:
                 elif part.startswith('#') or part.startswith('/'):
                     nodes.append(parsefirstword(part))
                 else:
-                    if re.match("^:?[a-zA-z.]+$", part):
+                    if re.match("^:?[a-zA-z._]+$", part):
                         if part[0] == ':':
                             part = part[1:]
                         part = part.replace('.', '__')
@@ -206,9 +234,13 @@ class PageQL:
             ... Hello2 isn't defined!
             ... {{/ifdef}}
             ... {{#ifdef :he.lo}}
-            ... He.lo is defined: {{he.lo}}
+            ... He.lo is defined: {{he.lo}}, in expression: {{:he.lo || ':)'}}
             ... {{#else}}
             ... He.lo isn't defined!
+            ... {{/ifdef}}
+            ... {{#set a.b he.lo}}
+            ... {{#ifdef a.b}}
+            ... a.b is defined
             ... {{/ifdef}}
             ... {{#create table if not exists todos (id primary key, text text, done boolean) }}
             ... {{#insert into todos (text) values ('hello sql')}}
@@ -242,7 +274,8 @@ class PageQL:
             :)
             Hello is defined!
             Hello2 isn't defined!
-            He.lo is defined: wor
+            He.lo is defined: wor, in expression: wor:)
+            a.b is defined
             2
             hello sql
             hello second row
@@ -459,7 +492,7 @@ class PageQL:
                         raise ValueError(f"Parameter `{node_content}` not found in params `{params}`")
                 elif node_type == '#update' or node_type == "#insert" or node_type == "#create" or node_type == "#merge" or node_type == "#delete":
                     try:
-                        self.db.execute(node_type[1:] + " " + node_content, params)
+                        db_execute_dot(self.db, node_type[1:] + " " + node_content, params)
                     except sqlite3.Error as e:
                         raise ValueError(f"Error executing {node_type[1:]} {node_content} with params {params}: {e}")
                 elif node_type == '#render':
@@ -482,7 +515,7 @@ class PageQL:
 
                             value_start_pos = eq_match.end()
                             # Find where the value expression ends (before next ' key=' or end)
-                            next_key_match = re.search(r"\s+[a-zA-Z_][a-zA-Z0-9_]*\s*=", args_part[value_start_pos:])
+                            next_key_match = re.search(r"\s+[a-zA-Z_][a-zA-Z0-9_.]*\s*=", args_part[value_start_pos:])
                             value_end_pos = value_start_pos + next_key_match.start() if next_key_match else len(args_part)
                             value_expr = args_part[value_start_pos:value_end_pos].strip()
                             # Advance scanner position based on the slice we just processed
@@ -506,7 +539,7 @@ class PageQL:
                 elif node_type == '#statuscode':
                     result.status_code = evalone(self.db, node_content, params)
                 elif node_type == '#from':
-                    cursor = self.db.execute("select * from " + node_content, params)
+                    cursor = db_execute_dot(self.db, "select * from " + node_content, params)
                     all = cursor.fetchall()
                     if len(all) == 0:
                         skip_from = 1
@@ -534,7 +567,7 @@ class PageQL:
                         descriptions.pop()
                 elif node_type == '#dump':
                     # fetchall the table and dump it
-                    cursor = self.db.execute("select * from " + node_content, params)
+                    cursor = db_execute_dot(self.db, "select * from " + node_content, params)
                     t = time.time()
                     all = cursor.fetchall()
                     end_time = time.time()

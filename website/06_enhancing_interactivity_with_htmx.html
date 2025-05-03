@@ -525,7 +525,7 @@
   &#123;&#123;<span class="keyword">#param</span> <span class="variable">text</span> <span class="attribute">required</span> <span class="attribute">minlength</span>=<span class="variable">1</span>&#125;&#125;
   &#123;&#123;<span class="keyword">#insert</span> <span class="keyword">into</span> todos(text, completed) <span class="keyword">values</span> (:<span class="variable">text</span>, 0)&#125;&#125;
 
-  &#123;&#123;<span class="keyword">#if</span> :<span class="variable">headers.HX_Request</span> == <span class="string">'true'</span>&#125;&#125;
+  &#123;&#123;<span class="keyword">#ifdef</span> :<span class="variable">headers.hx_request</span>&#125;&#125;
     &#123;&#123;<span class="keyword">#from</span> todos <span class="keyword">WHERE</span> id = <span class="function">last_insert_rowid</span>()&#125;&#125;
       &#123;&#123;<span class="keyword">#render</span> <span class="variable">row_view</span>&#125;&#125;
     &#123;&#123;/<span class="keyword">from</span>&#125;&#125;
@@ -537,7 +537,7 @@
   &#123;&#123;#param text required minlength=1&#125;&#125;
   &#123;&#123;#insert into todos(text, completed) values (:text, 0)&#125;&#125;
 
-  &#123;&#123;#if :headers.HX_Request == 'true'&#125;&#125;
+  &#123;&#123;#ifdef :headers.hx_request&#125;&#125;
     &#123;&#123;#from todos WHERE id = last_insert_rowid()&#125;&#125;
       &#123;&#123;#render row_view&#125;&#125;
     &#123;&#123;/from&#125;&#125;
@@ -589,7 +589,7 @@
   &#123;&#123;<span class="keyword">#param</span> <span class="variable">text</span> <span class="attribute">required</span> <span class="attribute">minlength</span>=<span class="variable">1</span>&#125;&#125;
   &#123;&#123;<span class="keyword">#update</span> todos <span class="keyword">set</span> text = :<span class="variable">text</span> <span class="keyword">WHERE</span> id = :<span class="variable">id</span>&#125;&#125;
 
-  &#123;&#123;<span class="keyword">#if</span> :<span class="variable">headers.HX_Request</span> == <span class="string">'true'</span>&#125;&#125;
+  &#123;&#123;<span class="keyword">#ifdef</span> :<span class="variable">headers.hx_request</span>&#125;&#125;
     &#123;&#123;<span class="keyword">#from</span> todos <span class="keyword">WHERE</span> id = :<span class="variable">id</span>&#125;&#125;
       &#123;&#123;<span class="keyword">#render</span> <span class="variable">row_view</span>&#125;&#125;
     &#123;&#123;/<span class="keyword">from</span>&#125;&#125;
@@ -602,7 +602,7 @@
   &#123;&#123;#param text required minlength=1&#125;&#125;
   &#123;&#123;#update todos set text = :text WHERE id = :id&#125;&#125;
 
-  &#123;&#123;#if :headers.HX_Request == 'true'&#125;&#125;
+  &#123;&#123;#ifdef :headers.hx_request&#125;&#125;
     &#123;&#123;#from todos WHERE id = :id&#125;&#125;
       &#123;&#123;#render row_view&#125;&#125;
     &#123;&#123;/from&#125;&#125;

@@ -115,7 +115,9 @@ def evalone(db, exp, params):
         if exp[0] == ':':
             exp = exp[1:]
         exp = exp.replace('.', '__')
-        return params[exp]
+        if exp in params:
+            return params[exp]
+
     try:
         r = db_execute_dot(db, "select " + exp, params).fetchone()
         return r[0]
@@ -228,6 +230,11 @@ class PageQL:
             ... {{#else}}
             ... Nothing is defined!
             ... {{/ifdef}}
+            ... {{#ifndef :hello}}
+            ... Hello is not defined!
+            ... {{#else}}
+            ... Hello is defined :)
+            ... {{/ifndef}}
             ... {{#ifdef :hello2}}
             ... Hello is defined!
             ... {{#else}}
@@ -273,6 +280,7 @@ class PageQL:
             10
             :)
             Hello is defined!
+            Hello is defined :)
             Hello2 isn't defined!
             He.lo is defined: wor, in expression: wor:)
             a.b is defined
@@ -352,9 +360,9 @@ class PageQL:
                     continue
 
                 if skip_if:
-                    if node_type == '#if' or node_type == '#ifdef':
+                    if node_type == '#if' or node_type == '#ifdef' or node_type == '#ifndef':
                         skip_if += 1
-                    elif node_type == '/if' or node_type == '/ifdef':
+                    elif node_type == '/if' or node_type == '/ifdef' or node_type == '/ifndef':
                         skip_if -= 1
                     elif node_type == "#elif" and skip_if == 1: # If we are skipping because the previous if/elif was false
                         if evalone(self.db, node_content, params):
@@ -477,11 +485,18 @@ class PageQL:
                     param_name = param_name.replace('.', '__')
                     if param_name not in params:
                         skip_if += 1
+                elif node_type == '#ifndef':
+                    param_name = node_content.strip()
+                    if param_name.startswith(':'):
+                        param_name = param_name[1:]
+                    param_name = param_name.replace('.', '__')
+                    if param_name in params:
+                        skip_if += 1
                 elif node_type == '#elif': # Encountered elif while NOT skipping (previous if/elif was true)
                     skip_if += 1 # Skip this block and subsequent elif/else blocks
                 elif node_type == '#else':
                     skip_if += 1  # Skip the else block because the if or an elif was true
-                elif node_type == '/if' or node_type == '/ifdef' or node_type == '/endif':
+                elif node_type == '/if' or node_type == '/ifdef' or node_type == '/ifndef' or node_type == '/endif':
                     pass
                 elif node_type == 'render_expression':
                     output_buffer.append(html.escape(str(evalone(self.db, node_content, params))))

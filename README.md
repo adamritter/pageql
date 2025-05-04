@@ -95,7 +95,8 @@ pageql -path/to/your/database.sqlite ./templates
 *   `#if <expression>`: Conditional rendering based on an expression.
 *   `#else`: Else condition within an `#if` block.
 *   `#elif <expression>`: Else-if condition within an `#if` block.
-*   `#ifdef <variable>`: Checks if a variable is defined and not NULL.
+*   `#ifdef <variable>`: Checks if a variable is defined
+*   `#ifndef <variable>`: Checks if a variable is not defined
 *  [NOT IMPLEMENTED]  `#each collection`: (Potential loop/iteration construct over a collection, likely passed in params. Probably it should introduce :this param like in Handlebars)
 
 **Debugging:**

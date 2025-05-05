@@ -82,11 +82,11 @@ pageql -path/to/your/database.sqlite ./templates
 **Variable Manipulation:**
 
 *   `#set :<variable> <expression> [from <table> [WHERE ...]]`: Sets a variable. The value can be a literal (string, integer, float, `NULL`), or the result of a SQL expression, optionally evaluated against a table with a `WHERE` clause.
-*   `#param <name> [type=<type>] [optional | required] [default=<expression>] [min=<num>] [max=<num>] [minlength=<num>] [maxlength=<num>] [pattern="<regex>"]`: Declares and optionally validates an expected request parameter (URL query string or POST form variable) named `<name>`.
+*   `#param <name> [type=<type>] [optional | required] [default=<simple_expression>] [min=<num>] [max=<num>] [minlength=<num>] [maxlength=<num>] [pattern="<regex>"]`: Declares and optionally validates an expected request parameter (URL query string or POST form variable) named `<name>`.
     *   **Behavior:** Choose `optional` or `required`. **If neither is specified, the default is `required`.**
         *   `required` (or default): Processing stops with an error if the parameter is missing and no `default` is provided.
-        *   `optional`: Parameter may be missing. If missing and no `default` is given, `:<name>` is `NULL`.
-    *   `default=<expression>`: Provides a default value if the parameter is missing from the request. If present, this prevents the `required` check from failing.
+        *   `optional`: Parameter may be missing. If missing and no `default` is given, `:<name>`  set to `NULL` (instead of being undefined)
+    *   `default=<simple_expression>`: Provides a default value if the parameter is missing from the request. If present, this prevents the `required` check from failing.
     *   **Validation:** Optional attributes (`type`, `min`/`max`, `minlength`/`maxlength`, `pattern`) enforce rules on the parameter's value (after applying the default, if applicable). If any validation fails, processing stops with an error.
     *   **Access:** The validated (and potentially defaulted) parameter value is made available as `:<name>`. Direct access via `:<name>` without this tag bypasses validation and defaults.
 

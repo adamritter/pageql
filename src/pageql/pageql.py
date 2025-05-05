@@ -210,6 +210,8 @@ class PageQL:
 
         Example:
             >>> r = PageQL(":memory:")
+            >>> r.load_module("include_test", 'This is included')
+
             >>> source_with_comment = '''
             ... {{#set :ww 3+3}}
             ... Start Text.
@@ -268,6 +270,8 @@ class PageQL:
             ... {{/if}}
             ... {{'&amp;'}}
             ... {{{'&amp;'}}}
+            ... {{#import include_test as it}}
+            ... {{#render it}}
             ... End Text.
             ... '''
             >>> r.load_module("comment_test", source_with_comment)
@@ -293,6 +297,7 @@ class PageQL:
             2<3
             &amp;amp;
             &amp;
+            This is included
             End Text.
             >>> # Simulate GET /nonexistent
             >>> print(r.render("/nonexistent").status_code)
@@ -312,6 +317,8 @@ class PageQL:
         params_stack = []
         descriptions = []
         ptrs = []
+        includes = {}  # Dictionary to track imported modules
+        
         # Handle module name with dot notation for partial lookups
         original_module_name = module_name
         partial_path = []
@@ -515,6 +522,13 @@ class PageQL:
                     partial_names = partial_name_str.split('.') if partial_name_str else []
                     render_params = params.copy()
 
+                    # Check if the partial name is in the includes dictionary
+                    render_path = path
+                    if partial_name_str in includes:
+                        # If it's an imported module, use that path directly instead of partial rendering
+                        render_path = includes[partial_name_str]
+                        partial_names = [] # Clear partial names since we're using the module directly
+                    
                     # Parse key=value expressions from args_str and update render_params
                     if args_str:
                         # Simple parsing: find key=, evaluate value expression until next key= or end
@@ -547,7 +561,7 @@ class PageQL:
 
 
                     # Perform the recursive render call with the potentially modified parameters
-                    output_buffer.append(self.render(path, render_params, partial_names).body) # <-- Use the copy
+                    output_buffer.append(self.render(render_path, render_params, partial_names).body) # Use the appropriate path
                 elif node_type == '#redirect':
                     url = evalone(self.db, node_content, params)
                     return RenderResult(status_code=302, headers=[('Location', url)])
@@ -601,6 +615,21 @@ class PageQL:
                     print("Logging: " + str(evalone(self.db, node_content, params)))
                 elif node_type == 'render_raw':
                     output_buffer.append(str(evalone(self.db, node_content, params)))
+                elif node_type == '#import':
+                    # Parse the import statement (format: "module" or "module as alias")
+                    parts = node_content.split()
+                    if not parts:
+                        raise ValueError("Empty import statement")
+                        
+                    module_path = parts[0]
+                    alias = parts[2] if len(parts) > 2 and parts[1] == 'as' else module_path
+                    
+                    # Check if the module exists
+                    if module_path not in self._modules:
+                        raise ValueError(f"Module '{module_path}' not found")
+                    
+                    # Add to includes dictionary
+                    includes[alias] = module_path
                 else:
                     raise Exception(f"Unknown node type: {node_type}")
                 # --- End Main node processing ---
@@ -609,7 +638,6 @@ class PageQL:
             if skip_if > 0: print("Warning: Unclosed #if block at end of render")
             if skip_partial > 0: print("Warning: Unclosed #partial block at end of render")
             if skip_from > 0: print("Warning: Unclosed #from block at end of render")
-
 
             result.body = "".join(output_buffer)
         else:

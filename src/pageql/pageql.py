@@ -210,7 +210,11 @@ class PageQL:
 
         Example:
             >>> r = PageQL(":memory:")
-            >>> r.load_module("include_test", 'This is included')
+            >>> r.load_module("include_test", '''This is included
+            ... {{#partial p}}
+            ...   included partial {{z}}
+            ... {{/partial}}
+            ... ''')
 
             >>> source_with_comment = '''
             ... {{#set :ww 3+3}}
@@ -272,6 +276,7 @@ class PageQL:
             ... {{{'&amp;'}}}
             ... {{#import include_test as it}}
             ... {{#render it}}
+            ... {{#render it.p z=3}}
             ... End Text.
             ... '''
             >>> r.load_module("comment_test", source_with_comment)
@@ -298,6 +303,7 @@ class PageQL:
             &amp;amp;
             &amp;
             This is included
+            included partial 3
             End Text.
             >>> # Simulate GET /nonexistent
             >>> print(r.render("/nonexistent").status_code)
@@ -519,15 +525,49 @@ class PageQL:
                         raise ValueError(f"Error executing {node_type[1:]} {node_content} with params {params}: {e}")
                 elif node_type == '#render':
                     partial_name_str, args_str = parsefirstword(node_content)
-                    partial_names = partial_name_str.split('.') if partial_name_str else []
+                    partial_names = []
                     render_params = params.copy()
 
                     # Check if the partial name is in the includes dictionary
                     render_path = path
-                    if partial_name_str in includes:
-                        # If it's an imported module, use that path directly instead of partial rendering
+                    
+                    # Check for dot notation (e.g., it.p) - might be a partial within an imported module
+                    if '.' in partial_name_str and partial_name_str not in includes:
+                        parts = partial_name_str.split('.')
+                        module_alias = parts[0]
+                        partial_name = '.'.join(parts[1:])
+                        
+                        # Check if the module alias exists in includes
+                        if module_alias in includes:
+                            render_path = includes[module_alias]  # Use the real module path
+                            partial_names = [partial_name]  # Set the partial name to look for
+                        else:
+                            # Not found as an import or as a dot notation of an import
+                            raise ValueError(f"Import '{module_alias}' not found")
+                    elif partial_name_str in includes:
+                        # Direct import reference
                         render_path = includes[partial_name_str]
-                        partial_names = [] # Clear partial names since we're using the module directly
+                    elif partial_name_str and not partial_name_str.startswith('/'):
+                        # Need to verify the partial exists in the current module
+                        # But only if it's not a path (doesn't start with /)
+                        partial_found = False
+                        
+                        # First check if it's a partial in the current module
+                        for idx, (type_check, content_check) in enumerate(node_list):
+                            if type_check == '#partial':
+                                partial_first, partial_rest = parsefirstword(content_check)
+                                if partial_first == 'public':
+                                    partial_first = partial_rest
+                                if partial_first == partial_name_str:
+                                    partial_found = True
+                                    break
+                        
+                        if not partial_found and partial_name_str not in self._modules:
+                            raise ValueError(f"Partial or module '{partial_name_str}' not found")
+                        
+                        # If found, we'll set the partial names array to look for this partial
+                        if partial_found:
+                            partial_names = [partial_name_str]
                     
                     # Parse key=value expressions from args_str and update render_params
                     if args_str:
@@ -559,9 +599,11 @@ class PageQL:
                             else:
                                  raise Exception(f"Warning: Empty value expression for key `{key}` in #render args")
 
-
                     # Perform the recursive render call with the potentially modified parameters
-                    output_buffer.append(self.render(render_path, render_params, partial_names).body) # Use the appropriate path
+                    result = self.render(render_path, render_params, partial_names)
+                    if result.status_code == 404:
+                        raise ValueError(f"Partial or import '{partial_name_str}' not found")
+                    output_buffer.append(result.body)
                 elif node_type == '#redirect':
                     url = evalone(self.db, node_content, params)
                     return RenderResult(status_code=302, headers=[('Location', url)])

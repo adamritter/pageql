@@ -77,7 +77,7 @@ pageql -path/to/your/database.sqlite ./templates
     *   **Public Access:** If the optional `public` keyword is included, the partial block becomes directly accessible via an HTTP GET request at the URL path `/<filename>/<partial_name>` (where `<filename>` is the name of the template file without the `.pageql` extension).
     *   **Base File Access:** Requests to the base URL path corresponding to the file (`/<filename>`) will render the *top-level content* of the file (code outside of any named `#partial` block).
     *   **Parameters:** For both access methods, URL query parameters are made available via the standard parameter binding mechanism (e.g., `:param_name`).
-*   [NOT IMPLEMENTED] `#import <module> [as <alias>]`: Imports modules relative to the template root directory, optionally assigning an alias. Assumes `.pageql` extension (e.g., `#import "components/button"` loads `components/button.pageql`).
+*   `#import <module> [as <alias>]`: Imports modules relative to the template root directory, optionally assigning an alias. Assumes `.pageql` extension (e.g., `#import "components/button"` loads `components/button.pageql`).
 
 **Variable Manipulation:**
 

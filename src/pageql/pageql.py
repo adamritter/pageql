@@ -533,17 +533,24 @@ class PageQL:
                     
                     # Check for dot notation (e.g., it.p) - might be a partial within an imported module
                     if '.' in partial_name_str and partial_name_str not in includes:
-                        parts = partial_name_str.split('.')
-                        module_alias = parts[0]
-                        partial_name = '.'.join(parts[1:])
+                        # Try to load the whole path first, then try removing parts from the end
+                        current_path = partial_name_str
+                        partial_parts = []
                         
-                        # Check if the module alias exists in includes
-                        if module_alias in includes:
-                            render_path = includes[module_alias]  # Use the real module path
-                            partial_names = [partial_name]  # Set the partial name to look for
+                        while '.' in current_path and current_path not in includes:
+                            # Split at the last dot
+                            module_part, partial_part = current_path.rsplit('.', 1)
+                            # Add the partial segment to the beginning of the partial path
+                            partial_parts.insert(0, partial_part)
+                            current_path = module_part
+                        
+                        # Check if we found a valid module
+                        if current_path in includes:
+                            render_path = includes[current_path]  # Use the real module path
+                            partial_names = partial_parts  # Set the partial names to look for
                         else:
                             # Not found as an import or as a dot notation of an import
-                            raise ValueError(f"Import '{module_alias}' not found")
+                            raise ValueError(f"Import '{partial_name_str}' not found")
                     elif partial_name_str in includes:
                         # Direct import reference
                         render_path = includes[partial_name_str]

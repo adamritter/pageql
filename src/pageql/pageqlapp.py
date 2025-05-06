@@ -98,9 +98,13 @@ class PageQLApp:
                 # Optionally exit or continue loading others
                 # exit(1)
         else:
-            with open(filepath, 'rb') as f:
-                data = f.read()
-            self.static_files[filename] = data
+            try:
+                with open(filepath, 'rb') as f:
+                    data = f.read()
+                self.static_files[filename] = data
+            except IsADirectoryError:
+                pass
+                
 
 
     async def pageql_handler(self, scope, receive, send):
@@ -267,7 +271,7 @@ class PageQLApp:
             print("Changes:", changes)
             for change in changes:
                 path = change[1]
-                filename = os.path.basename(path)
+                filename = os.path.relpath(path, self.template_dir)
                 print(f"Reloading {filename}")
                 self.to_reload.append(filename)
             for n in self.notifies:

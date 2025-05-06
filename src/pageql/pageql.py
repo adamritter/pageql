@@ -668,7 +668,7 @@ class PageQL:
                     
                     # Check if the module exists
                     if module_path not in self._modules:
-                        raise ValueError(f"Module '{module_path}' not found")
+                        raise ValueError(f"Module '{module_path}' not found, modules: " + str(self._modules.keys()))
                     
                     # Add to includes dictionary
                     includes[alias] = module_path

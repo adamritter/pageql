@@ -87,7 +87,7 @@ class PageQLApp:
     def load(self, template_dir, filename):
         filepath = os.path.join(template_dir, filename)
         if filename.endswith(".pageql"):
-            module_name = os.path.splitext(filename)[0]
+            module_name = os.path.splitext(filename)[0].replace('/', '.')
             try:
                 with open(filepath, 'r', encoding='utf-8') as f:
                     source = f.read()
@@ -334,8 +334,11 @@ class PageQLApp:
 
         print(f"Loading templates from: {template_dir}")
         try:
-            for filename in os.listdir(template_dir):
-                self.load(template_dir, filename)
+            for root, dirs, files in os.walk(template_dir):
+                for filename in files:
+                    file_path = os.path.join(root, filename)
+                    rel_path = os.path.relpath(file_path, template_dir)
+                    self.load(template_dir, rel_path)
         except OSError as e:
             print(f"Error reading template directory '{template_dir}': {e}")
             exit(1)

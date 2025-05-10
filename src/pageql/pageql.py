@@ -378,6 +378,108 @@ class PageQL:
         
         return param_name, param_value
 
+    def handle_render(self, node_content, path, params, node_list, includes):
+        """
+        Handles the #render directive processing.
+        
+        Args:
+            node_content: The content of the #render node
+            path: The current request path
+            params: Current parameters dictionary
+            node_list: The current node list being processed
+            includes: Dictionary mapping module aliases to real paths
+            
+        Returns:
+            The rendered content as a string
+        """
+        partial_name_str, args_str = parsefirstword(node_content)
+        partial_names = []
+        render_params = params.copy()
+
+        # Check if the partial name is in the includes dictionary
+        render_path = path
+        
+        # Check for dot notation (e.g., it.p) - might be a partial within an imported module
+        if '.' in partial_name_str and partial_name_str not in includes:
+            # Try to load the whole path first, then try removing parts from the end
+            current_path = partial_name_str
+            partial_parts = []
+            
+            while '.' in current_path and current_path not in includes:
+                # Split at the last dot
+                module_part, partial_part = current_path.rsplit('.', 1)
+                # Add the partial segment to the beginning of the partial path
+                partial_parts.insert(0, partial_part)
+                current_path = module_part
+            
+            # Check if we found a valid module
+            if current_path in includes:
+                render_path = includes[current_path]  # Use the real module path
+                partial_names = partial_parts  # Set the partial names to look for
+            else:
+                # Not found as an import or as a dot notation of an import
+                raise ValueError(f"Import '{partial_name_str}' not found")
+        elif partial_name_str in includes:
+            # Direct import reference
+            render_path = includes[partial_name_str]
+        elif partial_name_str and not partial_name_str.startswith('/'):
+            # Need to verify the partial exists in the current module or another module
+            partial_found = False
+            
+            # First check if it's a partial in the current module
+            for module_name, module_nodes in self._modules.items():
+                for idx, (type_check, content_check) in enumerate(module_nodes):
+                    if type_check == '#partial':
+                        partial_first, partial_rest = parsefirstword(content_check)
+                        if partial_first == 'public':
+                            partial_first = partial_rest
+                        if partial_first == partial_name_str:
+                            partial_found = True
+                            render_path = module_name
+                            partial_names = [partial_name_str]
+                            break
+                if partial_found:
+                    break
+            
+            if not partial_found and partial_name_str not in self._modules:
+                raise ValueError(f"Partial or module '{partial_name_str}' not found")
+            
+        # Parse key=value expressions from args_str and update render_params
+        if args_str:
+            # Simple parsing: find key=, evaluate value expression until next key= or end
+            current_pos = 0
+            while current_pos < len(args_str):
+                args_part = args_str[current_pos:].lstrip()
+                if not args_part: break
+                eq_match = re.search(r"=", args_part)
+                if not eq_match: break # Malformed args
+
+                key = args_part[:eq_match.start()].strip()
+                if not key or not key.isidentifier(): break # Invalid key
+
+                value_start_pos = eq_match.end()
+                # Find where the value expression ends (before next ' key=' or end)
+                next_key_match = re.search(r"\s+[a-zA-Z_][a-zA-Z0-9_.]*\s*=", args_part[value_start_pos:])
+                value_end_pos = value_start_pos + next_key_match.start() if next_key_match else len(args_part)
+                value_expr = args_part[value_start_pos:value_end_pos].strip()
+                # Advance scanner position based on the slice we just processed
+                current_pos += value_end_pos
+
+                if value_expr:
+                    try:
+                        evaluated_value = evalone(self.db, value_expr, params)
+                        render_params[key] = evaluated_value
+                    except Exception as e:
+                        raise Exception(f"Warning: Error evaluating SQL expression `{value_expr}` for key `{key}` in #render: {e}")
+                else:
+                    raise Exception(f"Warning: Empty value expression for key `{key}` in #render args")
+
+        # Perform the recursive render call with the potentially modified parameters
+        result = self.render(render_path, render_params, partial_names)
+        if result.status_code == 404:
+            raise ValueError(f"Partial or import '{partial_name_str}' not found")
+        return result.body
+
     def render(self, path, params={}, partial=[]):
         """
         Simulates a request, executes the parsed node list, and renders content.
@@ -634,93 +736,8 @@ class PageQL:
                     except sqlite3.Error as e:
                         raise ValueError(f"Error executing {node_type[1:]} {node_content} with params {params}: {e}")
                 elif node_type == '#render':
-                    partial_name_str, args_str = parsefirstword(node_content)
-                    partial_names = []
-                    render_params = params.copy()
-
-                    # Check if the partial name is in the includes dictionary
-                    render_path = path
-                    
-                    # Check for dot notation (e.g., it.p) - might be a partial within an imported module
-                    if '.' in partial_name_str and partial_name_str not in includes:
-                        # Try to load the whole path first, then try removing parts from the end
-                        current_path = partial_name_str
-                        partial_parts = []
-                        
-                        while '.' in current_path and current_path not in includes:
-                            # Split at the last dot
-                            module_part, partial_part = current_path.rsplit('.', 1)
-                            # Add the partial segment to the beginning of the partial path
-                            partial_parts.insert(0, partial_part)
-                            current_path = module_part
-                        
-                        # Check if we found a valid module
-                        if current_path in includes:
-                            render_path = includes[current_path]  # Use the real module path
-                            partial_names = partial_parts  # Set the partial names to look for
-                        else:
-                            # Not found as an import or as a dot notation of an import
-                            raise ValueError(f"Import '{partial_name_str}' not found")
-                    elif partial_name_str in includes:
-                        # Direct import reference
-                        render_path = includes[partial_name_str]
-                    elif partial_name_str and not partial_name_str.startswith('/'):
-                        # Need to verify the partial exists in the current module
-                        # But only if it's not a path (doesn't start with /)
-                        partial_found = False
-                        
-                        # First check if it's a partial in the current module
-                        for idx, (type_check, content_check) in enumerate(node_list):
-                            if type_check == '#partial':
-                                partial_first, partial_rest = parsefirstword(content_check)
-                                if partial_first == 'public':
-                                    partial_first = partial_rest
-                                if partial_first == partial_name_str:
-                                    partial_found = True
-                                    break
-                        
-                        if not partial_found and partial_name_str not in self._modules:
-                            raise ValueError(f"Partial or module '{partial_name_str}' not found")
-                        
-                        # If found, we'll set the partial names array to look for this partial
-                        if partial_found:
-                            partial_names = [partial_name_str]
-                    
-                    # Parse key=value expressions from args_str and update render_params
-                    if args_str:
-                        # Simple parsing: find key=, evaluate value expression until next key= or end
-                        current_pos = 0
-                        while current_pos < len(args_str):
-                            args_part = args_str[current_pos:].lstrip()
-                            if not args_part: break
-                            eq_match = re.search(r"=", args_part)
-                            if not eq_match: break # Malformed args
-
-                            key = args_part[:eq_match.start()].strip()
-                            if not key or not key.isidentifier(): break # Invalid key
-
-                            value_start_pos = eq_match.end()
-                            # Find where the value expression ends (before next ' key=' or end)
-                            next_key_match = re.search(r"\s+[a-zA-Z_][a-zA-Z0-9_.]*\s*=", args_part[value_start_pos:])
-                            value_end_pos = value_start_pos + next_key_match.start() if next_key_match else len(args_part)
-                            value_expr = args_part[value_start_pos:value_end_pos].strip()
-                            # Advance scanner position based on the slice we just processed
-                            current_pos += value_end_pos
-
-                            if value_expr:
-                                try:
-                                    evaluated_value = evalone(self.db, value_expr, params)
-                                    render_params[key] = evaluated_value
-                                except Exception as e:
-                                     raise Exception(f"Warning: Error evaluating SQL expression `{value_expr}` for key `{key}` in #render: {e}")
-                            else:
-                                 raise Exception(f"Warning: Empty value expression for key `{key}` in #render args")
-
-                    # Perform the recursive render call with the potentially modified parameters
-                    result = self.render(render_path, render_params, partial_names)
-                    if result.status_code == 404:
-                        raise ValueError(f"Partial or import '{partial_name_str}' not found")
-                    output_buffer.append(result.body)
+                    rendered_content = self.handle_render(node_content, path, params, node_list, includes)
+                    output_buffer.append(rendered_content)
                 elif node_type == '#redirect':
                     url = evalone(self.db, node_content, params)
                     return RenderResult(status_code=302, headers=[('Location', url)])

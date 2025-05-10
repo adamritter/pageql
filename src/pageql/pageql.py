@@ -124,6 +124,36 @@ def evalone(db, exp, params):
     except sqlite3.Error as e:
         raise ValueError(f"Error evaluating SQL expression `select {exp}` with params `{params}`: {e}")
 
+
+def tokenize(source):
+    """Parses source into ('text', content) and ('comment', content) tuples."""
+    nodes = []
+    parts = re.split(r'({{.*?}}}?)', source, flags=re.DOTALL)
+    for part in parts:
+        if not part: # Skip empty strings that can result from split
+            continue
+        if part.startswith('{{{') and part.endswith('}}}'):
+            part = part[3:-3].strip()
+            nodes.append(('render_raw', part))
+        elif part.startswith('{{') and part.endswith('}}'):
+            part = part[2:-2].strip()
+            if part.startswith('!--') and part.endswith('--'):
+                pass # Skip comment nodes
+            elif part.startswith('#') or part.startswith('/'):
+                nodes.append(parsefirstword(part))
+            else:
+                if re.match("^:?[a-zA-z._]+$", part):
+                    if part[0] == ':':
+                        part = part[1:]
+                    part = part.replace('.', '__')
+                    nodes.append(('render_param', part))
+                else:
+                    nodes.append(('render_expression', part))
+        else:
+            nodes.append(('text', part))
+    return nodes
+
+
 class PageQL:
     """
     Manages and renders PageQL templates against an SQLite database.
@@ -164,36 +194,8 @@ class PageQL:
             >>> "comment_test" in r._modules
             True
         """
-        # Parse the source and store the list of node tuples
-        self._modules[name] = self.parse(source) # Use self.parse
-
-    def parse(self, source):
-        """Parses source into ('text', content) and ('comment', content) tuples."""
-        nodes = []
-        parts = re.split(r'({{.*?}}}?)', source, flags=re.DOTALL)
-        for part in parts:
-            if not part: # Skip empty strings that can result from split
-                continue
-            if part.startswith('{{{') and part.endswith('}}}'):
-                part = part[3:-3].strip()
-                nodes.append(('render_raw', part))
-            elif part.startswith('{{') and part.endswith('}}'):
-                part = part[2:-2].strip()
-                if part.startswith('!--') and part.endswith('--'):
-                    pass # Skip comment nodes
-                elif part.startswith('#') or part.startswith('/'):
-                    nodes.append(parsefirstword(part))
-                else:
-                    if re.match("^:?[a-zA-z._]+$", part):
-                        if part[0] == ':':
-                            part = part[1:]
-                        part = part.replace('.', '__')
-                        nodes.append(('render_param', part))
-                    else:
-                        nodes.append(('render_expression', part))
-            else:
-                nodes.append(('text', part))
-        return nodes
+        # Tokenize the source and store the list of node tuples
+        self._modules[name] = tokenize(source) 
 
     def render(self, path, params={}, partial=[]):
         """

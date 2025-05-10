@@ -314,6 +314,70 @@ class PageQL:
         # Tokenize the source and store the list of node tuples
         self._modules[name] = tokenize(source)
 
+    def handle_param(self, node_content, params):
+        """
+        Handles parameter validation and processing for #param nodes.
+        
+        Args:
+            node_content: The content of the #param node
+            params: Current parameters dictionary
+            
+        Returns:
+            Tuple of (param_name, param_value) after validation
+        """
+        param_name, attrs_str = parsefirstword(node_content)
+        attrs = parse_param_attrs(attrs_str)
+        
+        is_required = attrs.get('required', not attrs.get('optional', False)) # Default required
+        param_value = params.get(param_name) # Get from input params dict
+
+        if param_value is None:
+            if 'default' in attrs:
+                param_value = attrs['default']
+                is_required = False # Default overrides required check if param missing
+            elif is_required:
+                raise ValueError(f"Required parameter '{param_name}' is missing.")
+
+        # --- Basic Validation (Type, Minlength) ---
+        if param_value is not None: # Only validate if value exists
+            param_type = attrs.get('type', 'string')
+            try:
+                if param_type == 'integer':
+                    param_value = int(param_value)
+                elif param_type == 'boolean': # Basic truthiness
+                    param_value = bool(param_value) and str(param_value).lower() not in ['0', 'false', '']
+                # Add float later if needed
+                else: # Default to string
+                    param_value = str(param_value)
+
+                if param_type == 'string' and 'minlength' in attrs:
+                    minlen = int(attrs['minlength'])
+                    if len(param_value) < minlen:
+                        raise ValueError(f"Parameter '{param_name}' length {len(param_value)} is less than minlength {minlen}.")
+                if param_type == 'string' and 'maxlength' in attrs:
+                    maxlen = int(attrs['maxlength'])
+                    if len(param_value) > maxlen:
+                        raise ValueError(f"Parameter '{param_name}' length {len(param_value)} is greater than maxlength {maxlen}.")
+                if param_type == 'string' and 'pattern' in attrs:
+                    pattern = attrs['pattern']
+                    if not re.match(pattern, param_value):
+                        raise ValueError(f"Parameter '{param_name}' does not match pattern '{pattern}'.")
+                if param_type == 'integer' and 'min' in attrs:
+                    minval = int(attrs['min'])
+                    if param_value < minval:
+                        raise ValueError(f"Parameter '{param_name}' value {param_value} is less than min {minval}.")
+                if param_type == 'integer' and 'max' in attrs:
+                    maxval = int(attrs['max'])
+                    if param_value > maxval:
+                        raise ValueError(f"Parameter '{param_name}' value {param_value} is greater than max {maxval}.")
+                if param_type == 'boolean' and 'required' in attrs:
+                    if param_value is None:
+                        raise ValueError(f"Parameter '{param_name}' is required but was not provided.")
+            except (ValueError, TypeError) as e:
+                raise ValueError(f"Parameter '{param_name}' failed type/validation '{param_type}': {e}")
+        
+        return param_name, param_value
+
     def render(self, path, params={}, partial=[]):
         """
         Simulates a request, executes the parsed node list, and renders content.
@@ -525,81 +589,8 @@ class PageQL:
                 elif node_type == '/partial': # Should not be reached unless nesting is wrong
                      break
                 elif node_type == '#param':
-                    param_name, attrs_str = parsefirstword(node_content)
-                    attrs = {}
-                    while attrs_str:
-                        attr_name, attr_value_str = parsefirstword(attrs_str)
-                        if '=' in attr_name:
-                            # Handle case where there's no space after equals
-                            attr_parts = attr_name.split('=', 1)
-                            attr_name = attr_parts[0]
-                            if len(attr_parts) > 1:
-                                attr_value = attr_parts[1].strip('"\'')
-                                attrs[attr_name] = attr_value
-                                attrs_str = attr_value_str
-                                continue
-                        
-                        if attr_value_str and attr_value_str.startswith('='):
-                            # Handle equals sign as separate token
-                            _, attr_value_with_quotes = parsefirstword(attr_value_str[1:].lstrip())
-                            if attr_value_with_quotes:
-                                attr_value = attr_value_with_quotes.strip('"\'')
-                                attrs[attr_name] = attr_value
-                                _, attrs_str = parsefirstword(attr_value_with_quotes)
-                        else:
-                            # Boolean flag like "required" or "optional"
-                            attrs[attr_name] = True
-                            attrs_str = attr_value_str
-
-                    is_required = attrs.get('required', not attrs.get('optional', False)) # Default required
-                    param_value = params.get(param_name) # Get from input params dict
-
-                    if param_value is None:
-                        if 'default' in attrs:
-                            param_value = attrs['default']
-                            is_required = False # Default overrides required check if param missing
-                        elif is_required:
-                            raise ValueError(f"Required parameter '{param_name}' is missing.")
-
-                    # --- Basic Validation (Type, Minlength) ---
-                    if param_value is not None: # Only validate if value exists
-                        param_type = attrs.get('type', 'string')
-                        try:
-                            if param_type == 'integer':
-                                param_value = int(param_value)
-                            elif param_type == 'boolean': # Basic truthiness
-                                 param_value = bool(param_value) and str(param_value).lower() not in ['0', 'false', '']
-                            # Add float later if needed
-                            else: # Default to string
-                                param_value = str(param_value)
-
-                            if param_type == 'string' and 'minlength' in attrs:
-                                minlen = int(attrs['minlength'])
-                                if len(param_value) < minlen:
-                                    raise ValueError(f"Parameter '{param_name}' length {len(param_value)} is less than minlength {minlen}.")
-                            if param_type == 'string' and 'maxlength' in attrs:
-                                maxlen = int(attrs['maxlength'])
-                                if len(param_value) > maxlen:
-                                    raise ValueError(f"Parameter '{param_name}' length {len(param_value)} is greater than maxlength {maxlen}.")
-                            if param_type == 'string' and 'pattern' in attrs:
-                                pattern = attrs['pattern']
-                                if not re.match(pattern, param_value):
-                                    raise ValueError(f"Parameter '{param_name}' does not match pattern '{pattern}'.")
-                            if param_type == 'integer' and 'min' in attrs:
-                                minval = int(attrs['min'])
-                                if param_value < minval:
-                                    raise ValueError(f"Parameter '{param_name}' value {param_value} is less than min {minval}.")
-                            if param_type == 'integer' and 'max' in attrs:
-                                maxval = int(attrs['max'])
-                                if param_value > maxval:
-                                    raise ValueError(f"Parameter '{param_name}' value {param_value} is greater than max {maxval}.")
-                            if param_type == 'boolean' and 'required' in attrs:
-                                if param_value is None:
-                                    raise ValueError(f"Parameter '{param_name}' is required but was not provided.")
-                        except (ValueError, TypeError) as e:
-                             raise ValueError(f"Parameter '{param_name}' failed type/validation '{param_type}': {e}")
-
-                    # Store validated/defaulted value in current scope with ':' prefix
+                    param_name, param_value = self.handle_param(node_content, params)
+                    # Store validated/defaulted value in current scope
                     params[param_name] = param_value
                 elif node_type == '#set':
                     var, args = parsefirstword(node_content)

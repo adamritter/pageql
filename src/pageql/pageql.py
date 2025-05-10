@@ -288,11 +288,12 @@ class PageQL:
             db_path: Path to the SQLite database file to be used.
         """
         self._modules = {} # Store parsed node lists here later
+        self._partials = {} # Store partials here
         self.db = sqlite3.connect(db_path)
 
     def load_module(self, name, source):
         """
-        Loads and parses PageQL source code into a simple node list.
+        Loads and parses PageQL source code into an AST (Abstract Syntax Tree).
 
         Args:
             name: The logical name of the module.
@@ -311,8 +312,11 @@ class PageQL:
             >>> "comment_test" in r._modules
             True
         """
-        # Tokenize the source and store the list of node tuples
-        self._modules[name] = tokenize(source)
+        # Tokenize the source and build AST
+        tokens = tokenize(source)
+        body, partials = build_ast(tokens)
+        self._modules[name] = body
+        self._partials[name] = partials
 
     def handle_param(self, node_content, params):
         """
@@ -378,7 +382,7 @@ class PageQL:
         
         return param_name, param_value
 
-    def handle_render(self, node_content, path, params, node_list, includes):
+    def handle_render(self, node_content, path, params, includes):
         """
         Handles the #render directive processing.
         
@@ -386,7 +390,6 @@ class PageQL:
             node_content: The content of the #render node
             path: The current request path
             params: Current parameters dictionary
-            node_list: The current node list being processed
             includes: Dictionary mapping module aliases to real paths
             
         Returns:
@@ -423,22 +426,15 @@ class PageQL:
             # Direct import reference
             render_path = includes[partial_name_str]
         elif partial_name_str and not partial_name_str.startswith('/'):
-            # Need to verify the partial exists in the current module or another module
+            # Need to verify the partial exists
             partial_found = False
             
-            # First check if it's a partial in the current module
-            for module_name, module_nodes in self._modules.items():
-                for idx, (type_check, content_check) in enumerate(module_nodes):
-                    if type_check == '#partial':
-                        partial_first, partial_rest = parsefirstword(content_check)
-                        if partial_first == 'public':
-                            partial_first = partial_rest
-                        if partial_first == partial_name_str:
-                            partial_found = True
-                            render_path = module_name
-                            partial_names = [partial_name_str]
-                            break
-                if partial_found:
+            # Check if it's a partial in any module
+            for module_name, module_partials in self._partials.items():
+                if partial_name_str in module_partials:
+                    partial_found = True
+                    render_path = module_name
+                    partial_names = [partial_name_str]
                     break
             
             if not partial_found and partial_name_str not in self._modules:
@@ -480,145 +476,186 @@ class PageQL:
             raise ValueError(f"Partial or import '{partial_name_str}' not found")
         return result.body
 
+    def process_node(self, node, params, output_buffer, path, includes):
+        """
+        Process a single AST node and append its rendered output to the buffer.
+        
+        Args:
+            node: The AST node to process
+            params: Current parameters dictionary
+            output_buffer: Output buffer to append rendered content to
+            path: Current request path
+            includes: Dictionary of imported modules
+            
+        Returns:
+            None (output is appended to output_buffer)
+        """
+        if isinstance(node, tuple):
+            node_type, node_content = node
+            
+            if node_type == 'text':
+                output_buffer.append(node_content)
+            elif node_type == 'render_expression':
+                output_buffer.append(html.escape(str(evalone(self.db, node_content, params))))
+            elif node_type == 'render_param':
+                try:
+                    output_buffer.append(html.escape(str(params[node_content])))
+                except KeyError:
+                    raise ValueError(f"Parameter `{node_content}` not found in params `{params}`")
+            elif node_type == 'render_raw':
+                output_buffer.append(str(evalone(self.db, node_content, params)))
+            elif node_type == '#param':
+                param_name, param_value = self.handle_param(node_content, params)
+                params[param_name] = param_value
+            elif node_type == '#set':
+                var, args = parsefirstword(node_content)
+                if var[0] == ':':
+                    var = var[1:]
+                var = var.replace('.', '__')
+                params[var] = evalone(self.db, args, params)
+            elif node_type == '#render':
+                rendered_content = self.handle_render(node_content, path, params, includes)
+                output_buffer.append(rendered_content)
+            elif node_type == '#redirect':
+                url = evalone(self.db, node_content, params)
+                raise KeyboardInterrupt(RenderResult(status_code=302, headers=[('Location', url)]))
+            elif node_type == '#statuscode':
+                code = evalone(self.db, node_content, params)
+                raise KeyboardInterrupt(RenderResult(status_code=code, body="".join(output_buffer)))
+            elif node_type == '#update' or node_type == "#insert" or node_type == "#create" or node_type == "#merge" or node_type == "#delete":
+                try:
+                    db_execute_dot(self.db, node_type[1:] + " " + node_content, params)
+                except sqlite3.Error as e:
+                    raise ValueError(f"Error executing {node_type[1:]} {node_content} with params {params}: {e}")
+            elif node_type == '#import':
+                parts = node_content.split()
+                if not parts:
+                    raise ValueError("Empty import statement")
+                    
+                module_path = parts[0]
+                alias = parts[2] if len(parts) > 2 and parts[1] == 'as' else module_path
+                
+                if module_path not in self._modules:
+                    raise ValueError(f"Module '{module_path}' not found, modules: " + str(self._modules.keys()))
+                
+                includes[alias] = module_path
+            elif node_type == '#log':
+                print("Logging: " + str(evalone(self.db, node_content, params)))
+            elif node_type == '#dump':
+                # fetchall the table and dump it
+                cursor = db_execute_dot(self.db, "select * from " + node_content, params)
+                t = time.time()
+                all = cursor.fetchall()
+                end_time = time.time()
+                output_buffer.append("<table>")
+                for col in cursor.description:
+                    output_buffer.append("<th>" + col[0] + "</th>")
+                output_buffer.append("</tr>")
+                for row in all:
+                    output_buffer.append("<tr>")
+                    for cell in row:
+                        output_buffer.append("<td>" + str(cell) + "</td>")
+                    output_buffer.append("</tr>")
+                output_buffer.append("</table>")
+                output_buffer.append(f"<p>Dumping {node_content} took {(end_time - t)*1000:.2f} ms</p>")
+        elif isinstance(node, list):
+            directive = node[0]
+            
+            if directive == '#if':
+                condition = node[1]
+                then_body = node[2]
+                else_body = node[3] if len(node) > 3 else None
+                
+                if evalone(self.db, condition, params):
+                    self.process_nodes(then_body, params, output_buffer, path, includes)
+                elif else_body:
+                    self.process_nodes(else_body, params, output_buffer, path, includes)
+            elif directive == '#ifdef':
+                param_name = node[1].strip()
+                then_body = node[2]
+                else_body = node[3] if len(node) > 3 else None
+                
+                if param_name.startswith(':'):
+                    param_name = param_name[1:]
+                param_name = param_name.replace('.', '__')
+                
+                if param_name in params:
+                    self.process_nodes(then_body, params, output_buffer, path, includes)
+                elif else_body:
+                    self.process_nodes(else_body, params, output_buffer, path, includes)
+            elif directive == '#ifndef':
+                param_name = node[1].strip()
+                then_body = node[2]
+                else_body = node[3] if len(node) > 3 else None
+                
+                if param_name.startswith(':'):
+                    param_name = param_name[1:]
+                param_name = param_name.replace('.', '__')
+                
+                if param_name not in params:
+                    self.process_nodes(then_body, params, output_buffer, path, includes)
+                elif else_body:
+                    self.process_nodes(else_body, params, output_buffer, path, includes)
+            elif directive == '#from':
+                query = node[1]
+                body = node[2]
+                
+                cursor = db_execute_dot(self.db, "select * from " + query, params)
+                rows = cursor.fetchall()
+                if rows:
+                    col_names = [col[0] for col in cursor.description]
+                    saved_params = params.copy()
+                    
+                    for row in rows:
+                        row_params = params.copy()
+                        for i, col_name in enumerate(col_names):
+                            row_params[col_name] = row[i]
+                        
+                        self.process_nodes(body, row_params, output_buffer, path, includes)
+                    
+                    # Restore original params
+                    params.clear()
+                    params.update(saved_params)
+    
+    def process_nodes(self, nodes, params, output_buffer, path, includes):
+        """
+        Process a list of AST nodes and append their rendered output to the buffer.
+        
+        Args:
+            nodes: List of AST nodes to process
+            params: Current parameters dictionary
+            output_buffer: Output buffer to append rendered content to
+            path: Current request path
+            includes: Dictionary of imported modules
+            
+        Returns:
+            None (output is appended to output_buffer)
+        """
+        for node in nodes:
+            self.process_node(node, params, output_buffer, path, includes)
+
     def render(self, path, params={}, partial=[]):
         """
-        Simulates a request, executes the parsed node list, and renders content.
-
-        Currently handles text, comments, basic tags, and skips partial definitions.
+        Renders a module using its parsed AST.
 
         Args:
             path: The request path string (e.g., "/todos").
             params: An optional dictionary.
+            partial: List of partial names to render instead of the full template.
 
         Returns:
             A RenderResult object.
-
-        Example:
-            >>> r = PageQL(":memory:")
-            >>> r.load_module("include_test", '''This is included
-            ... {{#partial p}}
-            ...   included partial {{z}}
-            ... {{/partial}}
-            ... ''')
-
-            >>> source_with_comment = '''
-            ... {{#set :ww 3+3}}
-            ... Start Text.
-            ... {{!-- This is a comment --}}
-            ... {{ :hello }}
-            ... {{ :ww + 4 }}
-            ... {{#partial public add}}
-            ... hello {{ :addparam }}
-            ... {{/partial}}
-            ... {{#if 3+3 == :ww }}
-            ... :)
-            ... {{#if 3+3 == 7 }}
-            ... :(
-            ... {{/if}}
-            ... {{/if}}
-            ... {{#ifdef :hello}}
-            ... Hello is defined!
-            ... {{#else}}
-            ... Nothing is defined!
-            ... {{/ifdef}}
-            ... {{#ifndef :hello}}
-            ... Hello is not defined!
-            ... {{#else}}
-            ... Hello is defined :)
-            ... {{/ifndef}}
-            ... {{#ifdef :hello2}}
-            ... Hello is defined!
-            ... {{#else}}
-            ... Hello2 isn't defined!
-            ... {{/ifdef}}
-            ... {{#ifdef :he.lo}}
-            ... He.lo is defined: {{he.lo}}, in expression: {{:he.lo || ':)'}}
-            ... {{#else}}
-            ... He.lo isn't defined!
-            ... {{/ifdef}}
-            ... {{#set a.b he.lo}}
-            ... {{#ifdef a.b}}
-            ... a.b is defined
-            ... {{/ifdef}}
-            ... {{#create table if not exists todos (id primary key, text text, done boolean) }}
-            ... {{#insert into todos (text) values ('hello sql')}}
-            ... {{#insert into todos (text) values ('hello second row')}}
-            ... {{count(*) from todos}}
-            ... {{#from todos}}
-            ... {{#from todos}} {{ text }} {{/from}}
-            ... {{/from}}
-            ... {{#delete from todos}}
-            ... {{#from todos}}Bad Dobby{{/from}}
-            ... {{#render add addparam='world'}}
-            ... {{#if 2<1}}
-            ... 2<1
-            ... {{#elif 2<2}}
-            ... 2<2
-            ... {{#elif 2<3}}
-            ... 2<3
-            ... {{/if}}
-            ... {{'&amp;'}}
-            ... {{{'&amp;'}}}
-            ... {{#import include_test as it}}
-            ... {{#render it}}
-            ... {{#render it.p z=3}}
-            ... End Text.
-            ... '''
-            >>> r.load_module("comment_test", source_with_comment)
-            >>> result1 = r.render("/comment_test", {'hello': 'world', 'he': {'lo': 'wor'}})
-            >>> print(result1.status_code)
-            200
-            >>> print(result1.body.strip())
-            Start Text.
-            world
-            10
-            :)
-            Hello is defined!
-            Hello is defined :)
-            Hello2 isn't defined!
-            He.lo is defined: wor, in expression: wor:)
-            a.b is defined
-            2
-            hello sql
-            hello second row
-            hello sql
-            hello second row
-            hello world
-            2<3
-            &amp;amp;
-            &amp;
-            This is included
-            included partial 3
-            End Text.
-            >>> # Simulate GET /nonexistent
-            >>> print(r.render("/nonexistent").status_code)
-            404
-            >>> print(r.render("/comment_test", {'addparam': 'world'}, ['add']).body)
-            hello world
-            >>> print(r.render("/comment_test/add", {'addparam': 'world'}).body)
-            hello world
         """
         module_name = path.strip('/')
         params = flatten_params(params)
 
-        # --- Execute Node List ---
-        result = RenderResult()
-        result.status_code = 200
-        froms = []
-        params_stack = []
-        descriptions = []
-        ptrs = []
-        includes = {}  # Dictionary to track imported modules
-        
-        # Handle module name with dot notation for partial lookups
+        # --- Handle partial path mapping ---
         original_module_name = module_name
         partial_path = []
         
         # If the module isn't found directly, try to interpret it as a partial path
         while '/' in module_name and module_name not in self._modules:
-            # Split at the last dot
             module_name, partial_segment = module_name.rsplit('/', 1)
-            # Add the partial segment to the beginning of the partial path
             partial_path.insert(0, partial_segment)
         
         # If we have partial segments and no explicit partial list was provided
@@ -628,197 +665,41 @@ class PageQL:
         # If we still can't find the module, restore the original name for proper error handling
         if module_name not in self._modules:
             module_name = original_module_name
+            
+        # --- Start Rendering ---
+        result = RenderResult()
+        result.status_code = 200
+        
         if module_name in self._modules:
-            node_list = self._modules[module_name]
             output_buffer = []
-            skip_if = 0
-            skip_partial = 0 # New: Counter for skipping partial definitions
-            skip_from = 0
-            i = 0
-            while i < len(node_list):
-                node_type, node_content = node_list[i]
-                i += 1
-                if skip_partial:
-                    if node_type == '#partial':
-                        skip_partial += 1
-                    elif node_type == '/partial':
-                        skip_partial -= 1
-                    # else: stay in skip_partial mode
-                    continue # Skip the current node processing
-
+            includes = {}  # Dictionary to track imported modules
+            
+            try:
                 if partial:
-                    if node_type == '#partial':
-                        a, b = parsefirstword(node_content)
-                        if a == 'public':
-                            node_content = b
-                        if partial[0] == node_content:
-                            partial = partial[1:]
-                        else:
-                            skip_partial += 1
-                    continue
-
-                if skip_if:
-                    if node_type == '#if' or node_type == '#ifdef' or node_type == '#ifndef':
-                        skip_if += 1
-                    elif node_type == '/if' or node_type == '/ifdef' or node_type == '/ifndef':
-                        skip_if -= 1
-                    elif node_type == "#elif" and skip_if == 1: # If we are skipping because the previous if/elif was false
-                        if evalone(self.db, node_content, params):
-                            skip_if = 0 # Start executing this elif block
-                        # else: continue skipping (skip_if remains 1)
-                    elif node_type == "#else" and skip_if == 1:
-                        skip_if = 0 # Start executing the else block
-                    # else: stay in skip_if mode (nested ifs, or elif/else after a true if/elif)
-                    continue # Skip the current node processing
-
-                if skip_from:
-                    if node_type == '#from':
-                        skip_from += 1
-                    elif node_type == '/from':
-                        skip_from -= 1
-                    # else: stay in skip_from mode
-                    continue # Skip the current node processing
-                # --- End Skip logic checks ---
-
-
-                # --- Main node processing ---
-                if node_type == 'text':
-                    output_buffer.append(node_content)
-                elif node_type == 'comment':
-                    pass
-                elif node_type == '#partial': # New: Start skipping partial definition
-                    skip_partial += 1
-                elif node_type == '/partial': # Should not be reached unless nesting is wrong
-                     break
-                elif node_type == '#param':
-                    param_name, param_value = self.handle_param(node_content, params)
-                    # Store validated/defaulted value in current scope
-                    params[param_name] = param_value
-                elif node_type == '#set':
-                    var, args = parsefirstword(node_content)
-                    if var[0] == ':':
-                        var = var[1:]
-                    var = var.replace('.', '__')
-                    params[var]=evalone(self.db, args, params)
-                elif node_type == '#if':
-                    if not evalone(self.db, node_content, params):
-                        skip_if += 1
-                elif node_type == '#ifdef':
-                    param_name = node_content.strip()
-                    if param_name.startswith(':'):
-                        param_name = param_name[1:]
-                    param_name = param_name.replace('.', '__')
-                    if param_name not in params:
-                        skip_if += 1
-                elif node_type == '#ifndef':
-                    param_name = node_content.strip()
-                    if param_name.startswith(':'):
-                        param_name = param_name[1:]
-                    param_name = param_name.replace('.', '__')
-                    if param_name in params:
-                        skip_if += 1
-                elif node_type == '#elif': # Encountered elif while NOT skipping (previous if/elif was true)
-                    skip_if += 1 # Skip this block and subsequent elif/else blocks
-                elif node_type == '#else':
-                    skip_if += 1  # Skip the else block because the if or an elif was true
-                elif node_type == '/if' or node_type == '/ifdef' or node_type == '/ifndef' or node_type == '/endif':
-                    pass
-                elif node_type == 'render_expression':
-                    output_buffer.append(html.escape(str(evalone(self.db, node_content, params))))
-                elif node_type == 'render_param':
-                    try:
-                        output_buffer.append(html.escape(str(params[node_content])))
-                    except KeyError:
-                        raise ValueError(f"Parameter `{node_content}` not found in params `{params}`")
-                elif node_type == '#update' or node_type == "#insert" or node_type == "#create" or node_type == "#merge" or node_type == "#delete":
-                    try:
-                        db_execute_dot(self.db, node_type[1:] + " " + node_content, params)
-                    except sqlite3.Error as e:
-                        raise ValueError(f"Error executing {node_type[1:]} {node_content} with params {params}: {e}")
-                elif node_type == '#render':
-                    rendered_content = self.handle_render(node_content, path, params, node_list, includes)
-                    output_buffer.append(rendered_content)
-                elif node_type == '#redirect':
-                    url = evalone(self.db, node_content, params)
-                    return RenderResult(status_code=302, headers=[('Location', url)])
-                elif node_type == '#statuscode':
-                    result.status_code = evalone(self.db, node_content, params)
-                elif node_type == '#from':
-                    cursor = db_execute_dot(self.db, "select * from " + node_content, params)
-                    all = cursor.fetchall()
-                    if len(all) == 0:
-                        skip_from = 1
-                        continue
-                    params_stack.append(params)
-                    params = dict(params)
-                    froms.append(all)
-                    descriptions.append([x[0] for x in cursor.description])
-                    for j in range(len(descriptions[-1])):
-                        params[descriptions[-1][j]] = froms[-1][0][j]
-                    froms[-1] = froms[-1][1:]
-                    ptrs.append(i)
-                elif node_type == '/from':
-                    if len(froms) == 0:
-                        raise Exception("Found {{/from}} without {{#from}}")
-                    elif len(froms[-1]) > 0:
-                        i = ptrs[-1] # Jump back to start of the loop body
-                        for j in range(len(descriptions[-1])):
-                             params[descriptions[-1][j]] = froms[-1][0][j]
-                        froms[-1] = froms[-1][1:] # Consume the row for next check
-                    else: # Loop finished
-                        params = params_stack.pop()
-                        froms.pop()
-                        ptrs.pop()
-                        descriptions.pop()
-                elif node_type == '#dump':
-                    # fetchall the table and dump it
-                    cursor = db_execute_dot(self.db, "select * from " + node_content, params)
-                    t = time.time()
-                    all = cursor.fetchall()
-                    end_time = time.time()
-                    output_buffer.append("<table>")
-                    for col in cursor.description:
-                        output_buffer.append("<th>" + col[0] + "</th>")
-                    output_buffer.append("</tr>")
-                    for row in all:
-                        output_buffer.append("<tr>")
-                        for cell in row:
-                            output_buffer.append("<td>" + str(cell) + "</td>")
-                        output_buffer.append("</tr>")
-                    output_buffer.append("</table>")
-                    output_buffer.append(f"<p>Dumping {node_content} took {(end_time - t)*1000:.2f} ms</p>")
-                elif node_type == '#log':
-                    print("Logging: " + str(evalone(self.db, node_content, params)))
-                elif node_type == 'render_raw':
-                    output_buffer.append(str(evalone(self.db, node_content, params)))
-                elif node_type == '#import':
-                    # Parse the import statement (format: "module" or "module as alias")
-                    parts = node_content.split()
-                    if not parts:
-                        raise ValueError("Empty import statement")
-                        
-                    module_path = parts[0]
-                    alias = parts[2] if len(parts) > 2 and parts[1] == 'as' else module_path
+                    # Render the specified partial
+                    partial_name = partial[0]
+                    remaining_partials = partial[1:]
                     
-                    # Check if the module exists
-                    if module_path not in self._modules:
-                        raise ValueError(f"Module '{module_path}' not found, modules: " + str(self._modules.keys()))
-                    
-                    # Add to includes dictionary
-                    includes[alias] = module_path
+                    if module_name in self._partials and partial_name in self._partials[module_name]:
+                        partial_type, partial_body = self._partials[module_name][partial_name]
+                        self.process_nodes(partial_body, params, output_buffer, path, includes)
+                    else:
+                        result.status_code = 404
+                        result.body = f"Partial '{partial_name}' not found in module '{module_name}'"
                 else:
-                    raise Exception(f"Unknown node type: {node_type}")
-                # --- End Main node processing ---
-
-            # Check for unclosed blocks at the end? (Optional)
-            if skip_if > 0: print("Warning: Unclosed #if block at end of render")
-            if skip_partial > 0: print("Warning: Unclosed #partial block at end of render")
-            if skip_from > 0: print("Warning: Unclosed #from block at end of render")
-
-            result.body = "".join(output_buffer)
+                    # Render the entire module
+                    module_body = self._modules[module_name]
+                    self.process_nodes(module_body, params, output_buffer, path, includes)
+                    
+                result.body = "".join(output_buffer)
+            except KeyboardInterrupt as e:
+                # Used for early return (redirect, status code change)
+                return e.args[0]
+                
         else:
-             result.status_code = 404
-             result.body = "Not Found"
+            result.status_code = 404
+            result.body = "Not Found"
+            
         self.db.commit()
         return result
 

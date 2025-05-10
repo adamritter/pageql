@@ -126,7 +126,25 @@ def evalone(db, exp, params):
 
 
 def tokenize(source):
-    """Parses source into ('text', content) and ('comment', content) tuples."""
+    """
+    Parses source into ('text', content) and ('comment', content) tuples.
+    
+    Args:
+        source: The PageQL template source code as a string
+        
+    Returns:
+        A list of node tuples representing the parsed template
+        
+    Example:
+        >>> tokenize("Hello {{name}}")
+        [('text', 'Hello '), ('render_param', 'name')]
+        >>> tokenize("Count: {{{1+1}}}")
+        [('text', 'Count: '), ('render_raw', '1+1')]
+        >>> tokenize("{{#if x > 5}}Big{{/if}}")
+        [('#if', 'x > 5'), ('text', 'Big'), ('/if', None)]
+        >>> tokenize("{{!-- Comment --}}Visible")
+        [('text', 'Visible')]
+    """
     nodes = []
     parts = re.split(r'({{.*?}}}?)', source, flags=re.DOTALL)
     for part in parts:

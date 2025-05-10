@@ -172,6 +172,105 @@ def tokenize(source):
     return nodes
 
 
+
+def _read_block(node_list, i, stop, partials):
+    """Return (body, new_index) while filling *partials* dict in‑place."""
+    body = []
+    while i < len(node_list):
+        ntype, ncontent = node_list[i]
+        if ntype in stop:
+            break
+
+        # ------------------------------------------------------------- #if ...
+        if ntype == "#if" or ntype == "#ifdef" or ntype == "#ifndef":
+            if_terms = {"#elif", "#else", "/if", "/ifdef", "/ifndef"}  # inline terminators for this IF
+            i += 1
+            then_body, i = _read_block(node_list, i, if_terms, partials)
+            else_body = None
+            r = [ntype, ncontent, then_body]
+            while i < len(node_list):
+                k, c = node_list[i]
+                if k == "#elif":
+                    if ntype != "#if":
+                        raise SyntaxError("{{#elif}} must be used with {{#if}}")
+                    i += 1
+                    elif_body, i = _read_block(node_list, i, if_terms, partials)
+                    r.append(c)
+                    r.append(elif_body)
+                    continue
+                if k == "#else":
+                    i += 1
+                    else_body, i = _read_block(node_list, i, if_terms, partials)
+                    r.append(else_body)
+                    break
+                if k == "/if" or k == "/ifdef" or k == "/ifndef":
+                    break
+            if node_list[i][0] != "/if" and node_list[i][0] != "/ifdef" and node_list[i][0] != "/ifndef":
+                raise SyntaxError("missing {{/if}}")
+            i += 1
+            body.append(r)
+            continue
+
+        # ----------------------------------------------------------- #from ...
+        if ntype == "#from":
+            from_terms = {"/from"}
+            query = ncontent
+            i += 1
+            loop_body, i = _read_block(node_list, i, from_terms, partials)
+            if node_list[i][0] != "/from":
+                raise SyntaxError("missing {{/from}}")
+            i += 1
+            body.append(["#from", query, loop_body])
+            continue
+
+        # -------------------------------------------------------- #partial ...
+        if ntype == "#partial":
+            part_terms = {"/partial"}
+            first, rest = parsefirstword(ncontent)
+            partial_type, name = (first, rest) if first in ["public", "get", "post", "put", "delete", "patch"] else (None, first)
+            i += 1
+            part_body, i = _read_block(node_list, i, part_terms, partials)
+            if node_list[i][0] != "/partial":
+                raise SyntaxError("missing {{/partial}}")
+            i += 1
+            partials[name] = (partial_type, part_body)
+            continue
+
+        # -------------------------------------------------------------- leaf --
+        body.append((ntype, ncontent))
+        i += 1
+    return body, i
+
+def build_ast(node_list):
+    """
+    Builds an abstract syntax tree from a list of nodes.
+    
+    Args:
+        node_list: List of (type, content) tuples from tokenize()
+        
+    Returns:
+        Tuple of (body, partials) where body is the AST and partials is a dict of partial definitions
+        
+    >>> nodes = [('text', 'hello'), ('#partial', 'test'), ('text', 'world'), ('/partial', '')]
+    >>> build_ast(nodes)
+    ([('text', 'hello')], {'test': (None, [('text', 'world')])})
+    >>> nodes = [('text', 'hello'), ('#if', 'x > 5'), ('text', 'big'), ('#else', ''), ('text', 'small'), ('/if', '')]
+    >>> build_ast(nodes)
+    ([('text', 'hello'), ['#if', 'x > 5', [('text', 'big')], [('text', 'small')]]], {})
+    >>> nodes = [('text', 'hello'), ('#ifdef', 'x'), ('text', 'big'), ('#else', ''), ('text', 'small'), ('/ifdef', '')]
+    >>> build_ast(nodes)
+    ([('text', 'hello'), ['#ifdef', 'x', [('text', 'big')], [('text', 'small')]]], {})
+    >>> nodes = [('text', 'hello'), ('#ifndef', 'x'), ('text', 'big'), ('#else', ''), ('text', 'small'), ('/ifndef', '')]
+    >>> build_ast(nodes)
+    ([('text', 'hello'), ['#ifndef', 'x', [('text', 'big')], [('text', 'small')]]], {})
+
+    """
+    partials = {}
+    body, idx = _read_block(node_list, 0, set(), partials)
+    if idx != len(node_list):
+        raise SyntaxError("extra tokens after top‑level parse")
+    return body, partials
+
 class PageQL:
     """
     Manages and renders PageQL templates against an SQLite database.
@@ -213,7 +312,7 @@ class PageQL:
             True
         """
         # Tokenize the source and store the list of node tuples
-        self._modules[name] = tokenize(source) 
+        self._modules[name] = tokenize(source)
 
     def render(self, path, params={}, partial=[]):
         """

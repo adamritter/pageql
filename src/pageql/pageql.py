@@ -454,16 +454,11 @@ class PageQL:
                 part_name, part_type = part_key
                 if part_name == partial_name_str:
                     # Check if the HTTP verb matches or fallback to PUBLIC type
-                    if part_type == http_verb:
+                    if part_type == http_verb or part_type == "PUBLIC" or part_type == None:
                         partial_found = True
                         selected_partial = (part_name, part_type)
                         selected_module = module_name
                         break
-                    elif part_type == "PUBLIC" and not selected_partial:
-                        # Remember the PUBLIC partial as fallback
-                        partial_found = True
-                        selected_partial = (part_name, part_type)
-                        selected_module = module_name
             
             if partial_found:
                 render_path = selected_module
@@ -504,7 +499,8 @@ class PageQL:
         # Perform the recursive render call with the potentially modified parameters
         result = self.render(render_path, render_params, partial_names, http_verb)
         if result.status_code == 404:
-            raise ValueError(f"Partial or import '{partial_name_str}' not found")
+            print(f"handle_render: Partial or import '{partial_name_str}' not found with http verb '{http_verb}'")
+            raise ValueError(f"handle_render: Partial or import '{partial_name_str}' not found with http verb '{http_verb}'")
         
         # Clean up the output to match expected format
         return result.body.rstrip()
@@ -548,7 +544,7 @@ class PageQL:
                 var = var.replace('.', '__')
                 params[var] = evalone(self.db, args, params)
             elif node_type == '#render':
-                rendered_content = self.handle_render(node_content, path, params, includes, http_verb)
+                rendered_content = self.handle_render(node_content, path, params, includes, None)  # http_verb may be specified in the #render node
                 output_buffer.append(rendered_content)
             elif node_type == '#redirect':
                 url = evalone(self.db, node_content, params)
@@ -852,31 +848,25 @@ class PageQL:
                     
                     # Try with the specified HTTP verb first
                     if http_verb:
-                        # Look for the partial with the specified HTTP verb
+                        # Look for the partial with the specified HTTP verb or PUBLIC
                         http_key = (module_name, (partial_name, http_verb))
-                        if http_key in self._partials:
+                        http_key_public = (module_name, (partial_name, "PUBLIC"))
+                        if http_key in self._partials or http_key_public in self._partials:
                             self.process_nodes(self._partials[http_key], params, output_buffer, path, includes, http_verb)
                             partial_found = True
-                    
-                    # Fall back to PUBLIC if not found with specific verb
-                    if not partial_found:
-                        # Try with PUBLIC type
-                        public_key = (module_name, (partial_name, "PUBLIC"))
-                        if public_key in self._partials:
-                            self.process_nodes(self._partials[public_key], params, output_buffer, path, includes, http_verb)
-                            partial_found = True
-                        else:
-                            # Try to find any partial with the given name
-                            for partial_key in self._partials:
-                                mod_name, (part_name, part_type) = partial_key
-                                if mod_name == module_name and part_name == partial_name:
-                                    self.process_nodes(self._partials[partial_key], params, output_buffer, path, includes, http_verb)
-                                    partial_found = True
-                                    break
+                    else:
+                        # Try to find any partial with the given name
+                        for partial_key in self._partials:
+                            mod_name, (part_name, part_type) = partial_key
+                            if mod_name == module_name and part_name == partial_name:
+                                self.process_nodes(self._partials[partial_key], params, output_buffer, path, includes, http_verb)
+                                partial_found = True
+                                break
                     
                     if not partial_found:
                         result.status_code = 404
-                        result.body = f"Partial '{partial_name}' not found in module '{module_name}'"
+                        print(f"Partial '{partial_name}' with http verb '{http_verb}' not found in module '{module_name}'")
+                        result.body = f"Partial '{partial_name}' with http verb '{http_verb}' not found in module '{module_name}'"
                 else:
                     # Render the entire module
                     module_body = self._modules[module_name]
@@ -893,7 +883,7 @@ class PageQL:
                 
         else:
             result.status_code = 404
-            result.body = "Not Found"
+            result.body = f"Module {module_name} not found"
             
         self.db.commit()
         return result

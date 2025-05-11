@@ -104,6 +104,9 @@ class PageQLApp:
                 self.static_files[filename] = data
             except IsADirectoryError:
                 pass
+            except Exception as e:
+                print(f"  Error loading {filename}: {e}")
+                del self.static_files[filename]
                 
 
 
@@ -184,7 +187,7 @@ class PageQLApp:
             if path in self.before_hooks:
                 print(f"Before hook for {path}")
                 await self.before_hooks[path](params)
-            result = self.pageql_engine.render(path_cleaned, params)
+            result = self.pageql_engine.render(path_cleaned, params, None, method)
             print(f"{method} {path_cleaned} Params: {params} ({(time.time() - t) * 1000:.2f} ms)")
             print(f"Result: {result.status_code} {result.redirect_to} {result.headers}")
 

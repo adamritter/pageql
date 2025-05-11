@@ -845,7 +845,7 @@ class PageQL:
                     
                     # Look for the partial with matching HTTP verb, falling back to PUBLIC
                     partial_found = False
-                    
+
                     # Try with the specified HTTP verb first
                     if http_verb:
                         # Look for the partial with the specified HTTP verb or PUBLIC
@@ -865,8 +865,8 @@ class PageQL:
                     
                     if not partial_found:
                         result.status_code = 404
-                        print(f"Partial '{partial_name}' with http verb '{http_verb}' not found in module '{module_name}'")
-                        result.body = f"Partial '{partial_name}' with http verb '{http_verb}' not found in module '{module_name}'"
+                        print(f"render: Partial '{partial_name}' with http verb '{http_verb}' not found in module '{module_name}', remaining partials: {remaining_partials}")
+                        result.body = f"render: Partial '{partial_name}' with http verb '{http_verb}' not found in module '{module_name}', remaining partials: {remaining_partials}"
                 else:
                     # Render the entire module
                     module_body = self._modules[module_name]

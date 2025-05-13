@@ -320,6 +320,9 @@ class PageQL:
             >>> # Verify the module was stored
             >>> "comment_test" in r._modules
             True
+            >>> r.load_module("a/b/c", source_with_comment)
+            >>> "a/b/c" in r._modules
+            True
         """
         # Tokenize the source and build AST
         tokens = tokenize(source)
@@ -797,13 +800,29 @@ class PageQL:
             GET handler
             >>> print(r.render("/verbs", partial="endpoint", http_verb="POST").body)
             POST handler
+            >>> r.load_module("a/b/c", "hello")
+            >>> print(r.render("/a/b/c").body)
+            hello
+            >>> r.load_module("a/b/d", "{{#partial public e}}abde{{/partial}}")
+            >>> print(r.render("/a/b/d", partial="e").body)
+            abde
+            >>> print(r.render("/a/b/d", partial="e", http_verb="GET").body)
+            abde
+            >>> print(r.render("/a/b/d", partial="e", http_verb="POST").body)
+            abde
+            >>> print(r.render("/a/b/d/e").body)
+            abde
+            >>> print(r.render("/a/b/d/e", http_verb="POST").body)
+            abde
         """
         module_name = path.strip('/')
         params = flatten_params(params)
         
         # Convert partial to list if it's a string
+        partial_path = []
         if partial and isinstance(partial, str):
-            partial = [partial]
+            partial = partial.split('/')
+            partial_path = partial
         
         # Convert http_verb to uppercase for consistency
         if http_verb:
@@ -811,7 +830,6 @@ class PageQL:
 
         # --- Handle partial path mapping ---
         original_module_name = module_name
-        partial_path = []
         
         # If the module isn't found directly, try to interpret it as a partial path
         while '/' in module_name and module_name not in self._modules:
@@ -850,7 +868,8 @@ class PageQL:
                         http_key = (partial_name, http_verb)
                         http_key_public = (partial_name, "PUBLIC")
                         if http_key in partials or http_key_public in partials:
-                            self.process_nodes(partials[http_key][0], params, output_buffer, path, includes, http_verb)
+                            value = partials[http_key][0] if http_key in partials else partials[http_key_public][0]
+                            self.process_nodes(value, params, output_buffer, path, includes, http_verb)
                             partial_found = True
                     else:
                         # Try to find any partial with the given name

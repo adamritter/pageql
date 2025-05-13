@@ -87,7 +87,7 @@ class PageQLApp:
     def load(self, template_dir, filename):
         filepath = os.path.join(template_dir, filename)
         if filename.endswith(".pageql"):
-            module_name = os.path.splitext(filename)[0].replace('/', '.')
+            module_name = os.path.splitext(filename)[0]
             try:
                 with open(filepath, 'r', encoding='utf-8') as f:
                     source = f.read()

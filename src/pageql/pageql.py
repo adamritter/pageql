@@ -856,43 +856,37 @@ class PageQL:
             includes = {None: module_name}  # Dictionary to track imported modules
             module_body, partials = self._modules[module_name]
             
-            try:
-                # If we have partial segments and no explicit partial list was provided
-                if partial_path and not partial:
-                    partial = partial_path
-                while partial and len(partial) > 1:
-                    if (partial[0], None) in partials:
-                        partials = partials[(partial[0], None)][1]
-                        partial = partial[1:]
-                    elif (partial[0], "PUBLIC") in partials:
-                        partials = partials[(partial[0], "PUBLIC")]
-                        partial = partial[1:]
-                    else:
-                        raise ValueError(f"Partial '{partial}' not found in module '{module_name}'")
-                if partial:
-                    partial_name = partial[0]
-                    http_key = (partial_name, http_verb)
-                    http_key_public = (partial_name, "PUBLIC")
-                    if http_key in partials or http_key_public in partials:
-                        value = partials[http_key][0] if http_key in partials else partials[http_key_public][0]
-                        self.process_nodes(value, params, output_buffer, path, includes, http_verb)
-                    else:
-                        result.status_code = 404
-                        print(f"render: Partial '{partial_name}' with http verb '{http_verb}' not found in module '{module_name}', module: {self._modules[module_name]}")
-                        result.body = f"render: Partial '{partial_name}' with http verb '{http_verb}' not found in module '{module_name}', module: {self._modules[module_name]}"
+            # If we have partial segments and no explicit partial list was provided
+            if partial_path and not partial:
+                partial = partial_path
+            while partial and len(partial) > 1:
+                if (partial[0], None) in partials:
+                    partials = partials[(partial[0], None)][1]
+                    partial = partial[1:]
+                elif (partial[0], "PUBLIC") in partials:
+                    partials = partials[(partial[0], "PUBLIC")]
+                    partial = partial[1:]
                 else:
-                    # Render the entire module
-                    self.process_nodes(module_body, params, output_buffer, path, includes, http_verb)
-                    
-                result.body = "".join(output_buffer)
+                    raise ValueError(f"Partial '{partial}' not found in module '{module_name}'")
+            if partial:
+                partial_name = partial[0]
+                http_key = (partial_name, http_verb)
+                http_key_public = (partial_name, "PUBLIC")
+                if http_key in partials or http_key_public in partials:
+                    value = partials[http_key][0] if http_key in partials else partials[http_key_public][0]
+                    self.process_nodes(value, params, output_buffer, path, includes, http_verb)
+                else:
+                    result.status_code = 404
+                    print(f"render: Partial '{partial_name}' with http verb '{http_verb}' not found in module '{module_name}', module: {self._modules[module_name]}")
+                    result.body = f"render: Partial '{partial_name}' with http verb '{http_verb}' not found in module '{module_name}', module: {self._modules[module_name]}"
+            else:
+                # Render the entire module
+                self.process_nodes(module_body, params, output_buffer, path, includes, http_verb)
                 
-                # Process the output to match the expected format in tests
-                result.body = result.body.replace('\n\n', '\n')  # Normalize extra newlines
-                
-            except KeyboardInterrupt as e:
-                # Used for early return (redirect, status code change)
-                return e.args[0]
-                
+            result.body = "".join(output_buffer)
+            
+            # Process the output to match the expected format in tests
+            result.body = result.body.replace('\n\n', '\n')  # Normalize extra newlines
         else:
             result.status_code = 404
             result.body = f"Module {original_module_name} not found"

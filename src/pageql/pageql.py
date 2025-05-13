@@ -244,10 +244,11 @@ def _read_block(node_list, i, stop, partials):
             i += 1
             split_name = name.split('/')
             dest_partials = partials
-            for i in range(len(split_name) - 1):
-                if (split_name[i], None) not in dest_partials:
-                    dest_partials[(split_name[i], None)] = [[], {}]
-                dest_partials = dest_partials[(split_name[i], None)][1]
+            while len(split_name) > 1:
+                if (split_name[0], None) not in dest_partials:
+                    dest_partials[(split_name[0], None)] = [[], {}]
+                dest_partials = dest_partials[(split_name[0], None)][1]
+                split_name = split_name[1:]
             dest_partials[(split_name[-1], partial_type)] = [part_body, partial_partials]
             continue
 
@@ -280,7 +281,7 @@ def build_ast(node_list):
     ([('text', 'hello'), ['#ifndef', 'x', [('text', 'big')], [('text', 'small')]]], {})
     >>> nodes = [('#partial', 'a/b'), ('text', 'world'), ('/partial', '')]
     >>> build_ast(nodes)
-    ([[], {('a', None): [[], {('b', None): [[('text', 'world')], {}]}}])
+    ([], {('a', None): [[], {('b', None): [[('text', 'world')], {}]}]})
     """
     partials = {}
     body, idx = _read_block(node_list, 0, set(), partials)

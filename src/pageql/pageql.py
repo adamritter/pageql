@@ -237,12 +237,13 @@ def _read_block(node_list, i, stop, partials):
                 name = first
                 
             i += 1
-            part_body, i = _read_block(node_list, i, part_terms, partials)
+            partial_partials = {}
+            part_body, i = _read_block(node_list, i, part_terms, partial_partials)
             if node_list[i][0] != "/partial":
                 raise SyntaxError("missing {{/partial}}")
             i += 1
             # Store partial with tuple key (name, type)
-            partials[(name, partial_type)] = part_body
+            partials[(name, partial_type)] = [part_body, partial_partials]
             continue
 
         # -------------------------------------------------------------- leaf --
@@ -262,7 +263,7 @@ def build_ast(node_list):
         
     >>> nodes = [('text', 'hello'), ('#partial', 'test'), ('text', 'world'), ('/partial', '')]
     >>> build_ast(nodes)
-    ([('text', 'hello')], {('test', None): [('text', 'world')]})
+    ([('text', 'hello')], {('test', None): [[('text', 'world')], {}]})
     >>> nodes = [('text', 'hello'), ('#if', 'x > 5'), ('text', 'big'), ('#else', ''), ('text', 'small'), ('/if', '')]
     >>> build_ast(nodes)
     ([('text', 'hello'), ['#if', 'x > 5', [('text', 'big')], [('text', 'small')]]], {})
@@ -297,7 +298,6 @@ class PageQL:
             db_path: Path to the SQLite database file to be used.
         """
         self._modules = {} # Store parsed node lists here later
-        self._partials = {} # Store partials here
         self.db = sqlite3.connect(db_path)
 
     def load_module(self, name, source):
@@ -324,13 +324,8 @@ class PageQL:
         # Tokenize the source and build AST
         tokens = tokenize(source)
         body, partials = build_ast(tokens)
-        self._modules[name] = body
+        self._modules[name] = [body, partials]
         
-        # Store partials with module name association in the global partials dictionary
-        for partial_key, partial_body in partials.items():
-            # Create a key that includes the module name
-            self._partials[(name, partial_key)] = partial_body
-
     def handle_param(self, node_content, params):
         """
         Handles parameter validation and processing for #param nodes.
@@ -448,9 +443,11 @@ class PageQL:
             partial_found = False
             selected_partial = None
             selected_module = None
+            module_name = includes[None]
+            partials = self._modules[module_name][1]
             
             # Search for the partial with the specified HTTP verb first
-            for (module_name, part_key) in self._partials:
+            for part_key in partials:
                 part_name, part_type = part_key
                 if part_name == partial_name_str:
                     # Check if the HTTP verb matches or fallback to PUBLIC type
@@ -835,7 +832,8 @@ class PageQL:
         
         if module_name in self._modules:
             output_buffer = []
-            includes = {}  # Dictionary to track imported modules
+            includes = {None: module_name}  # Dictionary to track imported modules
+            module_body, partials = self._modules[module_name]
             
             try:
                 if partial:
@@ -849,27 +847,26 @@ class PageQL:
                     # Try with the specified HTTP verb first
                     if http_verb:
                         # Look for the partial with the specified HTTP verb or PUBLIC
-                        http_key = (module_name, (partial_name, http_verb))
-                        http_key_public = (module_name, (partial_name, "PUBLIC"))
-                        if http_key in self._partials or http_key_public in self._partials:
-                            self.process_nodes(self._partials[http_key], params, output_buffer, path, includes, http_verb)
+                        http_key = (partial_name, http_verb)
+                        http_key_public = (partial_name, "PUBLIC")
+                        if http_key in partials or http_key_public in partials:
+                            self.process_nodes(partials[http_key][0], params, output_buffer, path, includes, http_verb)
                             partial_found = True
                     else:
                         # Try to find any partial with the given name
-                        for partial_key in self._partials:
-                            mod_name, (part_name, part_type) = partial_key
-                            if mod_name == module_name and part_name == partial_name:
-                                self.process_nodes(self._partials[partial_key], params, output_buffer, path, includes, http_verb)
+                        for partial_key in partials:
+                            part_name, part_type = partial_key
+                            if part_name == partial_name:
+                                self.process_nodes(partials[partial_key][0], params, output_buffer, path, includes, http_verb)
                                 partial_found = True
                                 break
                     
                     if not partial_found:
                         result.status_code = 404
-                        print(f"render: Partial '{partial_name}' with http verb '{http_verb}' not found in module '{module_name}', remaining partials: {remaining_partials}")
-                        result.body = f"render: Partial '{partial_name}' with http verb '{http_verb}' not found in module '{module_name}', remaining partials: {remaining_partials}"
+                        print(f"render: Partial '{partial_name}' with http verb '{http_verb}' not found in module '{module_name}', remaining partials: {remaining_partials}, module: {self._modules[module_name]}")
+                        result.body = f"render: Partial '{partial_name}' with http verb '{http_verb}' not found in module '{module_name}', remaining partials: {remaining_partials}, module: {self._modules[module_name]}"
                 else:
                     # Render the entire module
-                    module_body = self._modules[module_name]
                     self.process_nodes(module_body, params, output_buffer, path, includes, http_verb)
                     
                 result.body = "".join(output_buffer)

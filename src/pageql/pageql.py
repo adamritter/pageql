@@ -245,11 +245,25 @@ def _read_block(node_list, i, stop, partials):
             split_name = name.split('/')
             dest_partials = partials
             while len(split_name) > 1:
-                if (split_name[0], None) not in dest_partials:
-                    dest_partials[(split_name[0], None)] = [[], {}]
-                dest_partials = dest_partials[(split_name[0], None)][1]
+                name0 = split_name[0]
+                if name0[0] == ':':
+                    if (':', None) not in dest_partials:
+                        dest_partials[(':', None)] = [name0, [], {}]
+                    if dest_partials[(':', None)][0] != name0:
+                        raise ValueError(f"Partial name mismatch: {name0} != {dest_partials[(':', None)][0]}")
+                    dest_partials = dest_partials[(':', None)][2]
+                else:
+                    if (name0, None) not in dest_partials:
+                        dest_partials[(name0, None)] = [[], {}]
+                    dest_partials = dest_partials[(name0, None)][1]
                 split_name = split_name[1:]
-            dest_partials[(split_name[-1], partial_type)] = [part_body, partial_partials]
+            name1 = split_name[-1]
+            if name1[0] == ':':
+                if (':', None) in dest_partials:
+                    raise ValueError(f"Cannot have two private partials with the same name: '{dest_partials[(':', None)][0]}' and '{name1}'")
+                dest_partials[(':', None)] = [name1, part_body, partial_partials]
+            else:
+                dest_partials[(name1, partial_type)] = [part_body, partial_partials]
             continue
 
         # -------------------------------------------------------------- leaf --
@@ -282,6 +296,12 @@ def build_ast(node_list):
     >>> nodes = [('#partial', 'a/b'), ('text', 'world'), ('/partial', '')]
     >>> build_ast(nodes)
     ([], {('a', None): [[], {('b', None): [[('text', 'world')], {}]}]})
+    >>> nodes = [('#partial', ':a/b'), ('text', 'world'), ('/partial', '')]
+    >>> build_ast(nodes)
+    ([], {(':', None): [':a', [], {('b', None): [[('text', 'world')], {}]}]})
+    >>> nodes = [('#partial', ':a'), ('text', 'world'), ('/partial', '')]
+    >>> build_ast(nodes)
+    ([], {(':', None): [':a', [('text', 'world')], {}]})
     """
     partials = {}
     body, idx = _read_block(node_list, 0, set(), partials)

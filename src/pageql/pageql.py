@@ -860,36 +860,26 @@ class PageQL:
                 # If we have partial segments and no explicit partial list was provided
                 if partial_path and not partial:
                     partial = partial_path
-                if partial:
-                    # Render the specified partial
-                    partial_name = partial[0]
-                    remaining_partials = partial[1:] if len(partial) > 1 else None
-                    
-                    # Look for the partial with matching HTTP verb, falling back to PUBLIC
-                    partial_found = False
-
-                    # Try with the specified HTTP verb first
-                    if http_verb:
-                        # Look for the partial with the specified HTTP verb or PUBLIC
-                        http_key = (partial_name, http_verb)
-                        http_key_public = (partial_name, "PUBLIC")
-                        if http_key in partials or http_key_public in partials:
-                            value = partials[http_key][0] if http_key in partials else partials[http_key_public][0]
-                            self.process_nodes(value, params, output_buffer, path, includes, http_verb)
-                            partial_found = True
+                while partial and len(partial) > 1:
+                    if (partial[0], None) in partials:
+                        partials = partials[(partial[0], None)][1]
+                        partial = partial[1:]
+                    elif (partial[0], "PUBLIC") in partials:
+                        partials = partials[(partial[0], "PUBLIC")]
+                        partial = partial[1:]
                     else:
-                        # Try to find any partial with the given name
-                        for partial_key in partials:
-                            part_name, part_type = partial_key
-                            if part_name == partial_name:
-                                self.process_nodes(partials[partial_key][0], params, output_buffer, path, includes, http_verb)
-                                partial_found = True
-                                break
-                    
-                    if not partial_found:
+                        raise ValueError(f"Partial '{partial}' not found in module '{module_name}'")
+                if partial:
+                    partial_name = partial[0]
+                    http_key = (partial_name, http_verb)
+                    http_key_public = (partial_name, "PUBLIC")
+                    if http_key in partials or http_key_public in partials:
+                        value = partials[http_key][0] if http_key in partials else partials[http_key_public][0]
+                        self.process_nodes(value, params, output_buffer, path, includes, http_verb)
+                    else:
                         result.status_code = 404
-                        print(f"render: Partial '{partial_name}' with http verb '{http_verb}' not found in module '{module_name}', remaining partials: {remaining_partials}, module: {self._modules[module_name]}")
-                        result.body = f"render: Partial '{partial_name}' with http verb '{http_verb}' not found in module '{module_name}', remaining partials: {remaining_partials}, module: {self._modules[module_name]}"
+                        print(f"render: Partial '{partial_name}' with http verb '{http_verb}' not found in module '{module_name}', module: {self._modules[module_name]}")
+                        result.body = f"render: Partial '{partial_name}' with http verb '{http_verb}' not found in module '{module_name}', module: {self._modules[module_name]}"
                 else:
                     # Render the entire module
                     self.process_nodes(module_body, params, output_buffer, path, includes, http_verb)

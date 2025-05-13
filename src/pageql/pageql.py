@@ -493,7 +493,7 @@ class PageQL:
                     raise Exception(f"Warning: Empty value expression for key `{key}` in #render args")
 
         # Perform the recursive render call with the potentially modified parameters
-        result = self.render(render_path, render_params, partial_names, http_verb)
+        result = self.render(render_path, render_params, partial_names, http_verb, in_render_directive=True)
         if result.status_code == 404:
             raise ValueError(f"handle_render: Partial or import '{partial_name_str}' not found with http verb {http_verb}, render_path: {render_path}, partial_names: {partial_names}")
         
@@ -666,7 +666,7 @@ class PageQL:
         for node in nodes:
             self.process_node(node, params, output_buffer, path, includes, http_verb)
 
-    def render(self, path, params={}, partial=None, http_verb=None):
+    def render(self, path, params={}, partial=None, http_verb=None, in_render_directive=False):
         """
         Renders a module using its parsed AST.
 
@@ -820,6 +820,9 @@ class PageQL:
             >>> r.load_module("xx", "{{#partial public :id}}now {{id}}{{/partial}}")
             >>> print(r.render("/xx", partial="5").body)
             now 5
+            >>> r.load_module("y", "{{#partial public :a/b/:c}}a is {{a}}, c is {{c}}{{/partial}}{{#render :a/b/:c}}")
+            >>> print(r.render("/y", params={'a': 5, 'c': 'cc'}).body)
+            a is 5, c is cc
         """
         module_name = path.strip('/')
         params = flatten_params(params)
@@ -863,7 +866,11 @@ class PageQL:
                     partial = partial[1:]
                 elif (':', None) in partials:
                     value = partials[(':', None)]
-                    params[value[0][1:]] = partial[0]
+                    if in_render_directive:
+                        if value[0] != partial[0]:
+                            raise ValueError(f"Partial '{partial}' not found in module, found '{value[0]}'")
+                    else:
+                        params[value[0][1:]] = partial[0]
                     partials = value[2]
                     partial = partial[1:]
                 else:
@@ -877,7 +884,11 @@ class PageQL:
                     self.process_nodes(body, params, output_buffer, path, includes, http_verb)
                 elif (':', None) in partials or (':', 'PUBLIC') in partials:
                     value = partials[(':', None)] if (':', None) in partials else partials[(':', 'PUBLIC')]
-                    params[value[0][1:]] = partial[0]
+                    if in_render_directive:
+                        if value[0] != partial[0]:
+                            raise ValueError(f"Partial '{partial}' not found in module, found '{value[0]}'")
+                    else:
+                        params[value[0][1:]] = partial[0]
                     partials = value[2]
                     partial = partial[1:]
                     self.process_nodes(value[1], params, output_buffer, path, includes, http_verb)

@@ -242,8 +242,13 @@ def _read_block(node_list, i, stop, partials):
             if node_list[i][0] != "/partial":
                 raise SyntaxError("missing {{/partial}}")
             i += 1
-            # Store partial with tuple key (name, type)
-            partials[(name, partial_type)] = [part_body, partial_partials]
+            split_name = name.split('/')
+            dest_partials = partials
+            for i in range(len(split_name) - 1):
+                if (split_name[i], None) not in dest_partials:
+                    dest_partials[(split_name[i], None)] = [[], {}]
+                dest_partials = dest_partials[(split_name[i], None)][1]
+            dest_partials[(split_name[-1], partial_type)] = [part_body, partial_partials]
             continue
 
         # -------------------------------------------------------------- leaf --
@@ -273,7 +278,9 @@ def build_ast(node_list):
     >>> nodes = [('text', 'hello'), ('#ifndef', 'x'), ('text', 'big'), ('#else', ''), ('text', 'small'), ('/ifndef', '')]
     >>> build_ast(nodes)
     ([('text', 'hello'), ['#ifndef', 'x', [('text', 'big')], [('text', 'small')]]], {})
-
+    >>> nodes = [('#partial', 'a/b'), ('text', 'world'), ('/partial', '')]
+    >>> build_ast(nodes)
+    ([[], {('a', None): [[], {('b', None): [[('text', 'world')], {}]}}])
     """
     partials = {}
     body, idx = _read_block(node_list, 0, set(), partials)
@@ -814,6 +821,9 @@ class PageQL:
             abde
             >>> print(r.render("/a/b/d/e", http_verb="POST").body)
             abde
+            >>> r.load_module("a/b/e", "{{#partial public f/g}}abefg{{/partial}}")
+            >>> print(r.render("/a/b/e", partial="f/g").body)
+            abefg
         """
         module_name = path.strip('/')
         params = flatten_params(params)

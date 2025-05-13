@@ -814,6 +814,12 @@ class PageQL:
             abefg
             >>> print(r.render("/a/b/e").body)
             abefgabefg
+            >>> r.load_module("x", "{{#partial public :id/toggle}}toggled {{id}}{{/partial}}")
+            >>> print(r.render("/x", partial="5/toggle").body)
+            toggled 5
+            >>> r.load_module("xx", "{{#partial public :id}}now {{id}}{{/partial}}")
+            >>> print(r.render("/xx", partial="5").body)
+            now 5
         """
         module_name = path.strip('/')
         params = flatten_params(params)
@@ -853,7 +859,12 @@ class PageQL:
                     partials = partials[(partial[0], None)][1]
                     partial = partial[1:]
                 elif (partial[0], "PUBLIC") in partials:
-                    partials = partials[(partial[0], "PUBLIC")]
+                    partials = partials[(partial[0], "PUBLIC")][1]
+                    partial = partial[1:]
+                elif (':', None) in partials:
+                    value = partials[(':', None)]
+                    params[value[0][1:]] = partial[0]
+                    partials = value[2]
                     partial = partial[1:]
                 else:
                     raise ValueError(f"Partial '{partial}' not found in module '{module_name}'")
@@ -864,8 +875,14 @@ class PageQL:
                 if http_key in partials or http_key_public in partials:
                     body = partials[http_key][0] if http_key in partials else partials[http_key_public][0]
                     self.process_nodes(body, params, output_buffer, path, includes, http_verb)
+                elif (':', None) in partials or (':', 'PUBLIC') in partials:
+                    value = partials[(':', None)] if (':', None) in partials else partials[(':', 'PUBLIC')]
+                    params[value[0][1:]] = partial[0]
+                    partials = value[2]
+                    partial = partial[1:]
+                    self.process_nodes(value[1], params, output_buffer, path, includes, http_verb)
                 else:
-                    raise ValueError(f"render: Partial '{partial_name}' with http verb '{http_verb}' not found in module '{module_name}', module: {self._modules[module_name]}")
+                    raise ValueError(f"render: Partial '{partial_name}' with http verb '{http_verb}' not found in module '{module_name}', partials: {partials}")
             else:
                 # Render the entire module
                 self.process_nodes(module_body, params, output_buffer, path, includes, http_verb)

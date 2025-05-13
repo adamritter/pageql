@@ -425,55 +425,23 @@ class PageQL:
 
         # Check if the partial name is in the includes dictionary
         render_path = path
+
+        current_path = partial_name_str
+        partial_parts = []
         
-        # Check for / notation (e.g., itp) - might be a partial within an imported module
-        if '/' in partial_name_str and partial_name_str not in includes:
-            # Try to load the whole path first, then try removing parts from the end
-            current_path = partial_name_str
-            partial_parts = []
-            
-            while '/' in current_path and current_path not in includes:
-                # Split at the last dot
-                module_part, partial_part = current_path.rsplit('/', 1)
-                # Add the partial segment to the beginning of the partial path
-                partial_parts.insert(0, partial_part)
-                current_path = module_part
-            
-            # Check if we found a valid module
-            if current_path in includes:
-                render_path = includes[current_path]  # Use the real module path
-                partial_names = partial_parts  # Set the partial names to look for
-            else:
-                # Not found as an import, try all in local module
-                partial_names = partial_name_str.split('/')
-        elif partial_name_str in includes:
-            # Direct import reference
-            render_path = includes[partial_name_str]
-        elif partial_name_str and not partial_name_str.startswith('/'):
-            # Need to verify the partial exists
-            partial_found = False
-            selected_partial = None
-            selected_module = None
-            module_name = includes[None]
-            partials = self._modules[module_name][1]
-            
-            # Search for the partial with the specified HTTP verb first
-            for part_key in partials:
-                part_name, part_type = part_key
-                if part_name == partial_name_str:
-                    # Check if the HTTP verb matches or fallback to PUBLIC type
-                    if part_type == http_verb or part_type == "PUBLIC" or part_type == None:
-                        partial_found = True
-                        selected_partial = (part_name, part_type)
-                        selected_module = module_name
-                        break
-            
-            if partial_found:
-                render_path = selected_module
-                partial_names = [selected_partial[0]]  # Set partial name for rendering
-            elif partial_name_str not in self._modules:
-                raise ValueError(f"Partial or module '{partial_name_str}' not found")
-            
+        while '/' in current_path and current_path not in includes:
+            module_part, partial_part = current_path.rsplit('/', 1)
+            partial_parts.insert(0, partial_part)
+            current_path = module_part
+        
+        # Check if we found a valid module
+        if current_path in includes:
+            render_path = includes[current_path]  # Use the real module path
+            partial_names = partial_parts  # Set the partial names to look for
+        else:
+            # Not found as an import, try all in local module
+            partial_names = partial_name_str.split('/')
+        
         # Parse key=value expressions from args_str and update render_params
         if args_str:
             # Simple parsing: find key=, evaluate value expression until next key= or end

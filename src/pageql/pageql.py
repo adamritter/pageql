@@ -426,15 +426,15 @@ class PageQL:
         # Check if the partial name is in the includes dictionary
         render_path = path
         
-        # Check for dot notation (e.g., it.p) - might be a partial within an imported module
-        if '.' in partial_name_str and partial_name_str not in includes:
+        # Check for / notation (e.g., itp) - might be a partial within an imported module
+        if '/' in partial_name_str and partial_name_str not in includes:
             # Try to load the whole path first, then try removing parts from the end
             current_path = partial_name_str
             partial_parts = []
             
-            while '.' in current_path and current_path not in includes:
+            while '/' in current_path and current_path not in includes:
                 # Split at the last dot
-                module_part, partial_part = current_path.rsplit('.', 1)
+                module_part, partial_part = current_path.rsplit('/', 1)
                 # Add the partial segment to the beginning of the partial path
                 partial_parts.insert(0, partial_part)
                 current_path = module_part
@@ -444,8 +444,8 @@ class PageQL:
                 render_path = includes[current_path]  # Use the real module path
                 partial_names = partial_parts  # Set the partial names to look for
             else:
-                # Not found as an import or as a dot notation of an import
-                raise ValueError(f"Import '{partial_name_str}' not found")
+                # Not found as an import, try all in local module
+                partial_names = partial_name_str.split('/')
         elif partial_name_str in includes:
             # Direct import reference
             render_path = includes[partial_name_str]
@@ -507,8 +507,7 @@ class PageQL:
         # Perform the recursive render call with the potentially modified parameters
         result = self.render(render_path, render_params, partial_names, http_verb)
         if result.status_code == 404:
-            print(f"handle_render: Partial or import '{partial_name_str}' not found with http verb '{http_verb}'")
-            raise ValueError(f"handle_render: Partial or import '{partial_name_str}' not found with http verb '{http_verb}'")
+            raise ValueError(f"handle_render: Partial or import '{partial_name_str}' not found with http verb {http_verb}, render_path: {render_path}, partial_names: {partial_names}")
         
         # Clean up the output to match expected format
         return result.body.rstrip()
@@ -760,7 +759,7 @@ class PageQL:
             ... {{{'&amp;'}}}
             ... {{#import include_test as it}}
             ... {{#render it}}
-            ... {{#render it.p z=3}}
+            ... {{#render it/p z=3}}
             ... End Text.
             ... '''
             >>> r.load_module("comment_test", source_with_comment)
@@ -822,9 +821,11 @@ class PageQL:
             abde
             >>> print(r.render("/a/b/d/e", http_verb="POST").body)
             abde
-            >>> r.load_module("a/b/e", "{{#partial public f/g}}abefg{{/partial}}")
+            >>> r.load_module("a/b/e", "{{#partial public f/g}}abefg{{/partial}}{{#render f/g}}{{#render f/g}}")
             >>> print(r.render("/a/b/e", partial="f/g").body)
             abefg
+            >>> print(r.render("/a/b/e").body)
+            abefgabefg
         """
         module_name = path.strip('/')
         params = flatten_params(params)
@@ -873,12 +874,10 @@ class PageQL:
                 http_key = (partial_name, http_verb)
                 http_key_public = (partial_name, "PUBLIC")
                 if http_key in partials or http_key_public in partials:
-                    module_body = partials[http_key][0] if http_key in partials else partials[http_key_public][0]
-                    self.process_nodes(module_body, params, output_buffer, path, includes, http_verb)
+                    body = partials[http_key][0] if http_key in partials else partials[http_key_public][0]
+                    self.process_nodes(body, params, output_buffer, path, includes, http_verb)
                 else:
-                    result.status_code = 404
-                    print(f"render: Partial '{partial_name}' with http verb '{http_verb}' not found in module '{module_name}', module: {self._modules[module_name]}")
-                    result.body = f"render: Partial '{partial_name}' with http verb '{http_verb}' not found in module '{module_name}', module: {self._modules[module_name]}"
+                    raise ValueError(f"render: Partial '{partial_name}' with http verb '{http_verb}' not found in module '{module_name}', module: {self._modules[module_name]}")
             else:
                 # Render the entire module
                 self.process_nodes(module_body, params, output_buffer, path, includes, http_verb)

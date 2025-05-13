@@ -873,8 +873,8 @@ class PageQL:
                 http_key = (partial_name, http_verb)
                 http_key_public = (partial_name, "PUBLIC")
                 if http_key in partials or http_key_public in partials:
-                    value = partials[http_key][0] if http_key in partials else partials[http_key_public][0]
-                    self.process_nodes(value, params, output_buffer, path, includes, http_verb)
+                    module_body = partials[http_key][0] if http_key in partials else partials[http_key_public][0]
+                    self.process_nodes(module_body, params, output_buffer, path, includes, http_verb)
                 else:
                     result.status_code = 404
                     print(f"render: Partial '{partial_name}' with http verb '{http_verb}' not found in module '{module_name}', module: {self._modules[module_name]}")

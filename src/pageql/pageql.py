@@ -847,15 +847,7 @@ class PageQL:
             module_name, partial_segment = module_name.rsplit('/', 1)
             partial_path.insert(0, partial_segment)
         
-        # If we have partial segments and no explicit partial list was provided
-        if partial_path and not partial:
-            partial = partial_path
-        
-        # If we still can't find the module, restore the original name for proper error handling
-        if module_name not in self._modules:
-            module_name = original_module_name
-            
-        # --- Start Rendering ---
+           # --- Start Rendering ---
         result = RenderResult()
         result.status_code = 200
         
@@ -865,6 +857,9 @@ class PageQL:
             module_body, partials = self._modules[module_name]
             
             try:
+                # If we have partial segments and no explicit partial list was provided
+                if partial_path and not partial:
+                    partial = partial_path
                 if partial:
                     # Render the specified partial
                     partial_name = partial[0]
@@ -910,7 +905,7 @@ class PageQL:
                 
         else:
             result.status_code = 404
-            result.body = f"Module {module_name} not found"
+            result.body = f"Module {original_module_name} not found"
             
         self.db.commit()
         return result

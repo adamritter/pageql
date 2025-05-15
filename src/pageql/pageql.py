@@ -360,12 +360,17 @@ class PageQL:
             >>> "a/b/c" in r._modules
             True
         """
+        if name in self._modules:
+            del self._modules[name]
+        if name in self._parse_errors:
+            del self._parse_errors[name]
         # Tokenize the source and build AST
         tokens = tokenize(source)
         try:
             body, partials = build_ast(tokens)
             self._modules[name] = [body, partials]
-        except ValueError as e:
+        except Exception as e:
+            print(f"Error parsing module {name}: {e}")
             self._parse_errors[name] = e
         
     def handle_param(self, node_content, params):
@@ -865,11 +870,10 @@ class PageQL:
            # --- Start Rendering ---
         result = RenderResult()
         result.status_code = 200
-        if module_name in self._parse_errors:
-            raise ValueError(f"Error parsing module {module_name}: {self._parse_errors[module_name]}")
+
         try:
-            print(f"module_name: {module_name}, modules: {self._modules.keys()}")
-            
+            if self._parse_errors.get(module_name):
+                raise ValueError(f"Error parsing module {module_name}: {self._parse_errors[module_name]}")
             if module_name in self._modules:
                 output_buffer = []
                 includes = {None: module_name}  # Dictionary to track imported modules

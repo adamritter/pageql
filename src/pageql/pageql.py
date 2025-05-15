@@ -660,7 +660,7 @@ class PageQL:
                         
                         row_buffer = []
                         self.process_nodes(body, row_params, row_buffer, path, includes, http_verb)
-                        output_buffer.append(' '.join(row_buffer).strip())
+                        output_buffer.append(''.join(row_buffer).strip())
                         output_buffer.append('\n')
                     
                     # Restore original params
@@ -854,6 +854,9 @@ class PageQL:
             >>> r.load_module("varnum", "{{#set idd0 3}}{{idd0}}")
             >>> print(r.render("/varnum").body)
             3
+            >>> r.load_module("fromtest", "{{#from (select 1 as id)}}<{{id}}>{{/from}}")
+            >>> print(r.render("/fromtest").body)
+            <1>
         """
         module_name = path.strip('/')
         params = flatten_params(params)

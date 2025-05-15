@@ -830,6 +830,9 @@ class PageQL:
             >>> r.load_module("y", "{{#partial public :a/b/:c}}a is {{a}}, c is {{c}}{{/partial}}{{#render :a/b/:c}}")
             >>> print(r.render("/y", params={'a': 5, 'c': 'cc'}).body)
             a is 5, c is cc
+            >>> r.load_module("redirect", "{{#redirect '/redirected'}}")
+            >>> print(r.render("/redirect").status_code)
+            302
         """
         module_name = path.strip('/')
         params = flatten_params(params)

@@ -111,7 +111,7 @@ def db_execute_dot(db, exp, params):
 
 def evalone(db, exp, params):
     exp = exp.strip()
-    if re.match("^:?[a-zA-z._]+$", exp):
+    if re.match("^:?[a-zA-z._0-9]+$", exp):
         if exp[0] == ':':
             exp = exp[1:]
         exp = exp.replace('.', '__')
@@ -464,7 +464,7 @@ class PageQL:
 
         # Check if the partial name is in the includes dictionary
         render_path = path
-
+    
         current_path = partial_name_str
         partial_parts = []
         
@@ -851,6 +851,9 @@ class PageQL:
             >>> r.load_module("delete_test", "{{#partial delete :id}}deleted<{{id}}>{{/partial}}")
             >>> print(r.render("/delete_test/1", http_verb="DELETE").body)
             deleted<1>
+            >>> r.load_module("varnum", "{{#set idd0 3}}{{idd0}}")
+            >>> print(r.render("/varnum").body)
+            3
         """
         module_name = path.strip('/')
         params = flatten_params(params)

@@ -333,6 +333,7 @@ class PageQL:
             db_path: Path to the SQLite database file to be used.
         """
         self._modules = {} # Store parsed node lists here later
+        self._parse_errors = {} # Store errors here
         self.db = sqlite3.connect(db_path)
 
     def load_module(self, name, source):
@@ -361,8 +362,11 @@ class PageQL:
         """
         # Tokenize the source and build AST
         tokens = tokenize(source)
-        body, partials = build_ast(tokens)
-        self._modules[name] = [body, partials]
+        try:
+            body, partials = build_ast(tokens)
+            self._modules[name] = [body, partials]
+        except ValueError as e:
+            self._parse_errors[name] = e
         
     def handle_param(self, node_content, params):
         """
@@ -377,8 +381,8 @@ class PageQL:
         """
         param_name, attrs_str = parsefirstword(node_content)
         attrs = parse_param_attrs(attrs_str)
-        
-        is_required = attrs.get('required', not attrs.get('optional', False)) # Default required
+
+        is_required = attrs.get('required', not attrs.__contains__('optional')) # Default required
         param_value = params.get(param_name) # Get from input params dict
 
         if param_value is None:
@@ -386,7 +390,7 @@ class PageQL:
                 param_value = attrs['default']
                 is_required = False # Default overrides required check if param missing
             elif is_required:
-                raise ValueError(f"Required parameter '{param_name}' is missing.")
+                raise ValueError(f"Required parameter '{param_name}' is missing")
 
         # --- Basic Validation (Type, Minlength) ---
         if param_value is not None: # Only validate if value exists
@@ -833,6 +837,9 @@ class PageQL:
             >>> r.load_module("redirect", "{{#redirect '/redirected'}}")
             >>> print(r.render("/redirect").status_code)
             302
+            >>> r.load_module("optional", "{{#param text optional}}cool{{/param}}")
+            >>> print(r.render("/optional").body)
+            cool
         """
         module_name = path.strip('/')
         params = flatten_params(params)
@@ -851,16 +858,18 @@ class PageQL:
         original_module_name = module_name
         
         # If the module isn't found directly, try to interpret it as a partial path
-        while '/' in module_name and module_name not in self._modules:
+        while '/' in module_name and module_name not in self._modules and module_name not in self._parse_errors:
             module_name, partial_segment = module_name.rsplit('/', 1)
             partial_path.insert(0, partial_segment)
         
            # --- Start Rendering ---
         result = RenderResult()
         result.status_code = 200
-
+        if module_name in self._parse_errors:
+            raise ValueError(f"Error parsing module {module_name}: {self._parse_errors[module_name]}")
         try:
-        
+            print(f"module_name: {module_name}, modules: {self._modules.keys()}")
+            
             if module_name in self._modules:
                 output_buffer = []
                 includes = {None: module_name}  # Dictionary to track imported modules

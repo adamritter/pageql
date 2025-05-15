@@ -426,8 +426,7 @@
   <h3>2.2 Toggle checkbox inside the list</h3>
   <pre class="code-block"><code class="language-diff">
 &lt;<span class="keyword">li</span> &#123;&#123;<span class="keyword">#if</span> completed&#125;&#125;<span class="attribute">class</span>=<span class="string">"completed"</span>&#123;&#123;/<span class="keyword">if</span>&#125;&#125;&gt;
-  &lt;<span class="keyword">form</span> <span class="attribute">method</span>=<span class="string">"POST"</span> <span class="attribute">action</span>=<span class="string">"/todos/toggle"</span> <span class="attribute">style</span>=<span class="string">"display:inline"</span>&gt;
-    &lt;<span class="keyword">input</span> <span class="attribute">type</span>=<span class="string">"hidden"</span> <span class="attribute">name</span>=<span class="string">"id"</span> <span class="attribute">value</span>=<span class="string">"&#123;&#123;id&#125;&#125;"</span>&gt;
+  &lt;<span class="keyword">form</span> <span class="attribute">method</span>=<span class="string">"POST"</span> <span class="attribute">action</span>=<span class="string">"/todos/{{id}}/toggle"</span> <span class="attribute">style</span>=<span class="string">"display:inline"</span>&gt;
     &lt;<span class="keyword">input</span> <span class="attribute">class</span>=<span class="string">"toggle"</span> <span class="attribute">type</span>=<span class="string">"checkbox"</span>
            &#123;&#123;<span class="keyword">#if</span> completed&#125;&#125;checked&#123;&#123;/<span class="keyword">if</span>&#125;&#125;
            <span class="attribute">onchange</span>=<span class="string">"this.form.submit();"</span>&gt;
@@ -435,7 +434,7 @@
   &lt;<span class="keyword">label</span> <span class="attribute">ondblclick</span>=<span class="string">"window.location='/todos?edit_id=&#123;&#123;id&#125;&#125;'"</span>&gt;&#123;&#123;text&#125;&#125;&lt;/<span class="keyword">label</span>&gt;
 &lt;/<span class="keyword">li</span>&gt;
 </code><div class="clean-code">&lt;li {{#if completed}}class="completed"{{/if}}&gt;
-  &lt;form method="POST" action="/todos/toggle" style="display:inline"&gt;
+  &lt;form method="POST" action="/todos/{{id}}/toggle" style="display:inline"&gt;
     &lt;input type="hidden" name="id" value="{{id}}"&gt;
     &lt;input class="toggle" type="checkbox" {{#if completed}}checked{{/if}}
            onchange="this.form.submit();"&gt;
@@ -516,7 +515,7 @@
 
   <h3>2.5 New public partials</h3>
   <pre class="code-block"><code class="language-diff">
-&#123;&#123;<span class="keyword">#partial</span> <span class="attribute">public</span> <span class="function">toggle</span>&#125;&#125;
+&#123;&#123;<span class="keyword">#partial</span> <span class="attribute">post</span> <span class="function">:id/toggle</span>&#125;&#125;
   &#123;&#123;<span class="keyword">#param</span> <span class="variable">id</span> <span class="attribute">required</span> <span class="attribute">type</span>=<span class="string">integer</span> <span class="attribute">min</span>=1&#125;&#125;
   &#123;&#123;<span class="keyword">#update</span> todos <span class="keyword">set</span> completed = 1 - completed <span class="keyword">WHERE</span> id = :<span class="variable">id</span>&#125;&#125;
   &#123;&#123;<span class="keyword">#redirect</span> <span class="string">'/todos'</span>&#125;&#125;
@@ -534,7 +533,7 @@
   &#123;&#123;<span class="keyword">#update</span> todos <span class="keyword">set</span> completed = <span class="keyword">IIF</span>(:<span class="variable">active_count</span> = 0, 0, 1)&#125;&#125;
   &#123;&#123;<span class="keyword">#redirect</span> <span class="string">'/todos'</span>&#125;&#125;
 &#123;&#123;/<span class="keyword">partial</span>&#125;&#125;
-</code><div class="clean-code">{{#partial public toggle}}
+</code><div class="clean-code">{{#partial post :id/toggle}}
   {{#param id required type=integer min=1}}
   {{#update todos set completed = 1 - completed WHERE id = :id}}
   {{#redirect '/todos'}}

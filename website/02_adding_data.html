@@ -397,7 +397,7 @@
   <h2>2 Extend <em>templates/todos.pageql</em></h2>
   <p>Add the lines <strong>after the <code>&lt;h1&gt;...&lt;/h1&gt;</code></strong> and <strong>append a new public partial</strong> at the top of the file.</p>
 
-  <pre class="code-block"><code class="language-diff"> <span class="comment">&lt;!-- Add the following lines after &lt;h1&gt;Todos&lt;/h1&gt; inside &lt;header&gt; --&gt;</span>
+  <pre class="code-block"><code class="language-diff"> <span class="comment">&lt;!-- Add the following lines after &lt;h1&gt;Todos&lt;/h1&gt; --&gt;</span>
   &lt;<span class="keyword">form</span> <span class="attribute">method</span>=<span class="string">"POST"</span> <span class="attribute">action</span>=<span class="string">"/todos/add"</span>&gt;
     &lt;<span class="keyword">input</span> <span class="attribute">name</span>=<span class="string">"text"</span> <span class="attribute">placeholder</span>=<span class="string">"What needs to be done?"</span> <span class="attribute">autofocus</span>&gt;
   &lt;/<span class="keyword">form</span>&gt;</code>
@@ -406,18 +406,14 @@
 &lt;/form&gt;</div></pre>
 
   <pre class="code-block"><span class="comment">&lt;!-- Add this partial at the top of the file --&gt;</span>
-&#123;&#123;<span class="keyword">#partial</span> <span class="attribute">public</span> <span class="function">add</span>&#125;&#125;
+&#123;&#123;<span class="keyword">#partial</span> <span class="attribute">POST</span> <span class="function">add</span>&#125;&#125;
   &#123;&#123;<span class="keyword">#param</span> <span class="variable">text</span> <span class="attribute">required minlength</span>=1&#125;&#125;
-
   &#123;&#123;<span class="keyword">#insert</span> <span class="keyword">into</span> todos(text, completed) <span class="keyword">values</span> (:<span class="variable">text</span>, 0)&#125;&#125;
-
   &#123;&#123;<span class="keyword">#redirect</span> <span class="string">'/todos'</span>&#125;&#125;
 &#123;&#123;/<span class="keyword">partial</span>&#125;&#125;</code>
-<div class="clean-code">&#123;&#123;#partial public add&#125;&#125;
+<div class="clean-code">&#123;&#123;#partial POST add&#125;&#125;
   &#123;&#123;#param text required minlength=1&#125;&#125;
-
   &#123;&#123;#insert into todos(text, completed) values (:text, 0)&#125;&#125;
-
   &#123;&#123;#redirect '/todos'&#125;&#125;
 &#123;&#123;/partial&#125;&#125;</div></pre>
 
@@ -439,6 +435,10 @@
       </tr>
       <tr>
         <td><code><span class="keyword">#partial</span> <span class="attribute">public</span> <span class="function">add</span></code></td>
+        <td>Turns a template block into an HTTP endpoint at <code>/todos/add</code>.</td>
+      </tr>
+      <tr>
+        <td><code><span class="keyword">#partial</span> <span class="attribute">POST</span> <span class="function">add</span></code></td>
         <td>Turns a template block into an HTTP endpoint at <code>/todos/add</code>.</td>
       </tr>
       <tr>

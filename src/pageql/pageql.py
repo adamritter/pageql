@@ -309,6 +309,13 @@ def build_ast(node_list):
         raise SyntaxError("extra tokens after top‑level parse")
     return body, partials
 
+class RenderResultException(Exception):
+    """
+    Exception raised when a render result is returned from a render call.
+    """
+    def __init__(self, render_result):
+        self.render_result = render_result
+
 class PageQL:
     """
     Manages and renders PageQL templates against an SQLite database.
@@ -543,10 +550,10 @@ class PageQL:
                 output_buffer.append(rendered_content)
             elif node_type == '#redirect':
                 url = evalone(self.db, node_content, params)
-                raise KeyboardInterrupt(RenderResult(status_code=302, headers=[('Location', url)]))
+                raise RenderResultException(RenderResult(status_code=302, headers=[('Location', url)]))
             elif node_type == '#statuscode':
                 code = evalone(self.db, node_content, params)
-                raise KeyboardInterrupt(RenderResult(status_code=code, body="".join(output_buffer)))
+                raise RenderResultException(RenderResult(status_code=code, body="".join(output_buffer)))
             elif node_type == '#update' or node_type == "#insert" or node_type == "#create" or node_type == "#merge" or node_type == "#delete":
                 try:
                     db_execute_dot(self.db, node_type[1:] + " " + node_content, params)
@@ -848,64 +855,68 @@ class PageQL:
            # --- Start Rendering ---
         result = RenderResult()
         result.status_code = 200
+
+        try:
         
-        if module_name in self._modules:
-            output_buffer = []
-            includes = {None: module_name}  # Dictionary to track imported modules
-            module_body, partials = self._modules[module_name]
-            
-            # If we have partial segments and no explicit partial list was provided
-            if partial_path and not partial:
-                partial = partial_path
-            while partial and len(partial) > 1:
-                if (partial[0], None) in partials:
-                    partials = partials[(partial[0], None)][1]
-                    partial = partial[1:]
-                elif (partial[0], "PUBLIC") in partials:
-                    partials = partials[(partial[0], "PUBLIC")][1]
-                    partial = partial[1:]
-                elif (':', None) in partials:
-                    value = partials[(':', None)]
-                    if in_render_directive:
-                        if value[0] != partial[0]:
-                            raise ValueError(f"Partial '{partial}' not found in module, found '{value[0]}'")
-                    else:
-                        params[value[0][1:]] = partial[0]
-                    partials = value[2]
-                    partial = partial[1:]
-                else:
-                    raise ValueError(f"Partial '{partial}' not found in module '{module_name}'")
-            if partial:
-                partial_name = partial[0]
-                http_key = (partial_name, http_verb)
-                http_key_public = (partial_name, "PUBLIC")
-                if http_key in partials or http_key_public in partials:
-                    body = partials[http_key][0] if http_key in partials else partials[http_key_public][0]
-                    self.process_nodes(body, params, output_buffer, path, includes, http_verb)
-                elif (':', None) in partials or (':', 'PUBLIC') in partials:
-                    value = partials[(':', None)] if (':', None) in partials else partials[(':', 'PUBLIC')]
-                    if in_render_directive:
-                        if value[0] != partial[0]:
-                            raise ValueError(f"Partial '{partial}' not found in module, found '{value[0]}'")
-                    else:
-                        params[value[0][1:]] = partial[0]
-                    partials = value[2]
-                    partial = partial[1:]
-                    self.process_nodes(value[1], params, output_buffer, path, includes, http_verb)
-                else:
-                    raise ValueError(f"render: Partial '{partial_name}' with http verb '{http_verb}' not found in module '{module_name}', partials: {partials}")
-            else:
-                # Render the entire module
-                self.process_nodes(module_body, params, output_buffer, path, includes, http_verb)
+            if module_name in self._modules:
+                output_buffer = []
+                includes = {None: module_name}  # Dictionary to track imported modules
+                module_body, partials = self._modules[module_name]
                 
-            result.body = "".join(output_buffer)
-            
-            # Process the output to match the expected format in tests
-            result.body = result.body.replace('\n\n', '\n')  # Normalize extra newlines
-        else:
-            result.status_code = 404
-            result.body = f"Module {original_module_name} not found"
-            
+                # If we have partial segments and no explicit partial list was provided
+                if partial_path and not partial:
+                    partial = partial_path
+                while partial and len(partial) > 1:
+                    if (partial[0], None) in partials:
+                        partials = partials[(partial[0], None)][1]
+                        partial = partial[1:]
+                    elif (partial[0], "PUBLIC") in partials:
+                        partials = partials[(partial[0], "PUBLIC")][1]
+                        partial = partial[1:]
+                    elif (':', None) in partials:
+                        value = partials[(':', None)]
+                        if in_render_directive:
+                            if value[0] != partial[0]:
+                                raise ValueError(f"Partial '{partial}' not found in module, found '{value[0]}'")
+                        else:
+                            params[value[0][1:]] = partial[0]
+                        partials = value[2]
+                        partial = partial[1:]
+                    else:
+                        raise ValueError(f"Partial '{partial}' not found in module '{module_name}'")
+                if partial:
+                    partial_name = partial[0]
+                    http_key = (partial_name, http_verb)
+                    http_key_public = (partial_name, "PUBLIC")
+                    if http_key in partials or http_key_public in partials:
+                        body = partials[http_key][0] if http_key in partials else partials[http_key_public][0]
+                        self.process_nodes(body, params, output_buffer, path, includes, http_verb)
+                    elif (':', None) in partials or (':', 'PUBLIC') in partials:
+                        value = partials[(':', None)] if (':', None) in partials else partials[(':', 'PUBLIC')]
+                        if in_render_directive:
+                            if value[0] != partial[0]:
+                                raise ValueError(f"Partial '{partial}' not found in module, found '{value[0]}'")
+                        else:
+                            params[value[0][1:]] = partial[0]
+                        partials = value[2]
+                        partial = partial[1:]
+                        self.process_nodes(value[1], params, output_buffer, path, includes, http_verb)
+                    else:
+                        raise ValueError(f"render: Partial '{partial_name}' with http verb '{http_verb}' not found in module '{module_name}'")
+                else:
+                    # Render the entire module
+                    self.process_nodes(module_body, params, output_buffer, path, includes, http_verb)
+                    
+                result.body = "".join(output_buffer)
+                
+                # Process the output to match the expected format in tests
+                result.body = result.body.replace('\n\n', '\n')  # Normalize extra newlines
+            else:
+                result.status_code = 404
+                result.body = f"Module {original_module_name} not found"
+        except RenderResultException as e:
+            self.db.commit()
+            return e.render_result
         self.db.commit()
         return result
 

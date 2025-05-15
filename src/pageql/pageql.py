@@ -111,7 +111,7 @@ def db_execute_dot(db, exp, params):
 
 def evalone(db, exp, params):
     exp = exp.strip()
-    if re.match("^:?[a-zA-z._0-9]+$", exp):
+    if re.match("^:?[a-zA-z._][a-zA-z._0-9]*$", exp):
         if exp[0] == ':':
             exp = exp[1:]
         exp = exp.replace('.', '__')
@@ -464,7 +464,7 @@ class PageQL:
 
         # Check if the partial name is in the includes dictionary
         render_path = path
-    
+
         current_path = partial_name_str
         partial_parts = []
         

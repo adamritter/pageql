@@ -259,9 +259,12 @@ def _read_block(node_list, i, stop, partials):
                 split_name = split_name[1:]
             name1 = split_name[-1]
             if name1[0] == ':':
-                if (':', None) in dest_partials:
-                    raise ValueError(f"Cannot have two private partials with the same name: '{dest_partials[(':', None)][0]}' and '{name1}'")
-                dest_partials[(':', None)] = [name1, part_body, partial_partials]
+                if partial_type and partial_type != 'PUBLIC':
+                    dest_partials[(':', partial_type)] = [name1, part_body, partial_partials]
+                else:
+                    if (':', None) in dest_partials:
+                        raise ValueError(f"Cannot have two private partials with the same name: '{dest_partials[(':', None)][0]}' and '{name1}', partial_type: {partial_type}")
+                    dest_partials[(':', None)] = [name1, part_body, partial_partials]
             else:
                 dest_partials[(name1, partial_type)] = [part_body, partial_partials]
             continue
@@ -845,6 +848,9 @@ class PageQL:
             >>> r.load_module("optional", "{{#param text optional}}cool{{/param}}")
             >>> print(r.render("/optional").body)
             cool
+            >>> r.load_module("delete_test", "{{#partial delete :id}}deleted<{{id}}>{{/partial}}")
+            >>> print(r.render("/delete_test/1", http_verb="DELETE").body)
+            deleted<1>
         """
         module_name = path.strip('/')
         params = flatten_params(params)
@@ -907,8 +913,8 @@ class PageQL:
                     if http_key in partials or http_key_public in partials:
                         body = partials[http_key][0] if http_key in partials else partials[http_key_public][0]
                         self.process_nodes(body, params, output_buffer, path, includes, http_verb)
-                    elif (':', None) in partials or (':', 'PUBLIC') in partials:
-                        value = partials[(':', None)] if (':', None) in partials else partials[(':', 'PUBLIC')]
+                    elif (':', None) in partials or (':', 'PUBLIC') in partials or (':', http_verb) in partials:
+                        value = partials[(':', http_verb)] if (':', http_verb) in partials else partials[(':', None)] if (':', None) in partials else partials[(':', 'PUBLIC')]
                         if in_render_directive:
                             if value[0] != partial[0]:
                                 raise ValueError(f"Partial '{partial}' not found in module, found '{value[0]}'")

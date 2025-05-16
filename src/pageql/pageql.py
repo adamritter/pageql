@@ -15,6 +15,12 @@ import re, time, sys
 import doctest
 import sqlite3
 import html
+import pathlib
+
+if __package__ is None:                      # script / doctest-by-path
+    sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
+
+from pageql.parser import tokenize, parsefirstword, build_ast
 
 def flatten_params(params):
     """
@@ -76,12 +82,6 @@ class RenderResult:
         self.headers = headers # List of (name, value) tuples
         self.redirect_to = None
 
-def parsefirstword(s):
-    s = s.strip()
-    if s.find(' ') < 0:
-        return s, None
-    return s[:s.find(' ')], s[s.find(' '):].strip()
-
 def db_execute_dot(db, exp, params):
     """
     Executes an SQL expression after converting dot notation parameters to double underscore format.
@@ -124,193 +124,6 @@ def evalone(db, exp, params):
     except sqlite3.Error as e:
         raise ValueError(f"Error evaluating SQL expression `select {exp}` with params `{params}`: {e}")
 
-
-def tokenize(source):
-    """
-    Parses source into ('text', content) and ('comment', content) tuples.
-    
-    Args:
-        source: The PageQL template source code as a string
-        
-    Returns:
-        A list of node tuples representing the parsed template
-        
-    Example:
-        >>> tokenize("Hello {{name}}")
-        [('text', 'Hello '), ('render_param', 'name')]
-        >>> tokenize("Count: {{{1+1}}}")
-        [('text', 'Count: '), ('render_raw', '1+1')]
-        >>> tokenize("{{#if x > 5}}Big{{/if}}")
-        [('#if', 'x > 5'), ('text', 'Big'), ('/if', None)]
-        >>> tokenize("{{!-- Comment --}}Visible")
-        [('text', 'Visible')]
-    """
-    nodes = []
-    parts = re.split(r'({{.*?}}}?)', source, flags=re.DOTALL)
-    for part in parts:
-        if not part: # Skip empty strings that can result from split
-            continue
-        if part.startswith('{{{') and part.endswith('}}}'):
-            part = part[3:-3].strip()
-            nodes.append(('render_raw', part))
-        elif part.startswith('{{') and part.endswith('}}'):
-            part = part[2:-2].strip()
-            if part.startswith('!--') and part.endswith('--'):
-                pass # Skip comment nodes
-            elif part.startswith('#') or part.startswith('/'):
-                nodes.append(parsefirstword(part))
-            else:
-                if re.match("^:?[a-zA-z._]+$", part):
-                    if part[0] == ':':
-                        part = part[1:]
-                    part = part.replace('.', '__')
-                    nodes.append(('render_param', part))
-                else:
-                    nodes.append(('render_expression', part))
-        else:
-            nodes.append(('text', part))
-    return nodes
-
-
-
-def _read_block(node_list, i, stop, partials):
-    """Return (body, new_index) while filling *partials* dict in‑place."""
-    body = []
-    while i < len(node_list):
-        ntype, ncontent = node_list[i]
-        if ntype in stop:
-            break
-
-        # ------------------------------------------------------------- #if ...
-        if ntype == "#if" or ntype == "#ifdef" or ntype == "#ifndef":
-            if_terms = {"#elif", "#else", "/if", "/ifdef", "/ifndef"}  # inline terminators for this IF
-            i += 1
-            then_body, i = _read_block(node_list, i, if_terms, partials)
-            else_body = None
-            r = [ntype, ncontent, then_body]
-            while i < len(node_list):
-                k, c = node_list[i]
-                if k == "#elif":
-                    if ntype != "#if":
-                        raise SyntaxError("{{#elif}} must be used with {{#if}}")
-                    i += 1
-                    elif_body, i = _read_block(node_list, i, if_terms, partials)
-                    r.append(c)
-                    r.append(elif_body)
-                    continue
-                if k == "#else":
-                    i += 1
-                    else_body, i = _read_block(node_list, i, if_terms, partials)
-                    r.append(else_body)
-                    break
-                if k == "/if" or k == "/ifdef" or k == "/ifndef":
-                    break
-            if node_list[i][0] != "/if" and node_list[i][0] != "/ifdef" and node_list[i][0] != "/ifndef":
-                raise SyntaxError("missing {{/if}}")
-            i += 1
-            body.append(r)
-            continue
-
-        # ----------------------------------------------------------- #from ...
-        if ntype == "#from":
-            from_terms = {"/from"}
-            query = ncontent
-            i += 1
-            loop_body, i = _read_block(node_list, i, from_terms, partials)
-            if node_list[i][0] != "/from":
-                raise SyntaxError("missing {{/from}}")
-            i += 1
-            body.append(["#from", query, loop_body])
-            continue
-
-        # -------------------------------------------------------- #partial ...
-        if ntype == "#partial":
-            part_terms = {"/partial"}
-            first, rest = parsefirstword(ncontent)
-            
-            # Check if first token is a verb or 'public'
-            if first in ["public", "get", "post", "put", "delete", "patch"]:
-                partial_type = first.upper() if first != "public" else "PUBLIC"
-                name = rest
-            else:
-                partial_type = None
-                name = first
-                
-            i += 1
-            partial_partials = {}
-            part_body, i = _read_block(node_list, i, part_terms, partial_partials)
-            if node_list[i][0] != "/partial":
-                raise SyntaxError("missing {{/partial}}")
-            i += 1
-            split_name = name.split('/')
-            dest_partials = partials
-            while len(split_name) > 1:
-                name0 = split_name[0]
-                if name0[0] == ':':
-                    if (':', None) not in dest_partials:
-                        dest_partials[(':', None)] = [name0, [], {}]
-                    if dest_partials[(':', None)][0] != name0:
-                        raise ValueError(f"Partial name mismatch: {name0} != {dest_partials[(':', None)][0]}")
-                    dest_partials = dest_partials[(':', None)][2]
-                else:
-                    if (name0, None) not in dest_partials:
-                        dest_partials[(name0, None)] = [[], {}]
-                    dest_partials = dest_partials[(name0, None)][1]
-                split_name = split_name[1:]
-            name1 = split_name[-1]
-            if name1[0] == ':':
-                if partial_type and partial_type != 'PUBLIC':
-                    dest_partials[(':', partial_type)] = [name1, part_body, partial_partials]
-                else:
-                    if (':', None) in dest_partials:
-                        raise ValueError(f"Cannot have two private partials with the same name: '{dest_partials[(':', None)][0]}' and '{name1}', partial_type: {partial_type}")
-                    dest_partials[(':', None)] = [name1, part_body, partial_partials]
-            else:
-                dest_partials[(name1, partial_type)] = [part_body, partial_partials]
-            continue
-
-        # -------------------------------------------------------------- leaf --
-        body.append((ntype, ncontent))
-        i += 1
-    return body, i
-
-def build_ast(node_list):
-    """
-    Builds an abstract syntax tree from a list of nodes.
-    
-    Args:
-        node_list: List of (type, content) tuples from tokenize()
-        
-    Returns:
-        Tuple of (body, partials) where body is the AST and partials is a dict of partial definitions
-        
-    >>> nodes = [('text', 'hello'), ('#partial', 'test'), ('text', 'world'), ('/partial', '')]
-    >>> build_ast(nodes)
-    ([('text', 'hello')], {('test', None): [[('text', 'world')], {}]})
-    >>> nodes = [('text', 'hello'), ('#if', 'x > 5'), ('text', 'big'), ('#else', ''), ('text', 'small'), ('/if', '')]
-    >>> build_ast(nodes)
-    ([('text', 'hello'), ['#if', 'x > 5', [('text', 'big')], [('text', 'small')]]], {})
-    >>> nodes = [('text', 'hello'), ('#ifdef', 'x'), ('text', 'big'), ('#else', ''), ('text', 'small'), ('/ifdef', '')]
-    >>> build_ast(nodes)
-    ([('text', 'hello'), ['#ifdef', 'x', [('text', 'big')], [('text', 'small')]]], {})
-    >>> nodes = [('text', 'hello'), ('#ifndef', 'x'), ('text', 'big'), ('#else', ''), ('text', 'small'), ('/ifndef', '')]
-    >>> build_ast(nodes)
-    ([('text', 'hello'), ['#ifndef', 'x', [('text', 'big')], [('text', 'small')]]], {})
-    >>> nodes = [('#partial', 'a/b'), ('text', 'world'), ('/partial', '')]
-    >>> build_ast(nodes)
-    ([], {('a', None): [[], {('b', None): [[('text', 'world')], {}]}]})
-    >>> nodes = [('#partial', ':a/b'), ('text', 'world'), ('/partial', '')]
-    >>> build_ast(nodes)
-    ([], {(':', None): [':a', [], {('b', None): [[('text', 'world')], {}]}]})
-    >>> nodes = [('#partial', ':a'), ('text', 'world'), ('/partial', '')]
-    >>> build_ast(nodes)
-    ([], {(':', None): [':a', [('text', 'world')], {}]})
-    """
-    partials = {}
-    body, idx = _read_block(node_list, 0, set(), partials)
-    if idx != len(node_list):
-        raise SyntaxError("extra tokens after top‑level parse")
-    return body, partials
 
 class RenderResultException(Exception):
     """
@@ -950,6 +763,8 @@ class PageQL:
 
 # Example of how to run the examples if this file is executed
 if __name__ == '__main__':
+    # add current directory to sys.path
+    
     # Run doctests, ignoring extra whitespace in output and blank lines
     doctest.testmod(optionflags=doctest.NORMALIZE_WHITESPACE | doctest.IGNORE_EXCEPTION_DETAIL)
     

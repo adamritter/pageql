@@ -1,10 +1,4 @@
 # Agent Instructions
 
-- After making any change to the repository, run `pytest`.
 - The `pytest` configuration is read from `pyproject.toml`.
-- It is recommended to install `watchfiles` and `uvicorn` before running tests:
-
-```bash
-pip install watchfiles uvicorn
-pytest
-```
+- Install the wheels_deps/pytest-8.3.5-py3-none-any.whl before testing with pytest

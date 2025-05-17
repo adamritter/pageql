@@ -60,15 +60,16 @@ def parse_param_attrs(s):
     attrs = {}
     # Use regex to handle quoted values
     pattern = r'([^\s=]+)(?:=(?:"([^"]*)"|\'([^\']*)\'|([^\s]*)))?'
-    matches = re.findall(pattern, s.strip())
-    for match in matches:
-        key = match[0].strip()
+    matches = re.finditer(pattern, s.strip())
+    for m in matches:
+        key = m.group(1).strip()
         # Get the value from whichever group matched (double quote, single quote, or unquoted)
-        value = match[1] or match[2] or match[3]
-        if value == '':  # If there was an equals sign but empty value
-            attrs[key] = ''
-        elif '=' in s and key in s and s.find(key) + len(key) < len(s) and s[s.find(key) + len(key)] == '=':
-            attrs[key] = value
+        value = m.group(2) or m.group(3) or m.group(4)
+        if '=' in m.group(0):
+            if value == '':
+                attrs[key] = ''
+            else:
+                attrs[key] = value
         else:
             attrs[key] = True
     return attrs

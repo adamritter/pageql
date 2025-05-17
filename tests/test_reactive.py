@@ -295,6 +295,26 @@ def test_derived_signal_multiple_updates():
     assert_eq(seen, [3, 6])
 
 
+def test_derived_signal_replace():
+    a, b = Signal(1), Signal(2)
+    d = DerivedSignal(lambda: a.value + 1, [a])
+    seen = []
+    d.listeners.append(seen.append)
+
+    a.set(2)
+    assert_eq(seen[-1], 3)
+
+    d.replace(lambda: b.value * 2, [b])
+    assert_eq(d.value, 4)
+    assert_eq(seen[-1], 4)
+
+    a.set(5)
+    assert_eq(seen[-1], 4)
+
+    b.set(3)
+    assert_eq(seen[-1], 6)
+
+
 def test_check_component_reactive_table():
     conn = _db()
     rt = ReactiveTable(conn, "items")

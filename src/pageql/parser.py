@@ -43,7 +43,7 @@ def tokenize(source):
             elif part.startswith('#') or part.startswith('/'):
                 nodes.append(parsefirstword(part))
             else:
-                if re.match("^:?[a-zA-z._]+$", part):
+                if re.match("^:?[a-zA-Z._$][a-zA-Z0-9._$]*$", part):
                     if part[0] == ':':
                         part = part[1:]
                     part = part.replace('.', '__')

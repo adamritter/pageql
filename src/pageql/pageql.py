@@ -49,28 +49,38 @@ def flatten_params(params):
     return result
 
 def parse_param_attrs(s):
+    """Parse attributes from a ``#param`` directive.
+
+    Handles optional whitespace around the ``=`` sign and quoted values.
+    Tokens with an ``=`` but no following value are treated as boolean flags
+    equivalent to specifying just the name.
+
+    Example::
+
+        >>> parse_param_attrs("a=1 b = 2 c")
+        {'a': '1', 'b': '2', 'c': True}
+        >>> parse_param_attrs("a='hello world' optional")
+        {'a': 'hello world', 'optional': True}
+        >>> parse_param_attrs("a=1 b=2 flag=")
+        {'a': '1', 'b': '2', 'flag': True}
     """
-    Parses a simple set of attributes from a string like:
-      "status=302 addtoken=true secure"
-    Returns them as a dictionary. Tokens without '=' are treated as boolean flags.
-    Values can be quoted with single or double quotes to include spaces.
-    """
+
     if not s:
         return {}
-    attrs = {}
-    # Use regex to handle quoted values
-    pattern = r'([^\s=]+)(?:=(?:"([^"]*)"|\'([^\']*)\'|([^\s]*)))?'
-    matches = re.findall(pattern, s.strip())
-    for match in matches:
-        key = match[0].strip()
-        # Get the value from whichever group matched (double quote, single quote, or unquoted)
-        value = match[1] or match[2] or match[3]
-        if value == '':  # If there was an equals sign but empty value
-            attrs[key] = ''
-        elif '=' in s and key in s and s.find(key) + len(key) < len(s) and s[s.find(key) + len(key)] == '=':
-            attrs[key] = value
-        else:
+
+    attrs: dict[str, object] = {}
+    token_re = re.compile(r'(\w+)(?:\s*=\s*("[^"]*"|\'[^\']*\'|\S+))?')
+
+    for match in token_re.finditer(s):
+        key = match.group(1)
+        value = match.group(2)
+        if value is None:
             attrs[key] = True
+            continue
+        if (value.startswith('"') and value.endswith('"')) or (value.startswith("'") and value.endswith("'")):
+            value = value[1:-1]
+        attrs[key] = value
+
     return attrs
 
 # Define RenderResult as a simple class

@@ -21,7 +21,7 @@ if __package__ is None:                      # script / doctest-by-path
     sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 
 from pageql.parser import tokenize, parsefirstword, build_ast
-from pageql.reactive import Signal, DerivedSignal, get_dependencies
+from pageql.reactive import DerivedSignal, get_dependencies
 
 def flatten_params(params):
     """
@@ -388,13 +388,13 @@ class PageQL:
                     deps = []
                     for name in dep_names:
                         dep = params.get(name)
-                        if isinstance(dep, (Signal, DerivedSignal)):
+                        if isinstance(dep, DerivedSignal):
                             deps.append(dep)
 
                     def compute(args=args, params=params):
                         env = {}
                         for k, v in params.items():
-                            if isinstance(v, (Signal, DerivedSignal)):
+                            if isinstance(v, DerivedSignal):
                                 env[k] = v.value
                             else:
                                 env[k] = v
@@ -406,9 +406,6 @@ class PageQL:
                         signal = existing
                     else:
                         signal = DerivedSignal(compute, deps)
-                        if isinstance(existing, Signal):
-                            existing.set(signal.value)
-                            signal.listeners.append(lambda v: existing.set(v))
                         params[var] = signal
                 else:
                     params[var] = evalone(self.db, args, params)

@@ -1,16 +1,5 @@
 import re
 
-class Signal:
-    def __init__(self, value=None):
-        self.value = value
-        self.listeners = []
-    
-    def set(self, value):
-        if self.value != value:
-            self.value = value
-            for listener in self.listeners:
-                listener(value)
-
 def execute(conn, sql, params):
     try:
         cursor = conn.execute(sql, params)

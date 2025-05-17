@@ -21,7 +21,7 @@ if __package__ is None:                      # script / doctest-by-path
     sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 
 from pageql.parser import tokenize, parsefirstword, build_ast
-from pageql.reactive import Signal
+from pageql.reactive import Signal, DerivedSignal, get_dependencies
 
 def flatten_params(params):
     """
@@ -380,16 +380,34 @@ class PageQL:
                 if var[0] == ':':
                     var = var[1:]
                 var = var.replace('.', '__')
-                value = evalone(self.db, args, params)
                 if reactive:
+                    converted = re.sub(r':([A-Za-z0-9_]+(?:\.[A-Za-z0-9_]+)+)',
+                                       lambda m: ':' + m.group(1).replace('.', '__'),
+                                       args)
+                    dep_names = get_dependencies(converted)
+                    deps = []
+                    for name in dep_names:
+                        dep = params.get(name)
+                        if isinstance(dep, (Signal, DerivedSignal)):
+                            deps.append(dep)
+
+                    def compute(args=args, params=params):
+                        env = {}
+                        for k, v in params.items():
+                            if isinstance(v, (Signal, DerivedSignal)):
+                                env[k] = v.value
+                            else:
+                                env[k] = v
+                        return evalone(self.db, args, env)
+
+                    signal = DerivedSignal(compute, deps)
                     existing = params.get(var)
                     if isinstance(existing, Signal):
-                        existing.set(value)
-                        params[var] = existing
-                    else:
-                        params[var] = Signal(value)
+                        existing.set(signal.value)
+                        signal.listeners.append(lambda v: existing.set(v))
+                    params[var] = signal
                 else:
-                    params[var] = value
+                    params[var] = evalone(self.db, args, params)
             elif node_type == '#render':
                 rendered_content = self.handle_render(node_content, path, params, includes, None, reactive)
                 output_buffer.append(rendered_content)

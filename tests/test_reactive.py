@@ -81,17 +81,17 @@ def check_component(comp, callback):
     comp.listeners.remove(events.append)
     for ev in events:
         if ev[0] == 1:
-            row = ev[1]
+            row = tuple(ev[1])
             if len(row) != cols_len:
                 raise Exception("bad number of columns on insert")
             expected.append(row)
         elif ev[0] == 2:
-            row = ev[1]
+            row = tuple(ev[1])
             if row not in expected:
                 raise Exception("deleting nonexistent row")
             expected.remove(row)
         elif ev[0] == 3:
-            old, new = ev[1], ev[2]
+            old, new = tuple(ev[1]), tuple(ev[2])
             if old not in expected:
                 raise Exception("updating nonexistent row")
             if len(new) != cols_len:
@@ -295,6 +295,26 @@ def test_derived_signal_multiple_updates():
     assert_eq(seen, [3, 6])
 
 
+def test_derived_signal_replace():
+    a, b = Signal(1), Signal(2)
+    d = DerivedSignal(lambda: a.value + 1, [a])
+    seen = []
+    d.listeners.append(seen.append)
+
+    a.set(2)
+    assert_eq(seen[-1], 3)
+
+    d.replace(lambda: b.value * 2, [b])
+    assert_eq(d.value, 4)
+    assert_eq(seen[-1], 4)
+
+    a.set(5)
+    assert_eq(seen[-1], 4)
+
+    b.set(3)
+    assert_eq(seen[-1], 6)
+
+
 def test_check_component_reactive_table():
     conn = _db()
     rt = ReactiveTable(conn, "items")
@@ -343,3 +363,72 @@ def test_get_dependencies_type_cast():
     expr = "select :id::text as ident where name=:name"
     deps = get_dependencies(expr)
     assert deps == ["id", "name"]
+
+
+def _random_op(rt):
+    """Perform a random insert, delete, or update on *rt*."""
+    import random
+
+    action = random.choice(["insert", "delete", "update"])
+    if action == "insert":
+        rt.insert(
+            f"INSERT INTO {rt.table_name}(name) VALUES (:name)",
+            {"name": random.choice(["a", "b", "c", "d"])},
+        )
+    else:
+        rows = list(rt.conn.execute(f"SELECT id FROM {rt.table_name}").fetchall())
+        if not rows:
+            return
+        rid = random.choice(rows)[0]
+        if action == "delete":
+            rt.delete(
+                f"DELETE FROM {rt.table_name} WHERE id=:id", {"id": rid}
+            )
+        else:  # update
+            rt.update(
+                f"UPDATE {rt.table_name} SET name=:name WHERE id=:id",
+                {"name": random.choice(["x", "y", "z"]), "id": rid},
+            )
+
+
+def fuzz_components(iterations=20, seed=None):
+    """Randomly mutate various components to ensure they stay consistent."""
+    import random
+    import sqlite3
+
+    if seed is not None:
+        random.seed(seed)
+
+    # Base table used by several components
+    conn = sqlite3.connect(":memory:")
+    conn.execute("CREATE TABLE items(id INTEGER PRIMARY KEY, name TEXT)")
+    rt = ReactiveTable(conn, "items")
+
+    components = [
+        (rt, rt),
+        (Where(rt, "name LIKE 'x%'") , rt),
+        (Select(rt, "name"), rt),
+        (CountAll(rt), rt),
+    ]
+
+    # UnionAll requires two tables
+    conn2 = sqlite3.connect(":memory:")
+    conn2.execute("CREATE TABLE a(id INTEGER PRIMARY KEY, name TEXT)")
+    conn2.execute("CREATE TABLE b(id INTEGER PRIMARY KEY, name TEXT)")
+    r1, r2 = ReactiveTable(conn2, "a"), ReactiveTable(conn2, "b")
+    components.append((UnionAll(r1, r2), (r1, r2)))
+
+    for comp, parents in components:
+        if isinstance(parents, tuple):
+            def cb():
+                for _ in range(iterations):
+                    _random_op(random.choice(parents))
+        else:
+            def cb():
+                for _ in range(iterations):
+                    _random_op(parents)
+        check_component(comp, cb)
+
+
+def test_fuzz_components():
+    fuzz_components(iterations=10, seed=123)

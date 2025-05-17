@@ -313,3 +313,38 @@ class Select:
             if oldrow != newrow:
                 for listener in self.listeners:
                     listener([3, oldrow, newrow])
+
+
+class Tables:
+    def __init__(self, conn):
+        self.conn = conn
+        self.tables = {}
+
+    def _get(self, name):
+        if name not in self.tables:
+            self.tables[name] = ReactiveTable(self.conn, name)
+        return self.tables[name]
+
+    def executeone(self, sql, params):
+        sql_strip = sql.strip()
+        lsql = sql_strip.lower()
+        if lsql.startswith("insert"):
+            m = re.search(r"insert\s+into\s+([^\s(]+)", sql_strip, re.I)
+            if not m:
+                raise ValueError(f"Couldn't parse INSERT statement {sql}")
+            table = m.group(1)
+            self._get(table).insert(sql, params)
+        elif lsql.startswith("update"):
+            m = re.search(r"update\s+([^\s]+)", sql_strip, re.I)
+            if not m:
+                raise ValueError(f"Couldn't parse UPDATE statement {sql}")
+            table = m.group(1)
+            self._get(table).update(sql, params)
+        elif lsql.startswith("delete"):
+            m = re.search(r"delete\s+from\s+([^\s]+)", sql_strip, re.I)
+            if not m:
+                raise ValueError(f"Couldn't parse DELETE statement {sql}")
+            table = m.group(1)
+            self._get(table).delete(sql, params)
+        else:
+            raise ValueError(f"Unsupported SQL statement {sql}")

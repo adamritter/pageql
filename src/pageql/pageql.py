@@ -49,14 +49,24 @@ def flatten_params(params):
     return result
 
 def parse_param_attrs(s):
+    """Parse attributes from a ``#param`` directive.
+
+    Tokens are separated by whitespace. ``key=value`` pairs become
+    dictionary entries, while tokens without an ``=`` are treated as
+    boolean flags. Values may be quoted with single or double quotes to
+    include spaces.
+
+    Example::
+
+        >>> parse_param_attrs("a=1 b=2 flag")
+        {'a': '1', 'b': '2', 'flag': True}
+        >>> parse_param_attrs("title='Hello world'")
+        {'title': 'Hello world'}
     """
-    Parses a simple set of attributes from a string like:
-      "status=302 addtoken=true secure"
-    Returns them as a dictionary. Tokens without '=' are treated as boolean flags.
-    Values can be quoted with single or double quotes to include spaces.
-    """
+
     if not s:
         return {}
+
     attrs = {}
     # Use regex to handle quoted values
     pattern = r'([^\s=]+)(?:=(?:"([^"]*)"|\'([^\']*)\'|([^\s]*)))?'

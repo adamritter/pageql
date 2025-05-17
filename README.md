@@ -72,11 +72,12 @@ pageql -path/to/your/database.sqlite ./templates
 
 **Partials/Modules:**
 
-*   `#render <partial> [param=value ...]`: Renders a partial (defined locally or imported), optionally passing parameters.
-*   `#partial [public] <name>`: Defines a reusable partial block.
-    *   **Public Access:** If the optional `public` keyword is included, the partial block becomes directly accessible via an HTTP GET request at the URL path `/<filename>/<partial_name>` (where `<filename>` is the name of the template file without the `.pageql` extension).
-    *   **Base File Access:** Requests to the base URL path corresponding to the file (`/<filename>`) will render the *top-level content* of the file (code outside of any named `#partial` block).
-    *   **Parameters:** For both access methods, URL query parameters are made available via the standard parameter binding mechanism (e.g., `:param_name`).
+*   `#render [GET | POST | PUT | DELETE | PATCH] <partial> [param=value ...]`: Renders a partial (defined locally or imported). When calling a partial that is tied to a specific HTTP verb, that verb must appear directly after `#render`.
+*   `#partial [public | GET | POST | PUT | DELETE | PATCH] <name>`: Defines a reusable partial block.
+    *   **Public Access:** Using `public` (or specifying `GET`) makes the partial reachable via an HTTP GET request at `/<filename>/<partial_name>` (where `<filename>` is the template file name without the `.pageql` extension). Other verbs restrict access to that specific HTTP method.
+    *   **Base File Access:** Requests to the base URL path corresponding to the file (`/<filename>`) render the *top-level content* outside any named `#partial` block.
+    *   **Parameters:** For all public/verb-specific accesses, URL query parameters are available via the standard parameter binding mechanism (e.g., `:param_name`).
+    *   **Example:** `{{#partial DELETE :id}}...{{/partial}}` can only be requested with an HTTP `DELETE` and must be rendered using `#render DELETE some_module/:id`.
 *   `#import <module> [as <alias>]`: Imports modules relative to the template root directory, optionally assigning an alias. Assumes `.pageql` extension (e.g., `#import "components/button"` loads `components/button.pageql`).
 
 **Variable Manipulation:**
@@ -177,28 +178,28 @@ Generally, you can use standard SQL expressions supported by your database, such
 {{!-- ============================================= --}}
 
 {{!-- Add a new Todo --}}
-{{#partial public add}}
+{{#partial POST add}}
   {{#param text required minlength=0}}
   {{#insert into todos (text, completed) values (:text, 0)}}
   {{#redirect '/todos?filter=' || :filter}} {{!-- Redirect to base path --}}
 {{/partial}}
 
 {{!-- Delete a Todo --}}
-{{#partial public delete}}
+{{#partial POST delete}}
   {{#param id required type=integer min=1}}
   {{#delete from todos WHERE id = :id}}
   {{#redirect '/todos?filter=' || :filter}} {{!-- Redirect to base path --}}
 {{/partial}}
 
 {{!-- Toggle a single Todo's completion status --}}
-{{#partial public toggle}}
+{{#partial POST toggle}}
   {{#param id required type=integer min=1}}
   {{#update todos set completed = 1 - completed WHERE id = :id}}
   {{#redirect '/todos?filter=' || :filter}} {{!-- Redirect to base path --}}
 {{/partial}}
 
 {{!-- Save edited Todo text --}}
-{{#partial public save}}
+{{#partial POST save}}
   {{#param id required type=integer min=1}}
   {{#param text required minlength=1}}
   {{#param filter default='all'}} {{!-- Preserve filter for redirect --}}
@@ -207,14 +208,14 @@ Generally, you can use standard SQL expressions supported by your database, such
 {{/partial}}
 
 {{!-- Delete all completed Todos --}}
-{{#partial public clear_completed}}
+{{#partial POST clear_completed}}
   {{#param filter default='all'}} {{!-- Preserve filter for redirect --}}
   {{#delete from todos WHERE completed = 1}}
   {{#redirect '/todos?filter=' || :filter}} {{!-- Redirect to base path --}}
 {{/partial}}
 
 {{!-- Toggle all Todos' completion status --}}
-{{#partial public toggle_all}}
+{{#partial POST toggle_all}}
   {{#param filter default='all'}} {{!-- Preserve filter for redirect --}}
   {{!-- Check if all are currently complete to decide toggle direction --}}
   {{#set :active_count COUNT(*) from todos WHERE completed = 0}}

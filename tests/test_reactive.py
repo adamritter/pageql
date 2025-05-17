@@ -1,7 +1,11 @@
 import sys
 from pathlib import Path
+import types
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+# Ensure the package can be imported without optional dependencies
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
+sys.modules.setdefault("watchfiles", types.ModuleType("watchfiles"))
+sys.modules["watchfiles"].awatch = lambda *args, **kwargs: None
 def assert_eq(a, b):
     assert a == b, f"{a} != {b}"
 
@@ -49,13 +53,56 @@ def test_select_delete_event_should_be_labeled_delete():
 
     assert_eq(events[-1], [2, ('x',)])
 import sqlite3
-from pageql.reactive import ReactiveTable, CountAll, Signal, DerivedSignal, Where, UnionAll, Select
+from pageql.reactive import (
+    ReactiveTable,
+    CountAll,
+    Signal,
+    DerivedSignal,
+    Where,
+    UnionAll,
+    Select,
+    get_dependencies,
+)
 
 
 def _db():
     c = sqlite3.connect(":memory:")
     c.execute("CREATE TABLE items(id INTEGER PRIMARY KEY, name TEXT)")
     return c
+
+
+def check_component(comp, callback):
+    conn = comp.conn
+    expected = list(conn.execute(comp.sql).fetchall())
+    cols_len = len(comp.columns) if not isinstance(comp.columns, str) else 1
+    events = []
+    comp.listeners.append(events.append)
+    callback()
+    comp.listeners.remove(events.append)
+    for ev in events:
+        if ev[0] == 1:
+            row = ev[1]
+            if len(row) != cols_len:
+                raise Exception("bad number of columns on insert")
+            expected.append(row)
+        elif ev[0] == 2:
+            row = ev[1]
+            if row not in expected:
+                raise Exception("deleting nonexistent row")
+            expected.remove(row)
+        elif ev[0] == 3:
+            old, new = ev[1], ev[2]
+            if old not in expected:
+                raise Exception("updating nonexistent row")
+            if len(new) != cols_len:
+                raise Exception("bad number of columns on update")
+            idx = expected.index(old)
+            expected[idx] = new
+        else:
+            raise Exception(f"unknown event type {ev[0]}")
+    expected.sort()
+    final = sorted(conn.execute(comp.sql).fetchall())
+    assert_eq(expected, final)
 
 
 def test_reactive_table_events():
@@ -213,17 +260,86 @@ def test_unionall_update():
     r1.update("UPDATE a SET name='y' WHERE id=:id", {"id": rid})
     assert_eq(events[-1], [3, (1, 'x'), (1, 'y')])
 
-if __name__ == "__main__":
-    test_reactive_table_events()
-    test_count_all()
-    test_signal_and_derived()
-    test_where()
-    test_unionall()
-    test_select()
-    test_count_all_decrement()
-    test_where_remove()
-    test_select_no_change_on_same_value_update()
-    test_unionall_update()
-    test_where_delete_event_should_be_labeled_delete()
-    test_select_delete_event_should_be_labeled_delete()
-    test_update_null_row_should_raise_custom_exception()
+
+def test_update_invalid_sql_should_raise_value_error():
+    conn = _db()
+    rt = ReactiveTable(conn, "items")
+    try:
+        rt.update("UPDATE items SET name='z'", {})
+    except ValueError:
+        pass
+    else:
+        assert False, "expected ValueError"
+
+
+def test_unionall_mismatched_columns():
+    conn = sqlite3.connect(":memory:")
+    conn.execute("CREATE TABLE a(id INTEGER PRIMARY KEY, name TEXT)")
+    conn.execute("CREATE TABLE b(id INTEGER PRIMARY KEY, title TEXT)")
+    r1, r2 = ReactiveTable(conn, "a"), ReactiveTable(conn, "b")
+    try:
+        UnionAll(r1, r2)
+    except ValueError:
+        pass
+    else:
+        assert False, "expected ValueError when columns mismatch"
+
+
+def test_derived_signal_multiple_updates():
+    a, b = Signal(1), Signal(2)
+    d = DerivedSignal(lambda: a.value * b.value, [a, b])
+    seen = []
+    d.listeners.append(seen.append)
+    b.set(3)
+    a.set(2)
+    assert_eq(seen, [3, 6])
+
+
+def test_check_component_reactive_table():
+    conn = _db()
+    rt = ReactiveTable(conn, "items")
+
+    def cb():
+        rt.insert("INSERT INTO items(name) VALUES ('x')", {})
+        rid = conn.execute("SELECT id FROM items WHERE name='x'").fetchone()[0]
+        rt.update("UPDATE items SET name='y' WHERE id=:id", {"id": rid})
+        rt.delete("DELETE FROM items WHERE id=:id", {"id": rid})
+
+    check_component(rt, cb)
+
+
+def test_check_component_where():
+    conn = _db()
+    rt = ReactiveTable(conn, "items")
+    w = Where(rt, "name = 'x'")
+
+    def cb():
+        rt.insert("INSERT INTO items(name) VALUES ('x')", {})
+        rid = conn.execute("SELECT id FROM items WHERE name='x'").fetchone()[0]
+        rt.update("UPDATE items SET name='z' WHERE id=:id", {"id": rid})
+
+    check_component(w, cb)
+
+
+def test_get_dependencies_simple():
+    expr = "select count(*) from todos where :id > 3 and :nam_e5='hello'"
+    deps = get_dependencies(expr)
+    assert deps == ["id", "nam_e5"]
+
+
+def test_get_dependencies_ignore_quotes():
+    expr = "select * from t where name=':no' and id=:id"
+    deps = get_dependencies(expr)
+    assert deps == ["id"]
+
+
+def test_get_dependencies_ignore_comments():
+    expr = "select * from t -- comment :foo\n where id=:id /* :bar */"
+    deps = get_dependencies(expr)
+    assert deps == ["id"]
+
+
+def test_get_dependencies_type_cast():
+    expr = "select :id::text as ident where name=:name"
+    deps = get_dependencies(expr)
+    assert deps == ["id", "name"]

@@ -19,6 +19,23 @@ def execute(conn, sql, params):
     return cursor
 
 
+def get_dependencies(expr):
+    """Return parameter names referenced in *expr*.
+
+    Parameters inside quoted strings or comments are ignored. Names are
+    returned in the order of first appearance without duplicates.
+    """
+    # Remove single and double quoted strings to avoid false matches
+    cleaned = re.sub(r"'(?:''|[^'])*'|\"(?:\"\"|[^\"])*\"", "", expr)
+    # Strip SQL comments
+    cleaned = re.sub(r"--.*?$|/\*.*?\*/", "", cleaned, flags=re.S | re.M)
+    deps = []
+    for name in re.findall(r"(?<!:):([A-Za-z_][A-Za-z0-9_]*)", cleaned):
+        if name not in deps:
+            deps.append(name)
+    return deps
+
+
 class DerivedSignal:
     def __init__(self, f, deps):
         self.f = f

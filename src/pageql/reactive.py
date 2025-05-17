@@ -275,6 +275,112 @@ class Union:
         else:
             self._update(event[1], event[2])
 
+
+class Intersect:
+    def __init__(self, parent1, parent2):
+        self.parent1 = parent1
+        self.parent2 = parent2
+        self.listeners = []
+        self.conn = self.parent1.conn
+        self.sql = (
+            f"SELECT * FROM ({self.parent1.sql}) INTERSECT SELECT * FROM ({self.parent2.sql})"
+        )
+        self.parent1.listeners.append(lambda e: self.onevent(e, 1))
+        self.parent2.listeners.append(lambda e: self.onevent(e, 2))
+        self.columns = self.parent1.columns
+        if self.parent1.columns != self.parent2.columns:
+            raise ValueError(
+                f"Intersect: parent1 and parent2 must have the same columns {self.parent1.columns} != {self.parent2.columns}"
+            )
+
+        # Track counts per parent so duplicates from the same parent don't
+        # result in duplicate intersection rows.
+        self._counts1 = {}
+        self._counts2 = {}
+        for row in self.conn.execute(self.parent1.sql).fetchall():
+            self._counts1[row] = self._counts1.get(row, 0) + 1
+        for row in self.conn.execute(self.parent2.sql).fetchall():
+            self._counts2[row] = self._counts2.get(row, 0) + 1
+
+        # Set of rows currently present in the intersection
+        self._rows = {
+            row for row in self._counts1.keys() if self._counts2.get(row, 0) > 0
+        }
+
+    def _emit(self, event):
+        for listener in self.listeners:
+            listener(event)
+
+    def _insert(self, row, counts_self, counts_other):
+        prev = counts_self.get(row, 0)
+        counts_self[row] = prev + 1
+        if prev == 0 and counts_other.get(row, 0) > 0 and row not in self._rows:
+            self._rows.add(row)
+            self._emit([1, row])
+
+    def _delete(self, row, counts_self, counts_other):
+        prev = counts_self.get(row, 0)
+        if prev <= 1:
+            if row in counts_self:
+                del counts_self[row]
+            if prev == 1 and counts_other.get(row, 0) > 0 and row in self._rows:
+                self._rows.remove(row)
+                self._emit([2, row])
+        else:
+            counts_self[row] = prev - 1
+
+    def _update(self, oldrow, newrow, counts_self, counts_other):
+        if oldrow == newrow:
+            return
+
+        old_in = oldrow in self._rows
+        new_in = newrow in self._rows
+
+        # Adjust counts
+        oldcnt = counts_self.get(oldrow, 0)
+        if oldcnt <= 1:
+            if oldrow in counts_self:
+                del counts_self[oldrow]
+        else:
+            counts_self[oldrow] = oldcnt - 1
+
+        counts_self[newrow] = counts_self.get(newrow, 0) + 1
+
+        old_after = counts_self.get(oldrow, 0) > 0 and counts_other.get(oldrow, 0) > 0
+        new_after = counts_self.get(newrow, 0) > 0 and counts_other.get(newrow, 0) > 0
+
+        if old_in and not old_after and oldrow in self._rows:
+            self._rows.remove(oldrow)
+        if not old_in and old_after:
+            self._rows.add(oldrow)
+        if new_in != new_after:
+            if new_after:
+                self._rows.add(newrow)
+            else:
+                self._rows.discard(newrow)
+
+        if old_in and new_after:
+            self._emit([3, oldrow, newrow])
+        elif old_in and not new_after:
+            self._emit([2, oldrow])
+        elif not old_in and new_after:
+            self._emit([1, newrow])
+
+    def onevent(self, event, which):
+        if which == 1:
+            counts_self = self._counts1
+            counts_other = self._counts2
+        else:
+            counts_self = self._counts2
+            counts_other = self._counts1
+
+        if event[0] == 1:
+            self._insert(event[1], counts_self, counts_other)
+        elif event[0] == 2:
+            self._delete(event[1], counts_self, counts_other)
+        else:
+            self._update(event[1], event[2], counts_self, counts_other)
+
 class Select:
     def __init__(self, parent, select_sql):
         self.parent = parent

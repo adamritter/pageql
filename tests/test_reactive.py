@@ -60,6 +60,7 @@ from pageql.reactive import (
     Where,
     UnionAll,
     Union,
+    Intersect,
     Select,
     get_dependencies,
 )
@@ -333,6 +334,23 @@ def test_union_mismatched_columns():
         assert False, "expected ValueError when columns mismatch"
 
 
+def test_intersect_deduplication():
+    conn = sqlite3.connect(":memory:")
+    for t in ("a", "b"):
+        conn.execute(f"CREATE TABLE {t}(id INTEGER PRIMARY KEY, name TEXT)")
+    r1, r2 = ReactiveTable(conn, "a"), ReactiveTable(conn, "b")
+    s1, s2 = Select(r1, "name"), Select(r2, "name")
+    inter = Intersect(s1, s2)
+    events = []
+    inter.listeners.append(events.append)
+
+    r1.insert("INSERT INTO a(name) VALUES ('x')", {})
+    r1.insert("INSERT INTO a(name) VALUES ('x')", {})  # duplicate in same table
+    r2.insert("INSERT INTO b(name) VALUES ('x')", {})
+
+    assert_eq(events, [[1, ('x',)]])
+
+
 def test_derived_signal_multiple_updates():
     a_val = [1]
     b_val = [2]
@@ -477,6 +495,7 @@ def fuzz_components(iterations=20, seed=None):
     r1, r2 = ReactiveTable(conn2, "a"), ReactiveTable(conn2, "b")
     components.append((UnionAll(r1, r2), (r1, r2)))
     components.append((Union(r1, r2), (r1, r2)))
+    components.append((Intersect(Select(r1, "name"), Select(r2, "name")), (r1, r2)))
 
     for comp, parents in components:
         if isinstance(parents, tuple):

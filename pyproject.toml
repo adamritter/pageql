@@ -22,6 +22,11 @@ dependencies = [
     "watchfiles",
 ]
 
+[project.optional-dependencies]
+dev = [
+    "pytest",
+]
+
 [project.scripts]
 pageql = "pageql.cli:main"
 

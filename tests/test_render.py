@@ -16,5 +16,12 @@ def test_render_nonexistent_returns_404():
     assert result.status_code == 404
 
 
+def test_reactive_toggle():
+    r = PageQL(":memory:")
+    r.load_module("reactive", "{{reactive}} {{#reactive on}}{{reactive}}{{#reactive off}}{{reactive}}")
+    result = r.render("/reactive")
+    assert result.body.strip() == "False True False"
+
+
 if __name__ == "__main__":
     test_render_nonexistent_returns_404()

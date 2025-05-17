@@ -724,6 +724,10 @@ class PageQL:
         """
         module_name = path.strip('/')
         params = flatten_params(params)
+        if reactive:
+            for k, v in list(params.items()):
+                if not isinstance(v, DerivedSignal):
+                    params[k] = DerivedSignal(lambda v=v: v, [])
         params['reactive'] = reactive
         
         # Convert partial to list if it's a string

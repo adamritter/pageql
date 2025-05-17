@@ -21,7 +21,7 @@ if __package__ is None:                      # script / doctest-by-path
     sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 
 from pageql.parser import tokenize, parsefirstword, build_ast
-from pageql.reactive import Signal, DerivedSignal, get_dependencies
+from pageql.reactive import DerivedSignal, get_dependencies
 
 def flatten_params(params):
     """
@@ -388,24 +388,25 @@ class PageQL:
                     deps = []
                     for name in dep_names:
                         dep = params.get(name)
-                        if isinstance(dep, (Signal, DerivedSignal)):
+                        if isinstance(dep, DerivedSignal):
                             deps.append(dep)
 
                     def compute(args=args, params=params):
                         env = {}
                         for k, v in params.items():
-                            if isinstance(v, (Signal, DerivedSignal)):
+                            if isinstance(v, DerivedSignal):
                                 env[k] = v.value
                             else:
                                 env[k] = v
                         return evalone(self.db, args, env)
 
-                    signal = DerivedSignal(compute, deps)
                     existing = params.get(var)
-                    if isinstance(existing, Signal):
-                        existing.set(signal.value)
-                        signal.listeners.append(lambda v: existing.set(v))
-                    params[var] = signal
+                    if isinstance(existing, DerivedSignal):
+                        existing.replace(compute, deps)
+                        signal = existing
+                    else:
+                        signal = DerivedSignal(compute, deps)
+                        params[var] = signal
                 else:
                     params[var] = evalone(self.db, args, params)
             elif node_type == '#render':
@@ -723,6 +724,10 @@ class PageQL:
         """
         module_name = path.strip('/')
         params = flatten_params(params)
+        if reactive:
+            for k, v in list(params.items()):
+                if not isinstance(v, DerivedSignal):
+                    params[k] = DerivedSignal(lambda v=v: v, [])
         params['reactive'] = reactive
         
         # Convert partial to list if it's a string

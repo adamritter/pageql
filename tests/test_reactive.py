@@ -56,10 +56,11 @@ import sqlite3
 from pageql.reactive import (
     ReactiveTable,
     CountAll,
-    Signal,
     DerivedSignal,
     Where,
     UnionAll,
+    Union,
+    Intersect,
     Select,
     get_dependencies,
 )
@@ -125,6 +126,25 @@ def test_reactive_table_events():
     assert_eq(events[-1], [2, (1, 'b')])
 
 
+def test_reactive_table_delete_multiple_rows():
+    conn = _db()
+    rt = ReactiveTable(conn, "items")
+    events = []
+    rt.listeners.append(events.append)
+
+    # insert two rows with the same name
+    rt.insert("INSERT INTO items(name) VALUES ('x')", {})
+    rt.insert("INSERT INTO items(name) VALUES ('x')", {})
+
+    ids = [r[0] for r in conn.execute("SELECT id FROM items WHERE name='x'").fetchall()]
+    events.clear()
+
+    # delete all rows matching the name predicate
+    rt.delete("DELETE FROM items WHERE name = :name", {"name": "x"})
+
+    assert_eq(events, [[2, (ids[0], 'x')], [2, (ids[1], 'x')]])
+
+
 def test_count_all():
     conn = _db()
     rt = ReactiveTable(conn, "items")
@@ -138,14 +158,19 @@ def test_count_all():
 
 
 def test_signal_and_derived():
-    a, b = Signal(1), Signal(2)
+    a_val = [1]
+    b_val = [2]
+    a = DerivedSignal(lambda: a_val[0], [])
+    b = DerivedSignal(lambda: b_val[0], [])
     d = DerivedSignal(lambda: a.value + b.value, [a, b])
     seen = []
     d.listeners.append(seen.append)
-    a.set(2)
+    a_val[0] = 2
+    a.update()
     assert_eq(d.value, 4)
     assert_eq(seen[-1], 4)
-    a.set(2)  # no change
+    a_val[0] = 2  # no change
+    a.update()
     assert_eq(seen[-1], 4)
     assert len(seen) == 1
 
@@ -285,33 +310,104 @@ def test_unionall_mismatched_columns():
         assert False, "expected ValueError when columns mismatch"
 
 
+def test_union():
+    conn = sqlite3.connect(":memory:")
+    for t in ("a", "b"):
+        conn.execute(f"CREATE TABLE {t}(id INTEGER PRIMARY KEY, name TEXT)")
+    r1, r2 = ReactiveTable(conn, "a"), ReactiveTable(conn, "b")
+    u = Union(r1, r2)
+    events = []
+    u.listeners.append(events.append)
+
+    r1.insert("INSERT INTO a(name) VALUES ('x')", {})
+    r2.insert("INSERT INTO b(name) VALUES ('x')", {})  # duplicate
+    r2.insert("INSERT INTO b(name) VALUES ('y')", {})
+    assert_eq([e[1][1] for e in events], ["x", "y"])
+
+
+def test_union_update():
+    conn = sqlite3.connect(":memory:")
+    for t in ("a", "b"):
+        conn.execute(f"CREATE TABLE {t}(id INTEGER PRIMARY KEY, name TEXT)")
+    r1, r2 = ReactiveTable(conn, "a"), ReactiveTable(conn, "b")
+    u = Union(r1, r2)
+    events = []
+    u.listeners.append(events.append)
+
+    r1.insert("INSERT INTO a(name) VALUES ('x')", {})
+    rid = conn.execute("SELECT id FROM a WHERE name='x'").fetchone()[0]
+    r1.update("UPDATE a SET name='y' WHERE id=:id", {"id": rid})
+    assert_eq(events[-1], [3, (1, 'x'), (1, 'y')])
+
+
+def test_union_mismatched_columns():
+    conn = sqlite3.connect(":memory:")
+    conn.execute("CREATE TABLE a(id INTEGER PRIMARY KEY, name TEXT)")
+    conn.execute("CREATE TABLE b(id INTEGER PRIMARY KEY, title TEXT)")
+    r1, r2 = ReactiveTable(conn, "a"), ReactiveTable(conn, "b")
+    try:
+        Union(r1, r2)
+    except ValueError:
+        pass
+    else:
+        assert False, "expected ValueError when columns mismatch"
+
+
+def test_intersect_deduplication():
+    conn = sqlite3.connect(":memory:")
+    for t in ("a", "b"):
+        conn.execute(f"CREATE TABLE {t}(id INTEGER PRIMARY KEY, name TEXT)")
+    r1, r2 = ReactiveTable(conn, "a"), ReactiveTable(conn, "b")
+    s1, s2 = Select(r1, "name"), Select(r2, "name")
+    inter = Intersect(s1, s2)
+    events = []
+    inter.listeners.append(events.append)
+
+    r1.insert("INSERT INTO a(name) VALUES ('x')", {})
+    r1.insert("INSERT INTO a(name) VALUES ('x')", {})  # duplicate in same table
+    r2.insert("INSERT INTO b(name) VALUES ('x')", {})
+
+    assert_eq(events, [[1, ('x',)]])
+
+
 def test_derived_signal_multiple_updates():
-    a, b = Signal(1), Signal(2)
+    a_val = [1]
+    b_val = [2]
+    a = DerivedSignal(lambda: a_val[0], [])
+    b = DerivedSignal(lambda: b_val[0], [])
     d = DerivedSignal(lambda: a.value * b.value, [a, b])
     seen = []
     d.listeners.append(seen.append)
-    b.set(3)
-    a.set(2)
+    b_val[0] = 3
+    b.update()
+    a_val[0] = 2
+    a.update()
     assert_eq(seen, [3, 6])
 
 
 def test_derived_signal_replace():
-    a, b = Signal(1), Signal(2)
+    a_val = [1]
+    b_val = [2]
+    a = DerivedSignal(lambda: a_val[0], [])
+    b = DerivedSignal(lambda: b_val[0], [])
     d = DerivedSignal(lambda: a.value + 1, [a])
     seen = []
     d.listeners.append(seen.append)
 
-    a.set(2)
+    a_val[0] = 2
+    a.update()
     assert_eq(seen[-1], 3)
 
     d.replace(lambda: b.value * 2, [b])
     assert_eq(d.value, 4)
     assert_eq(seen[-1], 4)
 
-    a.set(5)
+    a_val[0] = 5
+    a.update()
     assert_eq(seen[-1], 4)
 
-    b.set(3)
+    b_val[0] = 3
+    b.update()
     assert_eq(seen[-1], 6)
 
 
@@ -417,6 +513,8 @@ def fuzz_components(iterations=20, seed=None):
     conn2.execute("CREATE TABLE b(id INTEGER PRIMARY KEY, name TEXT)")
     r1, r2 = ReactiveTable(conn2, "a"), ReactiveTable(conn2, "b")
     components.append((UnionAll(r1, r2), (r1, r2)))
+    components.append((Union(r1, r2), (r1, r2)))
+    components.append((Intersect(Select(r1, "name"), Select(r2, "name")), (r1, r2)))
 
     for comp, parents in components:
         if isinstance(parents, tuple):

@@ -209,6 +209,84 @@ class UnionAll:
         for listener in self.listeners:
             listener(event)
 
+class Intersect:
+    def __init__(self, parent1, parent2):
+        self.parent1 = parent1
+        self.parent2 = parent2
+        self.listeners = []
+        self.conn = self.parent1.conn
+        self.columns = self.parent1.columns
+        if self.parent1.columns != self.parent2.columns:
+            raise ValueError(
+                f"Intersect: parent1 and parent2 must have the same columns {self.parent1.columns} != {self.parent2.columns}"
+            )
+
+        self.sql = (
+            f"SELECT * FROM ({self.parent1.sql}) INTERSECT SELECT * FROM ({self.parent2.sql})"
+        )
+
+        cols = " AND ".join([f"{c} IS ?" for c in self.columns])
+        self._contains_sql1 = f"SELECT 1 FROM ({self.parent1.sql}) WHERE {cols} LIMIT 1"
+        self._contains_sql2 = f"SELECT 1 FROM ({self.parent2.sql}) WHERE {cols} LIMIT 1"
+
+        self._hashes = set()
+
+        self.parent1.listeners.append(self._onevent1)
+        self.parent2.listeners.append(self._onevent2)
+
+    def _contains_in_parent1(self, row):
+        cursor = execute(self.conn, self._contains_sql1, row)
+        return cursor.fetchone() is not None
+
+    def _contains_in_parent2(self, row):
+        cursor = execute(self.conn, self._contains_sql2, row)
+        return cursor.fetchone() is not None
+
+    def _handle_event(self, event, self_contains, other_contains):
+        if event[0] < 3:
+            row = event[1]
+            h = hash(tuple(row))
+            present = self_contains(row) and other_contains(row)
+            if event[0] == 1:
+                if present and h not in self._hashes:
+                    self._hashes.add(h)
+                    for listener in self.listeners:
+                        listener([1, row])
+            else:  # delete
+                if h in self._hashes and not present:
+                    self._hashes.remove(h)
+                    for listener in self.listeners:
+                        listener([2, row])
+        else:
+            oldrow, newrow = event[1], event[2]
+            hold = hash(tuple(oldrow))
+            hnew = hash(tuple(newrow))
+            old_in = self_contains(oldrow) and other_contains(oldrow)
+            new_in = self_contains(newrow) and other_contains(newrow)
+            if old_in and not new_in:
+                if hold in self._hashes:
+                    self._hashes.remove(hold)
+                    for listener in self.listeners:
+                        listener([2, oldrow])
+            elif not old_in and new_in:
+                if hnew not in self._hashes:
+                    self._hashes.add(hnew)
+                    for listener in self.listeners:
+                        listener([1, newrow])
+            elif old_in and new_in and oldrow != newrow:
+                if hold in self._hashes:
+                    self._hashes.remove(hold)
+                    if hnew not in self._hashes:
+                        self._hashes.add(hnew)
+                    for listener in self.listeners:
+                        listener([3, oldrow, newrow])
+
+    def _onevent1(self, event):
+        self._handle_event(event, self._contains_in_parent1, self._contains_in_parent2)
+
+    def _onevent2(self, event):
+        self._handle_event(event, self._contains_in_parent2, self._contains_in_parent1)
+
 class Select:
     def __init__(self, parent, select_sql):
         self.parent = parent

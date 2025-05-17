@@ -60,6 +60,7 @@ from pageql.reactive import (
     DerivedSignal,
     Where,
     UnionAll,
+    Intersect,
     Select,
     get_dependencies,
 )
@@ -285,6 +286,56 @@ def test_unionall_mismatched_columns():
         assert False, "expected ValueError when columns mismatch"
 
 
+def test_intersect():
+    conn = sqlite3.connect(":memory:")
+    for t in ("a", "b"):
+        conn.execute(f"CREATE TABLE {t}(id INTEGER PRIMARY KEY, name TEXT)")
+    r1, r2 = ReactiveTable(conn, "a"), ReactiveTable(conn, "b")
+    inter = Intersect(r1, r2)
+    events = []
+    inter.listeners.append(events.append)
+
+    r1.insert("INSERT INTO a(id, name) VALUES (:id, :name)", {"id": 1, "name": "x"})
+    assert events == []
+    r2.insert("INSERT INTO b(id, name) VALUES (:id, :name)", {"id": 1, "name": "x"})
+    assert_eq(events[-1], [1, (1, 'x')])
+
+    r2.delete("DELETE FROM b WHERE id=:id", {"id": 1})
+    assert_eq(events[-1], [2, (1, 'x')])
+
+
+def test_intersect_dedup():
+    conn = sqlite3.connect(":memory:")
+    for t in ("a", "b"):
+        conn.execute(f"CREATE TABLE {t}(name TEXT)")
+    r1, r2 = ReactiveTable(conn, "a"), ReactiveTable(conn, "b")
+    inter = Intersect(r1, r2)
+    events = []
+    inter.listeners.append(events.append)
+
+    for _ in range(2):
+        r1.insert("INSERT INTO a(name) VALUES (:name)", {"name": "x"})
+
+    r2.insert("INSERT INTO b(name) VALUES (:name)", {"name": "x"})
+    assert_eq(events, [[1, ('x',)]])
+
+    r2.insert("INSERT INTO b(name) VALUES (:name)", {"name": "x"})
+    assert_eq(events, [[1, ('x',)]])
+
+
+def test_intersect_mismatched_columns():
+    conn = sqlite3.connect(":memory:")
+    conn.execute("CREATE TABLE a(id INTEGER PRIMARY KEY, name TEXT)")
+    conn.execute("CREATE TABLE b(id INTEGER PRIMARY KEY, title TEXT)")
+    r1, r2 = ReactiveTable(conn, "a"), ReactiveTable(conn, "b")
+    try:
+        Intersect(r1, r2)
+    except ValueError:
+        pass
+    else:
+        assert False, "expected ValueError when columns mismatch"
+
+
 def test_derived_signal_multiple_updates():
     a, b = Signal(1), Signal(2)
     d = DerivedSignal(lambda: a.value * b.value, [a, b])
@@ -417,6 +468,7 @@ def fuzz_components(iterations=20, seed=None):
     conn2.execute("CREATE TABLE b(id INTEGER PRIMARY KEY, name TEXT)")
     r1, r2 = ReactiveTable(conn2, "a"), ReactiveTable(conn2, "b")
     components.append((UnionAll(r1, r2), (r1, r2)))
+    components.append((Intersect(r1, r2), (r1, r2)))
 
     for comp, parents in components:
         if isinstance(parents, tuple):

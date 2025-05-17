@@ -47,7 +47,7 @@ def test_select_delete_event_should_be_labeled_delete():
 
     assert_eq(events[-1], [2, ('x',)])
 import sqlite3
-from reactive import ReactiveTable, CountAll, Signal, DerivedSignal, Where, UnionAll, Select
+from pageql.reactive import ReactiveTable, CountAll, Signal, DerivedSignal, Where, UnionAll, Select
 
 
 def _db():

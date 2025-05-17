@@ -21,7 +21,7 @@ if __package__ is None:                      # script / doctest-by-path
     sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 
 from pageql.parser import tokenize, parsefirstword, build_ast
-from pageql.reactive import Signal
+from pageql.reactive import Signal, DerivedSignal, get_dependencies
 
 def flatten_params(params):
     """
@@ -127,10 +127,15 @@ def evalone(db, exp, params):
             exp = exp[1:]
         exp = exp.replace('.', '__')
         if exp in params:
-            return params[exp]
+            value = params[exp]
+            if isinstance(value, (Signal, DerivedSignal)):
+                return value.value
+            return value
 
     try:
-        r = db_execute_dot(db, "select " + exp, params).fetchone()
+        flat = {k: (v.value if isinstance(v, (Signal, DerivedSignal)) else v)
+                for k, v in params.items()}
+        r = db_execute_dot(db, "select " + exp, flat).fetchone()
         return r[0]
     except sqlite3.Error as e:
         raise ValueError(f"Error evaluating SQL expression `select {exp}` with params `{params}`: {e}")
@@ -380,15 +385,26 @@ class PageQL:
                 if var[0] == ':':
                     var = var[1:]
                 var = var.replace('.', '__')
-                value = evalone(self.db, args, params)
                 if reactive:
                     existing = params.get(var)
-                    if isinstance(existing, Signal):
-                        existing.set(value)
-                        params[var] = existing
-                    else:
-                        params[var] = Signal(value)
+                    # Build derived signal based on dependencies
+                    def compute():
+                        return evalone(self.db, args, params)
+
+                    deps = []
+                    for dep_name in get_dependencies(args):
+                        dep = params.get(dep_name)
+                        if isinstance(dep, (Signal, DerivedSignal)):
+                            deps.append(dep)
+
+                    new_sig = DerivedSignal(compute, deps)
+
+                    if isinstance(existing, (Signal, DerivedSignal)):
+                        for listener in existing.listeners:
+                            new_sig.listeners.append(listener)
+                    params[var] = new_sig
                 else:
+                    value = evalone(self.db, args, params)
                     params[var] = value
             elif node_type == '#render':
                 rendered_content = self.handle_render(node_content, path, params, includes, None, reactive)

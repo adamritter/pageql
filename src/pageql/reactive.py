@@ -52,6 +52,35 @@ class DerivedSignal:
             for listener in self.listeners:
                 listener(value)
 
+    def replace(self, f, deps):
+        """Replace the compute function and dependencies.
+
+        Removes the current :py:meth:`update` listener from all previous
+        dependencies, attaches it to ``deps`` and recomputes the value.  If the
+        recomputed value differs from the previous one a change event is
+        emitted.
+        """
+
+        # detach from old dependencies
+        for dep in self.deps:
+            if self.update in getattr(dep, "listeners", []):
+                dep.listeners.remove(self.update)
+
+        # store new function and deps
+        self.f = f
+        self.deps = deps
+
+        # attach to new deps
+        for dep in deps:
+            dep.listeners.append(self.update)
+
+        # recompute and notify if changed
+        value = self.f()
+        if self.value != value:
+            self.value = value
+            for listener in self.listeners:
+                listener(value)
+
 class ReactiveTable:
     def __init__(self, conn, table_name):
         self.conn = conn

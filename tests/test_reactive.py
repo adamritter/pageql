@@ -1,7 +1,11 @@
 import sys
 from pathlib import Path
+import types
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+# Ensure the package can be imported without optional dependencies
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
+sys.modules.setdefault("watchfiles", types.ModuleType("watchfiles"))
+sys.modules["watchfiles"].awatch = lambda *args, **kwargs: None
 def assert_eq(a, b):
     assert a == b, f"{a} != {b}"
 
@@ -213,6 +217,40 @@ def test_unionall_update():
     r1.update("UPDATE a SET name='y' WHERE id=:id", {"id": rid})
     assert_eq(events[-1], [3, (1, 'x'), (1, 'y')])
 
+
+def test_update_invalid_sql_should_raise_value_error():
+    conn = _db()
+    rt = ReactiveTable(conn, "items")
+    try:
+        rt.update("UPDATE items SET name='z'", {})
+    except ValueError:
+        pass
+    else:
+        assert False, "expected ValueError"
+
+
+def test_unionall_mismatched_columns():
+    conn = sqlite3.connect(":memory:")
+    conn.execute("CREATE TABLE a(id INTEGER PRIMARY KEY, name TEXT)")
+    conn.execute("CREATE TABLE b(id INTEGER PRIMARY KEY, title TEXT)")
+    r1, r2 = ReactiveTable(conn, "a"), ReactiveTable(conn, "b")
+    try:
+        UnionAll(r1, r2)
+    except ValueError:
+        pass
+    else:
+        assert False, "expected ValueError when columns mismatch"
+
+
+def test_derived_signal_multiple_updates():
+    a, b = Signal(1), Signal(2)
+    d = DerivedSignal(lambda: a.value * b.value, [a, b])
+    seen = []
+    d.listeners.append(seen.append)
+    b.set(3)
+    a.set(2)
+    assert_eq(seen, [3, 6])
+
 if __name__ == "__main__":
     test_reactive_table_events()
     test_count_all()
@@ -224,6 +262,9 @@ if __name__ == "__main__":
     test_where_remove()
     test_select_no_change_on_same_value_update()
     test_unionall_update()
+    test_update_invalid_sql_should_raise_value_error()
+    test_unionall_mismatched_columns()
+    test_derived_signal_multiple_updates()
     test_where_delete_event_should_be_labeled_delete()
     test_select_delete_event_should_be_labeled_delete()
     test_update_null_row_should_raise_custom_exception()

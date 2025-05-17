@@ -126,6 +126,25 @@ def test_reactive_table_events():
     assert_eq(events[-1], [2, (1, 'b')])
 
 
+def test_reactive_table_delete_multiple_rows():
+    conn = _db()
+    rt = ReactiveTable(conn, "items")
+    events = []
+    rt.listeners.append(events.append)
+
+    # insert two rows with the same name
+    rt.insert("INSERT INTO items(name) VALUES ('x')", {})
+    rt.insert("INSERT INTO items(name) VALUES ('x')", {})
+
+    ids = [r[0] for r in conn.execute("SELECT id FROM items WHERE name='x'").fetchall()]
+    events.clear()
+
+    # delete all rows matching the name predicate
+    rt.delete("DELETE FROM items WHERE name = :name", {"name": "x"})
+
+    assert_eq(events, [[2, (ids[0], 'x')], [2, (ids[1], 'x')]])
+
+
 def test_count_all():
     conn = _db()
     rt = ReactiveTable(conn, "items")

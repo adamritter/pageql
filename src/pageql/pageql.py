@@ -21,6 +21,7 @@ if __package__ is None:                      # script / doctest-by-path
     sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 
 from pageql.parser import tokenize, parsefirstword, build_ast
+from pageql.reactive import Signal
 
 def flatten_params(params):
     """
@@ -379,7 +380,16 @@ class PageQL:
                 if var[0] == ':':
                     var = var[1:]
                 var = var.replace('.', '__')
-                params[var] = evalone(self.db, args, params)
+                value = evalone(self.db, args, params)
+                if reactive:
+                    existing = params.get(var)
+                    if isinstance(existing, Signal):
+                        existing.set(value)
+                        params[var] = existing
+                    else:
+                        params[var] = Signal(value)
+                else:
+                    params[var] = value
             elif node_type == '#render':
                 rendered_content = self.handle_render(node_content, path, params, includes, None, reactive)
                 output_buffer.append(rendered_content)

@@ -60,6 +60,7 @@ from pageql.reactive import (
     DerivedSignal,
     Where,
     UnionAll,
+    Union,
     Select,
     get_dependencies,
 )
@@ -285,6 +286,49 @@ def test_unionall_mismatched_columns():
         assert False, "expected ValueError when columns mismatch"
 
 
+def test_union():
+    conn = sqlite3.connect(":memory:")
+    for t in ("a", "b"):
+        conn.execute(f"CREATE TABLE {t}(id INTEGER PRIMARY KEY, name TEXT)")
+    r1, r2 = ReactiveTable(conn, "a"), ReactiveTable(conn, "b")
+    u = Union(r1, r2)
+    events = []
+    u.listeners.append(events.append)
+
+    r1.insert("INSERT INTO a(name) VALUES ('x')", {})
+    r2.insert("INSERT INTO b(name) VALUES ('x')", {})  # duplicate
+    r2.insert("INSERT INTO b(name) VALUES ('y')", {})
+    assert_eq([e[1][1] for e in events], ["x", "y"])
+
+
+def test_union_update():
+    conn = sqlite3.connect(":memory:")
+    for t in ("a", "b"):
+        conn.execute(f"CREATE TABLE {t}(id INTEGER PRIMARY KEY, name TEXT)")
+    r1, r2 = ReactiveTable(conn, "a"), ReactiveTable(conn, "b")
+    u = Union(r1, r2)
+    events = []
+    u.listeners.append(events.append)
+
+    r1.insert("INSERT INTO a(name) VALUES ('x')", {})
+    rid = conn.execute("SELECT id FROM a WHERE name='x'").fetchone()[0]
+    r1.update("UPDATE a SET name='y' WHERE id=:id", {"id": rid})
+    assert_eq(events[-1], [3, (1, 'x'), (1, 'y')])
+
+
+def test_union_mismatched_columns():
+    conn = sqlite3.connect(":memory:")
+    conn.execute("CREATE TABLE a(id INTEGER PRIMARY KEY, name TEXT)")
+    conn.execute("CREATE TABLE b(id INTEGER PRIMARY KEY, title TEXT)")
+    r1, r2 = ReactiveTable(conn, "a"), ReactiveTable(conn, "b")
+    try:
+        Union(r1, r2)
+    except ValueError:
+        pass
+    else:
+        assert False, "expected ValueError when columns mismatch"
+
+
 def test_derived_signal_multiple_updates():
     a, b = Signal(1), Signal(2)
     d = DerivedSignal(lambda: a.value * b.value, [a, b])
@@ -417,6 +461,7 @@ def fuzz_components(iterations=20, seed=None):
     conn2.execute("CREATE TABLE b(id INTEGER PRIMARY KEY, name TEXT)")
     r1, r2 = ReactiveTable(conn2, "a"), ReactiveTable(conn2, "b")
     components.append((UnionAll(r1, r2), (r1, r2)))
+    components.append((Union(r1, r2), (r1, r2)))
 
     for comp, parents in components:
         if isinstance(parents, tuple):

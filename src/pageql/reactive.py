@@ -204,10 +204,87 @@ class UnionAll:
         self.columns = self.parent1.columns
         if self.parent1.columns != self.parent2.columns:
             raise ValueError(f"UnionAll: parent1 and parent2 must have the same columns {self.parent1.columns} != {self.parent2.columns}")
-    
+
     def onevent(self, event):
         for listener in self.listeners:
             listener(event)
+
+
+class Union:
+    def __init__(self, parent1, parent2):
+        self.parent1 = parent1
+        self.parent2 = parent2
+        self.listeners = []
+        self.conn = self.parent1.conn
+        self.sql = f"SELECT * FROM ({self.parent1.sql}) UNION SELECT * FROM ({self.parent2.sql})"
+        self.parent1.listeners.append(self.onevent)
+        self.parent2.listeners.append(self.onevent)
+        self.columns = self.parent1.columns
+        if self.parent1.columns != self.parent2.columns:
+            raise ValueError(
+                f"Union: parent1 and parent2 must have the same columns {self.parent1.columns} != {self.parent2.columns}"
+            )
+
+        # Track how many times a row appears across parents
+        self._counts = {}
+        for row in self.conn.execute(self.parent1.sql).fetchall():
+            self._counts[row] = self._counts.get(row, 0) + 1
+        for row in self.conn.execute(self.parent2.sql).fetchall():
+            self._counts[row] = self._counts.get(row, 0) + 1
+
+    def _emit(self, event):
+        for listener in self.listeners:
+            listener(event)
+
+    def _insert(self, row):
+        prev = self._counts.get(row, 0)
+        self._counts[row] = prev + 1
+        if prev == 0:
+            self._emit([1, row])
+
+    def _delete(self, row):
+        prev = self._counts.get(row, 0)
+        if prev == 1:
+            del self._counts[row]
+            self._emit([2, row])
+        elif prev > 1:
+            self._counts[row] = prev - 1
+
+    def _update(self, oldrow, newrow):
+        if oldrow == newrow:
+            return
+        delete_event = False
+        insert_event = False
+        oldcnt = self._counts.get(oldrow, 0)
+        newcnt = self._counts.get(newrow, 0)
+
+        if oldcnt > 0:
+            if oldcnt == 1:
+                del self._counts[oldrow]
+                delete_event = True
+            else:
+                self._counts[oldrow] = oldcnt - 1
+
+        if newcnt == 0:
+            self._counts[newrow] = 1
+            insert_event = True
+        else:
+            self._counts[newrow] = newcnt + 1
+
+        if delete_event and insert_event:
+            self._emit([3, oldrow, newrow])
+        elif delete_event:
+            self._emit([2, oldrow])
+        elif insert_event:
+            self._emit([1, newrow])
+
+    def onevent(self, event):
+        if event[0] == 1:
+            self._insert(event[1])
+        elif event[0] == 2:
+            self._delete(event[1])
+        else:
+            self._update(event[1], event[2])
 
 class Select:
     def __init__(self, parent, select_sql):

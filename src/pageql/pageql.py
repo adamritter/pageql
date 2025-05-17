@@ -263,7 +263,7 @@ class PageQL:
         
         return param_name, param_value
 
-    def handle_render(self, node_content, path, params, includes, http_verb=None):
+    def handle_render(self, node_content, path, params, includes, http_verb=None, reactive=False):
         """
         Handles the #render directive processing.
         
@@ -335,14 +335,14 @@ class PageQL:
                     raise Exception(f"Warning: Empty value expression for key `{key}` in #render args")
 
         # Perform the recursive render call with the potentially modified parameters
-        result = self.render(render_path, render_params, partial_names, http_verb, in_render_directive=True)
+        result = self.render(render_path, render_params, partial_names, http_verb, in_render_directive=True, reactive=reactive)
         if result.status_code == 404:
             raise ValueError(f"handle_render: Partial or import '{partial_name_str}' not found with http verb {http_verb}, render_path: {render_path}, partial_names: {partial_names}")
         
         # Clean up the output to match expected format
         return result.body.rstrip()
 
-    def process_node(self, node, params, output_buffer, path, includes, http_verb=None):
+    def process_node(self, node, params, output_buffer, path, includes, http_verb=None, reactive=False):
         """
         Process a single AST node and append its rendered output to the buffer.
         
@@ -381,8 +381,17 @@ class PageQL:
                 var = var.replace('.', '__')
                 params[var] = evalone(self.db, args, params)
             elif node_type == '#render':
-                rendered_content = self.handle_render(node_content, path, params, includes, None)  # http_verb may be specified in the #render node
+                rendered_content = self.handle_render(node_content, path, params, includes, None, reactive)
                 output_buffer.append(rendered_content)
+            elif node_type == '#reactive':
+                mode = node_content.strip().lower()
+                if mode == 'on':
+                    reactive = True
+                elif mode == 'off':
+                    reactive = False
+                else:
+                    raise ValueError(f"Unknown reactive mode '{node_content}'")
+                params['reactive'] = reactive
             elif node_type == '#redirect':
                 url = evalone(self.db, node_content, params)
                 raise RenderResultException(RenderResult(status_code=302, headers=[('Location', url)]))
@@ -425,6 +434,7 @@ class PageQL:
                     output_buffer.append("</tr>")
                 output_buffer.append("</table>")
                 output_buffer.append(f"<p>Dumping {node_content} took {(end_time - t)*1000:.2f} ms</p>")
+            return reactive
         elif isinstance(node, list):
             directive = node[0]
             if directive == '#if':
@@ -435,7 +445,7 @@ class PageQL:
                             i += 2
                             continue
                         i += 1
-                    self.process_nodes(node[i], params, output_buffer, path, includes, http_verb)
+                    reactive = self.process_nodes(node[i], params, output_buffer, path, includes, http_verb, reactive)
                     i += 1
             elif directive == '#ifdef':
                 param_name = node[1].strip()
@@ -447,9 +457,9 @@ class PageQL:
                 param_name = param_name.replace('.', '__')
                 
                 if param_name in params:
-                    self.process_nodes(then_body, params, output_buffer, path, includes, http_verb)
+                    reactive = self.process_nodes(then_body, params, output_buffer, path, includes, http_verb, reactive)
                 elif else_body:
-                    self.process_nodes(else_body, params, output_buffer, path, includes, http_verb)
+                    reactive = self.process_nodes(else_body, params, output_buffer, path, includes, http_verb, reactive)
             elif directive == '#ifndef':
                 param_name = node[1].strip()
                 then_body = node[2]
@@ -460,9 +470,9 @@ class PageQL:
                 param_name = param_name.replace('.', '__')
                 
                 if param_name not in params:
-                    self.process_nodes(then_body, params, output_buffer, path, includes, http_verb)
+                    reactive = self.process_nodes(then_body, params, output_buffer, path, includes, http_verb, reactive)
                 elif else_body:
-                    self.process_nodes(else_body, params, output_buffer, path, includes, http_verb)
+                    reactive = self.process_nodes(else_body, params, output_buffer, path, includes, http_verb, reactive)
             elif directive == '#from':
                 query = node[1]
                 body = node[2]
@@ -482,15 +492,16 @@ class PageQL:
                             row_params[col_name] = row[i]
                         
                         row_buffer = []
-                        self.process_nodes(body, row_params, row_buffer, path, includes, http_verb)
+                        self.process_nodes(body, row_params, row_buffer, path, includes, http_verb, reactive)
                         output_buffer.append(''.join(row_buffer).strip())
                         output_buffer.append('\n')
                     
                     # Restore original params
                     params.clear()
                     params.update(saved_params)
+            return reactive
 
-    def process_nodes(self, nodes, params, output_buffer, path, includes, http_verb=None):
+    def process_nodes(self, nodes, params, output_buffer, path, includes, http_verb=None, reactive=False):
         """
         Process a list of AST nodes and append their rendered output to the buffer.
         
@@ -506,9 +517,10 @@ class PageQL:
             None (output is appended to output_buffer)
         """
         for node in nodes:
-            self.process_node(node, params, output_buffer, path, includes, http_verb)
+            reactive = self.process_node(node, params, output_buffer, path, includes, http_verb, reactive)
+        return reactive
 
-    def render(self, path, params={}, partial=None, http_verb=None, in_render_directive=False):
+    def render(self, path, params={}, partial=None, http_verb=None, in_render_directive=False, reactive=False):
         """
         Renders a module using its parsed AST.
 
@@ -683,6 +695,7 @@ class PageQL:
         """
         module_name = path.strip('/')
         params = flatten_params(params)
+        params['reactive'] = reactive
         
         # Convert partial to list if it's a string
         partial_path = []
@@ -741,7 +754,7 @@ class PageQL:
                     http_key_public = (partial_name, "PUBLIC")
                     if http_key in partials or http_key_public in partials:
                         body = partials[http_key][0] if http_key in partials else partials[http_key_public][0]
-                        self.process_nodes(body, params, output_buffer, path, includes, http_verb)
+                        reactive = self.process_nodes(body, params, output_buffer, path, includes, http_verb, reactive)
                     elif (':', None) in partials or (':', 'PUBLIC') in partials or (':', http_verb) in partials:
                         value = partials[(':', http_verb)] if (':', http_verb) in partials else partials[(':', None)] if (':', None) in partials else partials[(':', 'PUBLIC')]
                         if in_render_directive:
@@ -751,12 +764,12 @@ class PageQL:
                             params[value[0][1:]] = partial[0]
                         partials = value[2]
                         partial = partial[1:]
-                        self.process_nodes(value[1], params, output_buffer, path, includes, http_verb)
+                        reactive = self.process_nodes(value[1], params, output_buffer, path, includes, http_verb, reactive)
                     else:
                         raise ValueError(f"render: Partial '{partial_name}' with http verb '{http_verb}' not found in module '{module_name}'")
                 else:
                     # Render the entire module
-                    self.process_nodes(module_body, params, output_buffer, path, includes, http_verb)
+                    reactive = self.process_nodes(module_body, params, output_buffer, path, includes, http_verb, reactive)
                     
                 result.body = "".join(output_buffer)
                 

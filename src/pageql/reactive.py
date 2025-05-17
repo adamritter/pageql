@@ -1,5 +1,23 @@
 import re
 
+
+def get_dependencies(exp):
+    """Return parameter names referenced in a SQL expression.
+
+    Only colon-prefixed names or single bare variables are considered.
+    Dot notation is converted to ``__`` form to match flattened params.
+    """
+    deps = set()
+    exp = exp.strip()
+    # Simple variable expression like :foo or foo.bar
+    m = re.match(r'^:?([a-zA-Z_][a-zA-Z0-9_.]*)$', exp)
+    if m:
+        deps.add(m.group(1).replace('.', '__'))
+    else:
+        for name in re.findall(r':([a-zA-Z_][a-zA-Z0-9_.]*)', exp):
+            deps.add(name.replace('.', '__'))
+    return list(deps)
+
 class Signal:
     def __init__(self, value=None):
         self.value = value

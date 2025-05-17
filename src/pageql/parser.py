@@ -10,11 +10,19 @@ def parsefirstword(s):
 
 def tokenize(source):
     """
-    Parses source into ('text', content) and ('comment', content) tuples.
-    
+    Parses a PageQL template into a list of ``(token_type, content)`` tuples.
+
+    Token types are:
+        * ``text`` - literal text from the template
+        * ``render_param`` - simple parameter substitution such as ``{{name}}``
+        * ``render_expression`` - expression evaluation within ``{{expr}}``
+        * ``render_raw`` - raw output of an expression like ``{{{expr}}}``
+        * directive tokens (strings beginning with ``#`` or ``/``), e.g.
+          ``#if``/``/if``, ``#from``/``/from`` and ``#partial``/``/partial``
+
     Args:
         source: The PageQL template source code as a string
-        
+
     Returns:
         A list of node tuples representing the parsed template
         

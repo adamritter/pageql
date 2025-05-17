@@ -53,7 +53,16 @@ def test_select_delete_event_should_be_labeled_delete():
 
     assert_eq(events[-1], [2, ('x',)])
 import sqlite3
-from pageql.reactive import ReactiveTable, CountAll, Signal, DerivedSignal, Where, UnionAll, Select
+from pageql.reactive import (
+    ReactiveTable,
+    CountAll,
+    Signal,
+    DerivedSignal,
+    Where,
+    UnionAll,
+    Select,
+    get_dependencies,
+)
 
 
 def _db():
@@ -310,3 +319,27 @@ def test_check_component_where():
         rt.update("UPDATE items SET name='z' WHERE id=:id", {"id": rid})
 
     check_component(w, cb)
+
+
+def test_get_dependencies_simple():
+    expr = "select count(*) from todos where :id > 3 and :nam_e5='hello'"
+    deps = get_dependencies(expr)
+    assert deps == ["id", "nam_e5"]
+
+
+def test_get_dependencies_ignore_quotes():
+    expr = "select * from t where name=':no' and id=:id"
+    deps = get_dependencies(expr)
+    assert deps == ["id"]
+
+
+def test_get_dependencies_ignore_comments():
+    expr = "select * from t -- comment :foo\n where id=:id /* :bar */"
+    deps = get_dependencies(expr)
+    assert deps == ["id"]
+
+
+def test_get_dependencies_type_cast():
+    expr = "select :id::text as ident where name=:name"
+    deps = get_dependencies(expr)
+    assert deps == ["id", "name"]

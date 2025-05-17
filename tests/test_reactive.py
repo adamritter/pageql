@@ -56,7 +56,6 @@ import sqlite3
 from pageql.reactive import (
     ReactiveTable,
     CountAll,
-    Signal,
     DerivedSignal,
     Where,
     UnionAll,
@@ -139,14 +138,19 @@ def test_count_all():
 
 
 def test_signal_and_derived():
-    a, b = Signal(1), Signal(2)
+    a_val = [1]
+    b_val = [2]
+    a = DerivedSignal(lambda: a_val[0], [])
+    b = DerivedSignal(lambda: b_val[0], [])
     d = DerivedSignal(lambda: a.value + b.value, [a, b])
     seen = []
     d.listeners.append(seen.append)
-    a.set(2)
+    a_val[0] = 2
+    a.update()
     assert_eq(d.value, 4)
     assert_eq(seen[-1], 4)
-    a.set(2)  # no change
+    a_val[0] = 2  # no change
+    a.update()
     assert_eq(seen[-1], 4)
     assert len(seen) == 1
 
@@ -330,32 +334,43 @@ def test_union_mismatched_columns():
 
 
 def test_derived_signal_multiple_updates():
-    a, b = Signal(1), Signal(2)
+    a_val = [1]
+    b_val = [2]
+    a = DerivedSignal(lambda: a_val[0], [])
+    b = DerivedSignal(lambda: b_val[0], [])
     d = DerivedSignal(lambda: a.value * b.value, [a, b])
     seen = []
     d.listeners.append(seen.append)
-    b.set(3)
-    a.set(2)
+    b_val[0] = 3
+    b.update()
+    a_val[0] = 2
+    a.update()
     assert_eq(seen, [3, 6])
 
 
 def test_derived_signal_replace():
-    a, b = Signal(1), Signal(2)
+    a_val = [1]
+    b_val = [2]
+    a = DerivedSignal(lambda: a_val[0], [])
+    b = DerivedSignal(lambda: b_val[0], [])
     d = DerivedSignal(lambda: a.value + 1, [a])
     seen = []
     d.listeners.append(seen.append)
 
-    a.set(2)
+    a_val[0] = 2
+    a.update()
     assert_eq(seen[-1], 3)
 
     d.replace(lambda: b.value * 2, [b])
     assert_eq(d.value, 4)
     assert_eq(seen[-1], 4)
 
-    a.set(5)
+    a_val[0] = 5
+    a.update()
     assert_eq(seen[-1], 4)
 
-    b.set(3)
+    b_val[0] = 3
+    b.update()
     assert_eq(seen[-1], 6)
 
 

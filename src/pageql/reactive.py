@@ -43,9 +43,9 @@ class DerivedSignal:
         self.value = f()
         self.listeners = []
         for dep in deps:
-            dep.listeners.append(lambda _: self.update())
-        
-    def update(self):
+            dep.listeners.append(self.update)
+
+    def update(self, _=None):
         value = self.f()
         if self.value != value:
             self.value = value

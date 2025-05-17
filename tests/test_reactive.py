@@ -62,6 +62,40 @@ def _db():
     return c
 
 
+def check_component(comp, callback):
+    conn = comp.conn
+    expected = list(conn.execute(comp.sql).fetchall())
+    cols_len = len(comp.columns) if not isinstance(comp.columns, str) else 1
+    events = []
+    comp.listeners.append(events.append)
+    callback()
+    comp.listeners.remove(events.append)
+    for ev in events:
+        if ev[0] == 1:
+            row = ev[1]
+            if len(row) != cols_len:
+                raise Exception("bad number of columns on insert")
+            expected.append(row)
+        elif ev[0] == 2:
+            row = ev[1]
+            if row not in expected:
+                raise Exception("deleting nonexistent row")
+            expected.remove(row)
+        elif ev[0] == 3:
+            old, new = ev[1], ev[2]
+            if old not in expected:
+                raise Exception("updating nonexistent row")
+            if len(new) != cols_len:
+                raise Exception("bad number of columns on update")
+            idx = expected.index(old)
+            expected[idx] = new
+        else:
+            raise Exception(f"unknown event type {ev[0]}")
+    expected.sort()
+    final = sorted(conn.execute(comp.sql).fetchall())
+    assert_eq(expected, final)
+
+
 def test_reactive_table_events():
     conn = _db()
     rt = ReactiveTable(conn, "items")
@@ -251,20 +285,28 @@ def test_derived_signal_multiple_updates():
     a.set(2)
     assert_eq(seen, [3, 6])
 
-if __name__ == "__main__":
-    test_reactive_table_events()
-    test_count_all()
-    test_signal_and_derived()
-    test_where()
-    test_unionall()
-    test_select()
-    test_count_all_decrement()
-    test_where_remove()
-    test_select_no_change_on_same_value_update()
-    test_unionall_update()
-    test_update_invalid_sql_should_raise_value_error()
-    test_unionall_mismatched_columns()
-    test_derived_signal_multiple_updates()
-    test_where_delete_event_should_be_labeled_delete()
-    test_select_delete_event_should_be_labeled_delete()
-    test_update_null_row_should_raise_custom_exception()
+
+def test_check_component_reactive_table():
+    conn = _db()
+    rt = ReactiveTable(conn, "items")
+
+    def cb():
+        rt.insert("INSERT INTO items(name) VALUES ('x')", {})
+        rid = conn.execute("SELECT id FROM items WHERE name='x'").fetchone()[0]
+        rt.update("UPDATE items SET name='y' WHERE id=:id", {"id": rid})
+        rt.delete("DELETE FROM items WHERE id=:id", {"id": rid})
+
+    check_component(rt, cb)
+
+
+def test_check_component_where():
+    conn = _db()
+    rt = ReactiveTable(conn, "items")
+    w = Where(rt, "name = 'x'")
+
+    def cb():
+        rt.insert("INSERT INTO items(name) VALUES ('x')", {})
+        rid = conn.execute("SELECT id FROM items WHERE name='x'").fetchone()[0]
+        rt.update("UPDATE items SET name='z' WHERE id=:id", {"id": rid})
+
+    check_component(w, cb)

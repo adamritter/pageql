@@ -400,12 +400,16 @@ class PageQL:
                                 env[k] = v
                         return evalone(self.db, args, env)
 
-                    signal = DerivedSignal(compute, deps)
                     existing = params.get(var)
-                    if isinstance(existing, Signal):
-                        existing.set(signal.value)
-                        signal.listeners.append(lambda v: existing.set(v))
-                    params[var] = signal
+                    if isinstance(existing, DerivedSignal):
+                        existing.replace(compute, deps)
+                        signal = existing
+                    else:
+                        signal = DerivedSignal(compute, deps)
+                        if isinstance(existing, Signal):
+                            existing.set(signal.value)
+                            signal.listeners.append(lambda v: existing.set(v))
+                        params[var] = signal
                 else:
                     params[var] = evalone(self.db, args, params)
             elif node_type == '#render':

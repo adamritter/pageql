@@ -34,3 +34,7 @@ Homepage = "https://pageql.dev/"
 "GitHub Repository" = "https://github.com/adamritter/pageql"
 Issues = "https://github.com/adamritter/pageql/issues"
 
+
+[tool.pytest.ini_options]
+addopts = "--doctest-modules --ignore=examples"
+doctest_optionflags = "ELLIPSIS NORMALIZE_WHITESPACE"

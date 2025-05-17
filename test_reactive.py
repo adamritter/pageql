@@ -211,6 +211,49 @@ def test_unionall_update():
     r1.update("UPDATE a SET name='y' WHERE id=:id", {"id": rid})
     assert_eq(events[-1], [3, (1, 'x'), (1, 'y')])
 
+
+def test_where_update_within_match():
+    conn = _db()
+    rt = ReactiveTable(conn, "items")
+    w = Where(rt, "name LIKE 'x%'")
+    events = []
+    w.listeners.append(events.append)
+
+    rt.insert("INSERT INTO items(name) VALUES ('x1')", {})
+    rid = conn.execute("SELECT id FROM items WHERE name='x1'").fetchone()[0]
+    rt.update("UPDATE items SET name='x2' WHERE id=:id", {"id": rid})
+    assert_eq(events[-1], [3, (rid, 'x1'), (rid, 'x2')])
+
+
+def test_count_all_no_update_event():
+    conn = _db()
+    rt = ReactiveTable(conn, "items")
+    cnt = CountAll(rt)
+    events = []
+    cnt.listeners.append(events.append)
+
+    rt.insert("INSERT INTO items(name) VALUES ('x')", {})
+    initial_events = len(events)
+    rid = conn.execute("SELECT id FROM items WHERE name='x'").fetchone()[0]
+    rt.update("UPDATE items SET name='y' WHERE id=:id", {"id": rid})
+    assert_eq(cnt.value, 1)
+    assert_eq(len(events), initial_events)
+
+
+def test_unionall_delete_from_second_table():
+    conn = sqlite3.connect(":memory:")
+    for t in ("a", "b"):
+        conn.execute(f"CREATE TABLE {t}(id INTEGER PRIMARY KEY, name TEXT)")
+    r1, r2 = ReactiveTable(conn, "a"), ReactiveTable(conn, "b")
+    u = UnionAll(r1, r2)
+    events = []
+    u.listeners.append(events.append)
+
+    r2.insert("INSERT INTO b(name) VALUES ('z')", {})
+    rid = conn.execute("SELECT id FROM b WHERE name='z'").fetchone()[0]
+    r2.delete("DELETE FROM b WHERE id=:id", {"id": rid})
+    assert_eq(events[-1], [2, (1, 'z')])
+
 if __name__ == "__main__":
     test_reactive_table_events()
     test_count_all()

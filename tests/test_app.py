@@ -8,6 +8,7 @@ import http.client
 from multiprocessing import Process
 from uvicorn.config import Config
 from uvicorn.server import Server
+import asyncio
 
 # Ensure the package can be imported without optional dependencies
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
@@ -69,3 +70,4 @@ def test_app_returns_404_for_missing_route():
 
 if __name__ == "__main__":
     test_app_returns_404_for_missing_route()
+

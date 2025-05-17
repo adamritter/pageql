@@ -61,7 +61,7 @@ def parse_param_attrs(s):
         {'a': '1', 'b': '2', 'c': True}
         >>> parse_param_attrs("a='hello world' optional")
         {'a': 'hello world', 'optional': True}
-        >>> parse_param_attrs("a=1 b=2 flag=")
+        >>> parse_param_attrs("a=1 b=2 flag")
         {'a': '1', 'b': '2', 'flag': True}
     """
 

@@ -209,6 +209,71 @@ class UnionAll:
         for listener in self.listeners:
             listener(event)
 
+class Join:
+    def __init__(self, parent1, parent2, on_sql):
+        self.parent1 = parent1
+        self.parent2 = parent2
+        self.on_sql = on_sql
+        self.listeners = []
+        self.conn = self.parent1.conn
+        self.l1 = len(self.parent1.columns)
+        self.l2 = len(self.parent2.columns)
+        self.sql = (
+            f"SELECT * FROM ({self.parent1.sql}) AS a JOIN ({self.parent2.sql}) AS b ON {self.on_sql}"
+        )
+        self.parent1.listeners.append(lambda e: self._onevent(e, 1))
+        self.parent2.listeners.append(lambda e: self._onevent(e, 2))
+        cursor = self.conn.execute(f"SELECT * FROM ({self.sql}) LIMIT 0")
+        self.columns = [c[0] for c in cursor.description]
+        self.sql_from_p1 = (
+            f"SELECT * FROM (SELECT {', '.join([f'? AS {c}' for c in self.parent1.columns])}) AS a"
+            f" JOIN ({self.parent2.sql}) AS b ON {self.on_sql}"
+        )
+        self.sql_from_p2 = (
+            f"SELECT * FROM ({self.parent1.sql}) AS a JOIN (SELECT {', '.join([f'? AS {c}' for c in self.parent2.columns])}) AS b ON {self.on_sql}"
+        )
+
+    def _rows_from_p1(self, row):
+        cur = execute(self.conn, self.sql_from_p1, row)
+        return cur.fetchall()
+
+    def _rows_from_p2(self, row):
+        cur = execute(self.conn, self.sql_from_p2, row)
+        return cur.fetchall()
+
+    def _emit(self, event):
+        for listener in self.listeners:
+            listener(event)
+
+    def _diff_emit(self, old_rows, new_rows, key_slice):
+        old_map = {tuple(r[key_slice]): r for r in old_rows}
+        new_map = {tuple(r[key_slice]): r for r in new_rows}
+        for k, old_r in old_map.items():
+            if k not in new_map:
+                self._emit([2, old_r])
+        for k, new_r in new_map.items():
+            if k not in old_map:
+                self._emit([1, new_r])
+            else:
+                old_r = old_map[k]
+                if old_r != new_r:
+                    self._emit([3, old_r, new_r])
+
+    def _onevent(self, event, src):
+        if src == 1:
+            rows_from = self._rows_from_p1
+            key_slice = slice(self.l1, None)
+        else:
+            rows_from = self._rows_from_p2
+            key_slice = slice(0, self.l1)
+        if event[0] < 3:
+            for row in rows_from(event[1]):
+                self._emit([event[0], row])
+        else:
+            old_rows = rows_from(event[1])
+            new_rows = rows_from(event[2])
+            self._diff_emit(old_rows, new_rows, key_slice)
+
 class Select:
     def __init__(self, parent, select_sql):
         self.parent = parent

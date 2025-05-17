@@ -60,6 +60,7 @@ from pageql.reactive import (
     DerivedSignal,
     Where,
     UnionAll,
+    Join,
     Select,
     get_dependencies,
 )
@@ -432,3 +433,50 @@ def fuzz_components(iterations=20, seed=None):
 
 def test_fuzz_components():
     fuzz_components(iterations=10, seed=123)
+
+
+def test_join_basic_events():
+    conn = sqlite3.connect(":memory:")
+    conn.execute("CREATE TABLE a(id INTEGER PRIMARY KEY, name TEXT)")
+    conn.execute("CREATE TABLE b(id INTEGER PRIMARY KEY, aid INTEGER, val TEXT)")
+    r1, r2 = ReactiveTable(conn, "a"), ReactiveTable(conn, "b")
+    j = Join(r1, r2, "a.id=b.aid")
+    events = []
+    j.listeners.append(events.append)
+
+    r1.insert("INSERT INTO a(name) VALUES ('x')", {})
+    assert events == []
+
+    aid = conn.execute("SELECT id FROM a WHERE name='x'").fetchone()[0]
+    r2.insert("INSERT INTO b(aid, val) VALUES (:aid, 'v1')", {"aid": aid})
+    assert events[-1][0] == 1
+
+    r1.update("UPDATE a SET name='y' WHERE id=:id", {"id": aid})
+    assert events[-1][0] == 3 and events[-1][1][1] == 'x' and events[-1][2][1] == 'y'
+
+    bid = conn.execute("SELECT id FROM b WHERE aid=:aid", {"aid": aid}).fetchone()[0]
+    r2.update("UPDATE b SET val='v2' WHERE id=:id", {"id": bid})
+    assert events[-1][0] == 3 and events[-1][1][-1] == 'v1' and events[-1][2][-1] == 'v2'
+
+    r2.delete("DELETE FROM b WHERE id=:id", {"id": bid})
+    assert events[-1][0] == 2
+
+    r1.delete("DELETE FROM a WHERE id=:id", {"id": aid})
+    # no event since join no longer matches
+
+
+def test_check_component_join():
+    conn = sqlite3.connect(":memory:")
+    conn.execute("CREATE TABLE a(id INTEGER PRIMARY KEY, name TEXT)")
+    conn.execute("CREATE TABLE b(id INTEGER PRIMARY KEY, aid INTEGER, val TEXT)")
+    r1, r2 = ReactiveTable(conn, "a"), ReactiveTable(conn, "b")
+    j = Join(r1, r2, "a.id=b.aid")
+
+    def cb():
+        r1.insert("INSERT INTO a(name) VALUES ('x')", {})
+        aid = conn.execute("SELECT id FROM a WHERE name='x'").fetchone()[0]
+        r2.insert("INSERT INTO b(aid, val) VALUES (:aid, 'v')", {"aid": aid})
+        r1.update("UPDATE a SET name='z' WHERE id=:id", {"id": aid})
+        r2.delete("DELETE FROM b WHERE aid=:aid", {"aid": aid})
+
+    check_component(j, cb)

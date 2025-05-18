@@ -65,11 +65,11 @@ def test_from_reactive_uses_parse(monkeypatch):
     result = r.render("/m")
     assert seen == ["SELECT * FROM items"]
     expected = (
-        "<script>window.pageqlMarkers={};</script>"
+        "<script>window.pageqlMarkers={};document.currentScript.remove()</script>"
         "<!--pageql-start:0--><script>(window.pageqlMarkers||(window.pageqlMarkers={}))[0]="
-        "{s:document.currentScript.previousSibling}</script><1>\n<2>\n"
+        "{s:document.currentScript.previousSibling};document.currentScript.remove()</script><1>\n<2>\n"
         "<!--pageql-end:0--><script>window.pageqlMarkers[0].e="
-        "document.currentScript.previousSibling</script>"
+        "document.currentScript.previousSibling;document.currentScript.remove()</script>"
     )
     assert result.body == expected
 

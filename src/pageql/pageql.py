@@ -104,7 +104,7 @@ class RenderContext:
 
     def ensure_init(self, out):
         if not self.initialized:
-            out.append("<script>window.pageqlMarkers={};</script>")
+            out.append("<script>window.pageqlMarkers={};document.currentScript.remove()</script>")
             self.initialized = True
 
     def marker_id(self) -> int:
@@ -543,7 +543,9 @@ class PageQL:
                 if ctx and reactive:
                     ctx.ensure_init(output_buffer)
                     mid = ctx.marker_id()
-                    output_buffer.append(f"<!--pageql-start:{mid}--><script>(window.pageqlMarkers||(window.pageqlMarkers={{}}))[{mid}]={{s:document.currentScript.previousSibling}}</script>")
+                    output_buffer.append(
+                        f"<!--pageql-start:{mid}--><script>(window.pageqlMarkers||(window.pageqlMarkers={{}}))[{mid}]={{s:document.currentScript.previousSibling}};document.currentScript.remove()</script>"
+                    )
 
                 saved_params = params.copy()
                 for row in rows:
@@ -560,7 +562,9 @@ class PageQL:
                 params.update(saved_params)
 
                 if ctx and reactive:
-                    output_buffer.append(f"<!--pageql-end:{mid}--><script>window.pageqlMarkers[{mid}].e=document.currentScript.previousSibling</script>")
+                    output_buffer.append(
+                        f"<!--pageql-end:{mid}--><script>window.pageqlMarkers[{mid}].e=document.currentScript.previousSibling;document.currentScript.remove()</script>"
+                    )
             return reactive
 
     def process_nodes(self, nodes, params, output_buffer, path, includes, http_verb=None, reactive=False, ctx=None):

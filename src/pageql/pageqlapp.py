@@ -46,6 +46,7 @@ reload_script = """
   socket.onerror = (event) => {
     setTimeout(forceReload, 100)
   };
+  document.currentScript.remove()
 </script>
 """
 

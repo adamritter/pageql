@@ -544,7 +544,7 @@ class PageQL:
                     ctx.ensure_init(output_buffer)
                     mid = ctx.marker_id()
                     output_buffer.append(
-                        f"<!--pageql-start:{mid}--><script>(window.pageqlMarkers||(window.pageqlMarkers={{}}))[{mid}]={{s:document.currentScript.previousSibling}};document.currentScript.remove()</script>"
+                        f"<!--pageql-start:{mid}--><script>(window.pageqlMarkers||(window.pageqlMarkers={{}}))[{mid}]=document.currentScript.previousSibling;document.currentScript.remove()</script>"
                     )
 
                 saved_params = params.copy()

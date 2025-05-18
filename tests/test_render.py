@@ -22,7 +22,7 @@ def test_reactive_toggle():
     r.load_module("reactive", "{{reactive}} {{#reactive on}}{{reactive}} {{#reactive off}}{{reactive}}")
     result = r.render("/reactive")
     expected = (
-        "False <script>window.pageqlMarkers={};function pstart(i){var s=document.currentScript,c=document.createComment('pageql-start:'+i);s.replaceWith(c);window.pageqlMarkers[i]=c;}function pend(i){var s=document.currentScript,c=document.createComment('pageql-end:'+i);s.replaceWith(c);window.pageqlMarkers[i].e=c;}document.currentScript.remove()</script>"
+        "False <script>window.pageqlMarkers={};function pstart(i){var s=document.currentScript,c=document.createComment('pageql-start:'+i);s.replaceWith(c);window.pageqlMarkers[i]=c;}function pend(i){var s=document.currentScript,c=document.createComment('pageql-end:'+i);s.replaceWith(c);window.pageqlMarkers[i].e=c;}function pset(i,v){var s=window.pageqlMarkers[i],e=s.e,n=s.nextSibling;while(n&&n!==e){var nx=n.nextSibling;n.remove();n=nx;}var t=document.createElement('template');t.innerHTML=v;e.parentNode.insertBefore(t.content,e);}document.currentScript.remove()</script>"
         "<script>pstart(0)</script>True"
         "<script>pend(0)</script> False"
     )
@@ -78,7 +78,7 @@ def test_from_reactive_uses_parse(monkeypatch):
     result = r.render("/m")
     assert seen == ["SELECT * FROM items"]
     expected = (
-        "<script>window.pageqlMarkers={};function pstart(i){var s=document.currentScript,c=document.createComment('pageql-start:'+i);s.replaceWith(c);window.pageqlMarkers[i]=c;}function pend(i){var s=document.currentScript,c=document.createComment('pageql-end:'+i);s.replaceWith(c);window.pageqlMarkers[i].e=c;}document.currentScript.remove()</script>"
+        "<script>window.pageqlMarkers={};function pstart(i){var s=document.currentScript,c=document.createComment('pageql-start:'+i);s.replaceWith(c);window.pageqlMarkers[i]=c;}function pend(i){var s=document.currentScript,c=document.createComment('pageql-end:'+i);s.replaceWith(c);window.pageqlMarkers[i].e=c;}function pset(i,v){var s=window.pageqlMarkers[i],e=s.e,n=s.nextSibling;while(n&&n!==e){var nx=n.nextSibling;n.remove();n=nx;}var t=document.createElement('template');t.innerHTML=v;e.parentNode.insertBefore(t.content,e);}document.currentScript.remove()</script>"
         "<script>pstart(0)</script><<script>pstart(1)</script>1<script>pend(1)</script>>\n"
         "<<script>pstart(2)</script>2<script>pend(2)</script>>\n"
         "<script>pend(0)</script>"
@@ -107,7 +107,7 @@ def test_reactive_set_comments():
     result = r.render("/m")
     expected = (
         "\n",
-        "<script>window.pageqlMarkers={};function pstart(i){var s=document.currentScript,c=document.createComment('pageql-start:'+i);s.replaceWith(c);window.pageqlMarkers[i]=c;}function pend(i){var s=document.currentScript,c=document.createComment('pageql-end:'+i);s.replaceWith(c);window.pageqlMarkers[i].e=c;}document.currentScript.remove()</script><script>pstart(0)</script>1<script>pend(0)</script>\n",
+        "<script>window.pageqlMarkers={};function pstart(i){var s=document.currentScript,c=document.createComment('pageql-start:'+i);s.replaceWith(c);window.pageqlMarkers[i]=c;}function pend(i){var s=document.currentScript,c=document.createComment('pageql-end:'+i);s.replaceWith(c);window.pageqlMarkers[i].e=c;}function pset(i,v){var s=window.pageqlMarkers[i],e=s.e,n=s.nextSibling;while(n&&n!==e){var nx=n.nextSibling;n.remove();n=nx;}var t=document.createElement('template');t.innerHTML=v;e.parentNode.insertBefore(t.content,e);}document.currentScript.remove()</script><script>pstart(0)</script>1<script>pend(0)</script>\n",
         "<script>pstart(1)</script>2<script>pend(1)</script>\n",
         "<p><script>pstart(2)</script>4<script>pend(2)</script> = 4</p>\n",
         "<p><script>pstart(3)</script>4<script>pend(3)</script> = c = 4</p>\n",

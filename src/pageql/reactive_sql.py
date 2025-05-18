@@ -1,6 +1,49 @@
 import sqlglot
 from sqlglot import expressions as exp
+from collections import Counter
 from .reactive import Tables, ReactiveTable, Select, Where, Union, UnionAll, CountAll
+
+
+class Fallback:
+    """Fallback reactive component for unsupported SQL queries."""
+
+    def __init__(self, sql: str, tables: Tables):
+        self.sql = sql
+        self.tables = tables
+        self.conn = tables.conn
+        self.listeners = []
+        cursor = self.conn.execute(f"SELECT * FROM ({self.sql}) LIMIT 0")
+        self.columns = [c[0] for c in cursor.description]
+        self.rows = [tuple(row) for row in self.conn.execute(self.sql).fetchall()]
+
+        expr = sqlglot.parse_one(sql)
+        table_names = {t.name for t in expr.find_all(exp.Table)}
+        for name in table_names:
+            tables._get(name).listeners.append(self._on_event)
+
+    def _emit(self, event):
+        for listener in self.listeners:
+            listener(event)
+
+    def _on_event(self, _):
+        new_rows = [tuple(row) for row in self.conn.execute(self.sql).fetchall()]
+
+        old_counts = Counter(self.rows)
+        new_counts = Counter(new_rows)
+
+        for row, cnt in new_counts.items():
+            old = old_counts.get(row, 0)
+            if cnt > old:
+                for _ in range(cnt - old):
+                    self._emit([1, row])
+
+        for row, cnt in old_counts.items():
+            new = new_counts.get(row, 0)
+            if cnt > new:
+                for _ in range(cnt - new):
+                    self._emit([2, row])
+
+        self.rows = new_rows
 
 
 def build_reactive(expr, tables: Tables):
@@ -13,6 +56,8 @@ def build_reactive(expr, tables: Tables):
             return Union(left, right)
         return UnionAll(left, right)
     if isinstance(expr, exp.Select):
+        if expr.args.get("joins"):
+            raise NotImplementedError("JOIN not supported")
         from_expr = expr.args.get("from")
         if from_expr is None:
             raise ValueError("SELECT missing FROM clause")
@@ -44,4 +89,8 @@ def build_from(expr, tables: Tables):
 def parse_reactive(sql: str, tables: Tables):
     """Parse a SQL SELECT into reactive components."""
     expr = sqlglot.parse_one(sql)
-    return build_reactive(expr, tables)
+    try:
+        return build_reactive(expr, tables)
+    except NotImplementedError:
+        return Fallback(sql, tables)
+

@@ -134,10 +134,16 @@ def db_execute_dot(db, exp, params):
         'Page'
     """
     # Convert :param.name.subname to :param__name__subname in the expression
-    converted_exp = re.sub(r':([a-zA-Z0-9_]+(?:\.[a-zA-Z0-9_]+)+)', 
-                          lambda m: ':' + m.group(1).replace('.', '__'), 
+    converted_exp = re.sub(r':([a-zA-Z0-9_]+(?:\.[a-zA-Z0-9_]+)+)',
+                          lambda m: ':' + m.group(1).replace('.', '__'),
                           exp)
-    return db.execute(converted_exp, params)
+    converted_params = {}
+    for k, v in params.items():
+        if isinstance(v, DerivedSignal):
+            converted_params[k] = v.value
+        else:
+            converted_params[k] = v
+    return db.execute(converted_exp, converted_params)
 
 def evalone(db, exp, params):
     exp = exp.strip()
@@ -146,7 +152,10 @@ def evalone(db, exp, params):
             exp = exp[1:]
         exp = exp.replace('.', '__')
         if exp in params:
-            return params[exp]
+            val = params[exp]
+            if isinstance(val, DerivedSignal):
+                return val.value
+            return val
 
     try:
         r = db_execute_dot(db, "select " + exp, params).fetchone()
@@ -387,7 +396,10 @@ class PageQL:
                 output_buffer.append(html.escape(str(evalone(self.db, node_content, params))))
             elif node_type == 'render_param':
                 try:
-                    output_buffer.append(html.escape(str(params[node_content])))
+                    val = params[node_content]
+                    if isinstance(val, DerivedSignal):
+                        val = val.value
+                    output_buffer.append(html.escape(str(val)))
                 except KeyError:
                     raise ValueError(f"Parameter `{node_content}` not found in params `{params}`")
             elif node_type == 'render_raw':
@@ -532,7 +544,11 @@ class PageQL:
                                  lambda m: ':' + m.group(1).replace('.', '__'),
                                  sql)
                     comp = parse_reactive(sql, self.tables, params)
-                    cursor = self.db.execute(comp.sql, params)
+                    converted_params = {
+                        k: (v.value if isinstance(v, DerivedSignal) else v)
+                        for k, v in params.items()
+                    }
+                    cursor = self.db.execute(comp.sql, converted_params)
                     col_names = comp.columns if not isinstance(comp.columns, str) else [comp.columns]
                 else:
                     cursor = db_execute_dot(self.db, "select * from " + query, params)

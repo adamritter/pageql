@@ -44,6 +44,14 @@ def test_set_signal_derived_replace():
     assert sig.value == 2
 
 
+def test_render_derived_signal_value_and_eval():
+    r = PageQL(":memory:")
+    sig = DerivedSignal(lambda: 1, [])
+    r.load_module("m", "{{foo}} {{:foo + :foo}}")
+    result = r.render("/m", {"foo": sig})
+    assert result.body.strip() == "1 2"
+
+
 def test_from_reactive_uses_parse(monkeypatch):
     import pageql.reactive_sql as rsql
 

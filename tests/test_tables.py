@@ -8,7 +8,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 sys.modules.setdefault("watchfiles", types.ModuleType("watchfiles"))
 sys.modules["watchfiles"].awatch = lambda *args, **kwargs: None
 
-from pageql.reactive import Tables
+from pageql.reactive import Tables, ReactiveTable
 
 
 def _db():
@@ -37,12 +37,22 @@ def test_tables_executeone_events():
     tables.executeone("DELETE FROM items WHERE id = :id", {"id": rid})
     assert events[-1] == [2, (1, "b")]
 
+def test_tables_executeone_select():
+    conn = _db()
+    tables = Tables(conn)
+    comp = tables.executeone("SELECT * FROM items", {})
+    assert isinstance(comp, ReactiveTable)
+    events = []
+    comp.listeners.append(events.append)
+    tables.executeone("INSERT INTO items(name) VALUES ('x')", {})
+    assert events[-1] == [1, (1, 'x')]
+
 
 def test_tables_executeone_invalid():
     conn = _db()
     tables = Tables(conn)
     try:
-        tables.executeone("SELECT 1", {})
+        tables.executeone("DROP TABLE items", {})
     except ValueError:
         pass
     else:

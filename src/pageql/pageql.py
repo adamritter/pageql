@@ -94,6 +94,24 @@ class RenderResult:
         self.headers = headers # List of (name, value) tuples
         self.redirect_to = None
 
+
+class RenderContext:
+    """Track state for a single render pass."""
+
+    def __init__(self):
+        self.next_id = 0
+        self.initialized = False
+
+    def ensure_init(self, out):
+        if not self.initialized:
+            out.append("<script>window.pageqlMarkers={};</script>")
+            self.initialized = True
+
+    def marker_id(self) -> int:
+        mid = self.next_id
+        self.next_id += 1
+        return mid
+
 def db_execute_dot(db, exp, params):
     """
     Executes an SQL expression after converting dot notation parameters to double underscore format.
@@ -345,7 +363,7 @@ class PageQL:
         # Clean up the output to match expected format
         return result.body.rstrip()
 
-    def process_node(self, node, params, output_buffer, path, includes, http_verb=None, reactive=False):
+    def process_node(self, node, params, output_buffer, path, includes, http_verb=None, reactive=False, ctx=None):
         """
         Process a single AST node and append its rendered output to the buffer.
         
@@ -476,7 +494,7 @@ class PageQL:
                             i += 2
                             continue
                         i += 1
-                    reactive = self.process_nodes(node[i], params, output_buffer, path, includes, http_verb, reactive)
+                    reactive = self.process_nodes(node[i], params, output_buffer, path, includes, http_verb, reactive, ctx)
                     i += 1
             elif directive == '#ifdef':
                 param_name = node[1].strip()
@@ -488,9 +506,9 @@ class PageQL:
                 param_name = param_name.replace('.', '__')
                 
                 if param_name in params:
-                    reactive = self.process_nodes(then_body, params, output_buffer, path, includes, http_verb, reactive)
+                    reactive = self.process_nodes(then_body, params, output_buffer, path, includes, http_verb, reactive, ctx)
                 elif else_body:
-                    reactive = self.process_nodes(else_body, params, output_buffer, path, includes, http_verb, reactive)
+                    reactive = self.process_nodes(else_body, params, output_buffer, path, includes, http_verb, reactive, ctx)
             elif directive == '#ifndef':
                 param_name = node[1].strip()
                 then_body = node[2]
@@ -501,9 +519,9 @@ class PageQL:
                 param_name = param_name.replace('.', '__')
                 
                 if param_name not in params:
-                    reactive = self.process_nodes(then_body, params, output_buffer, path, includes, http_verb, reactive)
+                    reactive = self.process_nodes(then_body, params, output_buffer, path, includes, http_verb, reactive, ctx)
                 elif else_body:
-                    reactive = self.process_nodes(else_body, params, output_buffer, path, includes, http_verb, reactive)
+                    reactive = self.process_nodes(else_body, params, output_buffer, path, includes, http_verb, reactive, ctx)
             elif directive == '#from':
                 query = node[1]
                 body = node[2]
@@ -521,24 +539,31 @@ class PageQL:
                     col_names = [col[0] for col in cursor.description]
 
                 rows = cursor.fetchall()
-                if rows:
-                    saved_params = params.copy()
+                mid = None
+                if ctx and reactive:
+                    ctx.ensure_init(output_buffer)
+                    mid = ctx.marker_id()
+                    output_buffer.append(f"<!--pageql-start:{mid}--><script>(window.pageqlMarkers||(window.pageqlMarkers={{}}))[{mid}]={{s:document.currentScript.previousSibling}}</script>")
 
-                    for row in rows:
-                        row_params = params.copy()
-                        for i, col_name in enumerate(col_names):
-                            row_params[col_name] = row[i]
+                saved_params = params.copy()
+                for row in rows:
+                    row_params = params.copy()
+                    for i, col_name in enumerate(col_names):
+                        row_params[col_name] = row[i]
 
-                        row_buffer = []
-                        self.process_nodes(body, row_params, row_buffer, path, includes, http_verb, reactive)
-                        output_buffer.append(''.join(row_buffer).strip())
-                        output_buffer.append('\n')
+                    row_buffer = []
+                    self.process_nodes(body, row_params, row_buffer, path, includes, http_verb, reactive, ctx)
+                    output_buffer.append(''.join(row_buffer).strip())
+                    output_buffer.append('\n')
 
-                    params.clear()
-                    params.update(saved_params)
+                params.clear()
+                params.update(saved_params)
+
+                if ctx and reactive:
+                    output_buffer.append(f"<!--pageql-end:{mid}--><script>window.pageqlMarkers[{mid}].e=document.currentScript.previousSibling</script>")
             return reactive
 
-    def process_nodes(self, nodes, params, output_buffer, path, includes, http_verb=None, reactive=False):
+    def process_nodes(self, nodes, params, output_buffer, path, includes, http_verb=None, reactive=False, ctx=None):
         """
         Process a list of AST nodes and append their rendered output to the buffer.
         
@@ -554,7 +579,7 @@ class PageQL:
             None (output is appended to output_buffer)
         """
         for node in nodes:
-            reactive = self.process_node(node, params, output_buffer, path, includes, http_verb, reactive)
+            reactive = self.process_node(node, params, output_buffer, path, includes, http_verb, reactive, ctx)
         return reactive
 
     def render(self, path, params={}, partial=None, http_verb=None, in_render_directive=False, reactive=False):
@@ -767,6 +792,7 @@ class PageQL:
                 output_buffer = []
                 includes = {None: module_name}  # Dictionary to track imported modules
                 module_body, partials = self._modules[module_name]
+                ctx = RenderContext()
                 
                 # If we have partial segments and no explicit partial list was provided
                 if partial_path and not partial:
@@ -795,7 +821,7 @@ class PageQL:
                     http_key_public = (partial_name, "PUBLIC")
                     if http_key in partials or http_key_public in partials:
                         body = partials[http_key][0] if http_key in partials else partials[http_key_public][0]
-                        reactive = self.process_nodes(body, params, output_buffer, path, includes, http_verb, reactive)
+                        reactive = self.process_nodes(body, params, output_buffer, path, includes, http_verb, reactive, ctx)
                     elif (':', None) in partials or (':', 'PUBLIC') in partials or (':', http_verb) in partials:
                         value = partials[(':', http_verb)] if (':', http_verb) in partials else partials[(':', None)] if (':', None) in partials else partials[(':', 'PUBLIC')]
                         if in_render_directive:
@@ -805,12 +831,12 @@ class PageQL:
                             params[value[0][1:]] = partial[0]
                         partials = value[2]
                         partial = partial[1:]
-                        reactive = self.process_nodes(value[1], params, output_buffer, path, includes, http_verb, reactive)
+                        reactive = self.process_nodes(value[1], params, output_buffer, path, includes, http_verb, reactive, ctx)
                     else:
                         raise ValueError(f"render: Partial '{partial_name}' with http verb '{http_verb}' not found in module '{module_name}'")
                 else:
                     # Render the entire module
-                    reactive = self.process_nodes(module_body, params, output_buffer, path, includes, http_verb, reactive)
+                    reactive = self.process_nodes(module_body, params, output_buffer, path, includes, http_verb, reactive, ctx)
                     
                 result.body = "".join(output_buffer)
                 

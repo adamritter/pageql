@@ -67,3 +67,24 @@ def test_parse_union_all():
     comp = parse_reactive(sql, tables)
     assert isinstance(comp, UnionAll)
     assert_sql_equivalent(conn, sql, comp.sql)
+
+
+def test_parse_reactive_fallback_join():
+    conn = sqlite3.connect(":memory:")
+    conn.execute("CREATE TABLE a(id INTEGER PRIMARY KEY, name TEXT)")
+    conn.execute("CREATE TABLE b(id INTEGER PRIMARY KEY, a_id INTEGER, title TEXT)")
+    tables = Tables(conn)
+    sql = "SELECT a.name, b.title FROM a JOIN b ON a.id=b.a_id"
+    comp = parse_reactive(sql, tables)
+    events = []
+    comp.listeners.append(events.append)
+
+    ta = tables._get("a")
+    tb = tables._get("b")
+    ta.insert("INSERT INTO a(name) VALUES ('x')", {})
+    assert events == []
+    aid = conn.execute("SELECT id FROM a WHERE name='x'").fetchone()[0]
+    tb.insert("INSERT INTO b(a_id,title) VALUES (:a, 't')", {"a": aid})
+    assert events == [[1, ('x', 't')]]
+    tb.delete("DELETE FROM b WHERE id=1", {})
+    assert events[-1] == [2, ('x', 't')]

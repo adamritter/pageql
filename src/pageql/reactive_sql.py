@@ -3,6 +3,59 @@ from sqlglot import expressions as exp
 from .reactive import Tables, ReactiveTable, Select, Where, Union, UnionAll, CountAll
 
 
+class FallbackReactive:
+    """Generic reactive component for unsupported queries."""
+
+    def __init__(self, tables: Tables, sql: str, expr: exp.Expression | None = None):
+        self.tables = tables
+        self.conn = tables.conn
+        self.sql = sql
+        self.listeners = []
+
+        if expr is None:
+            expr = sqlglot.parse_one(sql)
+
+        # Determine table dependencies
+        self.deps = []
+        for tbl in expr.find_all(exp.Table):
+            dep = tables._get(tbl.name)
+            self.deps.append(dep)
+            dep.listeners.append(self._on_parent_event)
+
+        cur = self.conn.execute(sql)
+        self.columns = [d[0] for d in cur.description]
+        self.rows = list(cur.fetchall())
+        self._counts = {}
+        for r in self.rows:
+            self._counts[r] = self._counts.get(r, 0) + 1
+
+    def _emit(self, event):
+        for l in list(self.listeners):
+            l(event)
+
+    def _on_parent_event(self, _):
+        cur = self.conn.execute(self.sql)
+        rows = list(cur.fetchall())
+        new_counts = {}
+        for r in rows:
+            new_counts[r] = new_counts.get(r, 0) + 1
+
+        for row, cnt in new_counts.items():
+            old = self._counts.get(row, 0)
+            if cnt > old:
+                for _ in range(cnt - old):
+                    self._emit([1, row])
+
+        for row, cnt in self._counts.items():
+            new = new_counts.get(row, 0)
+            if new < cnt:
+                for _ in range(cnt - new):
+                    self._emit([2, row])
+
+        self.rows = rows
+        self._counts = new_counts
+
+
 def build_reactive(expr, tables: Tables):
     if isinstance(expr, exp.Subquery):
         return build_reactive(expr.this, tables)
@@ -44,4 +97,9 @@ def build_from(expr, tables: Tables):
 def parse_reactive(sql: str, tables: Tables):
     """Parse a SQL SELECT into reactive components."""
     expr = sqlglot.parse_one(sql)
-    return build_reactive(expr, tables)
+    if list(expr.find_all(exp.Join)):
+        return FallbackReactive(tables, sql, expr)
+    try:
+        return build_reactive(expr, tables)
+    except NotImplementedError:
+        return FallbackReactive(tables, sql, expr)

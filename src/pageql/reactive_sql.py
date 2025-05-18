@@ -3,6 +3,24 @@ from sqlglot import expressions as exp
 from .reactive import Tables, ReactiveTable, Select, Where, Union, UnionAll, CountAll
 
 
+def _replace_placeholders(expr: exp.Expression, params: dict[str, object] | None) -> None:
+    """Replace ``Placeholder`` nodes in *expr* using values from *params*."""
+
+    if not params:
+        return
+
+    for ph in list(expr.find_all(exp.Placeholder)):
+        name = ph.this
+        if name not in params:
+            continue
+        val = params[name]
+        if isinstance(val, (int, float)):
+            lit = exp.Literal.number(val)
+        else:
+            lit = exp.Literal.string(str(val))
+        ph.replace(lit)
+
+
 class FallbackReactive:
     """Generic reactive component for unsupported queries."""
 
@@ -94,9 +112,14 @@ def build_from(expr, tables: Tables):
     raise NotImplementedError(f"Unsupported FROM expression: {type(expr)}")
 
 
-def parse_reactive(sql: str, tables: Tables):
-    """Parse a SQL SELECT into reactive components."""
+def parse_reactive(sql: str, tables: Tables, params: dict[str, object] | None = None):
+    """Parse a SQL SELECT into reactive components.
+
+    Placeholders in *sql* are replaced using *params* before building the
+    reactive expression tree.
+    """
     expr = sqlglot.parse_one(sql)
+    _replace_placeholders(expr, params)
     if list(expr.find_all(exp.Join)):
         return FallbackReactive(tables, sql, expr)
     try:

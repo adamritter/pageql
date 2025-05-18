@@ -447,6 +447,6 @@ class Tables:
             self._get(table).delete(sql, params)
         elif lsql.startswith("select"):
             from .reactive_sql import parse_reactive
-            return parse_reactive(sql_strip, self)
+            return parse_reactive(sql_strip, self, params)
         else:
             raise ValueError(f"Unsupported SQL statement {sql}")

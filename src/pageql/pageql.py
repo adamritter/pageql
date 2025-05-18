@@ -104,7 +104,12 @@ class RenderContext:
 
     def ensure_init(self, out):
         if not self.initialized:
-            out.append("<script>window.pageqlMarkers={};document.currentScript.remove()</script>")
+            out.append(
+                "<script>window.pageqlMarkers={};"
+                "function pstart(i){var s=document.currentScript,c=document.createComment('pageql-start:'+i);s.replaceWith(c);window.pageqlMarkers[i]=c;}"
+                "function pend(i){var s=document.currentScript,c=document.createComment('pageql-end:'+i);s.replaceWith(c);window.pageqlMarkers[i].e=c;}"
+                "document.currentScript.remove()</script>"
+            )
             self.initialized = True
 
     def marker_id(self) -> int:
@@ -398,11 +403,11 @@ class PageQL:
                     ctx.ensure_init(output_buffer)
                     mid = ctx.marker_id()
                     output_buffer.append(
-                        f"<!--pageql-start:{mid}--><script>(window.pageqlMarkers||(window.pageqlMarkers={{}}))[{mid}]=document.currentScript.previousSibling;document.currentScript.remove()</script>"
+                        f"<script>pstart({mid})</script>"
                     )
                     output_buffer.append(value)
                     output_buffer.append(
-                        f"<!--pageql-end:{mid}--><script>window.pageqlMarkers[{mid}].e=document.currentScript.previousSibling;document.currentScript.remove()</script>"
+                        f"<script>pend({mid})</script>"
                     )
                 else:
                     output_buffer.append(value)
@@ -416,11 +421,11 @@ class PageQL:
                         ctx.ensure_init(output_buffer)
                         mid = ctx.marker_id()
                         output_buffer.append(
-                            f"<!--pageql-start:{mid}--><script>(window.pageqlMarkers||(window.pageqlMarkers={{}}))[{mid}]=document.currentScript.previousSibling;document.currentScript.remove()</script>"
+                            f"<script>pstart({mid})</script>"
                         )
                         output_buffer.append(value)
                         output_buffer.append(
-                            f"<!--pageql-end:{mid}--><script>window.pageqlMarkers[{mid}].e=document.currentScript.previousSibling;document.currentScript.remove()</script>"
+                            f"<script>pend({mid})</script>"
                         )
                     else:
                         output_buffer.append(value)
@@ -584,7 +589,7 @@ class PageQL:
                     ctx.ensure_init(output_buffer)
                     mid = ctx.marker_id()
                     output_buffer.append(
-                        f"<!--pageql-start:{mid}--><script>(window.pageqlMarkers||(window.pageqlMarkers={{}}))[{mid}]=document.currentScript.previousSibling;document.currentScript.remove()</script>"
+                        f"<script>pstart({mid})</script>"
                     )
 
                 saved_params = params.copy()
@@ -603,7 +608,7 @@ class PageQL:
 
                 if ctx and reactive:
                     output_buffer.append(
-                        f"<!--pageql-end:{mid}--><script>window.pageqlMarkers[{mid}].e=document.currentScript.previousSibling;document.currentScript.remove()</script>"
+                        f"<script>pend({mid})</script>"
                     )
             return reactive
 

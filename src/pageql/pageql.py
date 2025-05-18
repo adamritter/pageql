@@ -393,13 +393,37 @@ class PageQL:
             if node_type == 'text':
                 output_buffer.append(node_content)
             elif node_type == 'render_expression':
-                output_buffer.append(html.escape(str(evalone(self.db, node_content, params))))
+                value = html.escape(str(evalone(self.db, node_content, params)))
+                if reactive:
+                    ctx.ensure_init(output_buffer)
+                    mid = ctx.marker_id()
+                    output_buffer.append(
+                        f"<!--pageql-start:{mid}--><script>(window.pageqlMarkers||(window.pageqlMarkers={{}}))[{mid}]=document.currentScript.previousSibling;document.currentScript.remove()</script>"
+                    )
+                    output_buffer.append(value)
+                    output_buffer.append(
+                        f"<!--pageql-end:{mid}--><script>window.pageqlMarkers[{mid}].e=document.currentScript.previousSibling;document.currentScript.remove()</script>"
+                    )
+                else:
+                    output_buffer.append(value)
             elif node_type == 'render_param':
                 try:
                     val = params[node_content]
                     if isinstance(val, DerivedSignal):
                         val = val.value
-                    output_buffer.append(html.escape(str(val)))
+                    value = html.escape(str(val))
+                    if reactive:
+                        ctx.ensure_init(output_buffer)
+                        mid = ctx.marker_id()
+                        output_buffer.append(
+                            f"<!--pageql-start:{mid}--><script>(window.pageqlMarkers||(window.pageqlMarkers={{}}))[{mid}]=document.currentScript.previousSibling;document.currentScript.remove()</script>"
+                        )
+                        output_buffer.append(value)
+                        output_buffer.append(
+                            f"<!--pageql-end:{mid}--><script>window.pageqlMarkers[{mid}].e=document.currentScript.previousSibling;document.currentScript.remove()</script>"
+                        )
+                    else:
+                        output_buffer.append(value)
                 except KeyError:
                     raise ValueError(f"Parameter `{node_content}` not found in params `{params}`")
             elif node_type == 'render_raw':

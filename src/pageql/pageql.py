@@ -21,7 +21,8 @@ if __package__ is None:                      # script / doctest-by-path
     sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 
 from pageql.parser import tokenize, parsefirstword, build_ast
-from pageql.reactive import DerivedSignal, get_dependencies
+from pageql.reactive import DerivedSignal, get_dependencies, Tables
+from pageql.reactive_sql import parse_reactive
 
 def flatten_params(params):
     """
@@ -162,6 +163,7 @@ class PageQL:
         self._modules = {} # Store parsed node lists here later
         self._parse_errors = {} # Store errors here
         self.db = sqlite3.connect(db_path)
+        self.tables = Tables(self.db)
 
     def load_module(self, name, source):
         """
@@ -505,27 +507,33 @@ class PageQL:
             elif directive == '#from':
                 query = node[1]
                 body = node[2]
-                
-                cursor = db_execute_dot(self.db, "select * from " + query, params)
+
+                if reactive:
+                    sql = "SELECT * FROM " + query
+                    sql = re.sub(r':([A-Za-z0-9_]+(?:\.[A-Za-z0-9_]+)+)',
+                                 lambda m: ':' + m.group(1).replace('.', '__'),
+                                 sql)
+                    comp = parse_reactive(sql, self.tables, params)
+                    cursor = self.db.execute(comp.sql, params)
+                    col_names = comp.columns if not isinstance(comp.columns, str) else [comp.columns]
+                else:
+                    cursor = db_execute_dot(self.db, "select * from " + query, params)
+                    col_names = [col[0] for col in cursor.description]
+
                 rows = cursor.fetchall()
                 if rows:
-                    col_names = [col[0] for col in cursor.description]
                     saved_params = params.copy()
-                    
-                    # Format to match the old output format exactly
-                    processed_rows = []
+
                     for row in rows:
-                        # Create a row-specific params set
                         row_params = params.copy()
                         for i, col_name in enumerate(col_names):
                             row_params[col_name] = row[i]
-                        
+
                         row_buffer = []
                         self.process_nodes(body, row_params, row_buffer, path, includes, http_verb, reactive)
                         output_buffer.append(''.join(row_buffer).strip())
                         output_buffer.append('\n')
-                    
-                    # Restore original params
+
                     params.clear()
                     params.update(saved_params)
             return reactive

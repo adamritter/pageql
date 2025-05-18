@@ -44,5 +44,28 @@ def test_set_signal_derived_replace():
     assert sig.value == 2
 
 
+def test_from_reactive_uses_parse(monkeypatch):
+    import pageql.reactive_sql as rsql
+
+    seen = []
+    original = rsql.parse_reactive
+
+    def wrapper(sql, tables, params=None):
+        seen.append(sql)
+        return original(sql, tables, params)
+
+    monkeypatch.setattr(rsql, "parse_reactive", wrapper)
+    import pageql.pageql as pql
+    monkeypatch.setattr(pql, "parse_reactive", wrapper)
+
+    r = PageQL(":memory:")
+    r.db.execute("CREATE TABLE items(id INTEGER PRIMARY KEY, name TEXT)")
+    r.db.executemany("INSERT INTO items(name) VALUES (?)", [("a",), ("b",)])
+    r.load_module("m", "{{#reactive on}}{{#from items}}<{{id}}>{{/from}}")
+    result = r.render("/m")
+    assert seen == ["SELECT * FROM items"]
+    assert result.body.strip() == "<1>\n<2>"
+
+
 if __name__ == "__main__":
     test_render_nonexistent_returns_404()

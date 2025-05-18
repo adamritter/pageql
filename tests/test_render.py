@@ -21,7 +21,12 @@ def test_reactive_toggle():
     r = PageQL(":memory:")
     r.load_module("reactive", "{{reactive}} {{#reactive on}}{{reactive}} {{#reactive off}}{{reactive}}")
     result = r.render("/reactive")
-    assert result.body.strip() == "False True False"
+    expected = (
+        "False <script>window.pageqlMarkers={};document.currentScript.remove()</script>"
+        "<!--pageql-start:0--><script>(window.pageqlMarkers||(window.pageqlMarkers={}))[0]=document.currentScript.previousSibling;document.currentScript.remove()</script>True"
+        "<!--pageql-end:0--><script>window.pageqlMarkers[0].e=document.currentScript.previousSibling;document.currentScript.remove()</script> False"
+    )
+    assert result.body == expected
 
 
 def test_set_signal_reactive_on():
@@ -74,12 +79,49 @@ def test_from_reactive_uses_parse(monkeypatch):
     assert seen == ["SELECT * FROM items"]
     expected = (
         "<script>window.pageqlMarkers={};document.currentScript.remove()</script>"
-        "<!--pageql-start:0--><script>(window.pageqlMarkers||(window.pageqlMarkers={}))[0]=document.currentScript.previousSibling;document.currentScript.remove()</script><1>\n<2>\n"
-        "<!--pageql-end:0--><script>window.pageqlMarkers[0].e="
-        "document.currentScript.previousSibling;document.currentScript.remove()</script>"
+        "<!--pageql-start:0--><script>(window.pageqlMarkers||(window.pageqlMarkers={}))[0]=document.currentScript.previousSibling;document.currentScript.remove()</script><<!--pageql-start:1--><script>(window.pageqlMarkers||(window.pageqlMarkers={}))[1]=document.currentScript.previousSibling;document.currentScript.remove()</script>1<!--pageql-end:1--><script>window.pageqlMarkers[1].e=document.currentScript.previousSibling;document.currentScript.remove()</script>>\n"
+        "<<!--pageql-start:2--><script>(window.pageqlMarkers||(window.pageqlMarkers={}))[2]=document.currentScript.previousSibling;document.currentScript.remove()</script>2<!--pageql-end:2--><script>window.pageqlMarkers[2].e=document.currentScript.previousSibling;document.currentScript.remove()</script>>\n"
+        "<!--pageql-end:0--><script>window.pageqlMarkers[0].e=document.currentScript.previousSibling;document.currentScript.remove()</script>"
     )
     assert result.body == expected
 
+
+
+
+def test_reactive_set_comments():
+    snippet = """{{#reactive on}}
+{{#set a 1}}
+{{a}}
+{{:a + :a}}
+{{#set b 3}}
+<p>{{:a + :b}} = 4</p>
+{{#set c :a+:b}}
+<p>{{:c}} = c = 4</p>
+{{#set a 2}}
+<p>{{:a + :b}} = 5</p>
+<p>{{:c}} = c = 5</p>
+{{#reactive off}}"""
+
+    r = PageQL(":memory:")
+    r.load_module("m", snippet)
+    result = r.render("/m")
+    expected = (
+        "\n"
+        "<script>window.pageqlMarkers={};document.currentScript.remove()</script>"
+        "<!--pageql-start:0--><script>(window.pageqlMarkers||(window.pageqlMarkers={}))[0]=document.currentScript.previousSibling;document.currentScript.remove()</script>1"
+        "<!--pageql-end:0--><script>window.pageqlMarkers[0].e=document.currentScript.previousSibling;document.currentScript.remove()</script>\n"
+        "<!--pageql-start:1--><script>(window.pageqlMarkers||(window.pageqlMarkers={}))[1]=document.currentScript.previousSibling;document.currentScript.remove()</script>2"
+        "<!--pageql-end:1--><script>window.pageqlMarkers[1].e=document.currentScript.previousSibling;document.currentScript.remove()</script>\n"
+        "<p><!--pageql-start:2--><script>(window.pageqlMarkers||(window.pageqlMarkers={}))[2]=document.currentScript.previousSibling;document.currentScript.remove()</script>4"
+        "<!--pageql-end:2--><script>window.pageqlMarkers[2].e=document.currentScript.previousSibling;document.currentScript.remove()</script> = 4</p>\n"
+        "<p><!--pageql-start:3--><script>(window.pageqlMarkers||(window.pageqlMarkers={}))[3]=document.currentScript.previousSibling;document.currentScript.remove()</script>4"
+        "<!--pageql-end:3--><script>window.pageqlMarkers[3].e=document.currentScript.previousSibling;document.currentScript.remove()</script> = c = 4</p>\n"
+        "<p><!--pageql-start:4--><script>(window.pageqlMarkers||(window.pageqlMarkers={}))[4]=document.currentScript.previousSibling;document.currentScript.remove()</script>5"
+        "<!--pageql-end:4--><script>window.pageqlMarkers[4].e=document.currentScript.previousSibling;document.currentScript.remove()</script> = 5</p>\n"
+        "<p><!--pageql-start:5--><script>(window.pageqlMarkers||(window.pageqlMarkers={}))[5]=document.currentScript.previousSibling;document.currentScript.remove()</script>5"
+        "<!--pageql-end:5--><script>window.pageqlMarkers[5].e=document.currentScript.previousSibling;document.currentScript.remove()</script> = c = 5</p>\n"
+    )
+    assert result.body == expected
 
 if __name__ == "__main__":
     test_render_nonexistent_returns_404()

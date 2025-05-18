@@ -31,7 +31,7 @@ def test_parse_select_basic():
     conn = _db()
     tables = Tables(conn)
     sql = "SELECT * FROM items"
-    comp = parse_reactive(sql, tables)
+    comp = parse_reactive(sql, tables, {})
     assert isinstance(comp, ReactiveTable)
     assert_sql_equivalent(conn, sql, comp.sql)
 
@@ -40,7 +40,7 @@ def test_parse_select_where():
     conn = _db()
     tables = Tables(conn)
     sql = "SELECT name FROM items WHERE name='x'"
-    comp = parse_reactive(sql, tables)
+    comp = parse_reactive(sql, tables, {})
     assert isinstance(comp, Select)
     assert isinstance(comp.parent, Where)
     assert_sql_equivalent(conn, sql, comp.sql)
@@ -50,7 +50,7 @@ def test_parse_count():
     conn = _db()
     tables = Tables(conn)
     sql = "SELECT COUNT(*) FROM items"
-    comp = parse_reactive(sql, tables)
+    comp = parse_reactive(sql, tables, {})
     assert isinstance(comp, CountAll)
     assert_sql_equivalent(conn, sql, comp.sql)
 
@@ -64,7 +64,7 @@ def test_parse_union_all():
     # Add sample rows so result comparison is non-trivial
     conn.execute("INSERT INTO a(name) VALUES ('a1')")
     conn.execute("INSERT INTO b(name) VALUES ('b1')")
-    comp = parse_reactive(sql, tables)
+    comp = parse_reactive(sql, tables, {})
     assert isinstance(comp, UnionAll)
     assert_sql_equivalent(conn, sql, comp.sql)
 
@@ -75,7 +75,7 @@ def test_parse_reactive_fallback_join():
     conn.execute("CREATE TABLE b(id INTEGER PRIMARY KEY, a_id INTEGER, title TEXT)")
     tables = Tables(conn)
     sql = "SELECT a.name, b.title FROM a JOIN b ON a.id=b.a_id"
-    comp = parse_reactive(sql, tables)
+    comp = parse_reactive(sql, tables, {})
     events = []
     comp.listeners.append(events.append)
 
@@ -88,3 +88,13 @@ def test_parse_reactive_fallback_join():
     assert events == [[1, ('x', 't')]]
     tb.delete("DELETE FROM b WHERE id=1", {})
     assert events[-1] == [2, ('x', 't')]
+
+
+def test_parse_select_with_params():
+    conn = _db()
+    tables = Tables(conn)
+    sql = "SELECT name FROM items WHERE id = :id"
+    comp = parse_reactive(sql, tables, {"id": 1})
+    assert isinstance(comp, Select)
+    assert isinstance(comp.parent, Where)
+    assert_sql_equivalent(conn, "SELECT name FROM items WHERE id = 1", comp.sql)

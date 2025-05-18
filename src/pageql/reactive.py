@@ -7,6 +7,8 @@ def execute(conn, sql, params):
         raise Exception(f"Execute failed for query: {sql} with params: {params} with error: {e}")
     return cursor
 
+from .join import Join
+
 
 def get_dependencies(expr):
     """Return parameter names referenced in *expr*.
@@ -380,6 +382,8 @@ class Intersect:
             self._delete(event[1], counts_self, counts_other)
         else:
             self._update(event[1], event[2], counts_self, counts_other)
+
+
 
 class Select:
     def __init__(self, parent, select_sql):

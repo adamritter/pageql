@@ -111,6 +111,7 @@ def test_reactive_set_comments():
         "<script>pstart(1)</script>2<script>pend(1)</script>\n",
         "<p><script>pstart(2)</script>4<script>pend(2)</script> = 4</p>\n",
         "<p><script>pstart(3)</script>4<script>pend(3)</script> = c = 4</p>\n",
+        "<script>pset(3,\"5\")</script>\n",
         "<p><script>pstart(4)</script>5<script>pend(4)</script> = 5</p>\n",
         "<p><script>pstart(5)</script>5<script>pend(5)</script> = c = 5</p>\n",
     )

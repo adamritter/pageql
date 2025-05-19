@@ -21,7 +21,7 @@ if __package__ is None:                      # script / doctest-by-path
     sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 
 from pageql.parser import tokenize, parsefirstword, build_ast
-from pageql.reactive import DerivedSignal, get_dependencies, Tables
+from pageql.reactive import DerivedSignal, DependentValue, get_dependencies, Tables
 from pageql.reactive_sql import parse_reactive
 
 def flatten_params(params):
@@ -162,7 +162,7 @@ def db_execute_dot(db, exp, params):
             converted_params[k] = v
     return db.execute(converted_exp, converted_params)
 
-def evalone(db, exp, params):
+def evalone(db, exp, params, reactive=False, tables=None):
     exp = exp.strip()
     if re.match("^:?[a-zA-z._][a-zA-z._0-9]*$", exp):
         if exp[0] == ':':
@@ -170,9 +170,29 @@ def evalone(db, exp, params):
         exp = exp.replace('.', '__')
         if exp in params:
             val = params[exp]
+            if reactive:
+                if isinstance(val, DerivedSignal):
+                    return val
+                signal = DerivedSignal(lambda v=val: v, [])
+                params[exp] = signal
+                return signal
             if isinstance(val, DerivedSignal):
                 return val.value
             return val
+
+    if reactive and exp.lower().startswith("select"):
+        sql = re.sub(r':([A-Za-z0-9_]+(?:\.[A-Za-z0-9_]+)+)',
+                     lambda m: ':' + m.group(1).replace('.', '__'),
+                     exp)
+        if tables is None:
+            tables = Tables(db)
+        for name in get_dependencies(sql):
+            name = name.replace('.', '__')
+            val = params.get(name)
+            if val is not None and not isinstance(val, DerivedSignal):
+                params[name] = DerivedSignal(lambda v=val: v, [])
+        comp = parse_reactive(sql, tables, params)
+        return DependentValue(comp)
 
     try:
         r = db_execute_dot(db, "select " + exp, params).fetchone()
@@ -374,7 +394,9 @@ class PageQL:
 
                 if value_expr:
                     try:
-                        evaluated_value = evalone(self.db, value_expr, params)
+                        evaluated_value = evalone(
+                            self.db, value_expr, params, reactive, self.tables
+                        )
                         render_params[key] = evaluated_value
                     except Exception as e:
                         raise Exception(f"Warning: Error evaluating SQL expression `{value_expr}` for key `{key}` in #render: {e}")
@@ -410,7 +432,9 @@ class PageQL:
             if node_type == 'text':
                 output_buffer.append(node_content)
             elif node_type == 'render_expression':
-                value = html.escape(str(evalone(self.db, node_content, params)))
+                value = html.escape(
+                    str(evalone(self.db, node_content, params, reactive, self.tables))
+                )
                 if reactive:
                     ctx.ensure_init(output_buffer)
                     mid = ctx.marker_id()
@@ -442,7 +466,9 @@ class PageQL:
                 except KeyError:
                     raise ValueError(f"Parameter `{node_content}` not found in params `{params}`")
             elif node_type == 'render_raw':
-                output_buffer.append(str(evalone(self.db, node_content, params)))
+                output_buffer.append(
+                    str(evalone(self.db, node_content, params, reactive, self.tables))
+                )
             elif node_type == '#param':
                 param_name, param_value = self.handle_param(node_content, params)
                 params[param_name] = param_value
@@ -469,7 +495,7 @@ class PageQL:
                                 env[k] = v.value
                             else:
                                 env[k] = v
-                        return evalone(self.db, args, env)
+                        return evalone(self.db, args, env, False, self.tables)
 
                     existing = params.get(var)
                     if isinstance(existing, DerivedSignal):
@@ -479,7 +505,7 @@ class PageQL:
                         signal = DerivedSignal(compute, deps)
                         params[var] = signal
                 else:
-                    params[var] = evalone(self.db, args, params)
+                    params[var] = evalone(self.db, args, params, False, self.tables)
             elif node_type == '#render':
                 rendered_content = self.handle_render(node_content, path, params, includes, None, reactive)
                 output_buffer.append(rendered_content)
@@ -493,10 +519,10 @@ class PageQL:
                     raise ValueError(f"Unknown reactive mode '{node_content}'")
                 params['reactive'] = reactive
             elif node_type == '#redirect':
-                url = evalone(self.db, node_content, params)
+                url = evalone(self.db, node_content, params, reactive, self.tables)
                 raise RenderResultException(RenderResult(status_code=302, headers=[('Location', url)]))
             elif node_type == '#statuscode':
-                code = evalone(self.db, node_content, params)
+                code = evalone(self.db, node_content, params, reactive, self.tables)
                 raise RenderResultException(RenderResult(status_code=code, body="".join(output_buffer)))
             elif node_type == '#update' or node_type == "#insert" or node_type == "#create" or node_type == "#merge" or node_type == "#delete":
                 try:
@@ -516,7 +542,9 @@ class PageQL:
                 
                 includes[alias] = module_path
             elif node_type == '#log':
-                print("Logging: " + str(evalone(self.db, node_content, params)))
+                print(
+                    "Logging: " + str(evalone(self.db, node_content, params, reactive, self.tables))
+                )
             elif node_type == '#dump':
                 # fetchall the table and dump it
                 cursor = db_execute_dot(self.db, "select * from " + node_content, params)
@@ -541,7 +569,7 @@ class PageQL:
                 i = 1
                 while i < len(node):
                     if i + 1 < len(node):
-                        if not evalone(self.db, node[i], params):
+                        if not evalone(self.db, node[i], params, reactive, self.tables):
                             i += 2
                             continue
                         i += 1

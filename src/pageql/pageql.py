@@ -11,7 +11,7 @@ Classes:
 
 # Instructions for LLMs and devs: Keep the code short. Make changes minimal. Don't change even tests too much.
 
-import re, time, sys    
+import re, time, sys, json
 import doctest
 import sqlite3
 import html
@@ -101,6 +101,7 @@ class RenderContext:
     def __init__(self):
         self.next_id = 0
         self.initialized = False
+        self.listeners = []
 
     def ensure_init(self, out):
         if not self.initialized:
@@ -117,6 +118,16 @@ class RenderContext:
         mid = self.next_id
         self.next_id += 1
         return mid
+
+    def add_listener(self, signal, listener):
+        signal.listeners.append(listener)
+        self.listeners.append((signal, listener))
+
+    def cleanup(self):
+        for signal, listener in self.listeners:
+            if listener in getattr(signal, "listeners", []):
+                signal.listeners.remove(listener)
+        self.listeners.clear()
 
 def db_execute_dot(db, exp, params):
     """
@@ -403,31 +414,29 @@ class PageQL:
                 if reactive:
                     ctx.ensure_init(output_buffer)
                     mid = ctx.marker_id()
-                    output_buffer.append(
-                        f"<script>pstart({mid})</script>"
-                    )
+                    output_buffer.append(f"<script>pstart({mid})</script>")
                     output_buffer.append(value)
-                    output_buffer.append(
-                        f"<script>pend({mid})</script>"
-                    )
+                    output_buffer.append(f"<script>pend({mid})</script>")
                 else:
                     output_buffer.append(value)
             elif node_type == 'render_param':
                 try:
                     val = params[node_content]
+                    signal = val if isinstance(val, DerivedSignal) else None
                     if isinstance(val, DerivedSignal):
                         val = val.value
                     value = html.escape(str(val))
                     if reactive:
                         ctx.ensure_init(output_buffer)
                         mid = ctx.marker_id()
-                        output_buffer.append(
-                            f"<script>pstart({mid})</script>"
-                        )
+                        output_buffer.append(f"<script>pstart({mid})</script>")
                         output_buffer.append(value)
-                        output_buffer.append(
-                            f"<script>pend({mid})</script>"
-                        )
+                        output_buffer.append(f"<script>pend({mid})</script>")
+                        if signal and signal.deps:
+                            def listener(v=None, *, sig=signal, mid=mid, out=output_buffer, ctx=ctx):
+                                ctx.ensure_init(out)
+                                out.append(f"<script>pset({mid},{json.dumps(html.escape(str(sig.value)))})</script>")
+                            ctx.add_listener(signal, listener)
                     else:
                         output_buffer.append(value)
                 except KeyError:
@@ -887,9 +896,11 @@ class PageQL:
                 else:
                     # Render the entire module
                     reactive = self.process_nodes(module_body, params, output_buffer, path, includes, http_verb, reactive, ctx)
-                    
+
                 result.body = "".join(output_buffer)
-                
+
+                ctx.cleanup()
+
                 # Process the output to match the expected format in tests
                 result.body = result.body.replace('\n\n', '\n')  # Normalize extra newlines
             else:

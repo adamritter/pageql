@@ -204,6 +204,34 @@ class DependentValue:
     def __str__(self):
         return str(self.value)
 
+    def reset(self, parent):
+        """Switch to *parent* and recompute the value."""
+
+        # detach from old parent
+        if self.onevent in getattr(self.parent, "listeners", []):
+            self.parent.listeners.remove(self.onevent)
+
+        self.parent = parent
+        self.conn = parent.conn
+        self.sql = parent.sql
+
+        cols = parent.columns
+        if isinstance(cols, str):
+            cols = [cols]
+        if len(cols) != 1:
+            raise ValueError("DependentValue parent must have exactly one column")
+
+        self.columns = cols[0]
+        parent.listeners.append(self.onevent)
+
+        row = self.conn.execute(self.sql).fetchone()
+        value = row[0] if row else None
+
+        if value != self.value:
+            self.value = value
+            for l in list(self.listeners):
+                l(self.value)
+
     def onevent(self, event):
         oldval = self.value
         if event[0] == 1:

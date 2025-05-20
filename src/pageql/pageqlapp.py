@@ -12,19 +12,27 @@ from .pageql import PageQL
 # Global PageQL engine instance (simpler for this example)
 reload_script = """
 <script>
-    const host = window.location.hostname; // e.g., "localhost"
-    const port = window.location.port;     // e.g., "3000" or "8080"
-    const clientId = Math.random().toString(36).substring(2);
-    const ws_url = `ws://${host}:${port}/reload-request-ws?clientId=${clientId}`;
+  window.pageqlMarkers={};
+  function pstart(i){var s=document.currentScript,c=document.createComment('pageql-start:'+i);s.replaceWith(c);window.pageqlMarkers[i]=c;}
+  function pend(i){var s=document.currentScript,c=document.createComment('pageql-end:'+i);s.replaceWith(c);window.pageqlMarkers[i].e=c;}
+  function pset(i,v){var s=window.pageqlMarkers[i],e=s.e,r=document.createRange();r.setStartAfter(s);r.setEndBefore(e);r.deleteContents();var t=document.createElement('template');t.innerHTML=v;e.parentNode.insertBefore(t.content,e);}
+  function pdelete(i){var m=window.pageqlMarkers[i],e=m.e,r=document.createRange();r.setStartBefore(m);r.setEndAfter(e);r.deleteContents();delete window.pageqlMarkers[i];}
+  function pupdate(o,n,v){var m=window.pageqlMarkers[o],e=m.e;m.textContent='pageql-start:'+n;e.textContent='pageql-end:'+n;delete window.pageqlMarkers[o];window.pageqlMarkers[n]=m;pset(n,v);}
+  document.currentScript.remove()
+</script>
+<script>
+  const host = window.location.hostname;
+  const port = window.location.port;
+  const clientId = Math.random().toString(36).substring(2);
+  const ws_url = `ws://${host}:${port}/reload-request-ws?clientId=${clientId}`;
 
   function forceReload() {
-    console.log("forceReload")
     const socket = new WebSocket(ws_url);
     socket.onopen = () => {
       window.location.reload();
     };
     socket.onerror = () => {
-      setTimeout(forceReload, 100)
+      setTimeout(forceReload, 100);
     };
   }
 
@@ -34,18 +42,17 @@ reload_script = """
   };
 
   socket.onmessage = (event) => {
-    console.log("Server says:", event.data);
     if (event.data == "reload") {
       window.location.reload();
     }
   };
 
   socket.onclose = () => {
-    setTimeout(forceReload, 100)
+    setTimeout(forceReload, 100);
   };
 
-  socket.onerror = (event) => {
-    setTimeout(forceReload, 100)
+  socket.onerror = () => {
+    setTimeout(forceReload, 100);
   };
   document.currentScript.remove()
 </script>

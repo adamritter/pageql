@@ -106,12 +106,13 @@ def test_reactive_set_comments():
     r.load_module("m", snippet)
     result = r.render("/m")
     expected = (
-        "\n",
-        "<script>window.pageqlMarkers={};function pstart(i){var s=document.currentScript,c=document.createComment('pageql-start:'+i);s.replaceWith(c);window.pageqlMarkers[i]=c;}function pend(i){var s=document.currentScript,c=document.createComment('pageql-end:'+i);s.replaceWith(c);window.pageqlMarkers[i].e=c;}function pset(i,v){var s=window.pageqlMarkers[i],e=s.e,n=s.nextSibling;while(n&&n!==e){var nx=n.nextSibling;n.remove();n=nx;}var t=document.createElement('template');t.innerHTML=v;e.parentNode.insertBefore(t.content,e);}document.currentScript.remove()</script><script>pstart(0)</script>1<script>pend(0)</script>\n",
-        "<script>pstart(1)</script>2<script>pend(1)</script>\n",
-        "<p><script>pstart(2)</script>4<script>pend(2)</script> = 4</p>\n",
-        "<p><script>pstart(3)</script>4<script>pend(3)</script> = c = 4</p>\n",
-        "<script>pset(3,\"5\")</script>\n",
-        "<p><script>pstart(4)</script>5<script>pend(4)</script> = 5</p>\n",
-        "<p><script>pstart(5)</script>5<script>pend(5)</script> = c = 5</p>\n",
+        "\n"
+        "<script>window.pageqlMarkers={};function pstart(i){var s=document.currentScript,c=document.createComment('pageql-start:'+i);s.replaceWith(c);window.pageqlMarkers[i]=c;}function pend(i){var s=document.currentScript,c=document.createComment('pageql-end:'+i);s.replaceWith(c);window.pageqlMarkers[i].e=c;}function pset(i,v){var s=window.pageqlMarkers[i],e=s.e,n=s.nextSibling;while(n&&n!==e){var nx=n.nextSibling;n.remove();n=nx;}var t=document.createElement('template');t.innerHTML=v;e.parentNode.insertBefore(t.content,e);}document.currentScript.remove()</script><script>pstart(0)</script>1<script>pend(0)</script>\n"
+        "<script>pstart(1)</script>2<script>pend(1)</script>\n"
+        "<p><script>pstart(2)</script>4<script>pend(2)</script> = 4</p>\n"
+        "<p><script>pstart(3)</script>4<script>pend(3)</script> = c = 4</p>\n"
+        "<script>pset(3,\"5\")</script>\n"
+        "<p><script>pstart(4)</script>5<script>pend(4)</script> = 5</p>\n"
+        "<p><script>pstart(5)</script>5<script>pend(5)</script> = c = 5</p>\n"
     )
+    assert result.body == expected

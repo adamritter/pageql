@@ -201,6 +201,9 @@ class DependentValue:
         self.value = row[0] if row else None
         self.parent.listeners.append(self.onevent)
 
+    def __str__(self):
+        return str(self.value)
+
     def onevent(self, event):
         oldval = self.value
         if event[0] == 1:

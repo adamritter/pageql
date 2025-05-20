@@ -1,6 +1,16 @@
 import sqlglot
 from sqlglot import expressions as exp
-from .reactive import Tables, ReactiveTable, Select, Where, Union, UnionAll, CountAll
+from .reactive import (
+    Tables,
+    ReactiveTable,
+    Select,
+    Where,
+    Union,
+    UnionAll,
+    CountAll,
+    DerivedSignal,
+    DependentValue,
+)
 
 
 def _replace_placeholders(expr: exp.Expression, params: dict[str, object] | None) -> None:
@@ -14,6 +24,10 @@ def _replace_placeholders(expr: exp.Expression, params: dict[str, object] | None
         if name not in params:
             continue
         val = params[name]
+        if isinstance(val, DerivedSignal):
+            val = val.value
+        if isinstance(val, DependentValue):
+            val = val.value
         if isinstance(val, (int, float)):
             lit = exp.Literal.number(val)
         else:

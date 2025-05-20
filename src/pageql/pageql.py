@@ -460,7 +460,7 @@ class PageQL:
                         output_buffer.append(f"<script>pstart({mid})</script>")
                         output_buffer.append(value)
                         output_buffer.append(f"<script>pend({mid})</script>")
-                        if signal and signal.deps:
+                        if signal:
                             def listener(v=None, *, sig=signal, mid=mid, out=output_buffer, ctx=ctx):
                                 ctx.ensure_init(out)
                                 out.append(f"<script>pset({mid},{json.dumps(html.escape(str(sig.value)))})</script>")

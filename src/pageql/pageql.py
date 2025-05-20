@@ -130,6 +130,11 @@ class RenderContext:
     def clear_output(self):
         self.out.clear()
 
+    def append_script(self, content, out=None):
+        if out is None:
+            out = self.out
+        out.append(f"<script>{content}</script>")
+
 
 class ReadOnly:
     """Simple wrapper for read-only parameters."""
@@ -461,9 +466,9 @@ class PageQL:
                     value = html.escape(str(result.value))
                     ctx.ensure_init()
                     mid = ctx.marker_id()
-                    out.append(f"<script>pstart({mid})</script>")
+                    ctx.append_script(f"pstart({mid})", out)
                     out.append(value)
-                    out.append(f"<script>pend({mid})</script>")
+                    ctx.append_script(f"pend({mid})", out)
                 else:
                     if isinstance(result, ReadOnly):
                         result = result.value
@@ -482,13 +487,13 @@ class PageQL:
                         if reactive:
                             ctx.ensure_init()
                             mid = ctx.marker_id()
-                            out.append(f"<script>pstart({mid})</script>")
+                            ctx.append_script(f"pstart({mid})", out)
                             out.append(value)
-                            out.append(f"<script>pend({mid})</script>")
+                            ctx.append_script(f"pend({mid})", out)
                             if signal:
                                 def listener(v=None, *, sig=signal, mid=mid, ctx=ctx):
                                     ctx.ensure_init()
-                                    out.append(f"<script>pset({mid},{json.dumps(html.escape(str(sig.value)))})</script>")
+                                    ctx.append_script(f"pset({mid},{json.dumps(html.escape(str(sig.value)))})", out)
                                 ctx.add_listener(signal, listener)
                         else:
                             out.append(value)
@@ -664,9 +669,9 @@ class PageQL:
                     if ctx and reactive:
                         row_id = f"{mid}_{base64.b64encode(hashlib.sha256(repr(tuple(row)).encode()).digest())[:8]}"
                         ctx.ensure_init()
-                        ctx.out.append(f"<script>pstart('{row_id}')</script>")
+                        ctx.append_script(f"pstart('{row_id}')")
                         ctx.out.append(row_content)
-                        ctx.out.append(f"<script>pend('{row_id}')</script>")
+                        ctx.append_script(f"pend('{row_id}')")
                     else:
                         ctx.out.append(row_content)
                     ctx.out.append('\n')
@@ -679,7 +684,7 @@ class PageQL:
                         if ev[0] == 2:
                             row_id = f"{mid}_{base64.b64encode(hashlib.sha256(repr(tuple(ev[1])).encode()).digest())[:8]}"
                             ctx.ensure_init(out)
-                            out.append(f"<script>pdelete('{row_id}')</script>")
+                            ctx.append_script(f"pdelete('{row_id}')")
                         elif ev[0] == 1:
                             row_id = f"{mid}_{base64.b64encode(hashlib.sha256(repr(tuple(ev[1])).encode()).digest())[:8]}"
                             row_params = saved_params.copy()
@@ -700,7 +705,7 @@ class PageQL:
                             self.process_nodes(body, row_params, path, includes, http_verb, True, ctx, out=row_buf)
                             row_content = ''.join(row_buf).strip()
                             ctx.ensure_init()
-                            ctx.out.append(f"<script>pupdate('{old_id}','{new_id}',{json.dumps(row_content)})</script>")
+                            ctx.append_script(f"pupdate('{old_id}','{new_id}',{json.dumps(row_content)})")
                     ctx.add_listener(comp, on_event)
 
                 params.clear()

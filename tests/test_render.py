@@ -174,7 +174,6 @@ def test_from_reactive_update_event():
     h1_new = base64.b64encode(hashlib.sha256(repr((1, "c",)).encode()).digest())[:8]
     h2 = base64.b64encode(hashlib.sha256(repr((2, "b",)).encode()).digest())[:8]
     expected = (
-        "<script>window.pageqlMarkers={};function pstart(i){var s=document.currentScript,c=document.createComment('pageql-start:'+i);s.replaceWith(c);window.pageqlMarkers[i]=c;}function pend(i){var s=document.currentScript,c=document.createComment('pageql-end:'+i);s.replaceWith(c);window.pageqlMarkers[i].e=c;}function pset(i,v){var s=window.pageqlMarkers[i],e=s.e,r=document.createRange();r.setStartAfter(s);r.setEndBefore(e);r.deleteContents();var t=document.createElement('template');t.innerHTML=v;e.parentNode.insertBefore(t.content,e);}function pdelete(i){var m=window.pageqlMarkers[i],e=m.e,r=document.createRange();r.setStartBefore(m);r.setEndAfter(e);r.deleteContents();delete window.pageqlMarkers[i];}function pupdate(o,n,v){var m=window.pageqlMarkers[o],e=m.e;m.textContent='pageql-start:'+n;e.textContent='pageql-end:'+n;delete window.pageqlMarkers[o];window.pageqlMarkers[n]=m;pset(n,v);}document.currentScript.remove()</script>"
         f"<script>pstart('0_{h1_old}')</script><a><script>pend('0_{h1_old}')</script>\n"
         f"<script>pstart('0_{h2}')</script><b><script>pend('0_{h2}')</script>\n"
         f"<script>pupdate('0_{h1_old}','0_{h1_new}',\"<c>\")</script>"

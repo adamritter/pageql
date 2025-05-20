@@ -40,12 +40,14 @@ def test_reactive_count_with_param_dependency():
         "{{#set a 1}}"
         "{{#set cnt count(*) from nums where value > :a}}"
         "{{cnt}}"
+        "{{#set a 2}}"
     )
     r.load_module("m", snippet)
     result = r.render("/m")
     expected = (
         "<script>window.pageqlMarkers={};function pstart(i){var s=document.currentScript,c=document.createComment('pageql-start:'+i);s.replaceWith(c);window.pageqlMarkers[i]=c;}function pend(i){var s=document.currentScript,c=document.createComment('pageql-end:'+i);s.replaceWith(c);window.pageqlMarkers[i].e=c;}function pset(i,v){var s=window.pageqlMarkers[i],e=s.e,r=document.createRange();r.setStartAfter(s);r.setEndBefore(e);r.deleteContents();var t=document.createElement('template');t.innerHTML=v;e.parentNode.insertBefore(t.content,e);}function pdelete(i){var m=window.pageqlMarkers[i],e=m.e,r=document.createRange();r.setStartBefore(m);r.setEndAfter(e);r.deleteContents();delete window.pageqlMarkers[i];}function pupdate(o,n,v){var m=window.pageqlMarkers[o],e=m.e;m.textContent='pageql-start:'+n;e.textContent='pageql-end:'+n;delete window.pageqlMarkers[o];window.pageqlMarkers[n]=m;pset(n,v);}document.currentScript.remove()</script>"
         "<script>pstart(0)</script>2<script>pend(0)</script>"
+        "<script>pset(0,\"1\")</script>"
     )
     assert result.body == expected
 

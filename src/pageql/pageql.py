@@ -114,6 +114,7 @@ class RenderContext:
                 "function pend(i){var s=document.currentScript,c=document.createComment('pageql-end:'+i);s.replaceWith(c);window.pageqlMarkers[i].e=c;}"
                 "function pset(i,v){var s=window.pageqlMarkers[i],e=s.e,r=document.createRange();r.setStartAfter(s);r.setEndBefore(e);r.deleteContents();var t=document.createElement('template');t.innerHTML=v;e.parentNode.insertBefore(t.content,e);}"
                 "function pdelete(i){var m=window.pageqlMarkers[i],e=m.e,r=document.createRange();r.setStartBefore(m);r.setEndAfter(e);r.deleteContents();delete window.pageqlMarkers[i];}"
+                "function pupdate(o,n,v){var m=window.pageqlMarkers[o],e=m.e;m.textContent='pageql-start:'+n;e.textContent='pageql-end:'+n;delete window.pageqlMarkers[o];window.pageqlMarkers[n]=m;pset(n,v);}"
                 "document.currentScript.remove()</script>"
             )
             self.initialized = True
@@ -675,11 +676,25 @@ class PageQL:
                     output_buffer.append('\n')
 
                 if ctx and reactive:
-                    def on_event(ev, *, mid=mid, out=output_buffer, ctx=ctx):
+                    def on_event(ev, *, mid=mid, out=output_buffer, ctx=ctx,
+                                   body=body, col_names=col_names, path=path,
+                                   includes=includes, http_verb=http_verb,
+                                   saved_params=saved_params):
                         if ev[0] == 2:
                             row_id = f"{mid}_{base64.b64encode(hashlib.sha256(repr(tuple(ev[1])).encode()).digest())[:8]}"
                             ctx.ensure_init(out)
                             out.append(f"<script>pdelete('{row_id}')</script>")
+                        elif ev[0] == 3:
+                            old_id = f"{mid}_{base64.b64encode(hashlib.sha256(repr(tuple(ev[1])).encode()).digest())[:8]}"
+                            new_id = f"{mid}_{base64.b64encode(hashlib.sha256(repr(tuple(ev[2])).encode()).digest())[:8]}"
+                            row_params = saved_params.copy()
+                            for i, col_name in enumerate(col_names):
+                                row_params[col_name] = ReadOnly(ev[2][i])
+                            row_buf = []
+                            self.process_nodes(body, row_params, row_buf, path, includes, http_verb, True, ctx)
+                            row_content = ''.join(row_buf).strip()
+                            ctx.ensure_init(out)
+                            out.append(f"<script>pupdate('{old_id}','{new_id}',{json.dumps(row_content)})</script>")
                     ctx.add_listener(comp, on_event)
 
                 params.clear()

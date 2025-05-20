@@ -10,6 +10,20 @@ def execute(conn, sql, params):
 from .join import Join
 
 
+class Signal:
+    """Basic observable value container."""
+
+    def __init__(self, value=None):
+        self.listeners = []
+        self.value = value
+
+    def set_value(self, value):
+        if self.value != value:
+            self.value = value
+            for l in list(self.listeners):
+                l(value)
+
+
 def get_dependencies(expr):
     """Return parameter names referenced in *expr*.
 
@@ -27,21 +41,16 @@ def get_dependencies(expr):
     return deps
 
 
-class DerivedSignal:
+class DerivedSignal(Signal):
     def __init__(self, f, deps):
+        super().__init__(f())
         self.f = f
         self.deps = deps
-        self.value = f()
-        self.listeners = []
         for dep in deps:
             dep.listeners.append(self.update)
 
     def update(self, _=None):
-        value = self.f()
-        if self.value != value:
-            self.value = value
-            for listener in self.listeners:
-                listener(value)
+        self.set_value(self.f())
 
     def replace(self, f, deps):
         """Replace the compute function and dependencies.
@@ -66,11 +75,7 @@ class DerivedSignal:
             dep.listeners.append(self.update)
 
         # recompute and notify if changed
-        value = self.f()
-        if self.value != value:
-            self.value = value
-            for listener in self.listeners:
-                listener(value)
+        self.set_value(self.f())
 
 class ReactiveTable:
     def __init__(self, conn, table_name):
@@ -183,12 +188,11 @@ class CountAll:
             for listener in self.listeners:
                 listener([3, [oldvalue], [self.value]])
 
-class DependentValue:
+class DependentValue(Signal):
     """Wrap a reactive relation expected to yield a single-column row."""
 
     def __init__(self, parent):
         self.parent = parent
-        self.listeners = []
         self.conn = self.parent.conn
         self.sql = self.parent.sql
         cols = self.parent.columns
@@ -198,7 +202,7 @@ class DependentValue:
             raise ValueError("DependentValue parent must have exactly one column")
         self.columns = cols[0]
         row = self.conn.execute(self.sql).fetchone()
-        self.value = row[0] if row else None
+        super().__init__(row[0] if row else None)
         self.parent.listeners.append(self.onevent)
 
     def __str__(self):
@@ -227,22 +231,16 @@ class DependentValue:
         row = self.conn.execute(self.sql).fetchone()
         value = row[0] if row else None
 
-        if value != self.value:
-            self.value = value
-            for l in list(self.listeners):
-                l(self.value)
+        self.set_value(value)
 
     def onevent(self, event):
-        oldval = self.value
         if event[0] == 1:
-            self.value = event[1][0]
+            value = event[1][0]
         elif event[0] == 2:
-            self.value = None
+            value = None
         else:
-            self.value = event[2][0]
-        if oldval != self.value:
-            for l in list(self.listeners):
-                l(self.value)
+            value = event[2][0]
+        self.set_value(value)
 
 class UnionAll:
     def __init__(self, parent1, parent2):

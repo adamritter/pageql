@@ -6,6 +6,17 @@ Usage: ```pageql data.db templates --create```
 
 Install: pip install pageql
 
+## Benchmarking
+
+Basic performance tests can be executed using the standalone script in
+`benchmarks/benchmark_pageql.py`.  The script exercises 20 different
+rendering features of PageQL with both an in-memory SQLite database and
+a temporary file based database.
+
+```bash
+python benchmarks/benchmark_pageql.py
+```
+
 ## Core Philosophy
 
 PageQL aims to simplify web development involving relational data by allowing direct embedding of SQL-like queries within HTML templates. It draws inspiration from ColdFusion Markup Language (CFML) but focuses specifically on rendering reactive relational data.

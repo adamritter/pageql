@@ -17,6 +17,18 @@ def test_render_nonexistent_returns_404():
     assert result.status_code == 404
 
 
+def test_rendercontext_stops_rendering_and_collects_scripts():
+    r = PageQL(":memory:")
+    r.load_module("m", "hello")
+    result = r.render("/m")
+    ctx = result.context
+    assert ctx.rendering is False
+    assert ctx.scripts == []
+    ctx.append_script("foo")
+    assert ctx.scripts == ["foo"]
+    assert ctx.out == []
+
+
 def test_reactive_toggle():
     r = PageQL(":memory:")
     r.load_module("reactive", "{{reactive}} {{#reactive on}}{{reactive}} {{#reactive off}}{{reactive}}")

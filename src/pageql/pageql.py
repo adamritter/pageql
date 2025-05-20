@@ -107,6 +107,8 @@ class RenderContext:
         self.initialized = False
         self.listeners = []
         self.out = []
+        self.scripts: list[str] = []
+        self.rendering = True
 
     def ensure_init(self):
         if not self.initialized:
@@ -133,7 +135,10 @@ class RenderContext:
     def append_script(self, content, out=None):
         if out is None:
             out = self.out
-        out.append(f"<script>{content}</script>")
+        if self.rendering:
+            out.append(f"<script>{content}</script>")
+        else:
+            self.scripts.append(content)
 
 
 class ReadOnly:
@@ -1000,6 +1005,7 @@ class PageQL:
 
                 # Process the output to match the expected format in tests
                 result.body = result.body.replace('\n\n', '\n')  # Normalize extra newlines
+                ctx.rendering = False
             else:
                 result.status_code = 404
                 result.body = f"Module {original_module_name} not found"

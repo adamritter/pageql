@@ -14,7 +14,8 @@ reload_script = """
 <script>
     const host = window.location.hostname; // e.g., "localhost"
     const port = window.location.port;     // e.g., "3000" or "8080"
-    const ws_url = `ws://${host}:${port}/reload-request-ws`;
+    const clientId = Math.random().toString(36).substring(2);
+    const ws_url = `ws://${host}:${port}/reload-request-ws?clientId=${clientId}`;
 
   function forceReload() {
     console.log("forceReload")
@@ -29,7 +30,7 @@ reload_script = """
 
   const socket = new WebSocket(ws_url);
   socket.onopen = () => {
-    console.log("WebSocket opened");
+    console.log("WebSocket opened with id", clientId);
   };
 
   socket.onmessage = (event) => {
@@ -359,6 +360,11 @@ class PageQLApp:
         # ws_app.py
         if scope["type"] == "websocket" and scope["path"] == "/reload-request-ws":
             await send({"type": "websocket.accept"})
+            client_id = None
+            qs = parse_qs(scope.get("query_string", b""))
+            if b"clientId" in qs:
+                client_id = qs[b"clientId"][0].decode()
+                print(f"Client connected with id: {client_id}")
             fut = asyncio.Event()
             self.notifies.append(fut)
             receive_task = asyncio.create_task(receive())
@@ -373,7 +379,6 @@ class PageQLApp:
                     result = await task
                     if isinstance(result, dict) and result.get("type") == "websocket.connect":
                         receive_task = asyncio.create_task(receive())
-
                     if isinstance(result, dict) and result.get("type") == "websocket.disconnect":
                         return
 

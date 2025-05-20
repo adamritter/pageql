@@ -105,8 +105,10 @@ def test_from_reactive_uses_parse(monkeypatch):
     h2 = base64.b64encode(hashlib.sha256(repr((2,"b",)).encode()).digest())[:8]
     expected = (
         ""
+        "<script>pstart('0')</script>"
         f"<script>pstart('0_{h1}')</script><1><script>pend('0_{h1}')</script>\n"
         f"<script>pstart('0_{h2}')</script><2><script>pend('0_{h2}')</script>\n"
+        "<script>pend('0')</script>"
     )
     assert result.body == expected
 
@@ -154,8 +156,10 @@ def test_from_reactive_delete_event():
     h2 = base64.b64encode(hashlib.sha256(repr((2,"b",)).encode()).digest())[:8]
     expected = (
         ""
+        "<script>pstart('0')</script>"
         f"<script>pstart('0_{h1}')</script><1><script>pend('0_{h1}')</script>\n"
         f"<script>pstart('0_{h2}')</script><2><script>pend('0_{h2}')</script>\n"
+        "<script>pend('0')</script>"
         f"<script>pdelete('0_{h1}')</script>"
     )
     assert result.body == expected
@@ -176,8 +180,10 @@ def test_from_reactive_update_event():
     h1_new = base64.b64encode(hashlib.sha256(repr((1, "c",)).encode()).digest())[:8]
     h2 = base64.b64encode(hashlib.sha256(repr((2, "b",)).encode()).digest())[:8]
     expected = (
+        "<script>pstart('0')</script>"
         f"<script>pstart('0_{h1_old}')</script><a><script>pend('0_{h1_old}')</script>\n"
         f"<script>pstart('0_{h2}')</script><b><script>pend('0_{h2}')</script>\n"
+        "<script>pend('0')</script>"
         f"<script>pupdate('0_{h1_old}','0_{h1_new}',\"<c>\")</script>"
     )
     assert result.body == expected

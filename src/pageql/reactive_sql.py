@@ -86,7 +86,7 @@ def build_reactive(expr, tables: Tables):
     if isinstance(expr, exp.Select):
         from_expr = expr.args.get("from")
         if from_expr is None:
-            raise ValueError("SELECT missing FROM clause")
+            return FallbackReactive(tables, expr.sql())
         parent = build_from(from_expr.this, tables)
         if expr.args.get("where"):
             parent = Where(parent, expr.args["where"].this.sql())

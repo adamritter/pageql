@@ -493,13 +493,7 @@ class PageQL:
                             deps.append(dep)
 
                     def compute(args=args, params=params):
-                        env = {}
-                        for k, v in params.items():
-                            if isinstance(v, (DerivedSignal, DependentValue)):
-                                env[k] = v.value
-                            else:
-                                env[k] = v
-                        return evalone(self.db, args, env, False, self.tables)
+                        return evalone(self.db, args, params, False, self.tables)
 
                     existing = params.get(var)
                     if isinstance(existing, DerivedSignal):

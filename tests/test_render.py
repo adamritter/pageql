@@ -22,7 +22,7 @@ def test_reactive_toggle():
     r.load_module("reactive", "{{reactive}} {{#reactive on}}{{reactive}} {{#reactive off}}{{reactive}}")
     result = r.render("/reactive")
     expected = (
-        "False <script>window.pageqlMarkers={};function pstart(i){var s=document.currentScript,c=document.createComment('pageql-start:'+i);s.replaceWith(c);window.pageqlMarkers[i]=c;}function pend(i){var s=document.currentScript,c=document.createComment('pageql-end:'+i);s.replaceWith(c);window.pageqlMarkers[i].e=c;}function pset(i,v){var s=window.pageqlMarkers[i],e=s.e,r=document.createRange();r.setStartAfter(s);r.setEndBefore(e);r.deleteContents();var t=document.createElement('template');t.innerHTML=v;e.parentNode.insertBefore(t.content,e);}function pdelete(i){var m=window.pageqlMarkers[i],e=m.e,r=document.createRange();r.setStartBefore(m);r.setEndAfter(e);r.deleteContents();delete window.pageqlMarkers[i];}document.currentScript.remove()</script>"
+        "False <script>window.pageqlMarkers={};function pstart(i){var s=document.currentScript,c=document.createComment('pageql-start:'+i);s.replaceWith(c);window.pageqlMarkers[i]=c;}function pend(i){var s=document.currentScript,c=document.createComment('pageql-end:'+i);s.replaceWith(c);window.pageqlMarkers[i].e=c;}function pset(i,v){var s=window.pageqlMarkers[i],e=s.e,r=document.createRange();r.setStartAfter(s);r.setEndBefore(e);r.deleteContents();var t=document.createElement('template');t.innerHTML=v;e.parentNode.insertBefore(t.content,e);}function pdelete(i){var m=window.pageqlMarkers[i],e=m.e,r=document.createRange();r.setStartBefore(m);r.setEndAfter(e);r.deleteContents();delete window.pageqlMarkers[i];}function pupdate(o,n,v){var m=window.pageqlMarkers[o],e=m.e,r=document.createRange();r.setStartAfter(m);r.setEndBefore(e);r.deleteContents();var t=document.createElement('template');t.innerHTML=v;e.parentNode.insertBefore(t.content,e);m.data='pageql-start:'+n;m.e.data='pageql-end:'+n;delete window.pageqlMarkers[o];window.pageqlMarkers[n]=m;}document.currentScript.remove()</script>"
         "<script>pstart(0)</script>True"
         "<script>pend(0)</script> False"
     )
@@ -81,7 +81,7 @@ def test_from_reactive_uses_parse(monkeypatch):
     h1 = base64.b64encode(hashlib.sha256(repr((1,"a",)).encode()).digest())[:8]
     h2 = base64.b64encode(hashlib.sha256(repr((2,"b",)).encode()).digest())[:8]
     expected = (
-        "<script>window.pageqlMarkers={};function pstart(i){var s=document.currentScript,c=document.createComment('pageql-start:'+i);s.replaceWith(c);window.pageqlMarkers[i]=c;}function pend(i){var s=document.currentScript,c=document.createComment('pageql-end:'+i);s.replaceWith(c);window.pageqlMarkers[i].e=c;}function pset(i,v){var s=window.pageqlMarkers[i],e=s.e,r=document.createRange();r.setStartAfter(s);r.setEndBefore(e);r.deleteContents();var t=document.createElement('template');t.innerHTML=v;e.parentNode.insertBefore(t.content,e);}function pdelete(i){var m=window.pageqlMarkers[i],e=m.e,r=document.createRange();r.setStartBefore(m);r.setEndAfter(e);r.deleteContents();delete window.pageqlMarkers[i];}document.currentScript.remove()</script>"
+        "<script>window.pageqlMarkers={};function pstart(i){var s=document.currentScript,c=document.createComment('pageql-start:'+i);s.replaceWith(c);window.pageqlMarkers[i]=c;}function pend(i){var s=document.currentScript,c=document.createComment('pageql-end:'+i);s.replaceWith(c);window.pageqlMarkers[i].e=c;}function pset(i,v){var s=window.pageqlMarkers[i],e=s.e,r=document.createRange();r.setStartAfter(s);r.setEndBefore(e);r.deleteContents();var t=document.createElement('template');t.innerHTML=v;e.parentNode.insertBefore(t.content,e);}function pdelete(i){var m=window.pageqlMarkers[i],e=m.e,r=document.createRange();r.setStartBefore(m);r.setEndAfter(e);r.deleteContents();delete window.pageqlMarkers[i];}function pupdate(o,n,v){var m=window.pageqlMarkers[o],e=m.e,r=document.createRange();r.setStartAfter(m);r.setEndBefore(e);r.deleteContents();var t=document.createElement('template');t.innerHTML=v;e.parentNode.insertBefore(t.content,e);m.data='pageql-start:'+n;m.e.data='pageql-end:'+n;delete window.pageqlMarkers[o];window.pageqlMarkers[n]=m;}document.currentScript.remove()</script>"
         f"<script>pstart('0_{h1}')</script><1><script>pend('0_{h1}')</script>\n"
         f"<script>pstart('0_{h2}')</script><2><script>pend('0_{h2}')</script>\n"
     )
@@ -109,7 +109,7 @@ def test_reactive_set_comments():
     result = r.render("/m")
     expected = (
         "\n"
-        "<script>window.pageqlMarkers={};function pstart(i){var s=document.currentScript,c=document.createComment('pageql-start:'+i);s.replaceWith(c);window.pageqlMarkers[i]=c;}function pend(i){var s=document.currentScript,c=document.createComment('pageql-end:'+i);s.replaceWith(c);window.pageqlMarkers[i].e=c;}function pset(i,v){var s=window.pageqlMarkers[i],e=s.e,r=document.createRange();r.setStartAfter(s);r.setEndBefore(e);r.deleteContents();var t=document.createElement('template');t.innerHTML=v;e.parentNode.insertBefore(t.content,e);}function pdelete(i){var m=window.pageqlMarkers[i],e=m.e,r=document.createRange();r.setStartBefore(m);r.setEndAfter(e);r.deleteContents();delete window.pageqlMarkers[i];}document.currentScript.remove()</script><script>pstart(0)</script>1<script>pend(0)</script>\n"
+        "<script>window.pageqlMarkers={};function pstart(i){var s=document.currentScript,c=document.createComment('pageql-start:'+i);s.replaceWith(c);window.pageqlMarkers[i]=c;}function pend(i){var s=document.currentScript,c=document.createComment('pageql-end:'+i);s.replaceWith(c);window.pageqlMarkers[i].e=c;}function pset(i,v){var s=window.pageqlMarkers[i],e=s.e,r=document.createRange();r.setStartAfter(s);r.setEndBefore(e);r.deleteContents();var t=document.createElement('template');t.innerHTML=v;e.parentNode.insertBefore(t.content,e);}function pdelete(i){var m=window.pageqlMarkers[i],e=m.e,r=document.createRange();r.setStartBefore(m);r.setEndAfter(e);r.deleteContents();delete window.pageqlMarkers[i];}function pupdate(o,n,v){var m=window.pageqlMarkers[o],e=m.e,r=document.createRange();r.setStartAfter(m);r.setEndBefore(e);r.deleteContents();var t=document.createElement('template');t.innerHTML=v;e.parentNode.insertBefore(t.content,e);m.data='pageql-start:'+n;m.e.data='pageql-end:'+n;delete window.pageqlMarkers[o];window.pageqlMarkers[n]=m;}document.currentScript.remove()</script><script>pstart(0)</script>1<script>pend(0)</script>\n"
         "<script>pstart(1)</script>2<script>pend(1)</script>\n"
         "<p><script>pstart(2)</script>4<script>pend(2)</script> = 4</p>\n"
         "<p><script>pstart(3)</script>4<script>pend(3)</script> = c = 4</p>\n"
@@ -130,9 +130,26 @@ def test_from_reactive_delete_event():
     h1 = base64.b64encode(hashlib.sha256(repr((1,"a",)).encode()).digest())[:8]
     h2 = base64.b64encode(hashlib.sha256(repr((2,"b",)).encode()).digest())[:8]
     expected = (
-        "<script>window.pageqlMarkers={};function pstart(i){var s=document.currentScript,c=document.createComment('pageql-start:'+i);s.replaceWith(c);window.pageqlMarkers[i]=c;}function pend(i){var s=document.currentScript,c=document.createComment('pageql-end:'+i);s.replaceWith(c);window.pageqlMarkers[i].e=c;}function pset(i,v){var s=window.pageqlMarkers[i],e=s.e,r=document.createRange();r.setStartAfter(s);r.setEndBefore(e);r.deleteContents();var t=document.createElement('template');t.innerHTML=v;e.parentNode.insertBefore(t.content,e);}function pdelete(i){var m=window.pageqlMarkers[i],e=m.e,r=document.createRange();r.setStartBefore(m);r.setEndAfter(e);r.deleteContents();delete window.pageqlMarkers[i];}document.currentScript.remove()</script>"
+        "<script>window.pageqlMarkers={};function pstart(i){var s=document.currentScript,c=document.createComment('pageql-start:'+i);s.replaceWith(c);window.pageqlMarkers[i]=c;}function pend(i){var s=document.currentScript,c=document.createComment('pageql-end:'+i);s.replaceWith(c);window.pageqlMarkers[i].e=c;}function pset(i,v){var s=window.pageqlMarkers[i],e=s.e,r=document.createRange();r.setStartAfter(s);r.setEndBefore(e);r.deleteContents();var t=document.createElement('template');t.innerHTML=v;e.parentNode.insertBefore(t.content,e);}function pdelete(i){var m=window.pageqlMarkers[i],e=m.e,r=document.createRange();r.setStartBefore(m);r.setEndAfter(e);r.deleteContents();delete window.pageqlMarkers[i];}function pupdate(o,n,v){var m=window.pageqlMarkers[o],e=m.e,r=document.createRange();r.setStartAfter(m);r.setEndBefore(e);r.deleteContents();var t=document.createElement('template');t.innerHTML=v;e.parentNode.insertBefore(t.content,e);m.data='pageql-start:'+n;m.e.data='pageql-end:'+n;delete window.pageqlMarkers[o];window.pageqlMarkers[n]=m;}document.currentScript.remove()</script>"
         f"<script>pstart('0_{h1}')</script><1><script>pend('0_{h1}')</script>\n"
         f"<script>pstart('0_{h2}')</script><2><script>pend('0_{h2}')</script>\n"
         f"<script>pdelete('0_{h1}')</script>"
+    )
+    assert result.body == expected
+
+
+def test_from_reactive_update_event():
+    r = PageQL(":memory:")
+    r.db.execute("CREATE TABLE items(id INTEGER PRIMARY KEY, name TEXT)")
+    r.db.execute("INSERT INTO items(name) VALUES ('a')")
+    r.load_module("m", "{{#reactive on}}{{#from items}}<{{name}}>{{/from}}{{#update items set name='b' where id=1}}")
+    result = r.render("/m")
+    import hashlib
+    old = base64.b64encode(hashlib.sha256(repr((1,'a')).encode()).digest())[:8]
+    new = base64.b64encode(hashlib.sha256(repr((1,'b')).encode()).digest())[:8]
+    expected = (
+        "<script>window.pageqlMarkers={};function pstart(i){var s=document.currentScript,c=document.createComment('pageql-start:'+i);s.replaceWith(c);window.pageqlMarkers[i]=c;}function pend(i){var s=document.currentScript,c=document.createComment('pageql-end:'+i);s.replaceWith(c);window.pageqlMarkers[i].e=c;}function pset(i,v){var s=window.pageqlMarkers[i],e=s.e,r=document.createRange();r.setStartAfter(s);r.setEndBefore(e);r.deleteContents();var t=document.createElement('template');t.innerHTML=v;e.parentNode.insertBefore(t.content,e);}function pdelete(i){var m=window.pageqlMarkers[i],e=m.e,r=document.createRange();r.setStartBefore(m);r.setEndAfter(e);r.deleteContents();delete window.pageqlMarkers[i];}function pupdate(o,n,v){var m=window.pageqlMarkers[o],e=m.e,r=document.createRange();r.setStartAfter(m);r.setEndBefore(e);r.deleteContents();var t=document.createElement('template');t.innerHTML=v;e.parentNode.insertBefore(t.content,e);m.data='pageql-start:'+n;m.e.data='pageql-end:'+n;delete window.pageqlMarkers[o];window.pageqlMarkers[n]=m;}document.currentScript.remove()</script>"
+        f"<script>pstart('0_{old}')</script><a><script>pend('0_{old}')</script>\n"
+        f"<script>pupdate('0_{old}','0_{new}',\"<b>\")</script>"
     )
     assert result.body == expected

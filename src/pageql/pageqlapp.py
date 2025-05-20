@@ -60,6 +60,7 @@ class PageQLApp:
         self.to_reload = []
         self.static_files = {}
         self.before_hooks = {}
+        self.render_contexts = {}
         self.template_dir = template_dir
         self.prepare_server(db_path, template_dir, create_db)
     
@@ -160,6 +161,11 @@ class PageQLApp:
         for key, value in query_params.items():
             params[key.decode('utf-8')] = value[0].decode('utf-8') if len(value) == 1 else map(lambda v: v.decode('utf-8'), value)
 
+        client_id = params.get('clientId')
+        if client_id is not None:
+            # clientId is used internally and shouldn't be visible to templates
+            del params['clientId']
+
         # Form data parameters (for POST)
         if method == 'POST':
             print(scope)
@@ -189,7 +195,15 @@ class PageQLApp:
             if path in self.before_hooks:
                 print(f"Before hook for {path}")
                 await self.before_hooks[path](params)
-            result = self.pageql_engine.render(path_cleaned, params, None, method)
+            result = self.pageql_engine.render(
+                path_cleaned,
+                params,
+                None,
+                method,
+                reactive=bool(client_id),
+            )
+            if client_id:
+                self.render_contexts[client_id] = result.context
             print(f"{method} {path_cleaned} Params: {params} ({(time.time() - t) * 1000:.2f} ms)")
             print(f"Result: {result.status_code} {result.redirect_to} {result.headers}")
 

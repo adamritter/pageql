@@ -89,13 +89,14 @@ def parse_param_attrs(s):
 class RenderResult:
     """Holds the results of a render operation."""
 
-    def __init__(self, status_code=200, headers=None, body=""):
+    def __init__(self, status_code=200, headers=None, body="", context=None):
         if headers is None:
             headers = []
         self.body = body
         self.status_code = status_code
         self.headers = headers  # List of (name, value) tuples
         self.redirect_to = None
+        self.context = context
 
 
 class RenderContext:
@@ -978,7 +979,12 @@ class PageQL:
 
                 result.body = "".join(output_buffer)
 
-                ctx.cleanup()
+                # Store the render context so callers can keep it if needed
+                result.context = ctx
+
+                # Clean up listeners only when not rendering reactively
+                if not reactive:
+                    ctx.cleanup()
 
                 # Process the output to match the expected format in tests
                 result.body = result.body.replace('\n\n', '\n')  # Normalize extra newlines

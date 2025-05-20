@@ -450,8 +450,8 @@ class PageQL:
             elif node_type == 'render_param':
                 try:
                     val = params[node_content]
-                    signal = val if isinstance(val, DerivedSignal) else None
-                    if isinstance(val, DerivedSignal):
+                    signal = val if isinstance(val, (DerivedSignal, DependentValue)) else None
+                    if isinstance(val, (DerivedSignal, DependentValue)):
                         val = val.value
                     value = html.escape(str(val))
                     if reactive:

@@ -156,7 +156,7 @@ def db_execute_dot(db, exp, params):
                           exp)
     converted_params = {}
     for k, v in params.items():
-        if isinstance(v, DerivedSignal):
+        if isinstance(v, (DerivedSignal, DependentValue)):
             converted_params[k] = v.value
         else:
             converted_params[k] = v
@@ -171,12 +171,12 @@ def evalone(db, exp, params, reactive=False, tables=None):
         if exp in params:
             val = params[exp]
             if reactive:
-                if isinstance(val, DerivedSignal):
+                if isinstance(val, (DerivedSignal, DependentValue)):
                     return val
                 signal = DerivedSignal(lambda v=val: v, [])
                 params[exp] = signal
                 return signal
-            if isinstance(val, DerivedSignal):
+            if isinstance(val, (DerivedSignal, DependentValue)):
                 return val.value
             return val
         
@@ -191,7 +191,7 @@ def evalone(db, exp, params, reactive=False, tables=None):
         for name in get_dependencies(sql):
             name = name.replace('.', '__')
             val = params.get(name)
-            if val is not None and not isinstance(val, DerivedSignal):
+            if val is not None and not isinstance(val, (DerivedSignal, DependentValue)):
                 params[name] = DerivedSignal(lambda v=val: v, [])
         comp = parse_reactive(sql, tables, params)
         return DependentValue(comp)
@@ -489,13 +489,13 @@ class PageQL:
                     deps = []
                     for name in dep_names:
                         dep = params.get(name)
-                        if isinstance(dep, DerivedSignal):
+                        if isinstance(dep, (DerivedSignal, DependentValue)):
                             deps.append(dep)
 
                     def compute(args=args, params=params):
                         env = {}
                         for k, v in params.items():
-                            if isinstance(v, DerivedSignal):
+                            if isinstance(v, (DerivedSignal, DependentValue)):
                                 env[k] = v.value
                             else:
                                 env[k] = v
@@ -616,7 +616,7 @@ class PageQL:
                                  sql)
                     comp = parse_reactive(sql, self.tables, params)
                     converted_params = {
-                        k: (v.value if isinstance(v, DerivedSignal) else v)
+                        k: (v.value if isinstance(v, (DerivedSignal, DependentValue)) else v)
                         for k, v in params.items()
                     }
                     cursor = self.db.execute(comp.sql, converted_params)
@@ -849,7 +849,7 @@ class PageQL:
         params = flatten_params(params)
         if reactive:
             for k, v in list(params.items()):
-                if not isinstance(v, DerivedSignal):
+                if not isinstance(v, (DerivedSignal, DependentValue)):
                     params[k] = DerivedSignal(lambda v=v: v, [])
         params['reactive'] = reactive
         

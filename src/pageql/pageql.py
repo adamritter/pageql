@@ -112,7 +112,7 @@ class RenderContext:
                 "<script>window.pageqlMarkers={};"
                 "function pstart(i){var s=document.currentScript,c=document.createComment('pageql-start:'+i);s.replaceWith(c);window.pageqlMarkers[i]=c;}"
                 "function pend(i){var s=document.currentScript,c=document.createComment('pageql-end:'+i);s.replaceWith(c);window.pageqlMarkers[i].e=c;}"
-                "function pset(i,v){var s=window.pageqlMarkers[i],e=s.e,n=s.nextSibling;while(n&&n!==e){var nx=n.nextSibling;n.remove();n=nx;}var t=document.createElement('template');t.innerHTML=v;e.parentNode.insertBefore(t.content,e);}"
+                "function pset(i,v){var s=window.pageqlMarkers[i],e=s.e,r=document.createRange();r.setStartAfter(s);r.setEndBefore(e);r.deleteContents();var t=document.createElement('template');t.innerHTML=v;e.parentNode.insertBefore(t.content,e);}"
                 "document.currentScript.remove()</script>"
             )
             self.initialized = True

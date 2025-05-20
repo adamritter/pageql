@@ -25,9 +25,9 @@ MODULES = {
     's8_ifndef': "{{#ifndef name}}hi{{#else}}bye{{/ifndef}}",
     's9_from': "{{#from items}}<{{name}}>{{/from}}",
     's10_nested_from': "{{#from items}}<{{name}}{{#from items}}({{id}}){{/from}}>{{/from}}",
-    's11_insert': "{{#insert into items (name) values ('x')}}{{count(*) from items}}",
-    's12_update': "{{#update items set name='upd' where id=1}}{{#from items where id=1}}{{name}}{{/from}}",
-    's13_delete': "{{#delete from items where id=1}}{{count(*) from items}}",
+    's11_insert_delete': "{{#insert into items (name) values ('x')}}{{#delete from items where id=1}}",
+    'count': "{{count(*) from items}}",
+    's12_update': "{{#update items set name='upd' where id=1}}{{#update items set name='upd0' where id=1}}",
     's14_render_partial': "{{#partial public greet}}hi {{who}}{{/partial}}{{#render greet who='Bob'}}",
     's15_param': "{{#partial public greet}}{{#param who required}}{{who}}{{/partial}}{{#render greet who='Ann'}}",
     's16_create': "{{#create table if not exists t (id int)}}done",
@@ -47,10 +47,6 @@ PARAMS = {
 
 def bench_factory(name):
     def bench(pql):
-        if name in ('s11_insert', 's12_update', 's13_delete'):
-            reset_items(pql.db)
-        if name == 's19_import':
-            pql.load_module('other', MODULES['other'])
         return pql.render('/'+name, PARAMS.get(name, {}))
     return bench
 

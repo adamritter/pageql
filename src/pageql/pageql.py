@@ -685,6 +685,16 @@ class PageQL:
                             row_id = f"{mid}_{base64.b64encode(hashlib.sha256(repr(tuple(ev[1])).encode()).digest())[:8]}"
                             ctx.ensure_init()
                             ctx.append_script(f"pdelete('{row_id}')")
+                        elif ev[0] == 1:
+                            row_id = f"{mid}_{base64.b64encode(hashlib.sha256(repr(tuple(ev[1])).encode()).digest())[:8]}"
+                            row_params = saved_params.copy()
+                            for i, col_name in enumerate(col_names):
+                                row_params[col_name] = ReadOnly(ev[1][i])
+                            row_buf = []
+                            self.process_nodes(body, row_params, path, includes, http_verb, True, ctx, out=row_buf)
+                            row_content = ''.join(row_buf).strip()
+                            ctx.ensure_init()
+                            ctx.append_script(f"pinsert('{row_id}',{json.dumps(row_content)})")
                         elif ev[0] == 3:
                             old_id = f"{mid}_{base64.b64encode(hashlib.sha256(repr(tuple(ev[1])).encode()).digest())[:8]}"
                             new_id = f"{mid}_{base64.b64encode(hashlib.sha256(repr(tuple(ev[2])).encode()).digest())[:8]}"

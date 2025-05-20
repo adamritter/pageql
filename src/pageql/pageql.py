@@ -657,6 +657,7 @@ class PageQL:
                 if ctx and reactive:
                     ctx.ensure_init()
                     mid = ctx.marker_id()
+                    ctx.append_script(f"pstart({mid})")
                 saved_params = params.copy()
                 for row in rows:
                     row_params = params.copy()
@@ -677,6 +678,7 @@ class PageQL:
                     ctx.out.append('\n')
 
                 if ctx and reactive:
+                    ctx.append_script(f"pend({mid})")
                     def on_event(ev, *, mid=mid, ctx=ctx,
                                    body=body, col_names=col_names, path=path,
                                    includes=includes, http_verb=http_verb,

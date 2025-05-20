@@ -187,6 +187,8 @@ def evalone(db, exp, params, reactive=False, tables=None):
             if reactive:
                 if isinstance(val, (DerivedSignal, DependentValue)):
                     return val
+                if isinstance(val, ReadOnly):
+                    return val.value
                 signal = DerivedSignal(lambda v=val: v, [])
                 params[exp] = signal
                 return signal
@@ -450,37 +452,42 @@ class PageQL:
             if node_type == 'text':
                 output_buffer.append(node_content)
             elif node_type == 'render_expression':
-                value = html.escape(
-                    str(evalone(self.db, node_content, params, reactive, self.tables))
-                )
-                if reactive:
+                result = evalone(self.db, node_content, params, reactive, self.tables)
+                if reactive and isinstance(result, (DerivedSignal, DependentValue)):
+                    value = html.escape(str(result.value))
                     ctx.ensure_init(output_buffer)
                     mid = ctx.marker_id()
                     output_buffer.append(f"<script>pstart({mid})</script>")
                     output_buffer.append(value)
                     output_buffer.append(f"<script>pend({mid})</script>")
                 else:
+                    if isinstance(result, ReadOnly):
+                        result = result.value
+                    value = html.escape(str(result))
                     output_buffer.append(value)
             elif node_type == 'render_param':
                 try:
                     val = params[node_content]
-                    signal = val if isinstance(val, (DerivedSignal, DependentValue)) else None
-                    if isinstance(val, (DerivedSignal, DependentValue)):
-                        val = val.value
-                    value = html.escape(str(val))
-                    if reactive:
-                        ctx.ensure_init(output_buffer)
-                        mid = ctx.marker_id()
-                        output_buffer.append(f"<script>pstart({mid})</script>")
-                        output_buffer.append(value)
-                        output_buffer.append(f"<script>pend({mid})</script>")
-                        if signal:
-                            def listener(v=None, *, sig=signal, mid=mid, out=output_buffer, ctx=ctx):
-                                ctx.ensure_init(out)
-                                out.append(f"<script>pset({mid},{json.dumps(html.escape(str(sig.value)))})</script>")
-                            ctx.add_listener(signal, listener)
+                    if isinstance(val, ReadOnly):
+                        output_buffer.append(html.escape(str(val.value)))
                     else:
-                        output_buffer.append(value)
+                        signal = val if isinstance(val, (DerivedSignal, DependentValue)) else None
+                        if isinstance(val, (DerivedSignal, DependentValue)):
+                            val = val.value
+                        value = html.escape(str(val))
+                        if reactive:
+                            ctx.ensure_init(output_buffer)
+                            mid = ctx.marker_id()
+                            output_buffer.append(f"<script>pstart({mid})</script>")
+                            output_buffer.append(value)
+                            output_buffer.append(f"<script>pend({mid})</script>")
+                            if signal:
+                                def listener(v=None, *, sig=signal, mid=mid, out=output_buffer, ctx=ctx):
+                                    ctx.ensure_init(out)
+                                    out.append(f"<script>pset({mid},{json.dumps(html.escape(str(sig.value)))})</script>")
+                                ctx.add_listener(signal, listener)
+                        else:
+                            output_buffer.append(value)
                 except KeyError:
                     raise ValueError(f"Parameter `{node_content}` not found in params `{params}`")
             elif node_type == 'render_raw':

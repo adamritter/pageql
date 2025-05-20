@@ -157,3 +157,26 @@ def test_from_reactive_delete_event():
         f"<script>pdelete('0_{h1}')</script>"
     )
     assert result.body == expected
+
+
+def test_from_reactive_update_event():
+    r = PageQL(":memory:")
+    r.db.execute("CREATE TABLE items(id INTEGER PRIMARY KEY, name TEXT)")
+    r.db.executemany("INSERT INTO items(name) VALUES (?)", [("a",), ("b",)])
+    r.load_module(
+        "m",
+        "{{#reactive on}}{{#from items}}<{{name}}>{{/from}}{{#update items set name='c' where id=1}}",
+    )
+    result = r.render("/m")
+    import hashlib
+
+    h1_old = base64.b64encode(hashlib.sha256(repr((1, "a",)).encode()).digest())[:8]
+    h1_new = base64.b64encode(hashlib.sha256(repr((1, "c",)).encode()).digest())[:8]
+    h2 = base64.b64encode(hashlib.sha256(repr((2, "b",)).encode()).digest())[:8]
+    expected = (
+        "<script>window.pageqlMarkers={};function pstart(i){var s=document.currentScript,c=document.createComment('pageql-start:'+i);s.replaceWith(c);window.pageqlMarkers[i]=c;}function pend(i){var s=document.currentScript,c=document.createComment('pageql-end:'+i);s.replaceWith(c);window.pageqlMarkers[i].e=c;}function pset(i,v){var s=window.pageqlMarkers[i],e=s.e,r=document.createRange();r.setStartAfter(s);r.setEndBefore(e);r.deleteContents();var t=document.createElement('template');t.innerHTML=v;e.parentNode.insertBefore(t.content,e);}function pdelete(i){var m=window.pageqlMarkers[i],e=m.e,r=document.createRange();r.setStartBefore(m);r.setEndAfter(e);r.deleteContents();delete window.pageqlMarkers[i];}function pupdate(o,n,v){var m=window.pageqlMarkers[o],e=m.e;m.textContent='pageql-start:'+n;e.textContent='pageql-end:'+n;delete window.pageqlMarkers[o];window.pageqlMarkers[n]=m;pset(n,v);}document.currentScript.remove()</script>"
+        f"<script>pstart('0_{h1_old}')</script><a><script>pend('0_{h1_old}')</script>\n"
+        f"<script>pstart('0_{h2}')</script><b><script>pend('0_{h2}')</script>\n"
+        f"<script>pupdate('0_{h1_old}','0_{h1_new}',\"<c>\")</script>"
+    )
+    assert result.body == expected

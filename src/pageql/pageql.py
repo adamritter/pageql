@@ -11,7 +11,7 @@ Classes:
 
 # Instructions for LLMs and devs: Keep the code short. Make changes minimal. Don't change even tests too much.
 
-import re, time, sys, json
+import re, time, sys, json, hashlib
 import doctest
 import sqlite3
 import html
@@ -630,10 +630,6 @@ class PageQL:
                 if ctx and reactive:
                     ctx.ensure_init(output_buffer)
                     mid = ctx.marker_id()
-                    output_buffer.append(
-                        f"<script>pstart({mid})</script>"
-                    )
-
                 saved_params = params.copy()
                 for row in rows:
                     row_params = params.copy()
@@ -642,16 +638,19 @@ class PageQL:
 
                     row_buffer = []
                     self.process_nodes(body, row_params, row_buffer, path, includes, http_verb, reactive, ctx)
-                    output_buffer.append(''.join(row_buffer).strip())
+                    row_content = ''.join(row_buffer).strip()
+                    if ctx and reactive:
+                        row_id = f"{mid}_{hashlib.sha256(repr(tuple(row)).encode()).hexdigest()[:8]}"
+                        ctx.ensure_init(output_buffer)
+                        output_buffer.append(f"<script>pstart('{row_id}')</script>")
+                        output_buffer.append(row_content)
+                        output_buffer.append(f"<script>pend('{row_id}')</script>")
+                    else:
+                        output_buffer.append(row_content)
                     output_buffer.append('\n')
 
                 params.clear()
                 params.update(saved_params)
-
-                if ctx and reactive:
-                    output_buffer.append(
-                        f"<script>pend({mid})</script>"
-                    )
             return reactive
 
     def process_nodes(self, nodes, params, output_buffer, path, includes, http_verb=None, reactive=False, ctx=None):

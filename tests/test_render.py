@@ -77,11 +77,13 @@ def test_from_reactive_uses_parse(monkeypatch):
     r.load_module("m", "{{#reactive on}}{{#from items}}<{{id}}>{{/from}}")
     result = r.render("/m")
     assert seen == ["SELECT * FROM items"]
+    import hashlib
+    h1 = hashlib.sha256(repr((1,"a",)).encode()).hexdigest()[:8]
+    h2 = hashlib.sha256(repr((2,"b",)).encode()).hexdigest()[:8]
     expected = (
         "<script>window.pageqlMarkers={};function pstart(i){var s=document.currentScript,c=document.createComment('pageql-start:'+i);s.replaceWith(c);window.pageqlMarkers[i]=c;}function pend(i){var s=document.currentScript,c=document.createComment('pageql-end:'+i);s.replaceWith(c);window.pageqlMarkers[i].e=c;}function pset(i,v){var s=window.pageqlMarkers[i],e=s.e,n=s.nextSibling;while(n&&n!==e){var nx=n.nextSibling;n.remove();n=nx;}var t=document.createElement('template');t.innerHTML=v;e.parentNode.insertBefore(t.content,e);}document.currentScript.remove()</script>"
-        "<script>pstart(0)</script><<script>pstart(1)</script>1<script>pend(1)</script>>\n"
-        "<<script>pstart(2)</script>2<script>pend(2)</script>>\n"
-        "<script>pend(0)</script>"
+        f"<script>pstart('0_{h1}')</script><<script>pstart(1)</script>1<script>pend(1)</script>><script>pend('0_{h1}')</script>\n"
+        f"<script>pstart('0_{h2}')</script><<script>pstart(2)</script>2<script>pend(2)</script>><script>pend('0_{h2}')</script>\n"
     )
     assert result.body == expected
 

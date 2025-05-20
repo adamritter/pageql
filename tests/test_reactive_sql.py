@@ -9,7 +9,7 @@ sys.modules.setdefault("watchfiles", types.ModuleType("watchfiles"))
 sys.modules["watchfiles"].awatch = lambda *args, **kwargs: None
 
 from pageql.reactive import Tables, ReactiveTable, Select, Where, CountAll, UnionAll
-from pageql.reactive_sql import parse_reactive
+from pageql.reactive_sql import parse_reactive, FallbackReactive
 
 
 def _db():
@@ -98,3 +98,13 @@ def test_parse_select_with_params():
     assert isinstance(comp, Select)
     assert isinstance(comp.parent, Where)
     assert_sql_equivalent(conn, "SELECT name FROM items WHERE id = 1", comp.sql)
+
+
+def test_parse_select_constant():
+    conn = _db()
+    tables = Tables(conn)
+    sql = "SELECT 42 AS answer"
+    comp = parse_reactive(sql, tables, {})
+    assert isinstance(comp, FallbackReactive)
+    assert comp.deps == []
+    assert_sql_equivalent(conn, sql, comp.sql)

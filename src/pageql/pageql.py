@@ -179,8 +179,10 @@ def evalone(db, exp, params, reactive=False, tables=None):
             if isinstance(val, DerivedSignal):
                 return val.value
             return val
+        
+    exp = "select " + exp
 
-    if reactive and exp.lower().startswith("select"):
+    if reactive:
         sql = re.sub(r':([A-Za-z0-9_]+(?:\.[A-Za-z0-9_]+)+)',
                      lambda m: ':' + m.group(1).replace('.', '__'),
                      exp)
@@ -195,10 +197,12 @@ def evalone(db, exp, params, reactive=False, tables=None):
         return DependentValue(comp)
 
     try:
-        r = db_execute_dot(db, "select " + exp, params).fetchone()
+        r = db_execute_dot(db, exp, params).fetchone()
+        if len(r) != 1:
+            raise ValueError(f"SQL expression `{exp}` with params `{params}` returned {len(r)} rows, expected 1")
         return r[0]
     except sqlite3.Error as e:
-        raise ValueError(f"Error evaluating SQL expression `select {exp}` with params `{params}`: {e}")
+        raise ValueError(f"Error evaluating SQL expression `{exp}` with params `{params}`: {e}")
 
 
 class RenderResultException(Exception):

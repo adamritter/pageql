@@ -29,6 +29,27 @@ def test_reactive_toggle():
     assert result.body == expected
 
 
+def test_reactive_count_with_param_dependency():
+    r = PageQL(":memory:")
+    snippet = (
+        "{{#create table nums(value INTEGER)}}"
+        "{{#insert into nums(value) values (1)}}"
+        "{{#insert into nums(value) values (2)}}"
+        "{{#insert into nums(value) values (3)}}"
+        "{{#reactive on}}"
+        "{{#set a 1}}"
+        "{{#set cnt count(*) from nums where value > :a}}"
+        "{{cnt}}"
+    )
+    r.load_module("m", snippet)
+    result = r.render("/m")
+    expected = (
+        "<script>window.pageqlMarkers={};function pstart(i){var s=document.currentScript,c=document.createComment('pageql-start:'+i);s.replaceWith(c);window.pageqlMarkers[i]=c;}function pend(i){var s=document.currentScript,c=document.createComment('pageql-end:'+i);s.replaceWith(c);window.pageqlMarkers[i].e=c;}function pset(i,v){var s=window.pageqlMarkers[i],e=s.e,r=document.createRange();r.setStartAfter(s);r.setEndBefore(e);r.deleteContents();var t=document.createElement('template');t.innerHTML=v;e.parentNode.insertBefore(t.content,e);}function pdelete(i){var m=window.pageqlMarkers[i],e=m.e,r=document.createRange();r.setStartBefore(m);r.setEndAfter(e);r.deleteContents();delete window.pageqlMarkers[i];}document.currentScript.remove()</script>"
+        "<script>pstart(0)</script>2<script>pend(0)</script>"
+    )
+    assert result.body == expected
+
+
 def test_set_signal_reactive_on():
     r = PageQL(":memory:")
     r.load_module("sig", "{{#reactive on}}{{#set foo 42}}")

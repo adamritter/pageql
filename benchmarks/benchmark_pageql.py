@@ -19,7 +19,7 @@ MODULES = {
     's2_expr': "{{1+1}}",
     's3_param': "{{name}}",
     's4_set': "{{#set a 5}}{{a}}",
-    's5_set_expr': "{{#set a 2}}{{:a + a}}",
+    's5_set_expr': "{{#set a 2}}{{:a + :a}}",
     's6_if': "{{#if 1==1}}yes{{#else}}no{{/if}}",
     's7_ifdef': "{{#ifdef name}}hi{{#else}}bye{{/ifdef}}",
     's8_ifndef': "{{#ifndef name}}hi{{#else}}bye{{/ifndef}}",
@@ -74,7 +74,7 @@ def run_benchmarks(db_path):
         results[name] = time.perf_counter() - start
     pql.db.close()
     for k, v in results.items():
-        print(f"{k:20s}: {v:.4f}s")
+        print(f"{k:20s}: {(v/ITERATIONS)*1000:.4f}ms")
 
 if __name__ == '__main__':
     run_benchmarks(':memory:')

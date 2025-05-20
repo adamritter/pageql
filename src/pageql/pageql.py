@@ -204,13 +204,17 @@ def evalone(db, exp, params, reactive=False, tables=None):
                      exp)
         if tables is None:
             tables = Tables(db)
-        for name in get_dependencies(sql):
-            name = name.replace('.', '__')
+        dep_names = [name.replace('.', '__') for name in get_dependencies(sql)]
+        for name in dep_names:
             val = params.get(name)
-            if val is not None and not isinstance(val, (DerivedSignal, DependentValue)):
+            if val is not None and not isinstance(val, (DerivedSignal, DependentValue, ReadOnly)):
                 params[name] = DerivedSignal(lambda v=val: v, [])
-        comp = parse_reactive(sql, tables, params)
-        return DependentValue(comp)
+        deps = [params[name] for name in dep_names if isinstance(params[name], (DerivedSignal, DependentValue))]
+        def get_dependent_value():
+            comp = parse_reactive(sql, tables, params)
+            dvcomp = DependentValue(comp)
+            return dvcomp
+        return DerivedSignal(get_dependent_value, deps)
 
     try:
         r = db_execute_dot(db, exp, params).fetchone()

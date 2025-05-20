@@ -88,10 +88,13 @@ def parse_param_attrs(s):
 # Define RenderResult as a simple class
 class RenderResult:
     """Holds the results of a render operation."""
-    def __init__(self, status_code=200, headers=[], body=""):
+
+    def __init__(self, status_code=200, headers=None, body=""):
+        if headers is None:
+            headers = []
         self.body = body
         self.status_code = status_code
-        self.headers = headers # List of (name, value) tuples
+        self.headers = headers  # List of (name, value) tuples
         self.redirect_to = None
 
 
@@ -129,6 +132,17 @@ class RenderContext:
                 signal.listeners.remove(listener)
         self.listeners.clear()
 
+
+class ReadOnly:
+    """Simple wrapper for read-only parameters."""
+
+    def __init__(self, value):
+        self.value = value
+
+    def __str__(self) -> str:  # pragma: no cover - trivial
+        return str(self.value)
+
+
 def db_execute_dot(db, exp, params):
     """
     Executes an SQL expression after converting dot notation parameters to double underscore format.
@@ -156,7 +170,7 @@ def db_execute_dot(db, exp, params):
                           exp)
     converted_params = {}
     for k, v in params.items():
-        if isinstance(v, (DerivedSignal, DependentValue)):
+        if isinstance(v, (DerivedSignal, DependentValue, ReadOnly)):
             converted_params[k] = v.value
         else:
             converted_params[k] = v
@@ -176,7 +190,7 @@ def evalone(db, exp, params, reactive=False, tables=None):
                 signal = DerivedSignal(lambda v=val: v, [])
                 params[exp] = signal
                 return signal
-            if isinstance(val, (DerivedSignal, DependentValue)):
+            if isinstance(val, (DerivedSignal, DependentValue, ReadOnly)):
                 return val.value
             return val
         
@@ -481,6 +495,8 @@ class PageQL:
                 if var[0] == ':':
                     var = var[1:]
                 var = var.replace('.', '__')
+                if isinstance(params.get(var), ReadOnly):
+                    raise ValueError(f"Parameter '{var}' is read only")
                 if reactive:
                     converted = re.sub(r':([A-Za-z0-9_]+(?:\.[A-Za-z0-9_]+)+)',
                                        lambda m: ':' + m.group(1).replace('.', '__'),
@@ -628,7 +644,7 @@ class PageQL:
                 for row in rows:
                     row_params = params.copy()
                     for i, col_name in enumerate(col_names):
-                        row_params[col_name] = row[i]
+                        row_params[col_name] = ReadOnly(row[i])
 
                     row_buffer = []
                     self.process_nodes(body, row_params, row_buffer, path, includes, http_verb, reactive, ctx)

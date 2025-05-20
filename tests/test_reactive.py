@@ -56,6 +56,7 @@ import sqlite3
 from pageql.reactive import (
     ReactiveTable,
     CountAll,
+    DependentValue,
     DerivedSignal,
     Where,
     UnionAll,
@@ -446,6 +447,31 @@ def test_derived_signal_replace():
     b_val[0] = 3
     b.update()
     assert_eq(seen[-1], 6)
+
+
+def test_dependent_value_reset():
+    conn = _db()
+    rt = ReactiveTable(conn, "items")
+
+    cnt = CountAll(rt)
+    dv = DependentValue(cnt)
+    seen = []
+    dv.listeners.append(seen.append)
+
+    rt.insert("INSERT INTO items(name) VALUES ('x')", {})
+    assert_eq(dv.value, 1)
+    assert_eq(seen[-1], 1)
+
+    sel = Select(rt, "name")
+    dv.reset(sel)
+    assert dv.onevent not in cnt.listeners
+    assert_eq(dv.value, "x")
+    assert_eq(seen[-1], "x")
+
+    rid = conn.execute("SELECT id FROM items WHERE name='x'").fetchone()[0]
+    rt.update("UPDATE items SET name='y' WHERE id=:id", {"id": rid})
+    assert_eq(dv.value, "y")
+    assert_eq(seen[-1], "y")
 
 
 def test_check_component_reactive_table():

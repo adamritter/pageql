@@ -11,7 +11,7 @@ Classes:
 
 # Instructions for LLMs and devs: Keep the code short. Make changes minimal. Don't change even tests too much.
 
-import re, time, sys, json, hashlib
+import re, time, sys, json, hashlib, base64
 import doctest
 import sqlite3
 import html
@@ -640,7 +640,7 @@ class PageQL:
                     self.process_nodes(body, row_params, row_buffer, path, includes, http_verb, reactive, ctx)
                     row_content = ''.join(row_buffer).strip()
                     if ctx and reactive:
-                        row_id = f"{mid}_{hashlib.sha256(repr(tuple(row)).encode()).hexdigest()[:8]}"
+                        row_id = f"{mid}_{base64.b64encode(hashlib.sha256(repr(tuple(row)).encode()).digest())[:8]}"
                         ctx.ensure_init(output_buffer)
                         output_buffer.append(f"<script>pstart('{row_id}')</script>")
                         output_buffer.append(row_content)

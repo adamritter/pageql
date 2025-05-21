@@ -109,6 +109,8 @@ class RenderContext:
         self.out = []
         self.scripts: list[str] = []
         self.rendering = True
+        self.websocket = None
+        self.websocket_connected = False
 
     def ensure_init(self):
         if not self.initialized:

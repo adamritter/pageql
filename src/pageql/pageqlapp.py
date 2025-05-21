@@ -12,7 +12,7 @@ from .pageql import PageQL
 
 # Base client script used for reactive updates.
 base_script = """
-<script async src=\"/htmx.min.js\"></script>
+<script src=\"/htmx.min.js\"></script>
 <script>
   window.pageqlMarkers={};
   function pstart(i){var s=document.currentScript,c=document.createComment('pageql-start:'+i);var p=s.parentNode;if(p&&p.tagName==='HEAD'&&document.body){p.removeChild(s);document.body.appendChild(c);}else{s.replaceWith(c);}window.pageqlMarkers[i]=c;if(document.currentScript)document.currentScript.remove();}

@@ -69,6 +69,7 @@ class PageQLApp:
         self.static_files = {}
         self.before_hooks = {}
         self.render_contexts = {}
+        self.websockets = {}
         self.template_dir = template_dir
         self.prepare_server(db_path, template_dir, create_db)
     
@@ -212,6 +213,10 @@ class PageQLApp:
             )
             if client_id:
                 self.render_contexts[client_id] = result.context
+                ws = self.websockets.get(client_id)
+                if ws:
+                    result.context.websocket = ws
+                    result.context.websocket_connected = True
             print(f"{method} {path_cleaned} Params: {params} ({(time.time() - t) * 1000:.2f} ms)")
             print(f"Result: {result.status_code} {result.redirect_to} {result.headers}")
 
@@ -387,6 +392,11 @@ class PageQLApp:
             if b"clientId" in qs:
                 client_id = qs[b"clientId"][0].decode()
                 print(f"Client connected with id: {client_id}")
+                self.websockets[client_id] = send
+                ctx = self.render_contexts.get(client_id)
+                if ctx:
+                    ctx.websocket = send
+                    ctx.websocket_connected = True
             fut = asyncio.Event()
             self.notifies.append(fut)
             receive_task = asyncio.create_task(receive())
@@ -402,6 +412,12 @@ class PageQLApp:
                     if isinstance(result, dict) and result.get("type") == "websocket.connect":
                         receive_task = asyncio.create_task(receive())
                     if isinstance(result, dict) and result.get("type") == "websocket.disconnect":
+                        if client_id:
+                            self.websockets.pop(client_id, None)
+                            ctx = self.render_contexts.get(client_id)
+                            if ctx:
+                                ctx.websocket = None
+                                ctx.websocket_connected = False
                         return
 
                     elif result is True:

@@ -8,6 +8,13 @@ def parsefirstword(s):
     return s[:s.find(' ')], s[s.find(' '):].strip()
 
 
+def _shorten_error_token(value: str) -> str:
+    """Return a short token snippet for error messages."""
+    value = value.split("{{")[0]
+    value = value.split("\n")[0]
+    return value.strip()
+
+
 def tokenize(source):
     """
     Parses a PageQL template into a list of ``(token_type, content)`` tuples.
@@ -44,12 +51,14 @@ def tokenize(source):
         if part.startswith('{{{') and part.endswith('}}}'):
             inner = part[3:-3]
             if '{{' in inner or '}}' in inner:
-                raise SyntaxError(f"mismatched {{{{ in token: {inner!r}")
+                snippet = _shorten_error_token(inner)
+                raise SyntaxError(f"mismatched {{{{ in token: {snippet!r}")
             nodes.append(('render_raw', inner.strip()))
         elif part.startswith('{{') and part.endswith('}}'):
             inner = part[2:-2]
             if '{{' in inner or '}}' in inner:
-                raise SyntaxError(f"mismatched {{{{ in token: {inner!r}")
+                snippet = _shorten_error_token(inner)
+                raise SyntaxError(f"mismatched {{{{ in token: {snippet!r}")
             inner = inner.strip()
             if inner.startswith('!--') and inner.endswith('--'):
                 pass  # Skip comment nodes
@@ -65,7 +74,8 @@ def tokenize(source):
                     nodes.append(('render_expression', inner))
         else:
             if '{{' in part or '}}' in part:
-                raise SyntaxError(f"mismatched {{{{ in text: {part!r}")
+                snippet = _shorten_error_token(part)
+                raise SyntaxError(f"mismatched {{{{ in text: {snippet!r}")
             nodes.append(('text', part))
     return nodes
 

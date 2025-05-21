@@ -160,3 +160,30 @@ def test_reactive_count_delete_via_execute():
         _, body_text = result
 
         assert body_text == "0"
+
+def test_insert_via_execute_after_click():
+    """Inserting via ``executeone`` should display the added text reactively."""
+    pytest.importorskip("playwright.async_api")
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        Path(tmpdir, "msgs.pageql").write_text(
+            "{{#create table if not exists msgs(text TEXT)}}"
+            "{{#reactive on}}"
+            "{{#from msgs}}{{text}}{{/from}}",
+            encoding="utf-8",
+        )
+
+        async def after(page, port, app: PageQLApp):
+            await page.wait_for_timeout(500)
+            app.pageql_engine.tables.executeone(
+                "INSERT INTO msgs(text) VALUES (:text)", {"text": "hello"}
+            )
+            await page.reload()
+            await page.wait_for_load_state("networkidle")
+
+        result = load_page(tmpdir, "msgs", after, reload=True)
+        if result is None:
+            pytest.skip("Chromium not available for Playwright")
+        _, body_text = result
+
+        assert "hello" in body_text

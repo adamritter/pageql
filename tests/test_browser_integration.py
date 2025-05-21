@@ -126,3 +126,37 @@ def test_reactive_count_insert_via_execute():
         _, body_text = result
 
         assert body_text == "1"
+
+
+def test_reactive_count_delete_via_execute():
+    """Count should decrement when a row is deleted via executeone."""
+    pytest.importorskip("playwright.async_api")
+    if (
+        importlib.util.find_spec("websockets") is None
+        and importlib.util.find_spec("wsproto") is None
+    ):
+        pytest.skip("WebSocket library not available for reactive test")
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        Path(tmpdir, "count_after_delete.pageql").write_text(
+            "{{#create table if not exists nums(value INTEGER)}}"
+            "{{#insert into nums(value) values (1)}}"
+            "{{#reactive on}}"
+            "{{#set a count(*) from nums}}"
+            "{{a}}",
+            encoding="utf-8",
+        )
+
+        async def after(page, port, app: PageQLApp):
+            await page.wait_for_timeout(500)
+            app.pageql_engine.tables.executeone(
+                "DELETE FROM nums WHERE value = 1",
+                {},
+            )
+
+        result = load_page(tmpdir, "count_after_delete", after, reload=True)
+        if result is None:
+            pytest.skip("Chromium not available for Playwright")
+        _, body_text = result
+
+        assert body_text == "0"

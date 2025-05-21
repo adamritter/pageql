@@ -664,7 +664,16 @@ class PageQL:
                             i += 2
                             continue
                         i += 1
-                    reactive = self.process_nodes(node[i], params, path, includes, http_verb, reactive, ctx)
+                    reactive = self.process_nodes(
+                        node[i],
+                        params,
+                        path,
+                        includes,
+                        http_verb,
+                        reactive,
+                        ctx,
+                        out,
+                    )
                     i += 1
             elif directive == '#ifdef':
                 param_name = node[1].strip()
@@ -676,9 +685,27 @@ class PageQL:
                 param_name = param_name.replace('.', '__')
                 
                 if param_name in params:
-                    reactive = self.process_nodes(then_body, params, path, includes, http_verb, reactive, ctx)
+                    reactive = self.process_nodes(
+                        then_body,
+                        params,
+                        path,
+                        includes,
+                        http_verb,
+                        reactive,
+                        ctx,
+                        out,
+                    )
                 elif else_body:
-                    reactive = self.process_nodes(else_body, params, path, includes, http_verb, reactive, ctx)
+                    reactive = self.process_nodes(
+                        else_body,
+                        params,
+                        path,
+                        includes,
+                        http_verb,
+                        reactive,
+                        ctx,
+                        out,
+                    )
             elif directive == '#ifndef':
                 param_name = node[1].strip()
                 then_body = node[2]
@@ -689,9 +716,27 @@ class PageQL:
                 param_name = param_name.replace('.', '__')
                 
                 if param_name not in params:
-                    reactive = self.process_nodes(then_body, params, path, includes, http_verb, reactive, ctx)
+                    reactive = self.process_nodes(
+                        then_body,
+                        params,
+                        path,
+                        includes,
+                        http_verb,
+                        reactive,
+                        ctx,
+                        out,
+                    )
                 elif else_body:
-                    reactive = self.process_nodes(else_body, params, path, includes, http_verb, reactive, ctx)
+                    reactive = self.process_nodes(
+                        else_body,
+                        params,
+                        path,
+                        includes,
+                        http_verb,
+                        reactive,
+                        ctx,
+                        out,
+                    )
             elif directive == '#from':
                 query = node[1]
                 body = node[2]

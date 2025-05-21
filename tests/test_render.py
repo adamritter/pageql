@@ -306,3 +306,19 @@ def test_from_nonreactive_insert_event():
         f"<script>pinsert('0_{h3}',\"<c>\")</script>"
     )
     assert result.body == expected
+
+def test_if_inside_from():
+    r = PageQL(":memory:")
+    r.db.execute("CREATE TABLE todos(id INTEGER PRIMARY KEY, text TEXT)")
+    r.db.executemany("INSERT INTO todos(id, text) VALUES (?, ?)", [(1, "a"), (2, "b")])
+    snippet = (
+        "{{#from todos ORDER BY id}}"
+        "\n      <li>\n          <input class=\"toggle\" type=\"checkbox\" {{#if 1}}checked{{/if}}>\n      text\n      </li>\n    {{/from}}"
+    )
+    r.load_module("m", snippet)
+    result = r.render("/m")
+    expected = (
+        "<li>\n          <input class=\"toggle\" type=\"checkbox\" checked>\n      text\n      </li>\n"
+        "<li>\n          <input class=\"toggle\" type=\"checkbox\" checked>\n      text\n      </li>\n"
+    )
+    assert result.body == expected

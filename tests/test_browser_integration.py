@@ -1,4 +1,6 @@
 import sys
+import pytest
+import asyncio
 from pathlib import Path
 import types
 import tempfile
@@ -103,3 +105,59 @@ def test_set_variable_in_browser():
 
         assert status == 200
         assert "Hello world" in body
+
+
+def test_reactive_set_variable_in_browser():
+    """Ensure reactive mode updates are sent to the browser."""
+    pyppeteer = pytest.importorskip("pyppeteer")
+    from pyppeteer import chromium_downloader, launch
+
+    chromium = chromium_downloader.chromium_executable()
+    if not Path(chromium).exists():
+        pytest.skip("Chromium not available for pyppeteer")
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        template_path = Path(tmpdir) / "react.pageql"
+        template_path.write_text(
+            "{{#reactive on}}{{#set a 'ww'}}hello {{a}}{{#set a 'world'}}",
+            encoding="utf-8",
+        )
+
+        port = _get_free_port()
+        proc = Process(target=_serve, args=(port, tmpdir))
+        proc.start()
+
+        start = time.time()
+        while True:
+            try:
+                conn = http.client.HTTPConnection("127.0.0.1", port)
+                conn.connect()
+                conn.close()
+                break
+            except OSError:
+                if time.time() - start > 5:
+                    proc.terminate()
+                    proc.join()
+                    raise RuntimeError("Server did not start")
+                time.sleep(0.05)
+
+        async def _run():
+            browser = await launch(
+                executablePath=chromium,
+                args=["--no-sandbox"],
+                handleSIGINT=False,
+                handleSIGTERM=False,
+                handleSIGHUP=False,
+            )
+            page = await browser.newPage()
+            await page.goto(f"http://127.0.0.1:{port}/react")
+            body = await page.evaluate("document.body.textContent")
+            await browser.close()
+            return body
+
+        body_text = asyncio.get_event_loop().run_until_complete(_run())
+
+        proc.terminate()
+        proc.join()
+
+        assert body_text == "hello world"

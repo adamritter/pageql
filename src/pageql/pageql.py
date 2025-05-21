@@ -331,8 +331,8 @@ class PageQL:
         if name in self._parse_errors:
             del self._parse_errors[name]
         # Tokenize the source and build AST
-        tokens = tokenize(source)
         try:
+            tokens = tokenize(source)
             body, partials = build_ast(tokens)
             self._modules[name] = [body, partials]
         except Exception as e:

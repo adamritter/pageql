@@ -534,6 +534,8 @@ class PageQL:
                             deps.append(dep)
 
                     def compute(args=args, params=params):
+                        if re.search(r"\bfrom\b", args, re.I):
+                            return evalone(self.db, args, params, True, self.tables)
                         return evalone(self.db, args, params, False, self.tables)
 
                     existing = params.get(var)

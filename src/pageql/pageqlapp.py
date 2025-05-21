@@ -9,18 +9,22 @@ from watchfiles import awatch
 # Assuming pageql.py is in the same directory or Python path
 from .pageql import PageQL
 
-# Global PageQL engine instance (simpler for this example)
-reload_script = """
+# Base client script used for reactive updates.
+base_script = """
 <script>
   window.pageqlMarkers={};
-  function pstart(i){var s=document.currentScript,c=document.createComment('pageql-start:'+i);s.replaceWith(c);window.pageqlMarkers[i]=c;}
-  function pend(i){var s=document.currentScript,c=document.createComment('pageql-end:'+i);s.replaceWith(c);window.pageqlMarkers[i].e=c;}
-  function pset(i,v){var s=window.pageqlMarkers[i],e=s.e,r=document.createRange();r.setStartAfter(s);r.setEndBefore(e);r.deleteContents();var t=document.createElement('template');t.innerHTML=v;e.parentNode.insertBefore(t.content,e);}
-  function pdelete(i){var m=window.pageqlMarkers[i],e=m.e,r=document.createRange();r.setStartBefore(m);r.setEndAfter(e);r.deleteContents();delete window.pageqlMarkers[i];}
-  function pupdate(o,n,v){var m=window.pageqlMarkers[o],e=m.e;m.textContent='pageql-start:'+n;e.textContent='pageql-end:'+n;delete window.pageqlMarkers[o];window.pageqlMarkers[n]=m;pset(n,v);}
-    function pinsert(i,v){var m=window.pageqlMarkers[i],e=m.e;var t=document.createElement('template');t.innerHTML=v;e.parentNode.insertBefore(t.content,e);}
-document.currentScript.remove()
+  function pstart(i){var s=document.currentScript,c=document.createComment('pageql-start:'+i);s.replaceWith(c);window.pageqlMarkers[i]=c;document.currentScript.remove();}
+  function pend(i){var s=document.currentScript,c=document.createComment('pageql-end:'+i);s.replaceWith(c);window.pageqlMarkers[i].e=c;document.currentScript.remove();}
+  function pset(i,v){var s=window.pageqlMarkers[i],e=s.e,r=document.createRange();r.setStartAfter(s);r.setEndBefore(e);r.deleteContents();var t=document.createElement('template');t.innerHTML=v;e.parentNode.insertBefore(t.content,e);document.currentScript.remove();}
+  function pdelete(i){var m=window.pageqlMarkers[i],e=m.e,r=document.createRange();r.setStartBefore(m);r.setEndAfter(e);r.deleteContents();delete window.pageqlMarkers[i];document.currentScript.remove();}
+  function pupdate(o,n,v){var m=window.pageqlMarkers[o],e=m.e;m.textContent='pageql-start:'+n;e.textContent='pageql-end:'+n;delete window.pageqlMarkers[o];window.pageqlMarkers[n]=m;pset(n,v);document.currentScript.remove();}
+  function pinsert(i,v){var m=window.pageqlMarkers[i],e=m.e;var t=document.createElement('template');t.innerHTML=v;e.parentNode.insertBefore(t.content,e);document.currentScript.remove();}
+  document.currentScript.remove()
 </script>
+"""
+
+# Additional script that connects the live-reload websocket.
+reload_ws_script = """
 <script>
   const host = window.location.hostname;
   const port = window.location.port;
@@ -58,6 +62,9 @@ document.currentScript.remove()
   document.currentScript.remove()
 </script>
 """
+
+# Combined script used when reload functionality is enabled.
+reload_script = base_script + reload_ws_script
 
 
 class PageQLApp:
@@ -141,8 +148,9 @@ class PageQLApp:
             print(f"Serving static file: {path_cleaned} as {content_type}")
             if content_type == 'text/html':
                 content_type = 'text/html; charset=utf-8'
-                # add reload script to the body
-                body = (reload_script.encode('utf-8') + self.static_files[path_cleaned])
+                # add client script to the body
+                scripts = base_script + (reload_ws_script if self.should_reload else '')
+                body = scripts.encode('utf-8') + self.static_files[path_cleaned]
             else:
                 body = self.static_files[path_cleaned]
             await send({
@@ -245,9 +253,10 @@ class PageQLApp:
                     'status': result.status_code,
                     'headers': headers,
                 })
+                scripts = base_script + (reload_ws_script if self.should_reload else '')
                 await send({
                     'type': 'http.response.body',
-                    'body': ((reload_script if self.should_reload else '') + result.body).encode('utf-8'),
+                    'body': (scripts + result.body).encode('utf-8'),
                 })
 
         except sqlite3.Error as db_err:
@@ -259,9 +268,10 @@ class PageQLApp:
                 'status': 500,
                 'headers': [(b'content-type', b'text/html; charset=utf-8')],
             })
+            scripts = base_script + (reload_ws_script if self.should_reload else '')
             await send({
                 'type': 'http.response.body',
-                'body': ((reload_script if self.should_reload else '') + f"Database Error: {db_err}").encode('utf-8'),
+                'body': (scripts + f"Database Error: {db_err}").encode('utf-8'),
             })
         except ValueError as val_err: # Catch validation errors from #param etc.
             print(f"ERROR: Validation or Value error during render: {val_err}")
@@ -270,9 +280,10 @@ class PageQLApp:
                 'status': 400,
                 'headers': [(b'content-type', b'text/html; charset=utf-8')],
             })
+            scripts = base_script + (reload_ws_script if self.should_reload else '')
             await send({
                 'type': 'http.response.body',
-                'body': ((reload_script if self.should_reload else '') + f"Bad Request: {val_err}").encode('utf-8'),
+                'body': (scripts + f"Bad Request: {val_err}").encode('utf-8'),
             })
         except FileNotFoundError: # If pageql_engine.render raises this for missing modules
             print(f"ERROR: Module not found for path: {path_cleaned}")
@@ -281,9 +292,10 @@ class PageQLApp:
                 'status': 404,
                 'headers': [(b'content-type', b'text/html; charset=utf-8')],
             })
+            scripts = base_script + (reload_ws_script if self.should_reload else '')
             await send({
                 'type': 'http.response.body',
-                'body': ((reload_script if self.should_reload else '') + b"Not Found").encode('utf-8'),
+                'body': (scripts.encode('utf-8') + b"Not Found"),
             })
         except Exception as e:
             print(f"ERROR: Unexpected error during render: {e}")
@@ -294,9 +306,10 @@ class PageQLApp:
                 'status': 500,
                 'headers': [(b'content-type', b'text/html; charset=utf-8')],
             })
+            scripts = base_script + (reload_ws_script if self.should_reload else '')
             await send({
                 'type': 'http.response.body',
-                'body': ((reload_script if self.should_reload else '') + f"Internal Server Error: {e}").encode('utf-8'),
+                'body': (scripts + f"Internal Server Error: {e}").encode('utf-8'),
             })
     
     async def watch_directory(self, directory, stop_event):

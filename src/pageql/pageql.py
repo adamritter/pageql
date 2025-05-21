@@ -110,10 +110,10 @@ DIRECTIVE_HELP: dict[str, str] = {
 
 def format_unknown_directive(directive: str) -> str:
     """Return a helpful error message for unknown directives."""
-    lines = [f"Unknown directive '{directive}'. Valid directives:"]
+    lines = [f"Unknown directive '{directive}'. Valid directives:<pre>"]
     for name, desc in DIRECTIVE_HELP.items():
         lines.append(f"  {name:8} - {desc}")
-    return "\n".join(lines)
+    return "\n".join(lines) + "</pre>"
 
 
 # Define RenderResult as a simple class

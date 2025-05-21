@@ -3,10 +3,8 @@ import pytest
 from pathlib import Path
 import types
 import tempfile
-import socket
-import time
 import http.client
-import threading
+import time
 from uvicorn.config import Config
 from uvicorn.server import Server
 import asyncio
@@ -16,31 +14,7 @@ sys.modules.setdefault("watchfiles", types.ModuleType("watchfiles"))
 sys.modules["watchfiles"].awatch = lambda *args, **kwargs: None
 
 from pageql.pageqlapp import PageQLApp
-
-
-def _get_free_port():
-    s = socket.socket()
-    s.bind(("127.0.0.1", 0))
-    port = s.getsockname()[1]
-    s.close()
-    return port
-
-
-def run_server_in_thread(port, tmpdir, reload=False):
-    container = {}
-
-    def run():
-        app = PageQLApp(":memory:", tmpdir, create_db=True, should_reload=reload)
-        config = Config(app, host="127.0.0.1", port=port, log_level="warning")
-        server = Server(config)
-        container["server"] = server
-        server.run()
-
-    thread = threading.Thread(target=run, daemon=True)
-    thread.start()
-    while "server" not in container:
-        time.sleep(0.01)
-    return container["server"], thread
+from playwright_helpers import chromium_available, get_free_port, run_server_in_thread
 
 
 
@@ -53,26 +27,10 @@ def test_hello_world_in_browser():
         template_path = Path(tmpdir) / "hello.pageql"
         template_path.write_text("Hello world!", encoding="utf-8")
 
-        port = _get_free_port()
-        server, thread = run_server_in_thread(port, tmpdir)
-
-        start = time.time()
-        while True:
-            try:
-                conn = http.client.HTTPConnection("127.0.0.1", port)
-                conn.connect()
-                conn.close()
-                break
-            except OSError:
-                if time.time() - start > 5:
-                    server.should_exit = True
-                    thread.join()
-                    raise RuntimeError("Server did not start")
-                time.sleep(0.05)
+        server, thread, port = run_server_in_thread(tmpdir)
 
         with sync_playwright() as p:
-            chromium_path = p.chromium.executable_path
-            if not Path(chromium_path).exists():
+            if not chromium_available(p):
                 server.should_exit = True
                 thread.join()
                 pytest.skip("Chromium not available for Playwright")
@@ -99,26 +57,10 @@ def test_set_variable_in_browser():
         template_path = Path(tmpdir) / "greet.pageql"
         template_path.write_text("{{#set :a 'world'}}Hello {{a}}", encoding="utf-8")
 
-        port = _get_free_port()
-        server, thread = run_server_in_thread(port, tmpdir)
-
-        start = time.time()
-        while True:
-            try:
-                conn = http.client.HTTPConnection("127.0.0.1", port)
-                conn.connect()
-                conn.close()
-                break
-            except OSError:
-                if time.time() - start > 5:
-                    server.should_exit = True
-                    thread.join()
-                    raise RuntimeError("Server did not start")
-                time.sleep(0.05)
+        server, thread, port = run_server_in_thread(tmpdir)
 
         with sync_playwright() as p:
-            chromium_path = p.chromium.executable_path
-            if not Path(chromium_path).exists():
+            if not chromium_available(p):
                 server.should_exit = True
                 thread.join()
                 pytest.skip("Chromium not available for Playwright")
@@ -154,26 +96,10 @@ def test_reactive_set_variable_in_browser():
             encoding="utf-8",
         )
 
-        port = _get_free_port()
-        server, thread = run_server_in_thread(port, tmpdir)
-
-        start = time.time()
-        while True:
-            try:
-                conn = http.client.HTTPConnection("127.0.0.1", port)
-                conn.connect()
-                conn.close()
-                break
-            except OSError:
-                if time.time() - start > 5:
-                    server.should_exit = True
-                    thread.join()
-                    raise RuntimeError("Server did not start")
-                time.sleep(0.05)
+        server, thread, port = run_server_in_thread(tmpdir)
 
         with sync_playwright() as p:
-            chromium_path = p.chromium.executable_path
-            if not Path(chromium_path).exists():
+            if not chromium_available(p):
                 server.should_exit = True
                 thread.join()
                 pytest.skip("Chromium not available for Playwright")
@@ -212,26 +138,10 @@ def test_reactive_count_insert_in_browser():
             encoding="utf-8",
         )
 
-        port = _get_free_port()
-        server, thread = run_server_in_thread(port, tmpdir)
-
-        start = time.time()
-        while True:
-            try:
-                conn = http.client.HTTPConnection("127.0.0.1", port)
-                conn.connect()
-                conn.close()
-                break
-            except OSError:
-                if time.time() - start > 5:
-                    server.should_exit = True
-                    thread.join()
-                    raise RuntimeError("Server did not start")
-                time.sleep(0.05)
+        server, thread, port = run_server_in_thread(tmpdir)
 
         with sync_playwright() as p:
-            chromium_path = p.chromium.executable_path
-            if not Path(chromium_path).exists():
+            if not chromium_available(p):
                 server.should_exit = True
                 thread.join()
                 pytest.skip("Chromium not available for Playwright")
@@ -269,7 +179,7 @@ def test_reactive_count_insert_via_execute():
             encoding="utf-8",
         )
 
-        port = _get_free_port()
+        port = get_free_port()
         app = PageQLApp(":memory:", tmpdir, create_db=True, should_reload=False)
         config = Config(app, host="127.0.0.1", port=port, log_level="warning")
         server = Server(config)
@@ -291,8 +201,7 @@ def test_reactive_count_insert_via_execute():
                     await asyncio.sleep(0.05)
 
             async with async_playwright() as p:
-                chromium_path = p.chromium.executable_path
-                if not Path(chromium_path).exists():
+                if not chromium_available(p):
                     server.should_exit = True
                     await server_task
                     return None

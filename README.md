@@ -110,6 +110,7 @@ pageql -path/to/your/database.sqlite ./templates
 *   `#ifdef <variable>`: Checks if a variable is defined
 *   `#ifndef <variable>`: Checks if a variable is not defined
 *  [NOT IMPLEMENTED]  `#each collection`: (Potential loop/iteration construct over a collection, likely passed in params. Probably it should introduce :this param like in Handlebars)
+*   `#reactive on|off`: Toggle reactive rendering. When enabled with `on`, PageQL wraps dynamic output in markers so changes can be pushed to the browser. Use `off` to return to static rendering.
 
 **Debugging:**
 *   `#dump <expression>`: Dumps a table / SQL expression with timing info
@@ -122,6 +123,14 @@ pageql -path/to/your/database.sqlite ./templates
 *   [NOT IMPLEMENTED] `#header <name> <value_expression>`: Sets an HTTP response header. The `<name>` (e.g., `Cache-Control`, `"X-Custom-Header"`) and `<value_expression>` (e.g., `"no-cache"`, `:some_variable`) are required positional arguments. Must typically be used before any HTML output. Example: `#header Cache-Control "no-cache, no-store, must-revalidate"`
 *   [NOT IMPLEMENTED] `#cookie <name> <expression> [options...]`: Sets an outgoing HTTP cookie. The `<name>` is a literal string, and the `<expression>` is evaluated to determine the cookie's value. Standard cookie options like `expires="..."`, `path="..."`, `domain="..."`, `secure`, and `httponly` can be provided as subsequent optional attributes. (Reading incoming cookies is handled via standard variable access, e.g., `:param_name` or potentially a dedicated scope like `:cookie_name`).
 *   [NOT IMPLEMENTED] `#contenttype <expression>`: Sets the `Content-Type` HTTP response header (e.g., `text/html; charset=utf-8`).
+
+## Reactivity Mode
+
+The optional reactive mode enables live updates in the browser. Use
+`#reactive on` before sections that should automatically update when the
+underlying variables or SQL queries change. Insert `#reactive off` to
+return to normal static rendering. The mode persists from the point it
+is toggled until the opposite directive appears.
 
 ## Parameter Binding & Output
 

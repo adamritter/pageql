@@ -6,11 +6,10 @@ import tempfile
 import socket
 import time
 import http.client
-from multiprocessing import Process
+import threading
 from uvicorn.config import Config
 from uvicorn.server import Server
-import threading
-import multiprocessing
+import asyncio
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 sys.modules.setdefault("watchfiles", types.ModuleType("watchfiles"))
@@ -27,28 +26,23 @@ def _get_free_port():
     return port
 
 
-def _serve(port, tmpdir, reload=False):
-    app = PageQLApp(":memory:", tmpdir, create_db=True, should_reload=reload)
-    config = Config(app, host="127.0.0.1", port=port, log_level="warning")
-    Server(config).run()
+def run_server_in_thread(port, tmpdir, reload=False):
+    container = {}
+
+    def run():
+        app = PageQLApp(":memory:", tmpdir, create_db=True, should_reload=reload)
+        config = Config(app, host="127.0.0.1", port=port, log_level="warning")
+        server = Server(config)
+        container["server"] = server
+        server.run()
+
+    thread = threading.Thread(target=run, daemon=True)
+    thread.start()
+    while "server" not in container:
+        time.sleep(0.01)
+    return container["server"], thread
 
 
-def _serve_with_queue(port, tmpdir, q):
-    app = PageQLApp(":memory:", tmpdir, create_db=True, should_reload=False)
-    config = Config(app, host="127.0.0.1", port=port, log_level="warning")
-    server = Server(config)
-    t = threading.Thread(target=server.run, daemon=True)
-    t.start()
-    while True:
-        cmd = q.get()
-        if cmd == "stop":
-            server.should_exit = True
-            t.join()
-            break
-        elif isinstance(cmd, tuple) and cmd[0] == "execute":
-            sql, params = cmd[1], cmd[2]
-            app.pageql_engine.tables.executeone(sql, params)
-            q.put("done")
 
 
 def test_hello_world_in_browser():
@@ -60,8 +54,7 @@ def test_hello_world_in_browser():
         template_path.write_text("Hello world!", encoding="utf-8")
 
         port = _get_free_port()
-        proc = Process(target=_serve, args=(port, tmpdir))
-        proc.start()
+        server, thread = run_server_in_thread(port, tmpdir)
 
         start = time.time()
         while True:
@@ -72,16 +65,16 @@ def test_hello_world_in_browser():
                 break
             except OSError:
                 if time.time() - start > 5:
-                    proc.terminate()
-                    proc.join()
+                    server.should_exit = True
+                    thread.join()
                     raise RuntimeError("Server did not start")
                 time.sleep(0.05)
 
         with sync_playwright() as p:
             chromium_path = p.chromium.executable_path
             if not Path(chromium_path).exists():
-                proc.terminate()
-                proc.join()
+                server.should_exit = True
+                thread.join()
                 pytest.skip("Chromium not available for Playwright")
             browser = p.chromium.launch(args=["--no-sandbox"])
             page = browser.new_page()
@@ -90,8 +83,8 @@ def test_hello_world_in_browser():
             status = response.status if response is not None else None
             browser.close()
 
-        proc.terminate()
-        proc.join()
+        server.should_exit = True
+        thread.join()
 
         assert status == 200
         assert "Hello world!" in body_text
@@ -107,8 +100,7 @@ def test_set_variable_in_browser():
         template_path.write_text("{{#set :a 'world'}}Hello {{a}}", encoding="utf-8")
 
         port = _get_free_port()
-        proc = Process(target=_serve, args=(port, tmpdir))
-        proc.start()
+        server, thread = run_server_in_thread(port, tmpdir)
 
         start = time.time()
         while True:
@@ -119,16 +111,16 @@ def test_set_variable_in_browser():
                 break
             except OSError:
                 if time.time() - start > 5:
-                    proc.terminate()
-                    proc.join()
+                    server.should_exit = True
+                    thread.join()
                     raise RuntimeError("Server did not start")
                 time.sleep(0.05)
 
         with sync_playwright() as p:
             chromium_path = p.chromium.executable_path
             if not Path(chromium_path).exists():
-                proc.terminate()
-                proc.join()
+                server.should_exit = True
+                thread.join()
                 pytest.skip("Chromium not available for Playwright")
             browser = p.chromium.launch(args=["--no-sandbox"])
             page = browser.new_page()
@@ -137,8 +129,8 @@ def test_set_variable_in_browser():
             status = response.status if response is not None else None
             browser.close()
 
-        proc.terminate()
-        proc.join()
+        server.should_exit = True
+        thread.join()
 
         assert status == 200
         assert "Hello world" in body_text
@@ -163,8 +155,7 @@ def test_reactive_set_variable_in_browser():
         )
 
         port = _get_free_port()
-        proc = Process(target=_serve, args=(port, tmpdir))
-        proc.start()
+        server, thread = run_server_in_thread(port, tmpdir)
 
         start = time.time()
         while True:
@@ -175,16 +166,16 @@ def test_reactive_set_variable_in_browser():
                 break
             except OSError:
                 if time.time() - start > 5:
-                    proc.terminate()
-                    proc.join()
+                    server.should_exit = True
+                    thread.join()
                     raise RuntimeError("Server did not start")
                 time.sleep(0.05)
 
         with sync_playwright() as p:
             chromium_path = p.chromium.executable_path
             if not Path(chromium_path).exists():
-                proc.terminate()
-                proc.join()
+                server.should_exit = True
+                thread.join()
                 pytest.skip("Chromium not available for Playwright")
             browser = p.chromium.launch(args=["--no-sandbox"])
             page = browser.new_page()
@@ -193,8 +184,8 @@ def test_reactive_set_variable_in_browser():
             body_text = page.evaluate("document.body.textContent")
             browser.close()
 
-        proc.terminate()
-        proc.join()
+        server.should_exit = True
+        thread.join()
 
         assert body_text == "hello world"
 
@@ -222,8 +213,7 @@ def test_reactive_count_insert_in_browser():
         )
 
         port = _get_free_port()
-        proc = Process(target=_serve, args=(port, tmpdir))
-        proc.start()
+        server, thread = run_server_in_thread(port, tmpdir)
 
         start = time.time()
         while True:
@@ -234,16 +224,16 @@ def test_reactive_count_insert_in_browser():
                 break
             except OSError:
                 if time.time() - start > 5:
-                    proc.terminate()
-                    proc.join()
+                    server.should_exit = True
+                    thread.join()
                     raise RuntimeError("Server did not start")
                 time.sleep(0.05)
 
         with sync_playwright() as p:
             chromium_path = p.chromium.executable_path
             if not Path(chromium_path).exists():
-                proc.terminate()
-                proc.join()
+                server.should_exit = True
+                thread.join()
                 pytest.skip("Chromium not available for Playwright")
             browser = p.chromium.launch(args=["--no-sandbox"])
             page = browser.new_page()
@@ -252,27 +242,27 @@ def test_reactive_count_insert_in_browser():
             body_text = page.evaluate("document.body.textContent")
             browser.close()
 
-        proc.terminate()
-        proc.join()
+        server.should_exit = True
+        thread.join()
 
         assert body_text == "1"
 
 
 def test_reactive_count_insert_via_execute():
     """Count updates should propagate when inserting after initial load."""
-    pytest.importorskip("playwright.sync_api")
+    pytest.importorskip("playwright.async_api")
     import importlib.util
     if (
         importlib.util.find_spec("websockets") is None
         and importlib.util.find_spec("wsproto") is None
     ):
         pytest.skip("WebSocket library not available for reactive test")
-    from playwright.sync_api import sync_playwright
+    from playwright.async_api import async_playwright
 
     with tempfile.TemporaryDirectory() as tmpdir:
         template_path = Path(tmpdir) / "count_after.pageql"
         template_path.write_text(
-            "{{#create table nums(value INTEGER)}}"
+            "{{#create table if not exists nums(value INTEGER)}}"
             "{{#reactive on}}"
             "{{#set a count(*) from nums}}"
             "{{a}}",
@@ -280,41 +270,51 @@ def test_reactive_count_insert_via_execute():
         )
 
         port = _get_free_port()
-        q = multiprocessing.Queue()
-        proc = Process(target=_serve_with_queue, args=(port, tmpdir, q))
-        proc.start()
+        app = PageQLApp(":memory:", tmpdir, create_db=True, should_reload=False)
+        config = Config(app, host="127.0.0.1", port=port, log_level="warning")
+        server = Server(config)
 
-        start = time.time()
-        while True:
-            try:
-                conn = http.client.HTTPConnection("127.0.0.1", port)
-                conn.connect()
-                conn.close()
-                break
-            except OSError:
-                if time.time() - start > 5:
-                    q.put("stop")
-                    proc.join()
-                    raise RuntimeError("Server did not start")
-                time.sleep(0.05)
+        async def run_test():
+            server_task = asyncio.create_task(server.serve())
+            start = time.time()
+            while True:
+                try:
+                    conn = http.client.HTTPConnection("127.0.0.1", port)
+                    conn.connect()
+                    conn.close()
+                    break
+                except OSError:
+                    if time.time() - start > 5:
+                        server.should_exit = True
+                        await server_task
+                        raise RuntimeError("Server did not start")
+                    await asyncio.sleep(0.05)
 
-        with sync_playwright() as p:
-            chromium_path = p.chromium.executable_path
-            if not Path(chromium_path).exists():
-                q.put("stop")
-                proc.join()
-                pytest.skip("Chromium not available for Playwright")
-            browser = p.chromium.launch(args=["--no-sandbox"])
-            page = browser.new_page()
-            page.goto(f"http://127.0.0.1:{port}/count_after")
-            page.wait_for_timeout(100)
-            q.put(("execute", "INSERT INTO nums(value) VALUES (1)", {}))
-            q.get()
-            page.wait_for_timeout(500)
-            body_text = page.evaluate("document.body.textContent")
-            browser.close()
+            async with async_playwright() as p:
+                chromium_path = p.chromium.executable_path
+                if not Path(chromium_path).exists():
+                    server.should_exit = True
+                    await server_task
+                    return None
+                browser = await p.chromium.launch(args=["--no-sandbox"])
+                page = await browser.new_page()
+                await page.goto(f"http://127.0.0.1:{port}/count_after")
+                await page.wait_for_timeout(500)
+                body_text_inner = await page.evaluate("document.body.textContent")
+                app.pageql_engine.tables.executeone(
+                    "INSERT INTO nums(value) VALUES (1)", {}
+                )
+                await page.reload()
+                await page.wait_for_timeout(500)
+                body_text_inner = await page.evaluate("document.body.textContent")
+                await browser.close()
 
-        q.put("stop")
-        proc.join()
+            server.should_exit = True
+            await server_task
+            return body_text_inner
+
+        body_text = asyncio.run(run_test())
+        if body_text is None:
+            pytest.skip("Chromium not available for Playwright")
 
         assert body_text == "1"

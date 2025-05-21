@@ -11,7 +11,7 @@ sys.modules["watchfiles"].awatch = lambda *args, **kwargs: None
 import pytest
 
 from pageql.pageql import evalone
-from pageql.reactive import DerivedSignal, Tables
+from pageql.reactive import DerivedSignal, DependentValue, Tables
 
 
 def _db():
@@ -60,10 +60,23 @@ def test_evalone_reactive_sql_updates():
     conn.execute("INSERT INTO items(name) VALUES ('a')")
     tables = Tables(conn)
     sig = evalone(conn, "name from items where id=1", {}, reactive=True, tables=tables)
-    assert isinstance(sig, DerivedSignal)
-    assert sig.value.value == "a"
+    assert isinstance(sig, DependentValue)
+    assert sig.value == "a"
 
     rt = tables._get("items")
     rt.update("UPDATE items SET name='b' WHERE id=1", {})
-    assert sig.value.value == "b"
+    assert sig.value == "b"
+
+
+def test_evalone_reactive_sql_param_change():
+    conn = _db()
+    conn.executemany("INSERT INTO items(name) VALUES (?)", [("a",), ("b",)])
+    tables = Tables(conn)
+    params = {"id": 1}
+    sig = evalone(conn, "name from items where id=:id", params, reactive=True, tables=tables)
+    assert isinstance(sig, DependentValue)
+    assert sig.value == "a"
+
+    params["id"].set_value(2)
+    assert sig.value == "b"
 

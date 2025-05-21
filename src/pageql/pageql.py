@@ -85,27 +85,28 @@ def parse_param_attrs(s):
 
     return attrs
 
-# Short descriptions for valid PageQL directives.
+# Short descriptions for valid PageQL directives. Each entry includes a
+# minimal syntax reminder to make the help output more useful.
 DIRECTIVE_HELP: dict[str, str] = {
-    "#create": "execute an SQL CREATE",
-    "#delete": "execute an SQL DELETE",
-    "#dump": "dump a table's contents",
-    "#from": "iterate SQL query results",
-    "#if": "conditional block",
-    "#ifdef": "branch if variable defined",
-    "#ifndef": "branch if variable not defined",
-    "#import": "import another module",
-    "#insert into [table]": "execute an SQL INSERT",
-    "#log [message]": "log a message",
-    "#merge": "execute an SQL MERGE",
-    "#param [name] [type] [attrs]": "declare and validate a request parameter",
-    "#partial [name]": "define a reusable partial block",
-    "#reactive [on|off]": "toggle reactive rendering mode",
-    "#redirect [url]": "issue an HTTP redirect",
-    "#render [name]": "render a named partial",
-    "#set [name] [expression]": "assign a variable from an expression",
-    "#statuscode [code]": "set the HTTP status code",
-    "#update": "execute an SQL UPDATE",
+    "#create <sql>": "execute an SQL CREATE statement",
+    "#delete from <table> where <cond>": "execute an SQL DELETE query",
+    "#dump <table>": "dump a table's contents",
+    "#from <select>": "iterate SQL query results",
+    "#if <expr>": "conditional block",
+    "#ifdef <var>": "branch if variable defined",
+    "#ifndef <var>": "branch if variable not defined",
+    "#import <module>": "import another module",
+    "#insert into <table> (cols) values (vals)": "execute an SQL INSERT",
+    "#log <message>": "log a message",
+    "#merge <sql>": "execute an SQL MERGE",
+    "#param <name> [type] [attrs]": "declare and validate a request parameter",
+    "#partial <name>": "define a reusable partial block",
+    "#reactive on|off": "toggle reactive rendering mode",
+    "#redirect <url>": "issue an HTTP redirect",
+    "#render <name>": "render a named partial",
+    "#set <name> <expr>": "assign a variable from an expression",
+    "#statuscode <code>": "set the HTTP status code",
+    "#update <table> set <expr> where <cond>": "execute an SQL UPDATE",
 }
 
 def format_unknown_directive(directive: str) -> str:

@@ -124,6 +124,8 @@ pageql -path/to/your/database.sqlite ./templates
 *   [NOT IMPLEMENTED] `#cookie <name> <expression> [options...]`: Sets an outgoing HTTP cookie. The `<name>` is a literal string, and the `<expression>` is evaluated to determine the cookie's value. Standard cookie options like `expires="..."`, `path="..."`, `domain="..."`, `secure`, and `httponly` can be provided as subsequent optional attributes. (Reading incoming cookies is handled via standard variable access, e.g., `:param_name` or potentially a dedicated scope like `:cookie_name`).
 *   [NOT IMPLEMENTED] `#contenttype <expression>`: Sets the `Content-Type` HTTP response header (e.g., `text/html; charset=utf-8`).
 
+When a directive is mistyped or unrecognized, PageQL prints a list of valid directives with short syntax hints. These hints show minimal syntax like `#insert into <table> (cols) values (vals)`, `#update <table> set ... where ...`, or `#delete from <table> where ...`. This quick reference can help diagnose typos during development.
+
 ## Reactivity Mode
 
 The optional reactive mode enables live updates in the browser. Use

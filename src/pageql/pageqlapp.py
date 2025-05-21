@@ -12,6 +12,7 @@ from .pageql import PageQL
 
 # Base client script used for reactive updates.
 base_script = """
+<script async src=\"/htmx.min.js\"></script>
 <script>
   window.pageqlMarkers={};
   function pstart(i){var s=document.currentScript,c=document.createComment('pageql-start:'+i);var p=s.parentNode;if(p&&p.tagName==='HEAD'&&document.body){p.removeChild(s);document.body.appendChild(c);}else{s.replaceWith(c);}window.pageqlMarkers[i]=c;if(document.currentScript)document.currentScript.remove();}
@@ -91,11 +92,26 @@ class PageQLApp:
         self.should_reload = should_reload
         self.to_reload = []
         self.static_files = {}
+        self.static_headers = {}
         self.before_hooks = {}
         self.render_contexts = {}
         self.websockets = {}
         self.template_dir = template_dir
+        self.load_builtin_static()
         self.prepare_server(db_path, template_dir, create_db)
+
+    def load_builtin_static(self):
+        """Load bundled static assets like htmx."""
+        import importlib.resources as resources
+        try:
+            with resources.files(__package__).joinpath("static/htmx.min.js").open("rb") as f:
+                self.static_files["htmx.min.js"] = f.read()
+                self.static_headers["htmx.min.js"] = [
+                    (b"Cache-Control", b"public, max-age=31536000, immutable")
+                ]
+        except FileNotFoundError:
+            # Optional dependency; ignore if missing
+            pass
     
     def before(self, path):
         """
@@ -182,15 +198,16 @@ class PageQLApp:
             print(f"Serving static file: {path_cleaned} as {content_type}")
             if content_type == 'text/html':
                 content_type = 'text/html; charset=utf-8'
-                # add client script to the body
                 scripts = base_script + (reload_ws_script(client_id) if self.should_reload else '')
                 body = scripts.encode('utf-8') + self.static_files[path_cleaned]
             else:
                 body = self.static_files[path_cleaned]
+            headers_list = [(b'content-type', content_type.encode('utf-8'))]
+            headers_list.extend(self.static_headers.get(path_cleaned, []))
             await send({
                 'type': 'http.response.start',
                 'status': 200,
-                'headers': [(b'content-type', content_type.encode('utf-8'))],
+                'headers': headers_list,
             })
             await send({
                 'type': 'http.response.body',

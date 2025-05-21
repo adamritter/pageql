@@ -35,6 +35,10 @@ pageql = "pageql.cli:main"
 include = ["src", "examples/**"]
 exclude = ["dist", "build", "*.egg-info"]
 
+[tool.hatch.build.targets.wheel]
+packages = ["src/pageql"]
+include = ["src/pageql/static/**"]
+
 [project.urls]
 Homepage = "https://pageql.dev/"
 "GitHub Repository" = "https://github.com/adamritter/pageql"

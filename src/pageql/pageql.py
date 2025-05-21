@@ -87,25 +87,25 @@ def parse_param_attrs(s):
 
 # Short descriptions for valid PageQL directives.
 DIRECTIVE_HELP: dict[str, str] = {
-    "#partial": "define a reusable partial block",
-    "#param": "declare and validate a request parameter",
-    "#set": "assign a variable from an expression",
-    "#render": "render a named partial",
-    "#reactive": "toggle reactive rendering mode",
-    "#redirect": "issue an HTTP redirect",
-    "#statuscode": "set the HTTP status code",
-    "#update": "execute an SQL UPDATE",
-    "#insert": "execute an SQL INSERT",
     "#create": "execute an SQL CREATE",
-    "#merge": "execute an SQL MERGE",
     "#delete": "execute an SQL DELETE",
-    "#import": "import another module",
-    "#log": "log a message",
     "#dump": "dump a table's contents",
+    "#from": "iterate SQL query results",
     "#if": "conditional block",
     "#ifdef": "branch if variable defined",
     "#ifndef": "branch if variable not defined",
-    "#from": "iterate SQL query results",
+    "#import": "import another module",
+    "#insert": "execute an SQL INSERT",
+    "#log": "log a message",
+    "#merge": "execute an SQL MERGE",
+    "#param": "declare and validate a request parameter",
+    "#partial": "define a reusable partial block",
+    "#reactive": "toggle reactive rendering mode",
+    "#redirect": "issue an HTTP redirect",
+    "#render": "render a named partial",
+    "#set": "assign a variable from an expression",
+    "#statuscode": "set the HTTP status code",
+    "#update": "execute an SQL UPDATE",
 }
 
 def format_unknown_directive(directive: str) -> str:

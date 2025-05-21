@@ -397,6 +397,10 @@ class PageQLApp:
                 if ctx:
                     ctx.websocket = send
                     ctx.websocket_connected = True
+                    scripts = list(ctx.scripts)
+                    ctx.scripts.clear()
+                    for sc in scripts:
+                        await send({"type": "websocket.send", "text": sc})
             fut = asyncio.Event()
             self.notifies.append(fut)
             receive_task = asyncio.create_task(receive())

@@ -119,9 +119,8 @@ def test_reactive_count_insert_via_execute():
             app.pageql_engine.tables.executeone(
                 "INSERT INTO nums(value) VALUES (1)", {}
             )
-            await page.reload()
 
-        result = load_page(tmpdir, "count_after", after)
+        result = load_page(tmpdir, "count_after", after, reload=True)
         if result is None:
             pytest.skip("Chromium not available for Playwright")
         _, body_text = result

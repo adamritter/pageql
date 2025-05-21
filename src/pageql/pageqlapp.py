@@ -28,49 +28,58 @@ base_script = """
 def reload_ws_script(client_id: str) -> str:
     return f"""
 <script>
-  const host = window.location.hostname;
-  const port = window.location.port;
-  const clientId = "{client_id}";
-  document.body.addEventListener('htmx:configRequest', (evt) => {{
-    evt.detail.headers['ClientId'] = clientId;
-  }});
-  const ws_url = `ws://${{host}}:${{port}}/reload-request-ws?clientId=${{clientId}}`;
+  (function() {{
+    const host = window.location.hostname;
+    const port = window.location.port;
+    const clientId = "{client_id}";
+    function setup() {{
+      document.body.addEventListener('htmx:configRequest', (evt) => {{
+        evt.detail.headers['ClientId'] = clientId;
+      }});
+      const ws_url = `ws://${{host}}:${{port}}/reload-request-ws?clientId=${{clientId}}`;
 
-  function forceReload() {{
-    const socket = new WebSocket(ws_url);
-    socket.onopen = () => {{
-      window.location.reload();
-    }};
-    socket.onerror = () => {{
-      setTimeout(forceReload, 100);
-    }};
-  }}
-
-  const socket = new WebSocket(ws_url);
-  socket.onopen = () => {{
-    console.log("WebSocket opened with id", clientId);
-  }};
-
-  socket.onmessage = (event) => {{
-    if (event.data == "reload") {{
-      window.location.reload();
-    }} else {{
-      try {{
-        eval(event.data);
-      }} catch (e) {{
-        console.error("Failed to eval script", e);
+      function forceReload() {{
+        const socket = new WebSocket(ws_url);
+        socket.onopen = () => {{
+          window.location.reload();
+        }};
+        socket.onerror = () => {{
+          setTimeout(forceReload, 100);
+        }};
       }}
+
+      const socket = new WebSocket(ws_url);
+      socket.onopen = () => {{
+        console.log("WebSocket opened with id", clientId);
+      }};
+
+      socket.onmessage = (event) => {{
+        if (event.data == "reload") {{
+          window.location.reload();
+        }} else {{
+          try {{
+            eval(event.data);
+          }} catch (e) {{
+            console.error("Failed to eval script", e);
+          }}
+        }}
+      }};
+
+      socket.onclose = () => {{
+        setTimeout(forceReload, 100);
+      }};
+
+      socket.onerror = () => {{
+        setTimeout(forceReload, 100);
+      }};
     }}
-  }};
-
-  socket.onclose = () => {{
-    setTimeout(forceReload, 100);
-  }};
-
-  socket.onerror = () => {{
-    setTimeout(forceReload, 100);
-  }};
-  document.currentScript.remove()
+    if (document.body) {{
+      setup();
+    }} else {{
+      window.addEventListener('DOMContentLoaded', setup);
+    }}
+    document.currentScript.remove();
+  }})();
 </script>
 """
 

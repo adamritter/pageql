@@ -1,6 +1,5 @@
 import sys
 import pytest
-import asyncio
 from pathlib import Path
 import types
 import tempfile
@@ -26,8 +25,8 @@ def _get_free_port():
     return port
 
 
-def _serve(port, tmpdir):
-    app = PageQLApp(":memory:", tmpdir, create_db=True, should_reload=False)
+def _serve(port, tmpdir, reload=False):
+    app = PageQLApp(":memory:", tmpdir, create_db=True, should_reload=reload)
     config = Config(app, host="127.0.0.1", port=port, log_level="warning")
     Server(config).run()
 
@@ -109,12 +108,14 @@ def test_set_variable_in_browser():
 
 def test_reactive_set_variable_in_browser():
     """Ensure reactive mode updates are sent to the browser."""
-    pyppeteer = pytest.importorskip("pyppeteer")
-    from pyppeteer import chromium_downloader, launch
-
-    chromium = chromium_downloader.chromium_executable()
-    if not Path(chromium).exists():
-        pytest.skip("Chromium not available for pyppeteer")
+    pytest.importorskip("playwright.sync_api")
+    import importlib.util
+    if (
+        importlib.util.find_spec("websockets") is None
+        and importlib.util.find_spec("wsproto") is None
+    ):
+        pytest.skip("WebSocket library not available for reactive test")
+    from playwright.sync_api import sync_playwright
 
     with tempfile.TemporaryDirectory() as tmpdir:
         template_path = Path(tmpdir) / "react.pageql"
@@ -141,21 +142,18 @@ def test_reactive_set_variable_in_browser():
                     raise RuntimeError("Server did not start")
                 time.sleep(0.05)
 
-        async def _run():
-            browser = await launch(
-                executablePath=chromium,
-                args=["--no-sandbox"],
-                handleSIGINT=False,
-                handleSIGTERM=False,
-                handleSIGHUP=False,
-            )
-            page = await browser.newPage()
-            await page.goto(f"http://127.0.0.1:{port}/react")
-            body = await page.evaluate("document.body.textContent")
-            await browser.close()
-            return body
-
-        body_text = asyncio.get_event_loop().run_until_complete(_run())
+        with sync_playwright() as p:
+            chromium_path = p.chromium.executable_path
+            if not Path(chromium_path).exists():
+                proc.terminate()
+                proc.join()
+                pytest.skip("Chromium not available for Playwright")
+            browser = p.chromium.launch(args=["--no-sandbox"])
+            page = browser.new_page()
+            page.goto(f"http://127.0.0.1:{port}/react")
+            page.wait_for_timeout(500)
+            body_text = page.evaluate("document.body.textContent")
+            browser.close()
 
         proc.terminate()
         proc.join()

@@ -45,6 +45,12 @@ document.currentScript.remove()
   socket.onmessage = (event) => {
     if (event.data == "reload") {
       window.location.reload();
+    } else {
+      try {
+        eval(event.data);
+      } catch (e) {
+        console.error("Failed to eval script", e);
+      }
     }
   };
 

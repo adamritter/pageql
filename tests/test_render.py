@@ -53,6 +53,7 @@ def test_reactive_count_with_param_dependency():
         "{{#set cnt count(*) from nums where value > :a}}"
         "{{cnt}}"
         "{{#set a 2}}"
+        "{{#delete from nums where value = 3}}"
     )
     r.load_module("m", snippet)
     result = r.render("/m")
@@ -60,6 +61,7 @@ def test_reactive_count_with_param_dependency():
         ""
         "<script>pstart(0)</script>2<script>pend(0)</script>"
         "<script>pset(0,\"1\")</script>"
+        "<script>pset(0,\"0\")</script>"
     )
     assert result.body == expected
 

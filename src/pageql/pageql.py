@@ -217,9 +217,9 @@ def evalone(db, exp, params, reactive=False, tables=None):
         dep_names = [name.replace('.', '__') for name in get_dependencies(sql)]
         for name in dep_names:
             val = params.get(name)
-            if val is not None and not isinstance(val, (DerivedSignal, ReadOnly)):
+            if val is not None and not isinstance(val, (Signal, ReadOnly)):
                 params[name] = DerivedSignal(lambda v=val: v, [])
-        deps = [params[name] for name in dep_names if isinstance(params[name], DerivedSignal)]
+        deps = [params[name] for name in dep_names if isinstance(params[name], Signal)]
         comp = parse_reactive(sql, tables, params)
         dv = DependentValue(comp)
 
@@ -493,8 +493,8 @@ class PageQL:
                     if isinstance(val, ReadOnly):
                         out.append(html.escape(str(val.value)))
                     else:
-                        signal = val if isinstance(val, DerivedSignal) else None
-                        if isinstance(val, DerivedSignal):
+                        signal = val if isinstance(val, Signal) else None
+                        if isinstance(val, Signal):
                             val = val.value
                         value = html.escape(str(val))
                         if reactive:
@@ -525,25 +525,19 @@ class PageQL:
                 if isinstance(params.get(var), ReadOnly):
                     raise ValueError(f"Parameter '{var}' is read only")
                 if reactive:
-                    converted = re.sub(r':([A-Za-z0-9_]+(?:\.[A-Za-z0-9_]+)+)',
-                                       lambda m: ':' + m.group(1).replace('.', '__'),
-                                       args)
-                    dep_names = get_dependencies(converted)
-                    deps = []
-                    for name in dep_names:
-                        dep = params.get(name)
-                        if isinstance(dep, DerivedSignal):
-                            deps.append(dep)
-
-                    def compute(args=args, params=params):
-                        return evalone(self.db, args, params, False, self.tables)
-
+                    value = evalone(self.db, args, params, True, self.tables)
                     existing = params.get(var)
-                    if isinstance(existing, DerivedSignal):
-                        existing.replace(compute, deps)
+                    if isinstance(existing, Signal):
+                        if isinstance(value, Signal):
+                            def update(v=None, *, src=value, dst=existing):
+                                dst.set_value(src.value)
+                            value.listeners.append(update)
+                            existing.set_value(value.value)
+                        else:
+                            existing.set_value(value)
                         signal = existing
                     else:
-                        signal = DerivedSignal(compute, deps)
+                        signal = value if isinstance(value, Signal) else DerivedSignal(lambda v=value: v, [])
                         params[var] = signal
                 else:
                     params[var] = evalone(self.db, args, params, False, self.tables)

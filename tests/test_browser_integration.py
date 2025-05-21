@@ -65,3 +65,41 @@ def test_hello_world_in_browser():
 
         assert status == 200
         assert "Hello world!" in body
+
+
+def test_set_variable_in_browser():
+    """Ensure directives work when rendered through the ASGI app."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        template_path = Path(tmpdir) / "greet.pageql"
+        template_path.write_text("{{#set :a 'world'}}Hello {{a}}", encoding="utf-8")
+
+        port = _get_free_port()
+        proc = Process(target=_serve, args=(port, tmpdir))
+        proc.start()
+
+        start = time.time()
+        while True:
+            try:
+                conn = http.client.HTTPConnection("127.0.0.1", port)
+                conn.connect()
+                conn.close()
+                break
+            except OSError:
+                if time.time() - start > 5:
+                    proc.terminate()
+                    proc.join()
+                    raise RuntimeError("Server did not start")
+                time.sleep(0.05)
+
+        conn = http.client.HTTPConnection("127.0.0.1", port)
+        conn.request("GET", "/greet")
+        resp = conn.getresponse()
+        body = resp.read().decode()
+        status = resp.status
+        conn.close()
+
+        proc.terminate()
+        proc.join()
+
+        assert status == 200
+        assert "Hello world" in body

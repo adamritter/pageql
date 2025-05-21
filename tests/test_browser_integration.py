@@ -178,8 +178,7 @@ def test_insert_via_execute_after_click():
             app.pageql_engine.tables.executeone(
                 "INSERT INTO msgs(text) VALUES (:text)", {"text": "hello"}
             )
-            await page.reload()
-            await page.wait_for_load_state("networkidle")
+            await page.wait_for_timeout(500)
 
         result = load_page(tmpdir, "msgs", after, reload=True)
         if result is None:

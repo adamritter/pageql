@@ -79,6 +79,9 @@ def test_hello_world_in_browser():
 
 def test_set_variable_in_browser():
     """Ensure directives work when rendered through the ASGI app."""
+    pytest.importorskip("playwright.sync_api")
+    from playwright.sync_api import sync_playwright
+
     with tempfile.TemporaryDirectory() as tmpdir:
         template_path = Path(tmpdir) / "greet.pageql"
         template_path.write_text("{{#set :a 'world'}}Hello {{a}}", encoding="utf-8")
@@ -101,18 +104,24 @@ def test_set_variable_in_browser():
                     raise RuntimeError("Server did not start")
                 time.sleep(0.05)
 
-        conn = http.client.HTTPConnection("127.0.0.1", port)
-        conn.request("GET", "/greet")
-        resp = conn.getresponse()
-        body = resp.read().decode()
-        status = resp.status
-        conn.close()
+        with sync_playwright() as p:
+            chromium_path = p.chromium.executable_path
+            if not Path(chromium_path).exists():
+                proc.terminate()
+                proc.join()
+                pytest.skip("Chromium not available for Playwright")
+            browser = p.chromium.launch(args=["--no-sandbox"])
+            page = browser.new_page()
+            response = page.goto(f"http://127.0.0.1:{port}/greet")
+            body_text = page.evaluate("document.body.textContent")
+            status = response.status if response is not None else None
+            browser.close()
 
         proc.terminate()
         proc.join()
 
         assert status == 200
-        assert "Hello world" in body
+        assert "Hello world" in body_text
 
 
 def test_reactive_set_variable_in_browser():

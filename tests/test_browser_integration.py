@@ -22,8 +22,6 @@ def test_hello_world_in_browser():
         Path(tmpdir, "hello.pageql").write_text("Hello world!", encoding="utf-8")
 
         result = load_page(tmpdir, "hello")
-        if result is None:
-            pytest.skip("Chromium not available for Playwright")
         status, body_text = result
 
         assert status == 200
@@ -38,8 +36,6 @@ def test_set_variable_in_browser():
         Path(tmpdir, "greet.pageql").write_text("{{#set :a 'world'}}Hello {{a}}", encoding="utf-8")
 
         result = load_page(tmpdir, "greet")
-        if result is None:
-            pytest.skip("Chromium not available for Playwright")
         status, body_text = result
 
         assert status == 200
@@ -62,8 +58,6 @@ def test_reactive_set_variable_in_browser():
         )
 
         body_text = load_page(tmpdir, "react")
-        if body_text is None:
-            pytest.skip("Chromium not available for Playwright")
         _, text = body_text
 
         assert text == "hello world"
@@ -121,8 +115,6 @@ def test_reactive_count_insert_via_execute():
             )
 
         result = load_page(tmpdir, "count_after", after, reload=True)
-        if result is None:
-            pytest.skip("Chromium not available for Playwright")
         _, body_text = result
 
         assert body_text == "1"
@@ -131,11 +123,6 @@ def test_reactive_count_insert_via_execute():
 def test_reactive_count_delete_via_execute():
     """Count should decrement when a row is deleted via executeone."""
     pytest.importorskip("playwright.async_api")
-    if (
-        importlib.util.find_spec("websockets") is None
-        and importlib.util.find_spec("wsproto") is None
-    ):
-        pytest.skip("WebSocket library not available for reactive test")
 
     with tempfile.TemporaryDirectory() as tmpdir:
         Path(tmpdir, "count_after_delete.pageql").write_text(
@@ -155,8 +142,6 @@ def test_reactive_count_delete_via_execute():
             )
 
         result = load_page(tmpdir, "count_after_delete", after, reload=True)
-        if result is None:
-            pytest.skip("Chromium not available for Playwright")
         _, body_text = result
 
         assert body_text == "0"
@@ -181,8 +166,6 @@ def test_insert_via_execute_after_click():
             await page.wait_for_timeout(500)
 
         result = load_page(tmpdir, "msgs", after, reload=True)
-        if result is None:
-            pytest.skip("Chromium not available for Playwright")
         _, body_text = result
 
         assert "hello" in body_text

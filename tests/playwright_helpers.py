@@ -2,8 +2,9 @@ import http.client
 import socket
 import time
 from pathlib import Path
-from typing import Tuple, Optional
+from typing import Callable, Optional, Tuple
 import asyncio
+import pytest
 
 from uvicorn.config import Config
 from uvicorn.server import Server
@@ -62,3 +63,45 @@ async def run_server_in_task(
         await task
         raise
     return server, task, port
+
+
+async def _load_page_async(
+    tmpdir: str,
+    page: str,
+    after: Optional[Callable[["async_playwright.Page", int, PageQLApp], None]] = None,
+    reload: bool = False,
+) -> Optional[Tuple[int, str]]:
+    from playwright.async_api import async_playwright, Page
+
+    server, task, port = await run_server_in_task(tmpdir, reload)
+    app: PageQLApp = server.config.app
+    async with async_playwright() as p:
+        if not chromium_available(p):
+            server.should_exit = True
+            await task
+            return None
+        browser = await p.chromium.launch(args=["--no-sandbox"])
+        pg: Page = await browser.new_page()
+        response = await pg.goto(f"http://127.0.0.1:{port}/{page}")
+        if after is not None:
+            if asyncio.iscoroutinefunction(after):
+                await after(pg, port, app)
+            else:
+                after(pg, port, app)
+        await pg.wait_for_timeout(500)
+        body = await pg.evaluate("document.body.textContent")
+        status = response.status if response is not None else None
+        await browser.close()
+
+    server.should_exit = True
+    await task
+    return status, body
+
+
+def load_page(tmpdir: str, page: str, after: Optional[Callable[["async_playwright.Page", int, PageQLApp], None]] = None, reload: bool = False) -> Optional[Tuple[int, str]]:
+    """Utility used by integration tests to fetch a page in a browser.
+
+    Returns ``(status_code, body_text)`` or ``None`` if Chromium is not available.
+    """
+    pytest.importorskip("playwright.async_api")
+    return asyncio.run(_load_page_async(tmpdir, page, after, reload))

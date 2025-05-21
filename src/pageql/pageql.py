@@ -484,6 +484,13 @@ class PageQL:
                     ctx.append_script(f"pstart({mid})", out)
                     out.append(value)
                     ctx.append_script(f"pend({mid})", out)
+                    def listener(v=None, *, sig=result, mid=mid, ctx=ctx):
+                        ctx.ensure_init()
+                        ctx.append_script(
+                            f"pset({mid},{json.dumps(html.escape(str(sig.value)))})",
+                            out,
+                        )
+                    ctx.add_listener(result, listener)
                 else:
                     if isinstance(result, ReadOnly):
                         result = result.value

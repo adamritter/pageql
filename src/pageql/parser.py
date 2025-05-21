@@ -39,26 +39,33 @@ def tokenize(source):
     nodes = []
     parts = re.split(r'({{.*?}}}?)', source, flags=re.DOTALL)
     for part in parts:
-        if not part: # Skip empty strings that can result from split
+        if not part:  # Skip empty strings from split
             continue
         if part.startswith('{{{') and part.endswith('}}}'):
-            part = part[3:-3].strip()
-            nodes.append(('render_raw', part))
+            inner = part[3:-3]
+            if '{{' in inner or '}}' in inner:
+                raise SyntaxError(f"mismatched {{{{ in token: {inner!r}")
+            nodes.append(('render_raw', inner.strip()))
         elif part.startswith('{{') and part.endswith('}}'):
-            part = part[2:-2].strip()
-            if part.startswith('!--') and part.endswith('--'):
-                pass # Skip comment nodes
-            elif part.startswith('#') or part.startswith('/'):
-                nodes.append(parsefirstword(part))
+            inner = part[2:-2]
+            if '{{' in inner or '}}' in inner:
+                raise SyntaxError(f"mismatched {{{{ in token: {inner!r}")
+            inner = inner.strip()
+            if inner.startswith('!--') and inner.endswith('--'):
+                pass  # Skip comment nodes
+            elif inner.startswith('#') or inner.startswith('/'):
+                nodes.append(parsefirstword(inner))
             else:
-                if re.match("^:?[a-zA-Z._$][a-zA-Z0-9._$]*$", part):
-                    if part[0] == ':':
-                        part = part[1:]
-                    part = part.replace('.', '__')
-                    nodes.append(('render_param', part))
+                if re.match(r'^:?[a-zA-Z._$][a-zA-Z0-9._$]*$', inner):
+                    if inner[0] == ':':
+                        inner = inner[1:]
+                    inner = inner.replace('.', '__')
+                    nodes.append(('render_param', inner))
                 else:
-                    nodes.append(('render_expression', part))
+                    nodes.append(('render_expression', inner))
         else:
+            if '{{' in part or '}}' in part:
+                raise SyntaxError(f"mismatched {{{{ in text: {part!r}")
             nodes.append(('text', part))
     return nodes
 

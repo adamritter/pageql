@@ -349,6 +349,7 @@ class PageQLApp:
                     n.set()
                 self.stop_event.set()
                 await send({"type": "lifespan.shutdown.complete"})
+                break
         
     def prepare_server(self, db_path, template_dir, create_db):
         """Loads templates and starts the HTTP server."""

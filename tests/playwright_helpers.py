@@ -33,19 +33,21 @@ async def wait_for_server_async(
 ) -> None:
     start = time.time()
     while True:
-        try:
-            conn = http.client.HTTPConnection("127.0.0.1", port)
-            conn.connect()
-            conn.close()
-            break
-        except OSError:
-            if time.time() - start > timeout:
-                if server is not None:
-                    server.should_exit = True
-                if task is not None:
-                    await task
-                raise RuntimeError("Server did not start")
-            await asyncio.sleep(0.05)
+        if server is not None and server.started:
+            try:
+                conn = http.client.HTTPConnection("127.0.0.1", port)
+                conn.connect()
+                conn.close()
+                break
+            except OSError:
+                pass
+        if time.time() - start > timeout:
+            if server is not None:
+                server.should_exit = True
+            if task is not None:
+                await task
+            raise RuntimeError("Server did not start")
+        await asyncio.sleep(0.05)
 
 
 async def run_server_in_task(

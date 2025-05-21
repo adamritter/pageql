@@ -85,6 +85,37 @@ def parse_param_attrs(s):
 
     return attrs
 
+# Short descriptions for valid PageQL directives.
+DIRECTIVE_HELP: dict[str, str] = {
+    "#partial": "define a reusable partial block",
+    "#param": "declare and validate a request parameter",
+    "#set": "assign a variable from an expression",
+    "#render": "render a named partial",
+    "#reactive": "toggle reactive rendering mode",
+    "#redirect": "issue an HTTP redirect",
+    "#statuscode": "set the HTTP status code",
+    "#update": "execute an SQL UPDATE",
+    "#insert": "execute an SQL INSERT",
+    "#create": "execute an SQL CREATE",
+    "#merge": "execute an SQL MERGE",
+    "#delete": "execute an SQL DELETE",
+    "#import": "import another module",
+    "#log": "log a message",
+    "#dump": "dump a table's contents",
+    "#if": "conditional block",
+    "#ifdef": "branch if variable defined",
+    "#ifndef": "branch if variable not defined",
+    "#from": "iterate SQL query results",
+}
+
+def format_unknown_directive(directive: str) -> str:
+    """Return a helpful error message for unknown directives."""
+    lines = [f"Unknown directive '{directive}'. Valid directives:"]
+    for name, desc in DIRECTIVE_HELP.items():
+        lines.append(f"  {name:8} - {desc}")
+    return "\n".join(lines)
+
+
 # Define RenderResult as a simple class
 class RenderResult:
     """Holds the results of a render operation."""
@@ -617,6 +648,10 @@ class PageQL:
                     ctx.out.append("</tr>")
                 ctx.out.append("</table>")
                 ctx.out.append(f"<p>Dumping {node_content} took {(end_time - t)*1000:.2f} ms</p>")
+            else:
+                if not node_type.startswith('/'):
+                    raise ValueError(format_unknown_directive(node_type))
+
             return reactive
         elif isinstance(node, list):
             directive = node[0]
@@ -736,6 +771,11 @@ class PageQL:
 
                 params.clear()
                 params.update(saved_params)
+            else:
+                if not directive.startswith('/'):
+                    raise ValueError(format_unknown_directive(directive))
+            return reactive
+
             return reactive
 
     def process_nodes(self, nodes, params, path, includes, http_verb=None, reactive=False, ctx=None, out=None):

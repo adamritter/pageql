@@ -14,35 +14,45 @@ sys.modules.setdefault("watchfiles", types.ModuleType("watchfiles"))
 sys.modules["watchfiles"].awatch = lambda *args, **kwargs: None
 
 from pageql.pageqlapp import PageQLApp
-from playwright_helpers import chromium_available, get_free_port, run_server_in_thread
+from playwright_helpers import (
+    chromium_available,
+    get_free_port,
+    run_server_in_task,
+)
 
 
 
 
 def test_hello_world_in_browser():
-    pytest.importorskip("playwright.sync_api")
-    from playwright.sync_api import sync_playwright
+    pytest.importorskip("playwright.async_api")
+    from playwright.async_api import async_playwright
 
     with tempfile.TemporaryDirectory() as tmpdir:
         template_path = Path(tmpdir) / "hello.pageql"
         template_path.write_text("Hello world!", encoding="utf-8")
 
-        server, thread, port = run_server_in_thread(tmpdir)
+        async def run_test():
+            server, task, port = await run_server_in_task(tmpdir)
+            async with async_playwright() as p:
+                if not chromium_available(p):
+                    server.should_exit = True
+                    await task
+                    return None
+                browser = await p.chromium.launch(args=["--no-sandbox"])
+                page = await browser.new_page()
+                response = await page.goto(f"http://127.0.0.1:{port}/hello")
+                body_text_inner = await page.evaluate("document.body.textContent")
+                status_inner = response.status if response is not None else None
+                await browser.close()
 
-        with sync_playwright() as p:
-            if not chromium_available(p):
-                server.should_exit = True
-                thread.join()
-                pytest.skip("Chromium not available for Playwright")
-            browser = p.chromium.launch(args=["--no-sandbox"])
-            page = browser.new_page()
-            response = page.goto(f"http://127.0.0.1:{port}/hello")
-            body_text = page.evaluate("document.body.textContent")
-            status = response.status if response is not None else None
-            browser.close()
+            server.should_exit = True
+            await task
+            return status_inner, body_text_inner
 
-        server.should_exit = True
-        thread.join()
+        result = asyncio.run(run_test())
+        if result is None:
+            pytest.skip("Chromium not available for Playwright")
+        status, body_text = result
 
         assert status == 200
         assert "Hello world!" in body_text
@@ -50,29 +60,35 @@ def test_hello_world_in_browser():
 
 def test_set_variable_in_browser():
     """Ensure directives work when rendered through the ASGI app."""
-    pytest.importorskip("playwright.sync_api")
-    from playwright.sync_api import sync_playwright
+    pytest.importorskip("playwright.async_api")
+    from playwright.async_api import async_playwright
 
     with tempfile.TemporaryDirectory() as tmpdir:
         template_path = Path(tmpdir) / "greet.pageql"
         template_path.write_text("{{#set :a 'world'}}Hello {{a}}", encoding="utf-8")
 
-        server, thread, port = run_server_in_thread(tmpdir)
+        async def run_test():
+            server, task, port = await run_server_in_task(tmpdir)
+            async with async_playwright() as p:
+                if not chromium_available(p):
+                    server.should_exit = True
+                    await task
+                    return None
+                browser = await p.chromium.launch(args=["--no-sandbox"])
+                page = await browser.new_page()
+                response = await page.goto(f"http://127.0.0.1:{port}/greet")
+                body_text_inner = await page.evaluate("document.body.textContent")
+                status_inner = response.status if response is not None else None
+                await browser.close()
 
-        with sync_playwright() as p:
-            if not chromium_available(p):
-                server.should_exit = True
-                thread.join()
-                pytest.skip("Chromium not available for Playwright")
-            browser = p.chromium.launch(args=["--no-sandbox"])
-            page = browser.new_page()
-            response = page.goto(f"http://127.0.0.1:{port}/greet")
-            body_text = page.evaluate("document.body.textContent")
-            status = response.status if response is not None else None
-            browser.close()
+            server.should_exit = True
+            await task
+            return status_inner, body_text_inner
 
-        server.should_exit = True
-        thread.join()
+        result = asyncio.run(run_test())
+        if result is None:
+            pytest.skip("Chromium not available for Playwright")
+        status, body_text = result
 
         assert status == 200
         assert "Hello world" in body_text
@@ -80,14 +96,14 @@ def test_set_variable_in_browser():
 
 def test_reactive_set_variable_in_browser():
     """Ensure reactive mode updates are sent to the browser."""
-    pytest.importorskip("playwright.sync_api")
+    pytest.importorskip("playwright.async_api")
     import importlib.util
     if (
         importlib.util.find_spec("websockets") is None
         and importlib.util.find_spec("wsproto") is None
     ):
         pytest.skip("WebSocket library not available for reactive test")
-    from playwright.sync_api import sync_playwright
+    from playwright.async_api import async_playwright
 
     with tempfile.TemporaryDirectory() as tmpdir:
         template_path = Path(tmpdir) / "react.pageql"
@@ -96,36 +112,41 @@ def test_reactive_set_variable_in_browser():
             encoding="utf-8",
         )
 
-        server, thread, port = run_server_in_thread(tmpdir)
+        async def run_test():
+            server, task, port = await run_server_in_task(tmpdir)
+            async with async_playwright() as p:
+                if not chromium_available(p):
+                    server.should_exit = True
+                    await task
+                    return None
+                browser = await p.chromium.launch(args=["--no-sandbox"])
+                page = await browser.new_page()
+                await page.goto(f"http://127.0.0.1:{port}/react")
+                await page.wait_for_timeout(500)
+                body_text_inner = await page.evaluate("document.body.textContent")
+                await browser.close()
 
-        with sync_playwright() as p:
-            if not chromium_available(p):
-                server.should_exit = True
-                thread.join()
-                pytest.skip("Chromium not available for Playwright")
-            browser = p.chromium.launch(args=["--no-sandbox"])
-            page = browser.new_page()
-            page.goto(f"http://127.0.0.1:{port}/react")
-            page.wait_for_timeout(500)
-            body_text = page.evaluate("document.body.textContent")
-            browser.close()
+            server.should_exit = True
+            await task
+            return body_text_inner
 
-        server.should_exit = True
-        thread.join()
+        body_text = asyncio.run(run_test())
+        if body_text is None:
+            pytest.skip("Chromium not available for Playwright")
 
         assert body_text == "hello world"
 
 
 def test_reactive_count_insert_in_browser():
     """Count updates should be delivered to the browser when rows are inserted."""
-    pytest.importorskip("playwright.sync_api")
+    pytest.importorskip("playwright.async_api")
     import importlib.util
     if (
         importlib.util.find_spec("websockets") is None
         and importlib.util.find_spec("wsproto") is None
     ):
         pytest.skip("WebSocket library not available for reactive test")
-    from playwright.sync_api import sync_playwright
+    from playwright.async_api import async_playwright
 
     with tempfile.TemporaryDirectory() as tmpdir:
         template_path = Path(tmpdir) / "count.pageql"
@@ -138,22 +159,27 @@ def test_reactive_count_insert_in_browser():
             encoding="utf-8",
         )
 
-        server, thread, port = run_server_in_thread(tmpdir)
+        async def run_test():
+            server, task, port = await run_server_in_task(tmpdir)
+            async with async_playwright() as p:
+                if not chromium_available(p):
+                    server.should_exit = True
+                    await task
+                    return None
+                browser = await p.chromium.launch(args=["--no-sandbox"])
+                page = await browser.new_page()
+                await page.goto(f"http://127.0.0.1:{port}/count")
+                await page.wait_for_timeout(500)
+                body_text_inner = await page.evaluate("document.body.textContent")
+                await browser.close()
 
-        with sync_playwright() as p:
-            if not chromium_available(p):
-                server.should_exit = True
-                thread.join()
-                pytest.skip("Chromium not available for Playwright")
-            browser = p.chromium.launch(args=["--no-sandbox"])
-            page = browser.new_page()
-            page.goto(f"http://127.0.0.1:{port}/count")
-            page.wait_for_timeout(500)
-            body_text = page.evaluate("document.body.textContent")
-            browser.close()
+            server.should_exit = True
+            await task
+            return body_text_inner
 
-        server.should_exit = True
-        thread.join()
+        body_text = asyncio.run(run_test())
+        if body_text is None:
+            pytest.skip("Chromium not available for Playwright")
 
         assert body_text == "1"
 

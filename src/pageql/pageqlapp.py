@@ -5,6 +5,7 @@ import sqlite3
 import mimetypes
 from urllib.parse import urlparse, parse_qs
 from watchfiles import awatch
+import uuid
 
 # Assuming pageql.py is in the same directory or Python path
 from .pageql import PageQL
@@ -24,56 +25,54 @@ base_script = """
 """
 
 # Additional script that connects the live-reload websocket.
-reload_ws_script = """
+def reload_ws_script(client_id: str) -> str:
+    return f"""
 <script>
   const host = window.location.hostname;
   const port = window.location.port;
-  const clientId = Math.random().toString(36).substring(2);
-  document.body.addEventListener('htmx:configRequest', (evt) => {
+  const clientId = "{client_id}";
+  document.body.addEventListener('htmx:configRequest', (evt) => {{
     evt.detail.headers['ClientId'] = clientId;
-  });
-  const ws_url = `ws://${host}:${port}/reload-request-ws?clientId=${clientId}`;
+  }});
+  const ws_url = `ws://${{host}}:${{port}}/reload-request-ws?clientId=${{clientId}}`;
 
-  function forceReload() {
+  function forceReload() {{
     const socket = new WebSocket(ws_url);
-    socket.onopen = () => {
+    socket.onopen = () => {{
       window.location.reload();
-    };
-    socket.onerror = () => {
+    }};
+    socket.onerror = () => {{
       setTimeout(forceReload, 100);
-    };
-  }
+    }};
+  }}
 
   const socket = new WebSocket(ws_url);
-  socket.onopen = () => {
+  socket.onopen = () => {{
     console.log("WebSocket opened with id", clientId);
-  };
+  }};
 
-  socket.onmessage = (event) => {
-    if (event.data == "reload") {
+  socket.onmessage = (event) => {{
+    if (event.data == "reload") {{
       window.location.reload();
-    } else {
-      try {
+    }} else {{
+      try {{
         eval(event.data);
-      } catch (e) {
+      }} catch (e) {{
         console.error("Failed to eval script", e);
-      }
-    }
-  };
+      }}
+    }}
+  }};
 
-  socket.onclose = () => {
+  socket.onclose = () => {{
     setTimeout(forceReload, 100);
-  };
+  }};
 
-  socket.onerror = () => {
+  socket.onerror = () => {{
     setTimeout(forceReload, 100);
-  };
+  }};
   document.currentScript.remove()
 </script>
 """
-
-# Combined script used when reload functionality is enabled.
-reload_script = base_script + reload_ws_script
 
 
 class PageQLApp:
@@ -142,15 +141,32 @@ class PageQLApp:
         """Handles common logic for GET and POST requests."""
         # print(f"Thread ID: {threading.get_ident()}")
         method = scope['method']
-        
+
         while self.to_reload:
             f = self.to_reload.pop()
             self.load(self.template_dir, f)
 
         parsed_path = urlparse(scope['path'])
         path_cleaned = parsed_path.path.strip('/')
-        if not path_cleaned: # Handle root path, maybe map to 'index' or similar?
-            path_cleaned = 'index' # Default to 'index' if root is requested
+        if not path_cleaned:  # Handle root path, maybe map to 'index' or similar?
+            path_cleaned = 'index'  # Default to 'index' if root is requested
+
+        # Decode headers and query parameters early so we can obtain the client id
+        headers = {k.decode('utf-8').replace('-', '_'): v.decode('utf-8') for k, v in scope['headers']}
+        query = scope['query_string']
+        query_params = parse_qs(query, keep_blank_values=True)
+
+        params = {}
+        for key, value in query_params.items():
+            params[key.decode('utf-8')] = value[0].decode('utf-8') if len(value) == 1 else map(lambda v: v.decode('utf-8'), value)
+
+        incoming_client_id = params.pop('clientId', None)
+        if incoming_client_id is None:
+            incoming_client_id = headers.get('ClientId')
+        client_id = incoming_client_id or uuid.uuid4().hex
+
+        params['headers'] = headers
+        params['method'] = method
 
         if path_cleaned in self.static_files:
             content_type, _ = mimetypes.guess_type(path_cleaned)
@@ -158,7 +174,7 @@ class PageQLApp:
             if content_type == 'text/html':
                 content_type = 'text/html; charset=utf-8'
                 # add client script to the body
-                scripts = base_script + (reload_ws_script if self.should_reload else '')
+                scripts = base_script + (reload_ws_script(client_id) if self.should_reload else '')
                 body = scripts.encode('utf-8') + self.static_files[path_cleaned]
             else:
                 body = self.static_files[path_cleaned]
@@ -172,25 +188,6 @@ class PageQLApp:
                 'body': body,
             })
             return
-
-        params = {}
-        # Add decoded headers to params
-        headers = {k.decode('utf-8').replace('-', '_'): v.decode('utf-8') for k, v in scope['headers']}
-        params['headers'] = headers
-        params['method'] = scope['method']
-
-        # --- Parse Parameters ---
-        # Query string parameters (for GET and potentially POST)
-        query = scope['query_string']
-        query_params = parse_qs(query, keep_blank_values=True)
-        # parse_qs returns lists, convert to single values if not multiple
-        for key, value in query_params.items():
-            params[key.decode('utf-8')] = value[0].decode('utf-8') if len(value) == 1 else map(lambda v: v.decode('utf-8'), value)
-
-        client_id = params.get('clientId')
-        if client_id is not None:
-            # clientId is used internally and shouldn't be visible to templates
-            del params['clientId']
 
         # Form data parameters (for POST)
         if method == 'POST':
@@ -226,7 +223,7 @@ class PageQLApp:
                 params,
                 None,
                 method,
-                reactive=bool(client_id),
+                reactive=bool(incoming_client_id),
             )
             if client_id:
                 self.render_contexts[client_id] = result.context
@@ -262,7 +259,7 @@ class PageQLApp:
                     'status': result.status_code,
                     'headers': headers,
                 })
-                scripts = base_script + (reload_ws_script if self.should_reload else '')
+                scripts = base_script + (reload_ws_script(client_id) if self.should_reload else '')
                 await send({
                     'type': 'http.response.body',
                     'body': (scripts + result.body).encode('utf-8'),
@@ -277,7 +274,7 @@ class PageQLApp:
                 'status': 500,
                 'headers': [(b'content-type', b'text/html; charset=utf-8')],
             })
-            scripts = base_script + (reload_ws_script if self.should_reload else '')
+            scripts = base_script + (reload_ws_script(client_id) if self.should_reload else '')
             await send({
                 'type': 'http.response.body',
                 'body': (scripts + f"Database Error: {db_err}").encode('utf-8'),
@@ -289,7 +286,7 @@ class PageQLApp:
                 'status': 400,
                 'headers': [(b'content-type', b'text/html; charset=utf-8')],
             })
-            scripts = base_script + (reload_ws_script if self.should_reload else '')
+            scripts = base_script + (reload_ws_script(client_id) if self.should_reload else '')
             await send({
                 'type': 'http.response.body',
                 'body': (scripts + f"Bad Request: {val_err}").encode('utf-8'),
@@ -301,7 +298,7 @@ class PageQLApp:
                 'status': 404,
                 'headers': [(b'content-type', b'text/html; charset=utf-8')],
             })
-            scripts = base_script + (reload_ws_script if self.should_reload else '')
+            scripts = base_script + (reload_ws_script(client_id) if self.should_reload else '')
             await send({
                 'type': 'http.response.body',
                 'body': (scripts.encode('utf-8') + b"Not Found"),
@@ -315,7 +312,7 @@ class PageQLApp:
                 'status': 500,
                 'headers': [(b'content-type', b'text/html; charset=utf-8')],
             })
-            scripts = base_script + (reload_ws_script if self.should_reload else '')
+            scripts = base_script + (reload_ws_script(client_id) if self.should_reload else '')
             await send({
                 'type': 'http.response.body',
                 'body': (scripts + f"Internal Server Error: {e}").encode('utf-8'),

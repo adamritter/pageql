@@ -14,6 +14,7 @@ from .pageql import PageQL
 base_script = """
 <script src=\"/htmx.min.js\"></script>
 <script>
+  htmx.config.defaultSwapStyle = 'none';
   window.pageqlMarkers={};
   function pstart(i){var s=document.currentScript,c=document.createComment('pageql-start:'+i);var p=s.parentNode;if(p&&p.tagName==='HEAD'&&document.body){p.removeChild(s);document.body.appendChild(c);}else{s.replaceWith(c);}window.pageqlMarkers[i]=c;if(document.currentScript)document.currentScript.remove();}
   function pend(i){var s=document.currentScript,c=document.createComment('pageql-end:'+i);var p=s.parentNode;if(p&&p.tagName==='HEAD'&&document.body){p.removeChild(s);document.body.appendChild(c);}else{s.replaceWith(c);}if(window.pageqlMarkers[i])window.pageqlMarkers[i].e=c;else{window.pageqlMarkers[i]={e:c};}if(document.currentScript)document.currentScript.remove();}

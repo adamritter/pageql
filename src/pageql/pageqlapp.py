@@ -215,8 +215,10 @@ class PageQLApp:
                 self.render_contexts[client_id] = result.context
                 ws = self.websockets.get(client_id)
                 if ws:
-                    result.context.websocket = ws
-                    result.context.websocket_connected = True
+                    def sender(sc, send=ws):
+                        asyncio.create_task(send({"type": "websocket.send", "text": sc}))
+
+                    result.context.send_script = sender
             print(f"{method} {path_cleaned} Params: {params} ({(time.time() - t) * 1000:.2f} ms)")
             print(f"Result: {result.status_code} {result.redirect_to} {result.headers}")
 
@@ -395,8 +397,10 @@ class PageQLApp:
                 self.websockets[client_id] = send
                 ctx = self.render_contexts.get(client_id)
                 if ctx:
-                    ctx.websocket = send
-                    ctx.websocket_connected = True
+                    def sender(sc, send=send):
+                        asyncio.create_task(send({"type": "websocket.send", "text": sc}))
+
+                    ctx.send_script = sender
                     scripts = list(ctx.scripts)
                     ctx.scripts.clear()
                     for sc in scripts:
@@ -420,8 +424,7 @@ class PageQLApp:
                             self.websockets.pop(client_id, None)
                             ctx = self.render_contexts.get(client_id)
                             if ctx:
-                                ctx.websocket = None
-                                ctx.websocket_connected = False
+                                ctx.send_script = None
                         return
 
                     elif result is True:

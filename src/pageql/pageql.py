@@ -21,7 +21,7 @@ if __package__ is None:                      # script / doctest-by-path
     sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 
 from pageql.parser import tokenize, parsefirstword, build_ast
-from pageql.reactive import DerivedSignal, DependentValue, get_dependencies, Tables
+from pageql.reactive import Signal, DerivedSignal, DependentValue, get_dependencies, Tables
 from pageql.reactive_sql import parse_reactive
 
 def flatten_params(params):
@@ -218,11 +218,17 @@ def evalone(db, exp, params, reactive=False, tables=None):
             if val is not None and not isinstance(val, (DerivedSignal, ReadOnly)):
                 params[name] = DerivedSignal(lambda v=val: v, [])
         deps = [params[name] for name in dep_names if isinstance(params[name], DerivedSignal)]
-        def get_dependent_value():
+        comp = parse_reactive(sql, tables, params)
+        dv = DependentValue(comp)
+
+        def reset_dependent_value(_=None):
             comp = parse_reactive(sql, tables, params)
-            dvcomp = DependentValue(comp)
-            return dvcomp
-        return DerivedSignal(get_dependent_value, deps)
+            dv.reset(comp)
+
+        for dep in deps:
+            dep.listeners.append(reset_dependent_value)
+
+        return dv
 
     try:
         r = db_execute_dot(db, exp, params).fetchone()
@@ -467,7 +473,7 @@ class PageQL:
                 out.append(node_content)
             elif node_type == 'render_expression':
                 result = evalone(self.db, node_content, params, reactive, self.tables)
-                if reactive and isinstance(result, DerivedSignal):
+                if reactive and isinstance(result, Signal):
                     value = html.escape(str(result.value))
                     ctx.ensure_init()
                     mid = ctx.marker_id()

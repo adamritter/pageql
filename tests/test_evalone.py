@@ -67,3 +67,22 @@ def test_evalone_reactive_sql_updates():
     rt.update("UPDATE items SET name='b' WHERE id=1", {})
     assert sig.value.value == "b"
 
+
+def test_evalone_reactive_table_and_param_dependency():
+    conn = _db()
+    conn.execute("INSERT INTO items(id, name) VALUES (1, 'initial_name')")
+    sql = "SELECT name FROM items WHERE id = :my_id"
+    params = {"my_id": 1}
+    tables = Tables(conn)
+    sig = evalone(conn, sql, params, reactive=True, tables=tables)
+    assert sig.value.value == "initial_name"
+
+    rt = tables._get("items")
+    rt.update("UPDATE items SET name='updated_name' WHERE id=1", {})
+    assert sig.value.value == "updated_name"
+
+    rt.insert("INSERT INTO items(id, name) VALUES (2, 'another_name')", {})
+    param_sig = params["my_id"]
+    param_sig.value = 2
+    assert sig.value.value == "another_name"
+

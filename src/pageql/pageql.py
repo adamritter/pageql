@@ -108,6 +108,7 @@ class RenderContext:
         self.listeners = []
         self.out = []
         self.scripts: list[str] = []
+        self.send_script = None
         self.rendering = True
         self.websocket = None
         self.websocket_connected = False
@@ -140,7 +141,10 @@ class RenderContext:
         if self.rendering:
             out.append(f"<script>{content}</script>")
         else:
-            self.scripts.append(content)
+            if self.send_script is not None:
+                self.send_script(content)
+            else:
+                self.scripts.append(content)
 
 
 class ReadOnly:

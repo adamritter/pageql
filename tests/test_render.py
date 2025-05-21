@@ -125,8 +125,8 @@ def test_from_reactive_uses_parse(monkeypatch):
     result = r.render("/m")
     assert seen == ["SELECT * FROM items"]
     import hashlib
-    h1 = base64.b64encode(hashlib.sha256(repr((1,"a",)).encode()).digest())[:8]
-    h2 = base64.b64encode(hashlib.sha256(repr((2,"b",)).encode()).digest())[:8]
+    h1 = base64.b64encode(hashlib.sha256(repr((1,"a",)).encode()).digest())[:8].decode()
+    h2 = base64.b64encode(hashlib.sha256(repr((2,"b",)).encode()).digest())[:8].decode()
     expected = (
         ""
         f"<script>pstart(0)</script>"
@@ -176,8 +176,8 @@ def test_from_reactive_delete_event():
     r.load_module("m", "{{#reactive on}}{{#from items}}<{{id}}>{{/from}}{{#delete from items where id=1}}")
     result = r.render("/m")
     import hashlib
-    h1 = base64.b64encode(hashlib.sha256(repr((1,"a",)).encode()).digest())[:8]
-    h2 = base64.b64encode(hashlib.sha256(repr((2,"b",)).encode()).digest())[:8]
+    h1 = base64.b64encode(hashlib.sha256(repr((1,"a",)).encode()).digest())[:8].decode()
+    h2 = base64.b64encode(hashlib.sha256(repr((2,"b",)).encode()).digest())[:8].decode()
     expected = (
         ""
         f"<script>pstart(0)</script>"
@@ -200,9 +200,9 @@ def test_from_reactive_update_event():
     result = r.render("/m")
     import hashlib
 
-    h1_old = base64.b64encode(hashlib.sha256(repr((1, "a",)).encode()).digest())[:8]
-    h1_new = base64.b64encode(hashlib.sha256(repr((1, "c",)).encode()).digest())[:8]
-    h2 = base64.b64encode(hashlib.sha256(repr((2, "b",)).encode()).digest())[:8]
+    h1_old = base64.b64encode(hashlib.sha256(repr((1, "a",)).encode()).digest())[:8].decode()
+    h1_new = base64.b64encode(hashlib.sha256(repr((1, "c",)).encode()).digest())[:8].decode()
+    h2 = base64.b64encode(hashlib.sha256(repr((2, "b",)).encode()).digest())[:8].decode()
     expected = (
         f"<script>pstart(0)</script>"
         f"<script>pstart('0_{h1_old}')</script><a><script>pend('0_{h1_old}')</script>\n"
@@ -223,9 +223,9 @@ def test_from_reactive_insert_event():
     result = r.render("/m")
     import hashlib
 
-    h1 = base64.b64encode(hashlib.sha256(repr((1, "a",)).encode()).digest())[:8]
-    h2 = base64.b64encode(hashlib.sha256(repr((2, "b",)).encode()).digest())[:8]
-    h3 = base64.b64encode(hashlib.sha256(repr((3, "c",)).encode()).digest())[:8]
+    h1 = base64.b64encode(hashlib.sha256(repr((1, "a",)).encode()).digest())[:8].decode()
+    h2 = base64.b64encode(hashlib.sha256(repr((2, "b",)).encode()).digest())[:8].decode()
+    h3 = base64.b64encode(hashlib.sha256(repr((3, "c",)).encode()).digest())[:8].decode()
     expected = (
         f"<script>pstart(0)</script>"
         f"<script>pstart('0_{h1}')</script><a><script>pend('0_{h1}')</script>\n"

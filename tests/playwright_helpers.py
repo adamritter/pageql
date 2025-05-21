@@ -91,7 +91,7 @@ async def _load_page_async(
             else:
                 after(pg, port, app)
         await pg.wait_for_timeout(500)
-        body = await pg.evaluate("document.body.textContent")
+        body = (await pg.evaluate("document.body.textContent")).strip()
         status = response.status if response is not None else None
         await browser.close()
 

@@ -657,24 +657,94 @@ class PageQL:
         elif isinstance(node, list):
             directive = node[0]
             if directive == '#if':
-                i = 1
-                while i < len(node):
-                    if i + 1 < len(node):
-                        if not evalone(self.db, node[i], params, reactive, self.tables):
-                            i += 2
-                            continue
+                if reactive and ctx:
+                    cond_exprs = []
+                    bodies = []
+                    j = 1
+                    while j < len(node):
+                        if j + 1 < len(node):
+                            cond_exprs.append(node[j])
+                            bodies.append(node[j + 1])
+                            j += 2
+                        else:
+                            cond_exprs.append(None)
+                            bodies.append(node[j])
+                            j += 1
+
+                    cond_vals = [
+                        evalone(self.db, ce, params, True, self.tables) if ce is not None else True
+                        for ce in cond_exprs
+                    ]
+                    signals = [v for v in cond_vals if isinstance(v, Signal)]
+
+                    def pick_index():
+                        for idx, val in enumerate(cond_vals):
+                            cur = val.value if isinstance(val, Signal) else val
+                            if cur:
+                                return idx
+                        return None
+
+                    mid = ctx.marker_id()
+                    ctx.ensure_init()
+                    ctx.append_script(f"pstart({mid})", out)
+
+                    idx = pick_index()
+                    if idx is not None:
+                        reactive = self.process_nodes(
+                            bodies[idx],
+                            params,
+                            path,
+                            includes,
+                            http_verb,
+                            reactive,
+                            ctx,
+                            out,
+                        )
+
+                    ctx.append_script(f"pend({mid})", out)
+
+                    def listener(_=None, *, mid=mid, ctx=ctx):
+                        ctx.ensure_init()
+                        new_idx = pick_index()
+                        buf = []
+                        if new_idx is not None:
+                            self.process_nodes(
+                                bodies[new_idx],
+                                params,
+                                path,
+                                includes,
+                                http_verb,
+                                True,
+                                ctx,
+                                out=buf,
+                            )
+                        html_content = "".join(buf).strip()
+                        ctx.append_script(
+                            f"pset({mid},{json.dumps(html_content)})",
+                            out,
+                        )
+
+                    for sig in signals:
+                        ctx.add_listener(sig, listener)
+                else:
+                    i = 1
+                    while i < len(node):
+                        if i + 1 < len(node):
+                            if not evalone(self.db, node[i], params, reactive, self.tables):
+                                i += 2
+                                continue
+                            i += 1
+                        reactive = self.process_nodes(
+                            node[i],
+                            params,
+                            path,
+                            includes,
+                            http_verb,
+                            reactive,
+                            ctx,
+                            out,
+                        )
                         i += 1
-                    reactive = self.process_nodes(
-                        node[i],
-                        params,
-                        path,
-                        includes,
-                        http_verb,
-                        reactive,
-                        ctx,
-                        out,
-                    )
-                    i += 1
             elif directive == '#ifdef':
                 param_name = node[1].strip()
                 then_body = node[2]

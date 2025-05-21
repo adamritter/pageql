@@ -322,3 +322,16 @@ def test_if_inside_from():
         "<li>\n          <input class=\"toggle\" type=\"checkbox\" checked>\n      text\n      </li>\n"
     )
     assert result.body == expected
+
+
+def test_reactive_if_update():
+    r = PageQL(":memory:")
+    snippet = "{{#reactive on}}{{#set a 1}}{{#if :a}}T{{#else}}F{{/if}}{{#set a 0}}{{#set a 1}}"
+    r.load_module("m", snippet)
+    result = r.render("/m")
+    expected = (
+        f"<script>pstart(0)</script>T<script>pend(0)</script>"
+        f"<script>pset(0,\"F\")</script>"
+        f"<script>pset(0,\"T\")</script>"
+    )
+    assert result.body == expected

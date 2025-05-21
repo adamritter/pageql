@@ -177,3 +177,62 @@ def test_reactive_set_variable_in_browser():
         proc.join()
 
         assert body_text == "hello world"
+
+
+def test_reactive_count_insert_in_browser():
+    """Count updates should be delivered to the browser when rows are inserted."""
+    pytest.importorskip("playwright.sync_api")
+    import importlib.util
+    if (
+        importlib.util.find_spec("websockets") is None
+        and importlib.util.find_spec("wsproto") is None
+    ):
+        pytest.skip("WebSocket library not available for reactive test")
+    from playwright.sync_api import sync_playwright
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        template_path = Path(tmpdir) / "count.pageql"
+        template_path.write_text(
+            "{{#create table nums(value INTEGER)}}"
+            "{{#reactive on}}"
+            "{{#set a count(*) from nums}}"
+            "{{a}}"
+            "{{#insert into nums(value) values (1)}}",
+            encoding="utf-8",
+        )
+
+        port = _get_free_port()
+        proc = Process(target=_serve, args=(port, tmpdir))
+        proc.start()
+
+        start = time.time()
+        while True:
+            try:
+                conn = http.client.HTTPConnection("127.0.0.1", port)
+                conn.connect()
+                conn.close()
+                break
+            except OSError:
+                if time.time() - start > 5:
+                    proc.terminate()
+                    proc.join()
+                    raise RuntimeError("Server did not start")
+                time.sleep(0.05)
+
+        with sync_playwright() as p:
+            chromium_path = p.chromium.executable_path
+            if not Path(chromium_path).exists():
+                proc.terminate()
+                proc.join()
+                pytest.skip("Chromium not available for Playwright")
+            browser = p.chromium.launch(args=["--no-sandbox"])
+            page = browser.new_page()
+            page.goto(f"http://127.0.0.1:{port}/count")
+            page.wait_for_timeout(500)
+            body_text = page.evaluate("document.body.textContent")
+            browser.close()
+
+        proc.terminate()
+        proc.join()
+
+        assert body_text == "1"

@@ -7,7 +7,7 @@ import types
 sys.modules.setdefault("watchfiles", types.ModuleType("watchfiles"))
 sys.modules["watchfiles"].awatch = lambda *args, **kwargs: None
 
-from pageql.pageql import PageQL
+from pageql.pageql import PageQL, RenderContext
 from pageql.reactive import DerivedSignal
 
 
@@ -27,6 +27,16 @@ def test_rendercontext_stops_rendering_and_collects_scripts():
     ctx.append_script("foo")
     assert ctx.scripts == ["foo"]
     assert ctx.out == []
+
+
+def test_append_script_send_script():
+    ctx = RenderContext()
+    ctx.rendering = False
+    sent = []
+    ctx.send_script = sent.append
+    ctx.append_script("bar")
+    assert sent == ["bar"]
+    assert ctx.scripts == []
 
 
 def test_reactive_toggle():

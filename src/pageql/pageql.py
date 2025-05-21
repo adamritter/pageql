@@ -568,14 +568,22 @@ class PageQL:
             elif node_type == '#statuscode':
                 code = evalone(self.db, node_content, params, reactive, self.tables)
                 raise RenderResultException(RenderResult(status_code=code, body="".join(ctx.out)))
-            elif node_type == '#update' or node_type == "#insert" or node_type == "#create" or node_type == "#merge" or node_type == "#delete":
+            elif node_type in ("#update", "#insert", "#delete"):
                 try:
-                    if reactive:
-                        self.tables.executeone(node_type[1:] + " " + node_content, params)
-                    else:
-                        db_execute_dot(self.db, node_type[1:] + " " + node_content, params)
+                    # Use the reactive table helpers for data modifications so
+                    # listeners get notified even outside reactive mode.
+                    self.tables.executeone(node_type[1:] + " " + node_content, params)
                 except sqlite3.Error as e:
-                    raise ValueError(f"Error executing {node_type[1:]} {node_content} with params {params}: {e}")
+                    raise ValueError(
+                        f"Error executing {node_type[1:]} {node_content} with params {params}: {e}"
+                    )
+            elif node_type in ("#create", "#merge"):
+                try:
+                    db_execute_dot(self.db, node_type[1:] + " " + node_content, params)
+                except sqlite3.Error as e:
+                    raise ValueError(
+                        f"Error executing {node_type[1:]} {node_content} with params {params}: {e}"
+                    )
             elif node_type == '#import':
                 parts = node_content.split()
                 if not parts:

@@ -234,3 +234,75 @@ def test_from_reactive_insert_event():
         f"<script>pinsert('0_{h3}',\"<c>\")</script>"
     )
     assert result.body == expected
+
+
+def test_from_nonreactive_delete_event():
+    r = PageQL(":memory:")
+    r.db.execute("CREATE TABLE items(id INTEGER PRIMARY KEY, name TEXT)")
+    r.db.executemany("INSERT INTO items(name) VALUES (?)", [("a",), ("b",)])
+    r.load_module(
+        "m",
+        "{{#reactive on}}{{#from items}}<{{id}}>{{/from}}{{#reactive off}}{{#delete from items where id=1}}",
+    )
+    result = r.render("/m")
+    import hashlib
+
+    h1 = base64.b64encode(hashlib.sha256(repr((1, "a",)).encode()).digest())[:8].decode()
+    h2 = base64.b64encode(hashlib.sha256(repr((2, "b",)).encode()).digest())[:8].decode()
+    expected = (
+        ""
+        f"<script>pstart(0)</script>"
+        f"<script>pstart('0_{h1}')</script><1><script>pend('0_{h1}')</script>\n"
+        f"<script>pstart('0_{h2}')</script><2><script>pend('0_{h2}')</script>\n"
+        f"<script>pend(0)</script>"
+        f"<script>pdelete('0_{h1}')</script>"
+    )
+    assert result.body == expected
+
+
+def test_from_nonreactive_update_event():
+    r = PageQL(":memory:")
+    r.db.execute("CREATE TABLE items(id INTEGER PRIMARY KEY, name TEXT)")
+    r.db.executemany("INSERT INTO items(name) VALUES (?)", [("a",), ("b",)])
+    r.load_module(
+        "m",
+        "{{#reactive on}}{{#from items}}<{{name}}>{{/from}}{{#reactive off}}{{#update items set name='c' where id=1}}",
+    )
+    result = r.render("/m")
+    import hashlib
+
+    h1_old = base64.b64encode(hashlib.sha256(repr((1, "a",)).encode()).digest())[:8].decode()
+    h1_new = base64.b64encode(hashlib.sha256(repr((1, "c",)).encode()).digest())[:8].decode()
+    h2 = base64.b64encode(hashlib.sha256(repr((2, "b",)).encode()).digest())[:8].decode()
+    expected = (
+        f"<script>pstart(0)</script>"
+        f"<script>pstart('0_{h1_old}')</script><a><script>pend('0_{h1_old}')</script>\n"
+        f"<script>pstart('0_{h2}')</script><b><script>pend('0_{h2}')</script>\n"
+        f"<script>pend(0)</script>"
+        f"<script>pupdate('0_{h1_old}','0_{h1_new}',\"<c>\")</script>"
+    )
+    assert result.body == expected
+
+
+def test_from_nonreactive_insert_event():
+    r = PageQL(":memory:")
+    r.db.execute("CREATE TABLE items(id INTEGER PRIMARY KEY, name TEXT)")
+    r.db.executemany("INSERT INTO items(name) VALUES (?)", [("a",), ("b",)])
+    r.load_module(
+        "m",
+        "{{#reactive on}}{{#from items}}<{{name}}>{{/from}}{{#reactive off}}{{#insert into items(name) values ('c')}}",
+    )
+    result = r.render("/m")
+    import hashlib
+
+    h1 = base64.b64encode(hashlib.sha256(repr((1, "a",)).encode()).digest())[:8].decode()
+    h2 = base64.b64encode(hashlib.sha256(repr((2, "b",)).encode()).digest())[:8].decode()
+    h3 = base64.b64encode(hashlib.sha256(repr((3, "c",)).encode()).digest())[:8].decode()
+    expected = (
+        f"<script>pstart(0)</script>"
+        f"<script>pstart('0_{h1}')</script><a><script>pend('0_{h1}')</script>\n"
+        f"<script>pstart('0_{h2}')</script><b><script>pend('0_{h2}')</script>\n"
+        f"<script>pend(0)</script>"
+        f"<script>pinsert('0_{h3}',\"<c>\")</script>"
+    )
+    assert result.body == expected

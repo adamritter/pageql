@@ -29,6 +29,9 @@ reload_ws_script = """
   const host = window.location.hostname;
   const port = window.location.port;
   const clientId = Math.random().toString(36).substring(2);
+  document.body.addEventListener('htmx:configRequest', (evt) => {
+    evt.detail.headers['ClientId'] = clientId;
+  });
   const ws_url = `ws://${host}:${port}/reload-request-ws?clientId=${clientId}`;
 
   function forceReload() {

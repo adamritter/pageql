@@ -470,6 +470,64 @@ def test_reactiveelement_if_with_table_insert_updates_input():
     )
     assert result.body == expected
 
+
+def test_reactiveelement_checked_variable_updates():
+    r = PageQL(":memory:")
+    snippet = (
+        "{{#reactive on}}"
+        "{{#set flag 1}}"
+        "<input type='checkbox' {{#if :flag}}checked{{/if}}>"
+        "{{#set flag 0}}"
+        "{{#set flag 1}}"
+    )
+    r.load_module("m", snippet)
+    result = r.render("/m")
+    expected = (
+        "<input type='checkbox' checked><script>pprevioustag(0)</script>"
+        "<script>pupdatetag(window.pageqlMarkers[0],\"<input type='checkbox' ></input>\")</script>"
+        "<script>pupdatetag(window.pageqlMarkers[0],\"<input type='checkbox' checked></input>\")</script>"
+    )
+    assert result.body == expected
+
+
+def test_reactiveelement_variable_in_tag_updates_attribute():
+    r = PageQL(":memory:")
+    snippet = (
+        "{{#reactive on}}"
+        "{{#set attr ''}}"
+        "<input type='checkbox' {{attr}}>"
+        "{{#set attr 'checked'}}"
+    )
+    r.load_module("m", snippet)
+    result = r.render("/m")
+    expected = (
+        "<input type='checkbox' ><script>pprevioustag(0)</script>"
+        "<script>pupdatetag(window.pageqlMarkers[0],\"<input type='checkbox' checked></input>\")</script>"
+    )
+    assert result.body == expected
+
+
+def test_reactiveelement_sql_count_updates_attribute():
+    r = PageQL(":memory:")
+    r.db.execute(
+        "CREATE TABLE todos(id INTEGER PRIMARY KEY, text TEXT, completed INTEGER)"
+    )
+    snippet = (
+        "{{#reactive on}}"
+        "{{#set cnt count(*) from todos}}"
+        "<div data-count='{{cnt}}'></div>"
+        "{{#insert into todos(text) values ('a')}}"
+        "{{#delete from todos}}"
+    )
+    r.load_module("m", snippet)
+    result = r.render("/m")
+    expected = (
+        "<div data-count='0'><script>pprevioustag(0)</script></div>"
+        "<script>pupdatetag(window.pageqlMarkers[0],\"<div data-count='1'></div>\")</script>"
+        "<script>pupdatetag(window.pageqlMarkers[0],\"<div data-count='0'></div>\")</script>"
+    )
+    assert result.body == expected
+
 def test_pupdatetag_in_base_script():
     from pageql.pageqlapp import base_script
     assert 'function pupdatetag' in base_script

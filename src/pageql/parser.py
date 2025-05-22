@@ -290,18 +290,36 @@ def add_reactive_elements(nodes):
             continue
 
         if isinstance(node, tuple) and node[0] == "text":
+            text = node[1]
             q_before, t_before = quote, in_tag
-            quote, in_tag = scan(node[1], quote, in_tag)
+            quote, in_tag = scan(text, quote, in_tag)
 
             if not capturing and not t_before and in_tag:
+                idx = text.find("<")
+                if idx > 0:
+                    result.append(("text", text[:idx]))
+                captured = [("text", text[idx:])]
                 capturing = True
-                captured = [node]
             elif capturing:
-                captured.append(node)
                 if not in_tag:
-                    result.append(["#reactiveelement", captured])
-                    captured = []
-                    capturing = False
+                    idx = text.find(">")
+                    if idx != -1:
+                        after = text[idx + 1 :]
+                        if after and after[0].isspace():
+                            captured.append(("text", text[: idx + 1]))
+                            after = " " + after.lstrip()
+                            result.append(["#reactiveelement", captured])
+                            if after:
+                                result.append(("text", after))
+                        else:
+                            captured.append(("text", text))
+                            result.append(["#reactiveelement", captured])
+                        captured = []
+                        capturing = False
+                    else:
+                        captured.append(node)
+                else:
+                    captured.append(node)
             else:
                 result.append(node)
         else:

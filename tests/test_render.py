@@ -484,8 +484,8 @@ def test_reactiveelement_if_variable_updates_checked():
     result = r.render("/m")
     expected = (
         "<input type='checkbox' checked><script>pprevioustag(0)</script>"
-        "<script>pupdatetag(window.pageqlMarkers[0],\"<input type='checkbox' >\")</script>"
-        "<script>pupdatetag(window.pageqlMarkers[0],\"<input type='checkbox' checked>\")</script>"
+        "<script>pupdatetag(0,\"<input type='checkbox' >\")</script>"
+        "<script>pupdatetag(0,\"<input type='checkbox' checked>\")</script>"
     )
     assert result.body == expected
 

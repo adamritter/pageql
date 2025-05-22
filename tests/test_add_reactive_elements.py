@@ -49,3 +49,20 @@ def test_wrap_with_directive_and_surrounding_text():
         ]],
         ("text", " world"),
     ]
+
+
+def test_wrap_nested_element():
+    nodes = [
+        ("text", "<p>Active count is 1: <input type='checkbox' "),
+        ["#if", ":active_count == 1", [("text", "checked")]],
+        ("text", "></p>")
+    ]
+    res = add_reactive_elements(nodes)
+    assert res == [
+        ["#reactiveelement", [
+            ("text", "<p>Active count is 1: <input type='checkbox' "),
+            ["#if", ":active_count == 1", [("text", "checked")]],
+            ("text", ">")
+        ]],
+        ("text", "</p>")
+    ]

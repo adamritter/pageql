@@ -724,7 +724,7 @@ class PageQL:
                 if reactive and ctx:
                     ctx.ensure_init()
                     mid = ctx.marker_id()
-                    ctx.append_script(f"pparent({mid})", out)
+                    ctx.append_script(f"pprevioustag({mid})", out)
 
                     def listener(_=None, *, mid=mid, ctx=ctx):
                         ctx.ensure_init()

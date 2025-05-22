@@ -8,7 +8,7 @@ from pageql.parser import add_reactive_elements
 
 def test_wrap_simple_element():
     nodes = [("text", "<div"), ("text", ">hi</div>")]
-    assert add_reactive_elements(nodes) == [["#reactiveelement", nodes]]
+    assert add_reactive_elements(nodes) == [("text", "<div"), ("text", ">hi</div>")]
 
 
 def test_no_wrap_when_closed_in_same_node():
@@ -23,7 +23,14 @@ def test_wrap_across_directive():
         ("text", ">x</div>")
     ]
     res = add_reactive_elements(nodes)
-    assert res == [["#reactiveelement", [nodes[0], nodes[1], nodes[2]]]]
+    assert res == [
+        ["#reactiveelement", [
+            ("text", "<div"),
+            ["#if", "cond", [("text", "class='x'")], []],
+            ("text", ">")
+        ]],
+        ("text", "x</div>")
+    ]
 
 
 def test_wrap_with_directive_and_surrounding_text():

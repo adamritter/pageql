@@ -305,9 +305,8 @@ def add_reactive_elements(nodes):
                     idx = text.find(">")
                     if idx != -1:
                         after = text[idx + 1 :]
-                        if after and after[0].isspace():
+                        if after:
                             captured.append(("text", text[: idx + 1]))
-                            after = " " + after.lstrip()
                             result.append(["#reactiveelement", captured])
                             if after:
                                 result.append(("text", after))

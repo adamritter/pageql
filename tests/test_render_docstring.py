@@ -157,13 +157,13 @@ a is 5, c is cc
 >>> r.load_module("optional", "{{#param text optional}}cool{{/param}}")
 >>> print(r.render("/optional").body)
 cool
->>> r.load_module("delete_test", "{{#partial delete :id}}deleted<{{id}}>{{/partial}}")
+>>> r.load_module("delete_test", "{{#partial delete :id}}deleted[{{id}}]{{/partial}}")
 >>> print(r.render("/delete_test/1", http_verb="DELETE").body)
-deleted<1>
+deleted[1]
 >>> r.load_module("varnum", "{{#set idd0 3}}{{idd0}}")
 >>> print(r.render("/varnum").body)
 3
->>> r.load_module("fromtest", "{{#from (select 1 as id)}}<{{id}}>{{/from}}")
+>>> r.load_module("fromtest", "{{#from (select 1 as id)}}[{{id}}]{{/from}}")
 >>> print(r.render("/fromtest").body)
-<1>
+[1]
 """

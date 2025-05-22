@@ -442,8 +442,16 @@ def test_reactiveelement_input_value():
         "{{#set c 1}}"
         "<input type='text' value='{{c}}'>"
         "{{#set c 2}}"
+    )
+    r.load_module("m", snippet)
+    result = r.render("/m")
+    expected = (
+        "<input type='text' value='1'><script>pparent(0)</script>"
+        "<script>pupdatetag(window.pageqlMarkers[0],\"<input type='text' value='2'></input>\")</script>"
+    )
+    assert result.body == expected
 
-      def test_reactiveelement_if_with_table_insert_updates_input():
+def test_reactiveelement_if_with_table_insert_updates_input():
     r = PageQL(":memory:")
     r.db.execute(
         "CREATE TABLE todos(id INTEGER PRIMARY KEY, text TEXT, completed INTEGER)"

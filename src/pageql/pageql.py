@@ -762,7 +762,7 @@ class PageQL:
                         ):
                             html_content += f"</{tag}>"
                         ctx.append_script(
-                            f"pupdatetag(window.pageqlMarkers[{mid}],{json.dumps(html_content)})",
+                            f"pupdatetag({mid},{json.dumps(html_content)})",
                             out,
                         )
 

@@ -20,7 +20,7 @@ import pathlib
 if __package__ is None:                      # script / doctest-by-path
     sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 
-from pageql.parser import tokenize, parsefirstword, build_ast
+from pageql.parser import tokenize, parsefirstword, build_ast, add_reactive_elements
 from pageql.reactive import Signal, DerivedSignal, DependentValue, get_dependencies, Tables
 from pageql.reactive_sql import parse_reactive
 
@@ -335,6 +335,18 @@ class PageQL:
         try:
             tokens = tokenize(source)
             body, partials = build_ast(tokens)
+            body = add_reactive_elements(body)
+
+            def _apply(parts):
+                for k, v in parts.items():
+                    if k[0] == ':':
+                        v[1] = add_reactive_elements(v[1])
+                        _apply(v[2])
+                    else:
+                        v[0] = add_reactive_elements(v[0])
+                        _apply(v[1])
+
+            _apply(partials)
             self._modules[name] = [body, partials]
         except Exception as e:
             print(f"Error parsing module {name}: {e}")
@@ -656,6 +668,17 @@ class PageQL:
             return reactive
         elif isinstance(node, list):
             directive = node[0]
+            if directive == '#reactiveelement':
+                return self.process_nodes(
+                    node[1],
+                    params,
+                    path,
+                    includes,
+                    http_verb,
+                    reactive,
+                    ctx,
+                    out,
+                )
             if directive == '#if':
                 if reactive and ctx:
                     cond_exprs = []

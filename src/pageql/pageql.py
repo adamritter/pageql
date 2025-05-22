@@ -712,7 +712,7 @@ class PageQL:
                         if tag and not html_content.endswith('/>'):
                             html_content += f"</{tag}>"
                         ctx.append_script(
-                            f"pupdatenode({mid},{json.dumps(html_content)})",
+                            f"pupdatetag(window.pageqlMarkers[{mid}],{json.dumps(html_content)})",
                             out,
                         )
 

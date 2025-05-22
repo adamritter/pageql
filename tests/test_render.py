@@ -335,3 +335,70 @@ def test_reactive_if_update():
         f"<script>pset(0,\"T\")</script>"
     )
     assert result.body == expected
+
+
+def test_reactive_if_elif_chain():
+    r = PageQL(":memory:")
+    snippet = (
+        "{{#reactive on}}"
+        "{{#set a 1}}"
+        "{{#if :a == 1}}A{{#elif :a == 2}}B{{#else}}C{{/if}}"
+        "{{#set a 2}}"
+        "{{#set a 3}}"
+        "{{#set a 1}}"
+    )
+    r.load_module("m", snippet)
+    result = r.render("/m")
+    expected = (
+        f"<script>pstart(0)</script>A<script>pend(0)</script>"
+        f"<script>pset(0,\"C\")</script>"
+        f"<script>pset(0,\"B\")</script>"
+        f"<script>pset(0,\"C\")</script>"
+        f"<script>pset(0,\"A\")</script>"
+    )
+    assert result.body == expected
+
+
+def test_reactive_if_table_dependency():
+    r = PageQL(":memory:")
+    snippet = (
+        "{{#create table items(value INTEGER)}}"
+        "{{#insert into items(value) values (1)}}"
+        "{{#reactive on}}"
+        "{{#if count(*) from items}}Y{{#else}}N{{/if}}"
+        "{{#delete from items}}"
+        "{{#insert into items(value) values (2)}}"
+        "{{#delete from items}}"
+    )
+    r.load_module("m", snippet)
+    result = r.render("/m")
+    expected = (
+        f"<script>pstart(0)</script>Y<script>pend(0)</script>"
+        f"<script>pset(0,\"N\")</script>"
+        f"<script>pset(0,\"Y\")</script>"
+        f"<script>pset(0,\"N\")</script>"
+    )
+    assert result.body == expected
+
+
+def test_reactive_if_variable_and_table_dependency():
+    r = PageQL(":memory:")
+    snippet = (
+        "{{#create table items(value INTEGER)}}"
+        "{{#reactive on}}"
+        "{{#set threshold 1}}"
+        "{{#insert into items(value) values (1)}}"
+        "{{#if (select count(*) from items) > :threshold}}MORE{{#else}}LESS{{/if}}"
+        "{{#set threshold 0}}"
+        "{{#insert into items(value) values (2)}}"
+        "{{#delete from items}}"
+    )
+    r.load_module("m", snippet)
+    result = r.render("/m")
+    expected = (
+        f"<script>pstart(0)</script>LESS<script>pend(0)</script>"
+        f"<script>pset(0,\"MORE\")</script>"
+        f"<script>pset(0,\"LESS\")</script>"
+        f"<script>pset(0,\"LESS\")</script>"
+    )
+    assert result.body == expected

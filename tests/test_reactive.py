@@ -524,6 +524,12 @@ def test_get_dependencies_type_cast():
     assert deps == ["id", "name"]
 
 
+def test_get_dependencies_dotted_names():
+    expr = "select * from t where id=:user.name and :headers.meta.title='x'"
+    deps = get_dependencies(expr)
+    assert deps == ["user.name", "headers.meta.title"]
+
+
 def _random_op(rt):
     """Perform a random insert, delete, or update on *rt*."""
     import random

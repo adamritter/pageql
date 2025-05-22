@@ -321,23 +321,38 @@ def add_reactive_elements(nodes):
                 captured = [("text", text[idx:])]
                 capturing = True
             elif capturing:
-                if not in_tag:
-                    idx = text.find(">")
-                    if idx != -1:
-                        after = text[idx + 1 :]
-                        captured.append(("text", text[: idx + 1]))
-                        if _has_dynamic(captured):
-                            result.append(["#reactiveelement", captured])
-                            if after:
-                                result.append(("text", after))
-                        else:
-                            last = captured.pop()
-                            result.extend(captured)
-                            result.append(("text", last[1] + after))
+                idx = None
+                q = q_before
+                for pos, ch in enumerate(text):
+                    if ch in ("'", '"'):
+                        if q == ch:
+                            q = None
+                        elif q is None:
+                            q = ch
+                    elif ch == '>' and q is None:
+                        idx = pos
+                        break
+                if idx is not None:
+                    after = text[idx + 1 :]
+                    prefix = text[: idx + 1]
+                    captured.append(("text", prefix))
+                    if _has_dynamic(captured):
+                        result.append(["#reactiveelement", captured])
                         captured = []
                         capturing = False
+                        quote, in_tag = scan(prefix, q_before, t_before)
+                        if after:
+                            nodes[i] = ("text", after)
+                            continue
                     else:
-                        captured.append(node)
+                        last = captured.pop()
+                        result.extend(captured)
+                        result.append(("text", last[1] + after))
+                        captured = []
+                        capturing = False
+                        quote, in_tag = scan(text, q_before, t_before)
+                    i += 1
+                    continue
                 else:
                     captured.append(node)
             else:

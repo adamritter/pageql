@@ -93,7 +93,13 @@ def test_delete_insert_input_and_text():
                 ("render_expression", "3"),
                 ("text", "\" type=\"checkbox\" "),
                 ["#if", "1", [("text", "checked")]],
-                ("text", "><input type=\"text\" value=\""),
+                ("text", ">"),
+            ],
+        ],
+        [
+            "#reactiveelement",
+            [
+                ("text", "<input type=\"text\" value=\""),
                 ("render_param", "active_count"),
                 ("text", "\">")
             ],

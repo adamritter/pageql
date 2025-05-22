@@ -490,6 +490,27 @@ def test_reactiveelement_if_variable_updates_checked():
     assert result.body == expected
 
 
+def test_reactiveelement_delete_and_insert_updates_input_and_text():
+    r = PageQL(":memory:")
+    r.db.execute(
+        "CREATE TABLE todos(id INTEGER PRIMARY KEY, text TEXT, completed INTEGER)"
+    )
+    snippet = (
+        "{{#reactive on}}"
+        "{{#delete from todos where completed = 0}}"
+        "{{#set active_count COUNT(*) from todos WHERE completed = 0}}"
+        '<p><input class="toggle{{3}}" type="checkbox" {{#if 1}}checked{{/if}}><input type="text" value="{{active_count}}"></p>'
+        "{{#insert into todos(text, completed) values ('test', 0)}}"
+    )
+    r.load_module("m", snippet)
+    result = r.render("/m")
+    expected = (
+        "<p><input class=\"toggle3\" type=\"checkbox\" checked><input type=\"text\" value=\"0\"><script>pprevioustag(0)</script></p>"
+        "<script>pupdatetag(0,\"<input class=\\\"toggle3\\\" type=\\\"checkbox\\\" checked><input type=\\\"text\\\" value=\\\"1\\\">\")</script>"
+    )
+    assert result.body == expected
+
+
 def test_reactive_text_updates_with_table_count():
     r = PageQL(":memory:")
     snippet = (

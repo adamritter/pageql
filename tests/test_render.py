@@ -443,3 +443,9 @@ def test_pupdatetag_in_base_script():
 def test_pupdate_reregisters_htmx():
     from pageql.pageqlapp import base_script
     assert 'htmx.process' in base_script
+
+def test_pinsert_reregisters_htmx():
+    from pageql.pageqlapp import base_script
+    idx = base_script.find('function pinsert')
+    assert idx != -1
+    assert base_script.find('htmx.process', idx) != -1

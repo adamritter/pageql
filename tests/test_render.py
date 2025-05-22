@@ -439,3 +439,7 @@ def test_pupdatetag_in_base_script():
     from pageql.pageqlapp import base_script
     assert 'function pupdatetag' in base_script
     assert 'function pupdatenode' not in base_script
+
+def test_pupdate_reregisters_htmx():
+    from pageql.pageqlapp import base_script
+    assert 'htmx.process' in base_script

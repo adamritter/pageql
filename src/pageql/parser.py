@@ -240,49 +240,15 @@ def build_ast(node_list):
 def add_reactive_elements(nodes):
     """Return a modified AST with ``#reactiveelement`` wrappers."""
 
-    def scan(text: str, quote: str | None, in_tag: bool) -> tuple[str | None, bool]:
-        s = text
-        for ch in s:
-            if ch in ("'", '"'):
-                if quote == ch:
-                    quote = None
-                elif quote is None:
-                    quote = ch
-            elif ch == '<' and quote is None:
-                in_tag = True
-            elif ch == '>' and quote is None:
-                in_tag = False
-        return quote, in_tag
-
-    def _last_unclosed_lt(text: str) -> int | None:
-        """Return the index of the last unclosed '<' in the text."""
-        pos = text.rfind('<')
-        if pos == -1:
-            return None
-        pos2 = text.rfind('>')
-        if pos2 < pos:
-            return pos
-        return None
-    
-    result: list[object] = []
-    i = 0
-    quote: str | None = None
-    in_tag = False
-    capturing = False
-    captured: list[object] = []
-
-    def _has_dynamic(nodes: list[object]) -> bool:
-        for n in nodes:
+    def _has_dynamic(seq: list[object]) -> bool:
+        for n in seq:
             if isinstance(n, list):
                 return True
             if isinstance(n, tuple) and n[0] != "text":
                 return True
         return False
 
-    while i < len(nodes):
-        node = nodes[i]
-
-        # Recursively process directive bodies
+    def _process(node):
         if isinstance(node, list):
             directive = node[0]
             if directive in ("#if", "#ifdef", "#ifndef"):
@@ -296,67 +262,58 @@ def add_reactive_elements(nodes):
                     else:
                         new_node.append(add_reactive_elements(node[j]))
                         j += 1
-                node = new_node
-            elif directive == "#from":
-                node = [directive, node[1], add_reactive_elements(node[2])]
+                return new_node
+            if directive == "#from":
+                return [directive, node[1], add_reactive_elements(node[2])]
+        return node
 
-            if capturing:
-                captured.append(node)
-            else:
-                result.append(node)
-            i += 1
-            continue
+    def _last_unclosed_lt(text: str) -> int | None:
+        pos = text.rfind("<")
+        if pos == -1:
+            return None
+        pos2 = text.rfind(">")
+        if pos2 < pos:
+            return pos
+        return None
+
+    result: list[object] = []
+    captured: list[object] = []
+    capturing = False
+
+    i = 0
+    while i < len(nodes):
+        node = _process(nodes[i])
 
         if isinstance(node, tuple) and node[0] == "text":
             text = node[1]
-            q_before, t_before = quote, in_tag
-            quote, in_tag = scan(text, quote, in_tag)
-
-            if not capturing and not t_before and in_tag:
+            if not capturing:
                 idx = _last_unclosed_lt(text)
-                if idx is None:
-                    idx = text.find("<")
-                if idx > 0:
-                    result.append(("text", text[:idx]))
-                captured = [("text", text[idx:])]
-                capturing = True
-            elif capturing:
-                idx = None
-                q = q_before
-                for pos, ch in enumerate(text):
-                    if ch in ("'", '"'):
-                        if q == ch:
-                            q = None
-                        elif q is None:
-                            q = ch
-                    elif ch == '>' and q is None:
-                        idx = pos
-                        break
                 if idx is not None:
-                    after = text[idx + 1 :]
-                    prefix = text[: idx + 1]
+                    if idx > 0:
+                        result.append(("text", text[:idx]))
+                    captured = [("text", text[idx:])]
+                    capturing = True
+                else:
+                    result.append(node)
+            else:
+                gt = text.find(">")
+                if gt != -1:
+                    prefix = text[: gt + 1]
+                    after = text[gt + 1 :]
                     captured.append(("text", prefix))
                     if _has_dynamic(captured):
                         result.append(["#reactiveelement", captured])
-                        captured = []
-                        capturing = False
-                        quote, in_tag = scan(prefix, q_before, t_before)
                         if after:
-                            nodes[i] = ("text", after)
-                            continue
+                            nodes.insert(i + 1, ("text", after))
                     else:
-                        last = captured.pop()
+                        if captured:
+                            last = captured.pop()
+                            captured.append((last[0], last[1] + after))
                         result.extend(captured)
-                        result.append(("text", last[1] + after))
-                        captured = []
-                        capturing = False
-                        quote, in_tag = scan(text, q_before, t_before)
-                    i += 1
-                    continue
+                    captured = []
+                    capturing = False
                 else:
                     captured.append(node)
-            else:
-                result.append(node)
         else:
             if capturing:
                 captured.append(node)

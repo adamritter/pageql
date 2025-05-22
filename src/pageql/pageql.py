@@ -675,7 +675,7 @@ class PageQL:
                     path,
                     includes,
                     http_verb,
-                    reactive,
+                    False,
                     ctx,
                     out,
                 )

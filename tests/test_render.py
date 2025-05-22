@@ -430,8 +430,8 @@ def test_reactiveelement_updates_node():
     result = r.render("/m")
     expected = (
         "<div class='x'><script>pprevioustag(0)</script></div>"
-        "<script>pupdatetag(window.pageqlMarkers[0],\"<div class='y'></div>\")</script>"
-        "<script>pupdatetag(window.pageqlMarkers[0],\"<div class='x'></div>\")</script>"
+        "<script>pupdatetag(0,\"<div class='y'></div>\")</script>"
+        "<script>pupdatetag(0,\"<div class='x'></div>\")</script>"
     )
     assert result.body == expected
 
@@ -447,7 +447,7 @@ def test_reactiveelement_input_value():
     result = r.render("/m")
     expected = (
         "<input type='text' value='1'><script>pprevioustag(0)</script>"
-        "<script>pupdatetag(window.pageqlMarkers[0],\"<input type='text' value='2'>\")</script>"
+        "<script>pupdatetag(0,\"<input type='text' value='2'>\")</script>"
     )
     assert result.body == expected
 
@@ -466,7 +466,7 @@ def test_reactiveelement_if_with_table_insert_updates_input():
     result = r.render("/m")
     expected = (
         "<p>Active count is 1: <input type='checkbox' ><script>pprevioustag(0)</script></p>"
-        "<script>pupdatetag(window.pageqlMarkers[0],\"<input type='checkbox' checked>\")</script>"
+        "<script>pupdatetag(0,\"<input type='checkbox' checked>\")</script>"
     )
     assert result.body == expected
 

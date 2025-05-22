@@ -235,3 +235,83 @@ def build_ast(node_list):
     if idx != len(node_list):
         raise SyntaxError("extra tokens after top‑level parse")
     return body, partials
+
+
+def add_reactive_elements(nodes):
+    """Return a modified AST with ``#reactiveelement`` wrappers."""
+
+    def scan(text: str, quote: str | None, in_tag: bool) -> tuple[str | None, bool]:
+        s = text.replace("&lt;", "<").replace("&gt;", ">")
+        for ch in s:
+            if ch in ("'", '"'):
+                if quote == ch:
+                    quote = None
+                elif quote is None:
+                    quote = ch
+            elif ch == '<' and quote is None:
+                in_tag = True
+            elif ch == '>' and quote is None:
+                in_tag = False
+        return quote, in_tag
+
+    result: list[object] = []
+    i = 0
+    quote: str | None = None
+    in_tag = False
+    capturing = False
+    captured: list[object] = []
+
+    while i < len(nodes):
+        node = nodes[i]
+
+        # Recursively process directive bodies
+        if isinstance(node, list):
+            directive = node[0]
+            if directive in ("#if", "#ifdef", "#ifndef"):
+                new_node = [directive, node[1], add_reactive_elements(node[2])]
+                j = 3
+                while j < len(node):
+                    if j + 1 < len(node):
+                        new_node.append(node[j])
+                        new_node.append(add_reactive_elements(node[j + 1]))
+                        j += 2
+                    else:
+                        new_node.append(add_reactive_elements(node[j]))
+                        j += 1
+                node = new_node
+            elif directive == "#from":
+                node = [directive, node[1], add_reactive_elements(node[2])]
+
+            if capturing:
+                captured.append(node)
+            else:
+                result.append(node)
+            i += 1
+            continue
+
+        if isinstance(node, tuple) and node[0] == "text":
+            q_before, t_before = quote, in_tag
+            quote, in_tag = scan(node[1], quote, in_tag)
+
+            if not capturing and not t_before and in_tag:
+                capturing = True
+                captured = [node]
+            elif capturing:
+                captured.append(node)
+                if not in_tag:
+                    result.append(["#reactiveelement", captured])
+                    captured = []
+                    capturing = False
+            else:
+                result.append(node)
+        else:
+            if capturing:
+                captured.append(node)
+            else:
+                result.append(node)
+        i += 1
+
+    if captured:
+        result.append(["#reactiveelement", captured])
+
+    return result

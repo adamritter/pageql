@@ -465,8 +465,8 @@ def test_reactiveelement_if_with_table_insert_updates_input():
     r.load_module("m", snippet)
     result = r.render("/m")
     expected = (
-        "<p>Active count is 1: <input type='checkbox' ><script>pprevioustag(0)</script></p>"
-        "<script>pupdatetag(window.pageqlMarkers[0],\"<p>Active count is 1: <input type='checkbox' checked></p>Active>\")</script>"
+        "<p>Active count is 1: <input type='checkbox' ><script>pparent(0)</script></p>"
+        "<script>pupdatetag(window.pageqlMarkers[0],\"<input type='checkbox' checked>\")</script>"
     )
     assert result.body == expected
 

@@ -29,3 +29,19 @@ def test_wrap_across_directive():
     ]
     res = add_reactive_elements(nodes)
     assert res == [["#reactiveelement", [nodes[0], nodes[1], nodes[2]]]]
+
+
+def test_wrap_with_directive_and_surrounding_text():
+    nodes = [
+        ("text", "hello "),
+        ("text", "<input "),
+        ["#if", "a", [("text", "checked")], []],
+        ("text", "type='submit'>"),
+        ("text", " world"),
+    ]
+    res = add_reactive_elements(nodes)
+    assert res == [
+        nodes[0],
+        ["#reactiveelement", [nodes[1], nodes[2], nodes[3]]],
+        nodes[4],
+    ]

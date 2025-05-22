@@ -254,6 +254,25 @@ def add_reactive_elements(nodes):
                 in_tag = False
         return quote, in_tag
 
+    def _last_unclosed_lt(text: str) -> int | None:
+        quote = None
+        pos: int | None = None
+        depth = 0
+        for idx, ch in enumerate(text):
+            if ch in ("'", '"'):
+                if quote == ch:
+                    quote = None
+                elif quote is None:
+                    quote = ch
+            elif ch == '<' and quote is None:
+                pos = idx
+                depth += 1
+            elif ch == '>' and quote is None and depth > 0:
+                depth -= 1
+                if depth == 0:
+                    pos = None
+        return pos
+
     result: list[object] = []
     i = 0
     quote: str | None = None
@@ -303,7 +322,9 @@ def add_reactive_elements(nodes):
             quote, in_tag = scan(text, quote, in_tag)
 
             if not capturing and not t_before and in_tag:
-                idx = text.find("<")
+                idx = _last_unclosed_lt(text)
+                if idx is None:
+                    idx = text.find("<")
                 if idx > 0:
                     result.append(("text", text[:idx]))
                 captured = [("text", text[idx:])]

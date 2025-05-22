@@ -20,6 +20,12 @@ import pathlib
 if __package__ is None:                      # script / doctest-by-path
     sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 
+# HTML void elements do not use closing tags
+VOID_ELEMENTS = {
+    'area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link',
+    'meta', 'param', 'source', 'track', 'wbr'
+}
+
 from pageql.parser import tokenize, parsefirstword, build_ast, add_reactive_elements
 from pageql.reactive import Signal, DerivedSignal, DependentValue, get_dependencies, Tables
 from pageql.reactive_sql import parse_reactive
@@ -708,8 +714,17 @@ class PageQL:
                         )
                         ctx.reactiveelement = cur
                         html_content = "".join(new_buf).strip()
-                        tag = html_content[1:].split()[0].rstrip('>') if html_content.startswith('<') else ''
-                        if tag and not html_content.endswith('/>'):
+                        tag = ''
+                        if html_content.startswith('<'):
+                            m = re.match(r'<([A-Za-z0-9_-]+)', html_content)
+                            if m:
+                                tag = m.group(1)
+                        if (
+                            tag
+                            and tag.lower() not in VOID_ELEMENTS
+                            and not html_content.endswith('/>')
+                            and not html_content.endswith(f'</{tag}>')
+                        ):
                             html_content += f"</{tag}>"
                         ctx.append_script(
                             f"pupdatetag(window.pageqlMarkers[{mid}],{json.dumps(html_content)})",

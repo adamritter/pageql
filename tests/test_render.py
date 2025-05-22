@@ -403,6 +403,20 @@ def test_reactive_if_variable_and_table_dependency():
     )
     assert result.body == expected
 
+
+def test_reactiveelement_adds_pparent_script():
+    r = PageQL(":memory:")
+    r.load_module("m", "{{#reactive on}}<div {{#if 1}}class='x'{{/if}}></div>")
+    result = r.render("/m")
+    assert result.body == "<div class='x'><script>pparent(0)</script></div>"
+
+
+def test_reactiveelement_nonreactive_no_script():
+    r = PageQL(":memory:")
+    r.load_module("m", "<div {{#if 1}}class='x'{{/if}}></div>")
+    result = r.render("/m")
+    assert result.body == "<div class='x'></div>"
+
 def test_pupdatetag_in_base_script():
     from pageql.pageqlapp import base_script
     assert 'function pupdatetag' in base_script

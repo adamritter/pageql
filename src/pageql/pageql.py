@@ -669,7 +669,7 @@ class PageQL:
         elif isinstance(node, list):
             directive = node[0]
             if directive == '#reactiveelement':
-                return self.process_nodes(
+                self.process_nodes(
                     node[1],
                     params,
                     path,
@@ -679,6 +679,11 @@ class PageQL:
                     ctx,
                     out,
                 )
+                if reactive and ctx:
+                    ctx.ensure_init()
+                    mid = ctx.marker_id()
+                    ctx.append_script(f"pparent({mid})", out)
+                return reactive
             if directive == '#if':
                 if reactive and ctx:
                     cond_exprs = []

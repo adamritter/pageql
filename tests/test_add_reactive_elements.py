@@ -49,3 +49,21 @@ def test_wrap_with_directive_and_surrounding_text():
         ]],
         ("text", " world"),
     ]
+
+
+def test_input_if_inside_paragraph():
+    nodes = [
+        ("text", "<p>Active count is 1: <input type='checkbox' "),
+        ["#if", ":active_count == 1", [("text", "checked")]],
+        ("text", "></p>")
+    ]
+    res = add_reactive_elements(nodes)
+    assert res == [
+        ("text", "<p>Active count is 1: "),
+        ["#reactiveelement", [
+            ("text", "<input type='checkbox' "),
+            ["#if", ":active_count == 1", [("text", "checked")]],
+            ("text", ">")
+        ]],
+        ("text", "</p>")
+    ]

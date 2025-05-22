@@ -3,7 +3,7 @@ sys.modules.setdefault("watchfiles", types.ModuleType("watchfiles"))
 sys.modules["watchfiles"].awatch = lambda *args, **kwargs: None
 sys.path.insert(0, "src")
 
-from pageql.parser import add_reactive_elements
+from pageql.parser import add_reactive_elements, tokenize, build_ast
 
 
 def test_wrap_simple_element():
@@ -66,4 +66,38 @@ def test_input_if_inside_paragraph():
             ("text", ">")
         ]],
         ("text", "</p>")
+    ]
+
+
+def test_delete_insert_input_and_text():
+    snippet = (
+        "{{#reactive on}}"
+        "{{#delete from todos where completed = 0}}"
+        "{{#set active_count COUNT(*) from todos WHERE completed = 0}}"
+        '<p><input class="toggle{{3}}" type="checkbox" {{#if 1}}checked{{/if}}>'
+        '<input type="text" value="{{active_count}}"></p>'
+        "{{#insert into todos(text, completed) values ('test', 0)}}"
+    )
+    tokens = tokenize(snippet)
+    body, _ = build_ast(tokens)
+    res = add_reactive_elements(body)
+    assert res == [
+        ("#reactive", "on"),
+        ("#delete", "from todos where completed = 0"),
+        ("#set", "active_count COUNT(*) from todos WHERE completed = 0"),
+        ("text", "<p>"),
+        [
+            "#reactiveelement",
+            [
+                ("text", "<input class=\"toggle"),
+                ("render_expression", "3"),
+                ("text", "\" type=\"checkbox\" "),
+                ["#if", "1", [("text", "checked")]],
+                ("text", "><input type=\"text\" value=\""),
+                ("render_param", "active_count"),
+                ("text", "\">")
+            ],
+        ],
+        ("text", "</p>"),
+        ("#insert", "into todos(text, completed) values ('test', 0)"),
     ]

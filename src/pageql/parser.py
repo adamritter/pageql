@@ -261,6 +261,14 @@ def add_reactive_elements(nodes):
     capturing = False
     captured: list[object] = []
 
+    def _has_dynamic(nodes: list[object]) -> bool:
+        for n in nodes:
+            if isinstance(n, list):
+                return True
+            if isinstance(n, tuple) and n[0] != "text":
+                return True
+        return False
+
     while i < len(nodes):
         node = nodes[i]
 
@@ -305,14 +313,15 @@ def add_reactive_elements(nodes):
                     idx = text.find(">")
                     if idx != -1:
                         after = text[idx + 1 :]
-                        if after:
-                            captured.append(("text", text[: idx + 1]))
+                        captured.append(("text", text[: idx + 1]))
+                        if _has_dynamic(captured):
                             result.append(["#reactiveelement", captured])
                             if after:
                                 result.append(("text", after))
                         else:
-                            captured.append(("text", text))
-                            result.append(["#reactiveelement", captured])
+                            last = captured.pop()
+                            result.extend(captured)
+                            result.append(("text", last[1] + after))
                         captured = []
                         capturing = False
                     else:
@@ -329,6 +338,9 @@ def add_reactive_elements(nodes):
         i += 1
 
     if captured:
-        result.append(["#reactiveelement", captured])
+        if _has_dynamic(captured):
+            result.append(["#reactiveelement", captured])
+        else:
+            result.extend(captured)
 
     return result

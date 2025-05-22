@@ -442,12 +442,23 @@ def test_reactiveelement_input_value():
         "{{#set c 1}}"
         "<input type='text' value='{{c}}'>"
         "{{#set c 2}}"
+
+      def test_reactiveelement_if_with_table_insert_updates_input():
+    r = PageQL(":memory:")
+    r.db.execute(
+        "CREATE TABLE todos(id INTEGER PRIMARY KEY, text TEXT, completed INTEGER)"
+    )
+    snippet = (
+        "{{#reactive on}}"
+        "{{#set active_count count(*) from todos}}"
+        "<p>Active count is 1: <input type='checkbox' {{#if :active_count == 1}}checked{{/if}}></p>"
+        "{{#insert into todos(text, completed) values ('test', 0)}}"
     )
     r.load_module("m", snippet)
     result = r.render("/m")
     expected = (
-        "<input type='text' value='1'><script>pparent(0)</script>"
-        "<script>pupdatetag(window.pageqlMarkers[0],\"<input type='text' value='2'></input>\")</script>"
+        "<p>Active count is 1: <input type='checkbox' ><script>pparent(0)</script></p>"
+        "<script>pupdatetag(window.pageqlMarkers[0],\"<p>Active count is 1: <input type='checkbox' checked></p>Active>\")</script>"
     )
     assert result.body == expected
 

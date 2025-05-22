@@ -528,24 +528,30 @@ class PageQL:
                 out.append(node_content)
             elif node_type == 'render_expression':
                 result = evalone(self.db, node_content, params, reactive, self.tables)
-                if reactive and isinstance(result, Signal):
-                    value = html.escape(str(result.value))
+                if isinstance(result, Signal):
+                    signal = result
+                    result = result.value
+                else:
+                    signal = None
+                value = html.escape(str(result))
+                if ctx.reactiveelement is not None:
+                    out.append(value)
+                    if signal:
+                        ctx.reactiveelement.append(signal)
+                elif reactive and signal is not None:
                     ctx.ensure_init()
                     mid = ctx.marker_id()
                     ctx.append_script(f"pstart({mid})", out)
                     out.append(value)
                     ctx.append_script(f"pend({mid})", out)
-                    def listener(v=None, *, sig=result, mid=mid, ctx=ctx):
+                    def listener(v=None, *, sig=signal, mid=mid, ctx=ctx):
                         ctx.ensure_init()
                         ctx.append_script(
                             f"pset({mid},{json.dumps(html.escape(str(sig.value)))})",
                             out,
                         )
-                    ctx.add_listener(result, listener)
+                    ctx.add_listener(signal, listener)
                 else:
-                    if isinstance(result, ReadOnly):
-                        result = result.value
-                    value = html.escape(str(result))
                     out.append(value)
             elif node_type == 'render_param':
                 try:
@@ -557,7 +563,11 @@ class PageQL:
                         if isinstance(val, Signal):
                             val = val.value
                         value = html.escape(str(val))
-                        if reactive:
+                        if ctx.reactiveelement is not None:
+                            out.append(value)
+                            if signal:
+                                ctx.reactiveelement.append(signal)
+                        elif reactive:
                             ctx.ensure_init()
                             mid = ctx.marker_id()
                             ctx.append_script(f"pstart({mid})", out)
@@ -573,7 +583,32 @@ class PageQL:
                 except KeyError:
                     raise ValueError(f"Parameter `{node_content}` not found in params `{params}`")
             elif node_type == 'render_raw':
-                out.append(str(evalone(self.db, node_content, params, reactive, self.tables)))
+                result = evalone(self.db, node_content, params, reactive, self.tables)
+                if isinstance(result, Signal):
+                    signal = result
+                    result = result.value
+                else:
+                    signal = None
+                value = str(result)
+                if ctx.reactiveelement is not None:
+                    out.append(value)
+                    if signal:
+                        ctx.reactiveelement.append(signal)
+                elif reactive and signal is not None:
+                    ctx.ensure_init()
+                    mid = ctx.marker_id()
+                    ctx.append_script(f"pstart({mid})", out)
+                    out.append(value)
+                    ctx.append_script(f"pend({mid})", out)
+                    def listener(v=None, *, sig=signal, mid=mid, ctx=ctx):
+                        ctx.ensure_init()
+                        ctx.append_script(
+                            f"pset({mid},{json.dumps(str(sig.value))})",
+                            out,
+                        )
+                    ctx.add_listener(signal, listener)
+                else:
+                    out.append(value)
             elif node_type == '#param':
                 param_name, param_value = self.handle_param(node_content, params)
                 params[param_name] = param_value
@@ -695,7 +730,7 @@ class PageQL:
                 if reactive and ctx:
                     ctx.ensure_init()
                     mid = ctx.marker_id()
-                    ctx.append_script(f"pparent({mid})", out)
+                    ctx.append_script(f"pprevioustag({mid})", out)
 
                     def listener(_=None, *, mid=mid, ctx=ctx):
                         ctx.ensure_init()

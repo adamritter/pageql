@@ -142,6 +142,7 @@ class RenderContext:
         self.scripts: list[str] = []
         self.send_script = None
         self.rendering = True
+        self.reactiveelement = None
 
     def ensure_init(self):
         if not self.initialized:
@@ -669,20 +670,54 @@ class PageQL:
         elif isinstance(node, list):
             directive = node[0]
             if directive == '#reactiveelement':
+                prev = ctx.reactiveelement
+                ctx.reactiveelement = []
+                buf = []
                 self.process_nodes(
                     node[1],
                     params,
                     path,
                     includes,
                     http_verb,
-                    False,
+                    reactive,
                     ctx,
-                    out,
+                    out=buf,
                 )
+                signals = ctx.reactiveelement
+                ctx.reactiveelement = prev
+                out.extend(buf)
                 if reactive and ctx:
                     ctx.ensure_init()
                     mid = ctx.marker_id()
                     ctx.append_script(f"pparent({mid})", out)
+
+                    def listener(_=None, *, mid=mid, ctx=ctx):
+                        ctx.ensure_init()
+                        new_buf = []
+                        cur = ctx.reactiveelement
+                        ctx.reactiveelement = []
+                        self.process_nodes(
+                            node[1],
+                            params,
+                            path,
+                            includes,
+                            http_verb,
+                            True,
+                            ctx,
+                            out=new_buf,
+                        )
+                        ctx.reactiveelement = cur
+                        html_content = "".join(new_buf).strip()
+                        tag = html_content[1:].split()[0].rstrip('>') if html_content.startswith('<') else ''
+                        if tag and not html_content.endswith('/>'):
+                            html_content += f"</{tag}>"
+                        ctx.append_script(
+                            f"pupdatenode({mid},{json.dumps(html_content)})",
+                            out,
+                        )
+
+                    for sig in signals:
+                        ctx.add_listener(sig, listener)
                 return reactive
             if directive == '#if':
                 if reactive and ctx:
@@ -712,48 +747,63 @@ class PageQL:
                                 return idx
                         return None
 
-                    mid = ctx.marker_id()
-                    ctx.ensure_init()
-                    ctx.append_script(f"pstart({mid})", out)
-
-                    idx = pick_index()
-                    if idx is not None:
-                        reactive = self.process_nodes(
-                            bodies[idx],
-                            params,
-                            path,
-                            includes,
-                            http_verb,
-                            reactive,
-                            ctx,
-                            out,
-                        )
-
-                    ctx.append_script(f"pend({mid})", out)
-
-                    def listener(_=None, *, mid=mid, ctx=ctx):
-                        ctx.ensure_init()
-                        new_idx = pick_index()
-                        buf = []
-                        if new_idx is not None:
-                            self.process_nodes(
-                                bodies[new_idx],
+                    if ctx.reactiveelement is not None:
+                        idx = pick_index()
+                        if idx is not None:
+                            reactive = self.process_nodes(
+                                bodies[idx],
                                 params,
                                 path,
                                 includes,
                                 http_verb,
                                 True,
                                 ctx,
-                                out=buf,
+                                out,
                             )
-                        html_content = "".join(buf).strip()
-                        ctx.append_script(
-                            f"pset({mid},{json.dumps(html_content)})",
-                            out,
-                        )
+                        ctx.reactiveelement.extend(signals)
+                    else:
+                        mid = ctx.marker_id()
+                        ctx.ensure_init()
+                        ctx.append_script(f"pstart({mid})", out)
 
-                    for sig in signals:
-                        ctx.add_listener(sig, listener)
+                        idx = pick_index()
+                        if idx is not None:
+                            reactive = self.process_nodes(
+                                bodies[idx],
+                                params,
+                                path,
+                                includes,
+                                http_verb,
+                                reactive,
+                                ctx,
+                                out,
+                            )
+
+                        ctx.append_script(f"pend({mid})", out)
+
+                        def listener(_=None, *, mid=mid, ctx=ctx):
+                            ctx.ensure_init()
+                            new_idx = pick_index()
+                            buf = []
+                            if new_idx is not None:
+                                self.process_nodes(
+                                    bodies[new_idx],
+                                    params,
+                                    path,
+                                    includes,
+                                    http_verb,
+                                    True,
+                                    ctx,
+                                    out=buf,
+                                )
+                            html_content = "".join(buf).strip()
+                            ctx.append_script(
+                                f"pset({mid},{json.dumps(html_content)})",
+                                out,
+                            )
+
+                        for sig in signals:
+                            ctx.add_listener(sig, listener)
                 else:
                     i = 1
                     while i < len(node):

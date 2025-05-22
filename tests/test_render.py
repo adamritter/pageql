@@ -417,6 +417,25 @@ def test_reactiveelement_nonreactive_no_script():
     result = r.render("/m")
     assert result.body == "<div class='x'></div>"
 
+def test_reactiveelement_updates_node():
+    r = PageQL(":memory:")
+    snippet = (
+        "{{#reactive on}}"
+        "{{#set c 1}}"
+        "<div {{#if :c}}class='x'{{#else}}class='y'{{/if}}></div>"
+        "{{#set c 0}}"
+        "{{#set c 1}}"
+    )
+    r.load_module("m", snippet)
+    result = r.render("/m")
+    expected = (
+        "<div class='x'><script>pparent(0)</script></div>"
+        "<script>pupdatenode(0,\"<div class='y'></div>\")</script>"
+        "<script>pupdatenode(0,\"<div class='x'></div>\")</script>"
+    )
+    assert result.body == expected
+
 def test_pupdatetag_in_base_script():
     from pageql.pageqlapp import base_script
     assert 'function pupdatetag' in base_script
+    assert 'function pupdatenode' in base_script

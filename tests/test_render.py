@@ -505,8 +505,8 @@ def test_reactiveelement_delete_and_insert_updates_input_and_text():
     r.load_module("m", snippet)
     result = r.render("/m")
     expected = (
-        "<p><input class=\"toggle3\" type=\"checkbox\" checked><input type=\"text\" value=\"0\"><script>pprevioustag(0)</script></p>"
-        "<script>pupdatetag(0,\"<input class=\\\"toggle3\\\" type=\\\"checkbox\\\" checked><input type=\\\"text\\\" value=\\\"1\\\">\")</script>"
+        "<p><input class=\"toggle3\" type=\"checkbox\" checked><script>pprevioustag(0)</script><input type=\"text\" value=\"0\"><script>pprevioustag(1)</script></p>"
+        "<script>pupdatetag(1,\"<input type=\\\"text\\\" value=\\\"1\\\">\")</script>"
     )
     assert result.body == expected
 

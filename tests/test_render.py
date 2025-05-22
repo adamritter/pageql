@@ -402,3 +402,7 @@ def test_reactive_if_variable_and_table_dependency():
         f"<script>pset(0,\"LESS\")</script>"
     )
     assert result.body == expected
+
+def test_pupdatetag_in_base_script():
+    from pageql.pageqlapp import base_script
+    assert 'function pupdatetag' in base_script

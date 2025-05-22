@@ -1,6 +1,23 @@
 import re
 
 
+def quote_state(text: str, start_state: str | None = None) -> str | None:
+    """Return quoting state after scanning ``text``.
+
+    Only single and double quotes are tracked. ``start_state`` specifies the
+    quoting state at the beginning.
+    """
+    quote = start_state
+    for ch in text:
+        if quote:
+            if ch == quote:
+                quote = None
+        else:
+            if ch in ("'", '"'):
+                quote = ch
+    return quote
+
+
 def parsefirstword(s):
     s = s.strip()
     if s.find(' ') < 0:

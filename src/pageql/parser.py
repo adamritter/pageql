@@ -241,7 +241,7 @@ def add_reactive_elements(nodes):
     """Return a modified AST with ``#reactiveelement`` wrappers."""
 
     def scan(text: str, quote: str | None, in_tag: bool) -> tuple[str | None, bool]:
-        s = text.replace("&lt;", "<").replace("&gt;", ">")
+        s = text
         for ch in s:
             if ch in ("'", '"'):
                 if quote == ch:

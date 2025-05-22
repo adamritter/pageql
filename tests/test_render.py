@@ -435,7 +435,15 @@ def test_reactiveelement_updates_node():
     )
     assert result.body == expected
 
-def test_reactiveelement_if_with_table_insert_updates_input():
+def test_reactiveelement_input_value():
+    r = PageQL(":memory:")
+    snippet = (
+        "{{#reactive on}}"
+        "{{#set c 1}}"
+        "<input type='text' value='{{c}}'>"
+        "{{#set c 2}}"
+
+      def test_reactiveelement_if_with_table_insert_updates_input():
     r = PageQL(":memory:")
     r.db.execute(
         "CREATE TABLE todos(id INTEGER PRIMARY KEY, text TEXT, completed INTEGER)"

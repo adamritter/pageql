@@ -430,12 +430,12 @@ def test_reactiveelement_updates_node():
     result = r.render("/m")
     expected = (
         "<div class='x'><script>pparent(0)</script></div>"
-        "<script>pupdatenode(0,\"<div class='y'></div>\")</script>"
-        "<script>pupdatenode(0,\"<div class='x'></div>\")</script>"
+        "<script>pupdatetag(window.pageqlMarkers[0],\"<div class='y'></div>\")</script>"
+        "<script>pupdatetag(window.pageqlMarkers[0],\"<div class='x'></div>\")</script>"
     )
     assert result.body == expected
 
 def test_pupdatetag_in_base_script():
     from pageql.pageqlapp import base_script
     assert 'function pupdatetag' in base_script
-    assert 'function pupdatenode' in base_script
+    assert 'function pupdatenode' not in base_script

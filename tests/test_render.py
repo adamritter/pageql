@@ -404,11 +404,11 @@ def test_reactive_if_variable_and_table_dependency():
     assert result.body == expected
 
 
-def test_reactiveelement_adds_pparent_script():
+def test_reactiveelement_adds_pprevioustag_script():
     r = PageQL(":memory:")
     r.load_module("m", "{{#reactive on}}<div {{#if 1}}class='x'{{/if}}></div>")
     result = r.render("/m")
-    assert result.body == "<div class='x'><script>pparent(0)</script></div>"
+    assert result.body == "<div class='x'><script>pprevioustag(0)</script></div>"
 
 
 def test_reactiveelement_nonreactive_no_script():
@@ -429,7 +429,7 @@ def test_reactiveelement_updates_node():
     r.load_module("m", snippet)
     result = r.render("/m")
     expected = (
-        "<div class='x'><script>pparent(0)</script></div>"
+        "<div class='x'><script>pprevioustag(0)</script></div>"
         "<script>pupdatetag(window.pageqlMarkers[0],\"<div class='y'></div>\")</script>"
         "<script>pupdatetag(window.pageqlMarkers[0],\"<div class='x'></div>\")</script>"
     )
@@ -446,7 +446,7 @@ def test_reactiveelement_input_value():
     r.load_module("m", snippet)
     result = r.render("/m")
     expected = (
-        "<input type='text' value='1'><script>pparent(0)</script>"
+        "<input type='text' value='1'><script>pprevioustag(0)</script>"
         "<script>pupdatetag(window.pageqlMarkers[0],\"<input type='text' value='2'></input>\")</script>"
     )
     assert result.body == expected
@@ -465,7 +465,7 @@ def test_reactiveelement_if_with_table_insert_updates_input():
     r.load_module("m", snippet)
     result = r.render("/m")
     expected = (
-        "<p>Active count is 1: <input type='checkbox' ><script>pparent(0)</script></p>"
+        "<p>Active count is 1: <input type='checkbox' ><script>pprevioustag(0)</script></p>"
         "<script>pupdatetag(window.pageqlMarkers[0],\"<p>Active count is 1: <input type='checkbox' checked></p>Active>\")</script>"
     )
     assert result.body == expected

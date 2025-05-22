@@ -255,24 +255,15 @@ def add_reactive_elements(nodes):
         return quote, in_tag
 
     def _last_unclosed_lt(text: str) -> int | None:
-        quote = None
-        pos: int | None = None
-        depth = 0
-        for idx, ch in enumerate(text):
-            if ch in ("'", '"'):
-                if quote == ch:
-                    quote = None
-                elif quote is None:
-                    quote = ch
-            elif ch == '<' and quote is None:
-                pos = idx
-                depth += 1
-            elif ch == '>' and quote is None and depth > 0:
-                depth -= 1
-                if depth == 0:
-                    pos = None
-        return pos
-
+        """Return the index of the last unclosed '<' in the text."""
+        pos = text.rfind('<')
+        if pos == -1:
+            return None
+        pos2 = text.rfind('>')
+        if pos2 < pos:
+            return pos
+        return None
+    
     result: list[object] = []
     i = 0
     quote: str | None = None

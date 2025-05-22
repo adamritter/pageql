@@ -470,6 +470,44 @@ def test_reactiveelement_if_with_table_insert_updates_input():
     )
     assert result.body == expected
 
+
+def test_reactiveelement_if_variable_updates_checked():
+    r = PageQL(":memory:")
+    snippet = (
+        "{{#reactive on}}"
+        "{{#set flag 1}}"
+        "<input type='checkbox' {{#if :flag}}checked{{/if}}>"
+        "{{#set flag 0}}"
+        "{{#set flag 1}}"
+    )
+    r.load_module("m", snippet)
+    result = r.render("/m")
+    expected = (
+        "<input type='checkbox' checked><script>pprevioustag(0)</script>"
+        "<script>pupdatetag(window.pageqlMarkers[0],\"<input type='checkbox' >\")</script>"
+        "<script>pupdatetag(window.pageqlMarkers[0],\"<input type='checkbox' checked>\")</script>"
+    )
+    assert result.body == expected
+
+
+def test_reactive_text_updates_with_table_count():
+    r = PageQL(":memory:")
+    snippet = (
+        "{{#create table items(value INTEGER)}}"
+        "{{#reactive on}}"
+        "<p>Count: {{count(*) from items}}</p>"
+        "{{#insert into items(value) values (1)}}"
+        "{{#delete from items}}"
+    )
+    r.load_module("m", snippet)
+    result = r.render("/m")
+    expected = (
+        "<p>Count: <script>pstart(0)</script>0<script>pend(0)</script></p>"
+        "<script>pset(0,\"1\")</script>"
+        "<script>pset(0,\"0\")</script>"
+    )
+    assert result.body == expected
+
 def test_pupdatetag_in_base_script():
     from pageql.pageqlapp import base_script
     assert 'function pupdatetag' in base_script

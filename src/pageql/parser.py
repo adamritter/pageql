@@ -237,29 +237,40 @@ def build_ast(node_list):
     return body, partials
 
 
+def dynamic(seq: list[object]) -> bool:
+    """Return True if *seq* contains any dynamic elements."""
+
+    return any(
+        isinstance(x, list) or (isinstance(x, tuple) and x[0] != "text") for x in seq
+    )
+
+
+def visit(n):
+    """Traverse *n* and apply :func:`add_reactive_elements` where needed."""
+
+    if isinstance(n, list):
+        name = n[0]
+        if name in {"#if", "#ifdef", "#ifndef"}:
+            res = [name, n[1], add_reactive_elements(n[2])]
+            for i in range(3, len(n), 2):
+                res.append(n[i])
+                if i + 1 < len(n):
+                    res.append(add_reactive_elements(n[i + 1]))
+            return res
+        if name == "#from":
+            return [name, n[1], add_reactive_elements(n[2])]
+    return n
+
+
+def last_lt(text: str) -> int | None:
+    """Return index of the last ``<`` that isn't followed by ``>``."""
+
+    pos = text.rfind("<")
+    return pos if pos != -1 and text.rfind(">") < pos else None
+
+
 def add_reactive_elements(nodes):
     """Return a modified AST with ``#reactiveelement`` wrappers."""
-
-    def dynamic(seq: list[object]) -> bool:
-        return any(isinstance(x, list) or (isinstance(x, tuple) and x[0] != "text") for x in seq)
-
-    def visit(n):
-        if isinstance(n, list):
-            name = n[0]
-            if name in {"#if", "#ifdef", "#ifndef"}:
-                res = [name, n[1], add_reactive_elements(n[2])]
-                for i in range(3, len(n), 2):
-                    res.append(n[i])
-                    if i + 1 < len(n):
-                        res.append(add_reactive_elements(n[i + 1]))
-                return res
-            if name == "#from":
-                return [name, n[1], add_reactive_elements(n[2])]
-        return n
-
-    def last_lt(text: str) -> int | None:
-        pos = text.rfind("<")
-        return pos if pos != -1 and text.rfind(">") < pos else None
 
     out, buf, cap = [], [], False
     for node in map(visit, nodes):

@@ -749,9 +749,14 @@ class PageQL:
                             m = re.match(r'<([A-Za-z0-9_-]+)', html_content)
                             if m:
                                 tag = m.group(1)
+                        void_elements = {
+                            'area','base','br','col','embed','hr','img','input',
+                            'link','meta','param','source','track','wbr'
+                        }
                         if (
                             tag
-                            and not html_content.endswith('/>')
+                            and tag.lower() not in void_elements
+                            and not re.search(r'/\s*>$', html_content)
                             and not html_content.endswith(f'</{tag}>')
                         ):
                             html_content += f"</{tag}>"

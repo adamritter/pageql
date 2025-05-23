@@ -184,6 +184,13 @@ class Where:
                 for listener in self.listeners:
                     listener([3, event[1], event[2]])
 
+    def remove_listener(self, listener):
+        """Remove *listener* and detach from parent when unused."""
+        if listener in self.listeners:
+            self.listeners.remove(listener)
+        if not self.listeners and self.onevent in getattr(self.parent, "listeners", []):
+            self.parent.listeners.remove(self.onevent)
+
 class CountAll:
     def __init__(self, parent):
         self.parent = parent
@@ -203,6 +210,13 @@ class CountAll:
         if oldvalue != self.value:
             for listener in self.listeners:
                 listener([3, [oldvalue], [self.value]])
+
+    def remove_listener(self, listener):
+        """Remove *listener* and detach from parent when unused."""
+        if listener in self.listeners:
+            self.listeners.remove(listener)
+        if not self.listeners and self.onevent in getattr(self.parent, "listeners", []):
+            self.parent.listeners.remove(self.onevent)
 
 class DependentValue(Signal):
     """Wrap a reactive relation expected to yield a single-column row."""
@@ -258,6 +272,12 @@ class DependentValue(Signal):
             value = event[2][0]
         self.set_value(value)
 
+    def remove_listener(self, listener):
+        """Remove *listener* and detach from parent when unused."""
+        super().remove_listener(listener)
+        if not self.listeners and self.onevent in getattr(self.parent, "listeners", []):
+            self.parent.listeners.remove(self.onevent)
+
 class UnionAll:
     def __init__(self, parent1, parent2):
         self.parent1 = parent1
@@ -274,6 +294,15 @@ class UnionAll:
     def onevent(self, event):
         for listener in self.listeners:
             listener(event)
+
+    def remove_listener(self, listener):
+        """Remove *listener* and detach from parents when unused."""
+        if listener in self.listeners:
+            self.listeners.remove(listener)
+        if not self.listeners:
+            for parent in (self.parent1, self.parent2):
+                if self.onevent in getattr(parent, "listeners", []):
+                    parent.listeners.remove(self.onevent)
 
 
 class Union:
@@ -352,6 +381,15 @@ class Union:
         else:
             self._update(event[1], event[2])
 
+    def remove_listener(self, listener):
+        """Remove *listener* and detach from parents when unused."""
+        if listener in self.listeners:
+            self.listeners.remove(listener)
+        if not self.listeners:
+            for parent in (self.parent1, self.parent2):
+                if self.onevent in getattr(parent, "listeners", []):
+                    parent.listeners.remove(self.onevent)
+
 
 class Intersect:
     def __init__(self, parent1, parent2):
@@ -362,8 +400,10 @@ class Intersect:
         self.sql = (
             f"SELECT * FROM ({self.parent1.sql}) INTERSECT SELECT * FROM ({self.parent2.sql})"
         )
-        self.parent1.listeners.append(lambda e: self.onevent(e, 1))
-        self.parent2.listeners.append(lambda e: self.onevent(e, 2))
+        self._cb1 = lambda e: self.onevent(e, 1)
+        self._cb2 = lambda e: self.onevent(e, 2)
+        self.parent1.listeners.append(self._cb1)
+        self.parent2.listeners.append(self._cb2)
         self.columns = self.parent1.columns
         if self.parent1.columns != self.parent2.columns:
             raise ValueError(
@@ -461,6 +501,15 @@ class Intersect:
         else:
             self._update(event[1], event[2], counts_self, counts_other)
 
+    def remove_listener(self, listener):
+        """Remove *listener* and detach from parents when unused."""
+        if listener in self.listeners:
+            self.listeners.remove(listener)
+        if not self.listeners:
+            for parent, cb in ((self.parent1, self._cb1), (self.parent2, self._cb2)):
+                if cb in getattr(parent, "listeners", []):
+                    parent.listeners.remove(cb)
+
 
 
 class Select:
@@ -490,6 +539,13 @@ class Select:
             if oldrow != newrow:
                 for listener in self.listeners:
                     listener([3, oldrow, newrow])
+
+    def remove_listener(self, listener):
+        """Remove *listener* and detach from parent when unused."""
+        if listener in self.listeners:
+            self.listeners.remove(listener)
+        if not self.listeners and self.onevent in getattr(self.parent, "listeners", []):
+            self.parent.listeners.remove(self.onevent)
 
 
 class Tables:

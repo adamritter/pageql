@@ -87,6 +87,15 @@ class FallbackReactive:
         self.rows = rows
         self._counts = new_counts
 
+    def remove_listener(self, listener):
+        """Remove *listener* and detach from dependencies when unused."""
+        if listener in self.listeners:
+            self.listeners.remove(listener)
+        if not self.listeners:
+            for dep in self.deps:
+                if self._on_parent_event in getattr(dep, "listeners", []):
+                    dep.listeners.remove(self._on_parent_event)
+
 
 def build_reactive(expr, tables: Tables):
     if isinstance(expr, exp.Subquery):

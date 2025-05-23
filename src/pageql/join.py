@@ -11,8 +11,10 @@ class Join:
         self.sql = (
             f"SELECT * FROM ({self.parent1.sql}) AS a JOIN ({self.parent2.sql}) AS b ON {self.on_sql}"
         )
-        self.parent1.listeners.append(lambda e: self.onevent(e, 1))
-        self.parent2.listeners.append(lambda e: self.onevent(e, 2))
+        self._cb1 = lambda e: self.onevent(e, 1)
+        self._cb2 = lambda e: self.onevent(e, 2)
+        self.parent1.listeners.append(self._cb1)
+        self.parent2.listeners.append(self._cb2)
         self.columns = list(self.parent1.columns) + list(self.parent2.columns)
 
         left_cols = ", ".join([f"? as {c}" for c in self.parent1.columns])
@@ -202,4 +204,13 @@ class Join:
                 self._delete_right(event[1])
             else:
                 self._update_right(event[1], event[2])
+
+    def remove_listener(self, listener):
+        """Remove *listener* and detach from parents when unused."""
+        if listener in self.listeners:
+            self.listeners.remove(listener)
+        if not self.listeners:
+            for parent, cb in ((self.parent1, self._cb1), (self.parent2, self._cb2)):
+                if cb in getattr(parent, "listeners", []):
+                    parent.listeners.remove(cb)
 

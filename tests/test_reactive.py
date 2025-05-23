@@ -540,6 +540,30 @@ def test_signal_remove_listener_detaches_dependencies():
     assert derived.listeners == []
 
 
+def test_where_remove_listener_detaches_from_parent():
+    conn = _db()
+    rt = ReactiveTable(conn, "items")
+    w = Where(rt, "name = 'x'")
+    cb = lambda e: None
+    w.listeners.append(cb)
+    assert w.onevent in rt.listeners
+    w.remove_listener(cb)
+    assert w.onevent not in rt.listeners
+    assert w.listeners == []
+
+
+def test_select_remove_listener_detaches_from_parent():
+    conn = _db()
+    rt = ReactiveTable(conn, "items")
+    sel = Select(rt, "name")
+    cb = lambda e: None
+    sel.listeners.append(cb)
+    assert sel.onevent in rt.listeners
+    sel.remove_listener(cb)
+    assert sel.onevent not in rt.listeners
+    assert sel.listeners == []
+
+
 def test_rendercontext_cleanup_detaches_dependency_listeners():
     ctx = RenderContext()
     src = Signal(1)

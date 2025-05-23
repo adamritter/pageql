@@ -7,7 +7,6 @@ def execute(conn, sql, params):
         raise Exception(f"Execute failed for query: {sql} with params: {params} with error: {e}")
     return cursor
 
-from .join import Join
 
 
 class Signal:
@@ -89,11 +88,11 @@ class DerivedSignal(Signal):
         # recompute and notify if changed
         self.set_value(self.f())
 
-class ReactiveTable:
+class ReactiveTable(Signal):
     def __init__(self, conn, table_name):
+        super().__init__()
         self.conn = conn
         self.table_name = table_name
-        self.listeners = []
         self.columns = [col[1] for col in self.conn.execute(f"PRAGMA table_info({self.table_name})")]
         self.sql = f"SELECT * FROM {self.table_name}"
 
@@ -148,16 +147,18 @@ class ReactiveTable:
             for listener in self.listeners:
                 listener([3, row, new_row])
             
-class Where:
+class Where(Signal):
     def __init__(self, parent, where_sql):
+        super().__init__()
         self.parent = parent
         self.where_sql = where_sql
-        self.listeners = []
         self.columns = self.parent.columns
         self.conn = self.parent.conn
         self.filter_sql = f"SELECT {', '.join([f'? as {col}' for col in self.columns])} WHERE {self.where_sql}"
         self.sql = f"SELECT * FROM ({self.parent.sql}) WHERE {self.where_sql}"
         self.parent.listeners.append(self.onevent)
+        self.deps = [self.parent]
+        self.update = self.onevent
 
     def contains_row(self, row):
         cursor = execute(self.conn, self.filter_sql, row)
@@ -184,22 +185,18 @@ class Where:
                 for listener in self.listeners:
                     listener([3, event[1], event[2]])
 
-    def remove_listener(self, listener):
-        """Remove *listener* and detach from parent when unused."""
-        if listener in self.listeners:
-            self.listeners.remove(listener)
-        if not self.listeners and self.onevent in getattr(self.parent, "listeners", []):
-            self.parent.listeners.remove(self.onevent)
 
-class CountAll:
+class CountAll(Signal):
     def __init__(self, parent):
+        super().__init__(None)
         self.parent = parent
-        self.listeners = []
         self.conn = self.parent.conn
         self.sql = f"SELECT COUNT(*) FROM ({self.parent.sql})"
         self.value = self.conn.execute(self.sql).fetchone()[0]
         self.parent.listeners.append(self.onevent)
         self.columns = "COUNT(*)"
+        self.deps = [self.parent]
+        self.update = self.onevent
 
     def onevent(self, event):
         oldvalue = self.value
@@ -211,12 +208,6 @@ class CountAll:
             for listener in self.listeners:
                 listener([3, [oldvalue], [self.value]])
 
-    def remove_listener(self, listener):
-        """Remove *listener* and detach from parent when unused."""
-        if listener in self.listeners:
-            self.listeners.remove(listener)
-        if not self.listeners and self.onevent in getattr(self.parent, "listeners", []):
-            self.parent.listeners.remove(self.onevent)
 
 class DependentValue(Signal):
     """Wrap a reactive relation expected to yield a single-column row."""
@@ -257,6 +248,7 @@ class DependentValue(Signal):
 
         self.columns = cols[0]
         parent.listeners.append(self.onevent)
+        self.deps = [parent]
 
         row = self.conn.execute(self.sql).fetchone()
         value = row[0] if row else None
@@ -272,17 +264,12 @@ class DependentValue(Signal):
             value = event[2][0]
         self.set_value(value)
 
-    def remove_listener(self, listener):
-        """Remove *listener* and detach from parent when unused."""
-        super().remove_listener(listener)
-        if not self.listeners and self.onevent in getattr(self.parent, "listeners", []):
-            self.parent.listeners.remove(self.onevent)
 
-class UnionAll:
+class UnionAll(Signal):
     def __init__(self, parent1, parent2):
+        super().__init__(None)
         self.parent1 = parent1
         self.parent2 = parent2
-        self.listeners = []
         self.conn = self.parent1.conn
         self.sql = f"SELECT * FROM ({self.parent1.sql}) UNION ALL SELECT * FROM ({self.parent2.sql})"
         self.parent1.listeners.append(self.onevent)
@@ -290,26 +277,20 @@ class UnionAll:
         self.columns = self.parent1.columns
         if self.parent1.columns != self.parent2.columns:
             raise ValueError(f"UnionAll: parent1 and parent2 must have the same columns {self.parent1.columns} != {self.parent2.columns}")
+        self.deps = [self.parent1, self.parent2]
+        self.update = self.onevent
 
     def onevent(self, event):
         for listener in self.listeners:
             listener(event)
 
-    def remove_listener(self, listener):
-        """Remove *listener* and detach from parents when unused."""
-        if listener in self.listeners:
-            self.listeners.remove(listener)
-        if not self.listeners:
-            for parent in (self.parent1, self.parent2):
-                if self.onevent in getattr(parent, "listeners", []):
-                    parent.listeners.remove(self.onevent)
 
 
-class Union:
+class Union(Signal):
     def __init__(self, parent1, parent2):
+        super().__init__(None)
         self.parent1 = parent1
         self.parent2 = parent2
-        self.listeners = []
         self.conn = self.parent1.conn
         self.sql = f"SELECT * FROM ({self.parent1.sql}) UNION SELECT * FROM ({self.parent2.sql})"
         self.parent1.listeners.append(self.onevent)
@@ -326,6 +307,8 @@ class Union:
             self._counts[row] = self._counts.get(row, 0) + 1
         for row in self.conn.execute(self.parent2.sql).fetchall():
             self._counts[row] = self._counts.get(row, 0) + 1
+        self.deps = [self.parent1, self.parent2]
+        self.update = self.onevent
 
     def _emit(self, event):
         for listener in self.listeners:
@@ -381,21 +364,13 @@ class Union:
         else:
             self._update(event[1], event[2])
 
-    def remove_listener(self, listener):
-        """Remove *listener* and detach from parents when unused."""
-        if listener in self.listeners:
-            self.listeners.remove(listener)
-        if not self.listeners:
-            for parent in (self.parent1, self.parent2):
-                if self.onevent in getattr(parent, "listeners", []):
-                    parent.listeners.remove(self.onevent)
 
 
-class Intersect:
+class Intersect(Signal):
     def __init__(self, parent1, parent2):
+        super().__init__(None)
         self.parent1 = parent1
         self.parent2 = parent2
-        self.listeners = []
         self.conn = self.parent1.conn
         self.sql = (
             f"SELECT * FROM ({self.parent1.sql}) INTERSECT SELECT * FROM ({self.parent2.sql})"
@@ -404,6 +379,7 @@ class Intersect:
         self._cb2 = lambda e: self.onevent(e, 2)
         self.parent1.listeners.append(self._cb1)
         self.parent2.listeners.append(self._cb2)
+        self.deps = [self.parent1, self.parent2]
         self.columns = self.parent1.columns
         if self.parent1.columns != self.parent2.columns:
             raise ValueError(
@@ -512,17 +488,19 @@ class Intersect:
 
 
 
-class Select:
+class Select(Signal):
     def __init__(self, parent, select_sql):
+        super().__init__(None)
         self.parent = parent
         self.select_sql = select_sql
-        self.listeners = []
         self.conn = self.parent.conn
         self.sql = f"SELECT {self.select_sql} FROM ({self.parent.sql})"
         self.parent.listeners.append(self.onevent)
         self.sql_from_row = f"SELECT {self.select_sql} FROM (SELECT {', '.join([f'? as {col}' for col in self.parent.columns])})"
         cursor = self.conn.execute(f"SELECT * FROM ({self.sql}) LIMIT 0")
         self.columns = [col[0] for col in cursor.description]
+        self.deps = [self.parent]
+        self.update = self.onevent
     
     def select_from_row(self, row):
         cursor = execute(self.conn, self.sql_from_row, row)
@@ -540,12 +518,6 @@ class Select:
                 for listener in self.listeners:
                     listener([3, oldrow, newrow])
 
-    def remove_listener(self, listener):
-        """Remove *listener* and detach from parent when unused."""
-        if listener in self.listeners:
-            self.listeners.remove(listener)
-        if not self.listeners and self.onevent in getattr(self.parent, "listeners", []):
-            self.parent.listeners.remove(self.onevent)
 
 
 class Tables:
@@ -584,3 +556,5 @@ class Tables:
             return parse_reactive(sql_strip, self, params)
         else:
             raise ValueError(f"Unsupported SQL statement {sql}")
+
+from .join import Join

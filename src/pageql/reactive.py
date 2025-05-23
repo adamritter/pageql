@@ -19,8 +19,9 @@ class Signal:
     def set_value(self, value):
         if self.value != value:
             self.value = value
-            for l in list(self.listeners):
-                l(value)
+            if self.listeners is not None:
+                for l in list(self.listeners):
+                    l(value)
 
     def remove_listener(self, listener):
         """Remove *listener* from ``listeners`` and cleanup dependencies."""

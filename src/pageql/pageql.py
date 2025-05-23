@@ -171,7 +171,12 @@ class RenderContext:
         if out is None:
             out = self.out
         if self.rendering:
-            out.append(f"<script>{content}</script>")
+            # Avoid prematurely closing the script tag if ``content`` contains
+            # the ``</script>`` sequence by escaping it. This can happen when
+            # reactive HTML snippets include nested ``<script>`` tags that are
+            # inserted via ``pinsert`` or ``pupdate``.
+            safe_content = content.replace("</script>", "<\/script>")
+            out.append(f"<script>{safe_content}</script>")
         else:
             if self.send_script is not None:
                 self.send_script(content)

@@ -20,11 +20,6 @@ import pathlib
 if __package__ is None:                      # script / doctest-by-path
     sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 
-# HTML void elements do not use closing tags
-VOID_ELEMENTS = {
-    'area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link',
-    'meta', 'param', 'source', 'track', 'wbr'
-}
 
 from pageql.parser import tokenize, parsefirstword, build_ast, add_reactive_elements
 from pageql.reactive import Signal, DerivedSignal, DependentValue, get_dependencies, Tables
@@ -756,7 +751,6 @@ class PageQL:
                                 tag = m.group(1)
                         if (
                             tag
-                            and tag.lower() not in VOID_ELEMENTS
                             and not html_content.endswith('/>')
                             and not html_content.endswith(f'</{tag}>')
                         ):

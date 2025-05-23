@@ -321,15 +321,13 @@ def test_unionall_update():
     assert_eq(events[-1], [3, (1, 'x'), (1, 'y')])
 
 
-def test_update_invalid_sql_should_raise_value_error():
+def test_update_without_where_clause():
     conn = _db()
     rt = ReactiveTable(conn, "items")
-    try:
-        rt.update("UPDATE items SET name='z'", {})
-    except ValueError:
-        pass
-    else:
-        assert False, "expected ValueError"
+    rt.insert("INSERT INTO items(name) VALUES ('x')", {})
+    rt.update("UPDATE items SET name='z'", {})
+    result = conn.execute("SELECT name FROM items").fetchall()
+    assert result == [('z',)]
 
 
 def test_unionall_mismatched_columns():

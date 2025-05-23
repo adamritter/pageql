@@ -127,11 +127,14 @@ class ReactiveTable(Signal):
         """
         Update rows **one by one**, notifying listeners after each update.
         """
-        m = re.search(r'update\s+([^\s]+)\s+set\s+(.*?)\s+where\s+(.*?);?\s*$', sql, re.I | re.S)
+        m = re.search(r'update\s+([^\s]+)\s+set\s+(.*?)(?:\s+where\s+(.*?))?;?\s*$', sql, re.I | re.S)
         if not m:
             raise ValueError(f"Couldn’t parse UPDATE statement {sql}")
         table, set_sql, where = m.groups()
-        select_sql = f"SELECT * FROM {table} WHERE {where.rstrip()};"
+        select_sql = f"SELECT * FROM {table}"
+        if where:
+            select_sql += f" WHERE {where.rstrip()}"
+        select_sql += ";"
         cursor = self.conn.execute(select_sql, params)
         rows = cursor.fetchall()
         update_sql = f"UPDATE {table} SET {set_sql} WHERE {' AND '.join([f'{k} IS :_col{index}' for index, k in enumerate(self.columns)])} RETURNING * LIMIT 1"

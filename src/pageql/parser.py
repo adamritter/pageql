@@ -237,15 +237,16 @@ def build_ast(node_list):
     return body, partials
 
 
-def dynamic(seq: list[object]) -> bool:
-    """Return True if *seq* contains any dynamic elements."""
+def contains_dynamic_elements(seq: list[object]) -> bool:
+    """Return ``True`` if *seq* contains any dynamic elements."""
 
     return any(
-        isinstance(x, list) or (isinstance(x, tuple) and x[0] != "text") for x in seq
+        isinstance(x, list) or (isinstance(x, tuple) and x[0] != "text")
+        for x in seq
     )
 
 
-def visit(n):
+def _apply_add_reactive(n):
     """Traverse *n* and apply :func:`add_reactive_elements` where needed."""
 
     if isinstance(n, list):
@@ -262,8 +263,8 @@ def visit(n):
     return n
 
 
-def last_lt(text: str) -> int | None:
-    """Return index of the last ``<`` that isn't followed by ``>``."""
+def find_last_unclosed_lt(text: str) -> int | None:
+    """Return the index of the last ``<`` that isn't followed by ``>``."""
 
     pos = text.rfind("<")
     return pos if pos != -1 and text.rfind(">") < pos else None
@@ -272,50 +273,52 @@ def last_lt(text: str) -> int | None:
 def add_reactive_elements(nodes):
     """Return a modified AST with ``#reactiveelement`` wrappers."""
 
-    out, buf, cap = [], [], False
-    for node in map(visit, nodes):
+    output_nodes: list[object] = []
+    tag_buffer: list[object] = []
+    capturing = False
+    for node in map(_apply_add_reactive, nodes):
         if isinstance(node, tuple) and node[0] == "text":
             text = node[1]
-            if cap:
-                gt = text.find(">")
-                if gt != -1:
-                    buf.append(("text", text[: gt + 1]))
-                    after = text[gt + 1 :]
-                    if dynamic(buf):
-                        out.append(["#reactiveelement", buf])
-                        buf, cap = [], False
-                        if after:
-                            idx = last_lt(after)
-                            if idx is None:
-                                out.append(("text", after))
+            if capturing:
+                closing_pos = text.find(">")
+                if closing_pos != -1:
+                    tag_buffer.append(("text", text[: closing_pos + 1]))
+                    after_tag = text[closing_pos + 1 :]
+                    if contains_dynamic_elements(tag_buffer):
+                        output_nodes.append(["#reactiveelement", tag_buffer])
+                        tag_buffer, capturing = [], False
+                        if after_tag:
+                            lt_index = find_last_unclosed_lt(after_tag)
+                            if lt_index is None:
+                                output_nodes.append(("text", after_tag))
                             else:
-                                if idx:
-                                    out.append(("text", after[:idx]))
-                                buf = [("text", after[idx:])]
-                                cap = True
+                                if lt_index:
+                                    output_nodes.append(("text", after_tag[:lt_index]))
+                                tag_buffer = [("text", after_tag[lt_index:])]
+                                capturing = True
                     else:
-                        if buf:
-                            buf[-1] = (buf[-1][0], buf[-1][1] + after)
-                        out.extend(buf)
-                        buf, cap = [], False
+                        if tag_buffer:
+                            tag_buffer[-1] = (tag_buffer[-1][0], tag_buffer[-1][1] + after_tag)
+                        output_nodes.extend(tag_buffer)
+                        tag_buffer, capturing = [], False
                 else:
-                    buf.append(node)
+                    tag_buffer.append(node)
             else:
-                idx = last_lt(text)
-                if idx is None:
-                    out.append(node)
+                lt_index = find_last_unclosed_lt(text)
+                if lt_index is None:
+                    output_nodes.append(node)
                 else:
-                    if idx:
-                        out.append(("text", text[:idx]))
-                    buf = [("text", text[idx:])]
-                    cap = True
+                    if lt_index:
+                        output_nodes.append(("text", text[:lt_index]))
+                    tag_buffer = [("text", text[lt_index:])]
+                    capturing = True
         else:
-            (buf if cap else out).append(node)
+            (tag_buffer if capturing else output_nodes).append(node)
 
-    if buf:
-        if dynamic(buf):
-            out.append(["#reactiveelement", buf])
+    if tag_buffer:
+        if contains_dynamic_elements(tag_buffer):
+            output_nodes.append(["#reactiveelement", tag_buffer])
         else:
-            out.extend(buf)
+            output_nodes.extend(tag_buffer)
 
-    return out
+    return output_nodes

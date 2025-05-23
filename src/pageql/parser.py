@@ -237,44 +237,50 @@ def build_ast(node_list):
     return body, partials
 
 
+def _has_dynamic(seq: list[object]) -> bool:
+    """Return ``True`` if *seq* contains any dynamic nodes."""
+    for n in seq:
+        if isinstance(n, list):
+            return True
+        if isinstance(n, tuple) and n[0] != "text":
+            return True
+    return False
+
+
+def _process_reactive_node(node):
+    """Process conditional and from directives in *node* recursively."""
+    if isinstance(node, list):
+        directive = node[0]
+        if directive in ("#if", "#ifdef", "#ifndef"):
+            new_node = [directive, node[1], add_reactive_elements(node[2])]
+            j = 3
+            while j < len(node):
+                if j + 1 < len(node):
+                    new_node.append(node[j])
+                    new_node.append(add_reactive_elements(node[j + 1]))
+                    j += 2
+                else:
+                    new_node.append(add_reactive_elements(node[j]))
+                    j += 1
+            return new_node
+        if directive == "#from":
+            return [directive, node[1], add_reactive_elements(node[2])]
+    return node
+
+
+def _last_unclosed_lt(text: str) -> int | None:
+    """Return the index of an unclosed ``<`` or ``None``."""
+    pos = text.rfind("<")
+    if pos == -1:
+        return None
+    pos2 = text.rfind(">")
+    if pos2 < pos:
+        return pos
+    return None
+
+
 def add_reactive_elements(nodes):
     """Return a modified AST with ``#reactiveelement`` wrappers."""
-
-    def _has_dynamic(seq: list[object]) -> bool:
-        for n in seq:
-            if isinstance(n, list):
-                return True
-            if isinstance(n, tuple) and n[0] != "text":
-                return True
-        return False
-
-    def _process(node):
-        if isinstance(node, list):
-            directive = node[0]
-            if directive in ("#if", "#ifdef", "#ifndef"):
-                new_node = [directive, node[1], add_reactive_elements(node[2])]
-                j = 3
-                while j < len(node):
-                    if j + 1 < len(node):
-                        new_node.append(node[j])
-                        new_node.append(add_reactive_elements(node[j + 1]))
-                        j += 2
-                    else:
-                        new_node.append(add_reactive_elements(node[j]))
-                        j += 1
-                return new_node
-            if directive == "#from":
-                return [directive, node[1], add_reactive_elements(node[2])]
-        return node
-
-    def _last_unclosed_lt(text: str) -> int | None:
-        pos = text.rfind("<")
-        if pos == -1:
-            return None
-        pos2 = text.rfind(">")
-        if pos2 < pos:
-            return pos
-        return None
 
     result: list[object] = []
     captured: list[object] = []
@@ -282,7 +288,7 @@ def add_reactive_elements(nodes):
 
     i = 0
     while i < len(nodes):
-        node = _process(nodes[i])
+        node = _process_reactive_node(nodes[i])
 
         if isinstance(node, tuple) and node[0] == "text":
             text = node[1]

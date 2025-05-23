@@ -29,7 +29,7 @@ PageQL aims to simplify web development involving relational data by allowing di
 
 ## Reactive Queries
 
-PageQL now supports **live, reactive SQL queries**. HTML output automatically updates whenever the underlying data used by a query (e.g., within a `#from` block) changes in the database.
+PageQL renders templates **reactively by default**. HTML output automatically updates whenever the underlying data used by a query (e.g., within a `#from` block) changes in the database.
 
 This capability drives several core design choices:
 
@@ -110,7 +110,7 @@ pageql -path/to/your/database.sqlite ./templates
 *   `#ifdef <variable>`: Checks if a variable is defined
 *   `#ifndef <variable>`: Checks if a variable is not defined
 *  [NOT IMPLEMENTED]  `#each collection`: (Potential loop/iteration construct over a collection, likely passed in params. Probably it should introduce :this param like in Handlebars)
-*   `#reactive on|off`: Toggle reactive rendering. When enabled with `on`, PageQL wraps dynamic output in markers so changes can be pushed to the browser. Use `off` to return to static rendering.
+*   `#reactive on|off`: Toggle reactive rendering. PageQL starts in reactive mode, automatically wrapping dynamic output so changes can be pushed to the browser. Use `#reactive off` to disable live updates and `#reactive on` to re-enable them.
 
 **Debugging:**
 *   `#dump <expression>`: Dumps a table / SQL expression with timing info
@@ -128,11 +128,12 @@ When a directive is mistyped or unrecognized, PageQL prints a list of valid dire
 
 ## Reactivity Mode
 
-The optional reactive mode enables live updates in the browser. Use
-`#reactive on` before sections that should automatically update when the
-underlying variables or SQL queries change. Insert `#reactive off` to
-return to normal static rendering. The mode persists from the point it
-is toggled until the opposite directive appears.
+PageQL operates in reactive mode by default. Templates automatically
+update in the browser whenever the underlying variables or SQL queries
+change. Use `#reactive off` before a section that should render
+statically, and `#reactive on` to re-enable live updates. The mode
+persists from the point it is toggled until the opposite directive is
+encountered.
 
 ## Parameter Binding & Output
 

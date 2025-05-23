@@ -156,6 +156,12 @@ class RenderContext:
         return mid
 
     def add_listener(self, signal, listener):
+        if signal.listeners is None:
+            signal.listeners = []
+            if hasattr(signal, "deps"):
+                for dep in signal.deps:
+                    if getattr(signal, "update", None) and signal.update not in getattr(dep, "listeners", []):
+                        dep.listeners.append(signal.update)
         signal.listeners.append(listener)
         self.listeners.append((signal, listener))
 

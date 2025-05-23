@@ -89,10 +89,11 @@ def reload_ws_script(client_id: str) -> str:
 
 
 class PageQLApp:
-    def __init__(self, db_path, template_dir, create_db=False, should_reload=True):
+    def __init__(self, db_path, template_dir, create_db=False, should_reload=True, reactive=True):
         self.stop_event = None
         self.notifies = []
         self.should_reload = should_reload
+        self.reactive_default = reactive
         self.to_reload = []
         self.static_files = {}
         self.static_headers = {}
@@ -252,7 +253,7 @@ class PageQLApp:
                 params,
                 None,
                 method,
-                reactive=bool(incoming_client_id),
+                reactive=self.reactive_default,
             )
             if client_id:
                 self.render_contexts[client_id] = result.context

@@ -39,6 +39,15 @@ def test_append_script_send_script():
     assert ctx.scripts == []
 
 
+def test_append_script_with_out_buffer_when_not_rendering():
+    ctx = RenderContext()
+    ctx.rendering = False
+    buf = []
+    ctx.append_script("foo", out=buf)
+    assert buf == ["<script>foo</script>"]
+    assert ctx.scripts == []
+
+
 def test_reactive_toggle():
     r = PageQL(":memory:")
     r.load_module("reactive", "{{reactive}} {{#reactive on}}{{reactive}} {{#reactive off}}{{reactive}}")
@@ -633,3 +642,23 @@ def test_pinsert_escapes_script_tag():
     result = r.render("/m")
     assert "pinsert" in result.body
     assert "<\\/script>" in result.body
+
+
+def test_pinsert_does_not_send_marker_scripts():
+    r = PageQL(":memory:")
+    r.db.execute("CREATE TABLE items(id INTEGER PRIMARY KEY, value INTEGER)")
+    snippet = (
+        "{{#reactive on}}"
+        "{{#from items}}<li>{{#set a 1}}{{#if :a}}X{{/if}}</li>{{/from}}"
+    )
+    r.load_module("m", snippet)
+    result = r.render("/m")
+    ctx = result.context
+    assert ctx.scripts == []
+
+    r.tables.executeone("INSERT INTO items(value) VALUES (1)", {})
+
+    assert len(ctx.scripts) == 1
+    sc = ctx.scripts[0]
+    assert sc.startswith("pinsert(")
+    assert "pstart" in sc and "pend" in sc

@@ -129,7 +129,16 @@ def build_from(expr, tables: Tables):
     raise NotImplementedError(f"Unsupported FROM expression: {type(expr)}")
 
 
-def parse_reactive(sql: str, tables: Tables, params: dict[str, object] | None = None):
+_CACHE: dict[tuple[int, str], Signal] = {}
+
+
+def parse_reactive(
+    sql: str,
+    tables: Tables,
+    params: dict[str, object] | None = None,
+    *,
+    cache: bool = True,
+):
     """Parse a SQL SELECT into reactive components.
 
     Placeholders in *sql* are replaced using *params* before building the
@@ -137,9 +146,23 @@ def parse_reactive(sql: str, tables: Tables, params: dict[str, object] | None = 
     """
     expr = sqlglot.parse_one(sql)
     _replace_placeholders(expr, params)
+
+    cache_key = None
+    if cache:
+        cache_key = (id(tables), expr.sql())
+        comp = _CACHE.get(cache_key)
+        if comp is not None and comp.listeners:
+            return comp
+
     if list(expr.find_all(exp.Join)):
-        return FallbackReactive(tables, sql, expr)
-    try:
-        return build_reactive(expr, tables)
-    except NotImplementedError:
-        return FallbackReactive(tables, sql, expr)
+        comp = FallbackReactive(tables, sql, expr)
+    else:
+        try:
+            comp = build_reactive(expr, tables)
+        except NotImplementedError:
+            comp = FallbackReactive(tables, sql, expr)
+
+    if cache:
+        _CACHE[cache_key] = comp
+
+    return comp

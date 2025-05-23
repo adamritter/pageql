@@ -273,6 +273,22 @@ def test_select_no_change_on_same_value_update():
     assert_eq(len(events), initial_event_count)  # no new event emitted
 
 
+def test_where_no_event_on_same_value_update():
+    conn = _db()
+    rt = ReactiveTable(conn, "items")
+    w = Where(rt, "name = 'x'")
+    events = []
+    w.listeners.append(events.append)
+
+    rt.insert("INSERT INTO items(name) VALUES ('x')", {})
+    initial_len = len(events)
+
+    rid = conn.execute("SELECT id FROM items WHERE name='x'").fetchone()[0]
+    rt.update("UPDATE items SET name='x' WHERE id=:id", {"id": rid})
+
+    assert_eq(len(events), initial_len)
+
+
 def test_unionall_update():
     conn = sqlite3.connect(":memory:")
     for t in ("a", "b"):

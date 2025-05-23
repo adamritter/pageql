@@ -158,6 +158,8 @@ class Where:
         else:
             contains_old_row = self.contains_row(event[1])
             contains_new_row = self.contains_row(event[2])
+            if event[1] == event[2]:
+                return
             if contains_old_row and not contains_new_row:
                 for listener in self.listeners:
                     listener([2, event[1]])

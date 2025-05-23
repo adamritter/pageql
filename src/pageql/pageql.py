@@ -179,7 +179,10 @@ class RenderContext:
     def append_script(self, content, out=None):
         if out is None:
             out = self.out
-        if self.rendering:
+
+        send_directly = out is self.out and not self.rendering
+
+        if not send_directly:
             # Avoid prematurely closing the script tag if ``content`` contains
             # the ``</script>`` sequence by escaping it. This can happen when
             # reactive HTML snippets include nested ``<script>`` tags that are

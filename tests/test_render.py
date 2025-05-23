@@ -543,3 +543,18 @@ def test_pinsert_reregisters_htmx():
     idx = base_script.find('function pinsert')
     assert idx != -1
     assert base_script.find('htmx.process', idx) != -1
+
+
+def test_pinsert_escapes_script_tag():
+    r = PageQL(":memory:")
+    r.db.execute("CREATE TABLE todos(id INTEGER PRIMARY KEY, completed INTEGER)")
+    r.db.executemany("INSERT INTO todos(completed) VALUES (?)", [(0,), (1,)])
+    snippet = (
+        "{{#reactive on}}"
+        "{{#from todos}}<li><input type='checkbox' {{#if completed}}checked{{/if}}></li>{{/from}}"
+        "{{#insert into todos(completed) values (0)}}"
+    )
+    r.load_module("m", snippet)
+    result = r.render("/m")
+    assert "pinsert" in result.body
+    assert "<\\/script>" in result.body

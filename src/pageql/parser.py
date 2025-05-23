@@ -240,10 +240,7 @@ def build_ast(node_list):
 def contains_dynamic_elements(seq: list[object]) -> bool:
     """Return ``True`` if *seq* contains any dynamic elements."""
 
-    return any(
-        isinstance(x, list) or (isinstance(x, tuple) and x[0] != "text")
-        for x in seq
-    )
+    return any(x[0] != "text" for x in seq)
 
 
 def _apply_add_reactive(n):
@@ -277,7 +274,7 @@ def add_reactive_elements(nodes):
     tag_buffer: list[object] = []
     capturing = False
     for node in map(_apply_add_reactive, nodes):
-        if isinstance(node, tuple) and node[0] == "text":
+        if node[0] == "text":
             text = node[1]
             if capturing:
                 closing_pos = text.find(">")

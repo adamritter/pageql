@@ -35,7 +35,7 @@ def get_dependencies(expr):
     # Strip SQL comments
     cleaned = re.sub(r"--.*?$|/\*.*?\*/", "", cleaned, flags=re.S | re.M)
     deps = []
-    for name in re.findall(r"(?<!:):([A-Za-z_][A-Za-z0-9_]*)", cleaned):
+    for name in re.findall(r"(?<!:):([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z0-9_]+)*)", cleaned):
         if name not in deps:
             deps.append(name)
     return deps

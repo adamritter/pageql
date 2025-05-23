@@ -353,6 +353,8 @@ class PageQLApp:
                 'type': 'http.response.body',
                 'body': (scripts + f"Internal Server Error: {e}").encode('utf-8'),
             })
+
+        return client_id
     
     async def watch_directory(self, directory, stop_event):
         print(f"Watching directory: {directory}")
@@ -491,7 +493,21 @@ class PageQLApp:
                         self.notifies.append(fut)
                         fut_task = asyncio.create_task(fut.wait())
         else:
-            await self.pageql_handler(scope, receive, send)
+            client_id = await self.pageql_handler(scope, receive, send)
+            message = await receive()
+            if (
+                isinstance(message, dict)
+                and message.get("type") == "http.disconnect"
+                and client_id
+            ):
+                async def cleanup_later():
+                    await asyncio.sleep(0.1)
+                    if client_id not in self.websockets:
+                        ctx = self.render_contexts.pop(client_id, None)
+                        if ctx:
+                            ctx.cleanup()
+
+                asyncio.create_task(cleanup_later())
 
 if __name__ == "__main__":
     try:

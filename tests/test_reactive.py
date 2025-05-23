@@ -65,7 +65,9 @@ from pageql.reactive import (
     Join,
     Select,
     get_dependencies,
+    Tables,
 )
+from pageql.reactive_sql import parse_reactive
 
 
 def _db():
@@ -81,7 +83,10 @@ def check_component(comp, callback):
     events = []
     comp.listeners.append(events.append)
     callback()
-    comp.listeners.remove(events.append)
+    if hasattr(comp, "remove_listener"):
+        comp.remove_listener(events.append)
+    else:
+        comp.listeners.remove(events.append)
     for ev in events:
         if ev[0] == 1:
             row = tuple(ev[1])
@@ -647,3 +652,31 @@ def fuzz_components(iterations=20, seed=None):
 
 def test_fuzz_components():
     fuzz_components(iterations=10, seed=123)
+
+
+def test_remove_listener_detaches_where():
+    conn = _db()
+    rt = ReactiveTable(conn, "items")
+    w = Where(rt, "name = 'x'")
+    cb = lambda e: None
+    w.listeners.append(cb)
+    assert w.onevent in rt.listeners
+    w.remove_listener(cb)
+    assert w.onevent not in rt.listeners
+
+
+def test_remove_listener_detaches_fallback():
+    conn = sqlite3.connect(":memory:")
+    conn.execute("CREATE TABLE a(id INTEGER PRIMARY KEY, name TEXT)")
+    conn.execute("CREATE TABLE b(id INTEGER PRIMARY KEY, a_id INTEGER, title TEXT)")
+    tables = Tables(conn)
+    comp = parse_reactive("SELECT a.name, b.title FROM a JOIN b ON a.id=b.a_id", tables, {})
+    cb = lambda e: None
+    comp.listeners.append(cb)
+    ta = tables._get("a")
+    tb = tables._get("b")
+    assert comp._on_parent_event in ta.listeners
+    assert comp._on_parent_event in tb.listeners
+    comp.remove_listener(cb)
+    assert comp._on_parent_event not in ta.listeners
+    assert comp._on_parent_event not in tb.listeners

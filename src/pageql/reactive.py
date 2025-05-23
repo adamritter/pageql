@@ -85,6 +85,10 @@ class ReactiveTable:
         self.columns = [col[1] for col in self.conn.execute(f"PRAGMA table_info({self.table_name})")]
         self.sql = f"SELECT * FROM {self.table_name}"
 
+    def remove_listener(self, listener):
+        if listener in self.listeners:
+            self.listeners.remove(listener)
+
     def insert(self, sql, params):
         try:
             query = sql + " RETURNING *"
@@ -147,6 +151,12 @@ class Where:
         self.sql = f"SELECT * FROM ({self.parent.sql}) WHERE {self.where_sql}"
         self.parent.listeners.append(self.onevent)
 
+    def remove_listener(self, listener):
+        if listener in self.listeners:
+            self.listeners.remove(listener)
+        if not self.listeners and self.onevent in getattr(self.parent, "listeners", []):
+            self.parent.listeners.remove(self.onevent)
+
     def contains_row(self, row):
         cursor = execute(self.conn, self.filter_sql, row)
         return cursor.fetchone() is not None
@@ -181,6 +191,12 @@ class CountAll:
         self.value = self.conn.execute(self.sql).fetchone()[0]
         self.parent.listeners.append(self.onevent)
         self.columns = "COUNT(*)"
+
+    def remove_listener(self, listener):
+        if listener in self.listeners:
+            self.listeners.remove(listener)
+        if not self.listeners and self.onevent in getattr(self.parent, "listeners", []):
+            self.parent.listeners.remove(self.onevent)
 
     def onevent(self, event):
         oldvalue = self.value
@@ -259,6 +275,15 @@ class UnionAll:
         if self.parent1.columns != self.parent2.columns:
             raise ValueError(f"UnionAll: parent1 and parent2 must have the same columns {self.parent1.columns} != {self.parent2.columns}")
 
+    def remove_listener(self, listener):
+        if listener in self.listeners:
+            self.listeners.remove(listener)
+        if not self.listeners:
+            if self.onevent in getattr(self.parent1, "listeners", []):
+                self.parent1.listeners.remove(self.onevent)
+            if self.onevent in getattr(self.parent2, "listeners", []):
+                self.parent2.listeners.remove(self.onevent)
+
     def onevent(self, event):
         for listener in self.listeners:
             listener(event)
@@ -285,6 +310,15 @@ class Union:
             self._counts[row] = self._counts.get(row, 0) + 1
         for row in self.conn.execute(self.parent2.sql).fetchall():
             self._counts[row] = self._counts.get(row, 0) + 1
+
+    def remove_listener(self, listener):
+        if listener in self.listeners:
+            self.listeners.remove(listener)
+        if not self.listeners:
+            if self.onevent in getattr(self.parent1, "listeners", []):
+                self.parent1.listeners.remove(self.onevent)
+            if self.onevent in getattr(self.parent2, "listeners", []):
+                self.parent2.listeners.remove(self.onevent)
 
     def _emit(self, event):
         for listener in self.listeners:
@@ -350,8 +384,10 @@ class Intersect:
         self.sql = (
             f"SELECT * FROM ({self.parent1.sql}) INTERSECT SELECT * FROM ({self.parent2.sql})"
         )
-        self.parent1.listeners.append(lambda e: self.onevent(e, 1))
-        self.parent2.listeners.append(lambda e: self.onevent(e, 2))
+        self._l1 = lambda e: self.onevent(e, 1)
+        self._l2 = lambda e: self.onevent(e, 2)
+        self.parent1.listeners.append(self._l1)
+        self.parent2.listeners.append(self._l2)
         self.columns = self.parent1.columns
         if self.parent1.columns != self.parent2.columns:
             raise ValueError(
@@ -371,6 +407,15 @@ class Intersect:
         self._rows = {
             row for row in self._counts1.keys() if self._counts2.get(row, 0) > 0
         }
+
+    def remove_listener(self, listener):
+        if listener in self.listeners:
+            self.listeners.remove(listener)
+        if not self.listeners:
+            if self._l1 in getattr(self.parent1, "listeners", []):
+                self.parent1.listeners.remove(self._l1)
+            if self._l2 in getattr(self.parent2, "listeners", []):
+                self.parent2.listeners.remove(self._l2)
 
     def _emit(self, event):
         for listener in self.listeners:
@@ -462,6 +507,12 @@ class Select:
         self.sql_from_row = f"SELECT {self.select_sql} FROM (SELECT {', '.join([f'? as {col}' for col in self.parent.columns])})"
         cursor = self.conn.execute(f"SELECT * FROM ({self.sql}) LIMIT 0")
         self.columns = [col[0] for col in cursor.description]
+
+    def remove_listener(self, listener):
+        if listener in self.listeners:
+            self.listeners.remove(listener)
+        if not self.listeners and self.onevent in getattr(self.parent, "listeners", []):
+            self.parent.listeners.remove(self.onevent)
     
     def select_from_row(self, row):
         cursor = execute(self.conn, self.sql_from_row, row)

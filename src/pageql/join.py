@@ -11,8 +11,10 @@ class Join:
         self.sql = (
             f"SELECT * FROM ({self.parent1.sql}) AS a JOIN ({self.parent2.sql}) AS b ON {self.on_sql}"
         )
-        self.parent1.listeners.append(lambda e: self.onevent(e, 1))
-        self.parent2.listeners.append(lambda e: self.onevent(e, 2))
+        self._l1 = lambda e: self.onevent(e, 1)
+        self._l2 = lambda e: self.onevent(e, 2)
+        self.parent1.listeners.append(self._l1)
+        self.parent2.listeners.append(self._l2)
         self.columns = list(self.parent1.columns) + list(self.parent2.columns)
 
         left_cols = ", ".join([f"? as {c}" for c in self.parent1.columns])
@@ -30,6 +32,15 @@ class Join:
                 if self._match(r1, r2):
                     row = r1 + r2
                     self._counts[row] = self._counts.get(row, 0) + 1
+
+    def remove_listener(self, listener):
+        if listener in self.listeners:
+            self.listeners.remove(listener)
+        if not self.listeners:
+            if self._l1 in getattr(self.parent1, "listeners", []):
+                self.parent1.listeners.remove(self._l1)
+            if self._l2 in getattr(self.parent2, "listeners", []):
+                self.parent2.listeners.remove(self._l2)
 
     def _emit(self, event):
         for listener in self.listeners:

@@ -27,17 +27,17 @@ PageQL aims to simplify web development involving relational data by allowing di
 *   **Declarative Focus:** While control structures (`#if`, potentially `#each`) exist, extensive scripting is discouraged to maintain clarity and focus on data presentation.
 *   **Leverages SQL:** PageQL relies on the underlying SQL engine for expression evaluation, rather than implementing its own complex expression language.
 
-## Future Vision - Reactive Queries
+## Reactive Queries
 
-A key long-term goal for PageQL is to support **live, reactive SQL queries**. The vision is for the HTML output to automatically update whenever the underlying data used by a query (e.g., within a `#from` block) changes in the database.
+PageQL now supports **live, reactive SQL queries**. HTML output automatically updates whenever the underlying data used by a query (e.g., within a `#from` block) changes in the database.
 
-This goal is a primary driver behind several core design choices:
+This capability drives several core design choices:
 
-*   **Declarative Nature:** By using declarative tags like `#from` to define data requirements, the system can potentially understand the data dependencies of a template fragment.
-*   **Minimal Scripting (`Logic-less`):** Limiting imperative scripting makes it feasible to analyze template dependencies statically. Complex scripting logic would make it extremely difficult, if not impossible, to reliably track which data changes should trigger which UI updates.
-*   **Focus on SQL:** Leveraging the database allows potential integration with database-specific notification or change-tracking mechanisms (e.g., triggers, event systems, logical replication) in the future to power this reactivity.
+*   **Declarative Nature:** Using declarative tags like `#from` helps the system understand the data dependencies of a template fragment.
+*   **Minimal Scripting (`Logic-less`):** Limiting imperative scripting makes it feasible to analyze template dependencies statically and determine which data changes should trigger UI updates.
+*   **Focus on SQL:** Leveraging the database allows integration with notification or change‑tracking mechanisms (e.g., triggers, event systems, logical replication) to power this reactivity.
 
-By keeping the templates focused on declaring *what* data is needed rather than *how* to fetch and update it imperatively, PageQL aims to lay the groundwork for automatically reflecting database changes in the rendered HTML with minimal developer effort in future versions.
+By keeping templates focused on declaring *what* data is needed rather than *how* to fetch and update it imperatively, PageQL automatically reflects database changes in the rendered HTML with minimal developer effort.
 
 ## Design Choices & Simplifications
 
@@ -278,7 +278,7 @@ Generally, you can use standard SQL expressions supported by your database, such
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ReactiveSQL • TodoMVC</title>
+<title>PageQL • TodoMVC</title>
 <!-- Link to TodoMVC base CSS -->
 <link rel="stylesheet" href="base.css">
 <link rel="stylesheet" href="index.css">

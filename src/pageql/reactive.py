@@ -420,11 +420,14 @@ class Intersect:
             else:
                 self._rows.discard(newrow)
 
-        if old_in and new_after:
+        removed = old_in and not old_after
+        added = not new_in and new_after
+
+        if removed and added:
             self._emit([3, oldrow, newrow])
-        elif old_in and not new_after:
+        elif removed:
             self._emit([2, oldrow])
-        elif not old_in and new_after:
+        elif added:
             self._emit([1, newrow])
 
     def onevent(self, event, which):

@@ -447,7 +447,7 @@ def test_reactiveelement_input_value():
     result = r.render("/m")
     expected = (
         "<input type='text' value='1'><script>pprevioustag(0)</script>"
-        "<script>pupdatetag(0,\"<input type='text' value='2'>\")</script>"
+        "<script>pupdatetag(0,\"<input type='text' value='2'></input>\")</script>"
     )
     assert result.body == expected
 
@@ -466,7 +466,7 @@ def test_reactiveelement_if_with_table_insert_updates_input():
     result = r.render("/m")
     expected = (
         "<p>Active count is 1: <input type='checkbox' ><script>pprevioustag(0)</script></p>"
-        "<script>pupdatetag(0,\"<input type='checkbox' checked>\")</script>"
+        "<script>pupdatetag(0,\"<input type='checkbox' checked></input>\")</script>"
     )
     assert result.body == expected
 
@@ -484,8 +484,8 @@ def test_reactiveelement_if_variable_updates_checked():
     result = r.render("/m")
     expected = (
         "<input type='checkbox' checked><script>pprevioustag(0)</script>"
-        "<script>pupdatetag(0,\"<input type='checkbox' >\")</script>"
-        "<script>pupdatetag(0,\"<input type='checkbox' checked>\")</script>"
+        "<script>pupdatetag(0,\"<input type='checkbox' ></input>\")</script>"
+        "<script>pupdatetag(0,\"<input type='checkbox' checked></input>\")</script>"
     )
     assert result.body == expected
 
@@ -506,7 +506,7 @@ def test_reactiveelement_delete_and_insert_updates_input_and_text():
     result = r.render("/m")
     expected = (
         "<p><input class=\"toggle3\" type=\"checkbox\" checked><script>pprevioustag(0)</script><input type=\"text\" value=\"0\"><script>pprevioustag(1)</script></p>"
-        "<script>pupdatetag(1,\"<input type=\\\"text\\\" value=\\\"1\\\">\")</script>"
+        "<script>pupdatetag(1,\"<input type=\\\"text\\\" value=\\\"1\\\"></input>\")</script>"
     )
     assert result.body == expected
 

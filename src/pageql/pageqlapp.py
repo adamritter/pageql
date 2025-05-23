@@ -278,25 +278,6 @@ class PageQLApp:
                     'body': result.body.encode('utf-8'),
                 })
                 print(f"Redirecting to: {result.redirect_to} (Status: {result.status_code})")
-
-                if client_id:
-                    async def cleanup_if_no_ws():
-                        try:
-                            msg = await receive()
-                        except Exception:
-                            return
-                        if not (
-                            isinstance(msg, dict)
-                            and msg.get("type") == "http.disconnect"
-                        ):
-                            return
-                        await asyncio.sleep(0.05)
-                        if client_id not in self.websockets:
-                            ctx = self.render_contexts.pop(client_id, None)
-                            if ctx:
-                                ctx.cleanup()
-
-                    asyncio.create_task(cleanup_if_no_ws())
             # --- Handle Normal Response ---
             else:
                 headers = [(b'Content-Type', b'text/html; charset=utf-8')]    
@@ -318,25 +299,6 @@ class PageQLApp:
                     'type': 'http.response.body',
                     'body': body_content.encode('utf-8'),
                 })
-
-                if client_id:
-                    async def cleanup_if_no_ws():
-                        try:
-                            msg = await receive()
-                        except Exception:
-                            return
-                        if not (
-                            isinstance(msg, dict)
-                            and msg.get("type") == "http.disconnect"
-                        ):
-                            return
-                        await asyncio.sleep(0.05)
-                        if client_id not in self.websockets:
-                            ctx = self.render_contexts.pop(client_id, None)
-                            if ctx:
-                                ctx.cleanup()
-
-                    asyncio.create_task(cleanup_if_no_ws())
 
         except sqlite3.Error as db_err:
             print(f"ERROR: Database error during render: {db_err}")

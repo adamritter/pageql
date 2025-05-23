@@ -48,7 +48,7 @@
 <body>
   <h1>Todos</h1>
   <input name="text" placeholder="What needs to be done?" autofocus autocomplete="off"
-    hx-post="/todos_future/add" hx-trigger="keyup[key=='Enter']" hx-on:htmx:after-on-load="this.value=''">
+    hx-post="/todos/add" hx-trigger="keyup[key=='Enter']" hx-on:htmx:after-on-load="this.value=''">
   <ul>
 {{#from todos
   WHERE (:filter == 'all')
@@ -61,15 +61,15 @@
       </li>
   {{#else}}
     <li {{#if completed}}class="completed"{{/if}}>
-        <input hx-post="/todos_future/{{id}}/toggle" class="toggle" type="checkbox" {{#if completed}}checked{{/if}}>
+        <input hx-post="/todos/{{id}}/toggle" class="toggle" type="checkbox" {{#if completed}}checked{{/if}}>
         <label hx-get="/?edit_id={{id}}">{{text}}</label>
-        <button hx-delete="/todos_future/{{id}}" class="destroy" style="cursor:pointer; background:none; border:none; color:#ac4a1a;">✕</button>
+        <button hx-delete="/todos/{{id}}" class="destroy" style="cursor:pointer; background:none; border:none; color:#ac4a1a;">✕</button>
     </li>
   {{/if}}
 {{/from}}
   </ul>
 
-  <input id="toggle-all" class="toggle-all" type="checkbox" {{#if all_complete}}checked{{/if}} hx-post="/todos_future/toggle_all">
+  <input id="toggle-all" class="toggle-all" type="checkbox" {{#if all_complete}}checked{{/if}} hx-post="/todos/toggle_all">
   <label for="toggle-all">Mark all as complete</label>
 
 <span class="todo-count">
@@ -82,9 +82,9 @@
   <button class="clear-completed" hx-post="/todos/clear_completed">Clear completed</button>
 {{/if}}
 <div class="filters">
-  <a {{#if :filter == 'all'}}class="selected"{{/if}} href="/todos_future?filter=all">All</a> |
-  <a {{#if :filter == 'active'}}class="selected"{{/if}} href="/todos_future?filter=active">Active</a> |
-  <a {{#if :filter == 'completed'}}class="selected"{{/if}} href="/todos_future?filter=completed">Completed</a>
+  <a {{#if :filter == 'all'}}class="selected"{{/if}} href="/todos?filter=all">All</a> |
+  <a {{#if :filter == 'active'}}class="selected"{{/if}} href="/todos?filter=active">Active</a> |
+  <a {{#if :filter == 'completed'}}class="selected"{{/if}} href="/todos?filter=completed">Completed</a>
 </div>
 </body>
 </html>

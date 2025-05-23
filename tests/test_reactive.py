@@ -537,7 +537,7 @@ def test_signal_remove_listener_detaches_dependencies():
     assert derived.update in src.listeners
     derived.remove_listener(seen.append)
     assert derived.update not in src.listeners
-    assert derived.listeners == []
+    assert derived.listeners is None
 
 
 def test_where_remove_listener_detaches_from_parent():
@@ -549,7 +549,7 @@ def test_where_remove_listener_detaches_from_parent():
     assert w.onevent in rt.listeners
     w.remove_listener(cb)
     assert w.onevent not in rt.listeners
-    assert w.listeners == []
+    assert w.listeners is None
 
 
 def test_select_remove_listener_detaches_from_parent():
@@ -561,7 +561,7 @@ def test_select_remove_listener_detaches_from_parent():
     assert sel.onevent in rt.listeners
     sel.remove_listener(cb)
     assert sel.onevent not in rt.listeners
-    assert sel.listeners == []
+    assert sel.listeners is None
 
 
 def test_rendercontext_cleanup_detaches_dependency_listeners():
@@ -576,7 +576,7 @@ def test_rendercontext_cleanup_detaches_dependency_listeners():
     assert derived.update in src.listeners
     ctx.cleanup()
     assert derived.update not in src.listeners
-    assert cb not in derived.listeners
+    assert derived.listeners is None
 
 
 def test_check_component_reactive_table():

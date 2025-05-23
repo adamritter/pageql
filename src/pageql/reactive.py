@@ -26,13 +26,14 @@ class Signal:
         """Remove *listener* from ``listeners`` and cleanup dependencies."""
         if listener in self.listeners:
             self.listeners.remove(listener)
-        # If this signal no longer has listeners and it has dependencies,
-        # detach from them. ``DerivedSignal`` and other reactive components
-        # attach their update callbacks to ``deps`` attributes.
-        if not self.listeners and hasattr(self, "deps"):
-            for dep in list(self.deps):
-                if getattr(self, "update", None) in getattr(dep, "listeners", []):
-                    dep.listeners.remove(self.update)
+        # If this signal no longer has listeners, detach from dependencies and
+        # disable further listening.
+        if not self.listeners:
+            if hasattr(self, "deps"):
+                for dep in list(self.deps):
+                    if getattr(self, "update", None) in getattr(dep, "listeners", []):
+                        dep.listeners.remove(self.update)
+            self.listeners = None
 
 
 def get_dependencies(expr):
@@ -485,6 +486,7 @@ class Intersect(Signal):
             for parent, cb in ((self.parent1, self._cb1), (self.parent2, self._cb2)):
                 if cb in getattr(parent, "listeners", []):
                     parent.listeners.remove(cb)
+            self.listeners = None
 
 
 

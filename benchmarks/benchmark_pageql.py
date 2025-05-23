@@ -36,6 +36,8 @@ MODULES = {
     's19_import': "{{#import other as o}}{{#render o}}",
     's20_reactive': "{{#reactive on}}{{#set foo 1}}{{foo}}",
     'other': "import works",
+    'qtest': '''{{#delete from items}}{{#reactive on}}{{#set active_count_reactive COUNT(*) from items WHERE name = 'x'}}
+            {{#insert into items(name) values ('x')}}'''
 }
 
 PARAMS = {

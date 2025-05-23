@@ -23,7 +23,8 @@ if __package__ is None:                      # script / doctest-by-path
 
 from pageql.parser import tokenize, parsefirstword, build_ast, add_reactive_elements
 from pageql.reactive import Signal, DerivedSignal, DependentValue, get_dependencies, Tables
-from pageql.reactive_sql import parse_reactive
+from pageql.reactive_sql import parse_reactive, _replace_placeholders
+import sqlglot
 
 def flatten_params(params):
     """
@@ -311,6 +312,7 @@ class PageQL:
         self._parse_errors = {} # Store errors here
         self.db = sqlite3.connect(db_path)
         self.tables = Tables(self.db)
+        self._from_cache = {}
 
     def load_module(self, name, source):
         """
@@ -950,11 +952,17 @@ class PageQL:
                     sql = re.sub(r':([A-Za-z0-9_]+(?:\.[A-Za-z0-9_]+)+)',
                                  lambda m: ':' + m.group(1).replace('.', '__'),
                                  sql)
-                    comp = parse_reactive(sql, self.tables, params)
                     converted_params = {
-                        k: (v.value if isinstance(v, DerivedSignal) else v)
+                        k: (v.value if isinstance(v, (DerivedSignal, ReadOnly)) else v)
                         for k, v in params.items()
                     }
+                    expr = sqlglot.parse_one(sql)
+                    _replace_placeholders(expr, converted_params)
+                    cache_key = expr.sql()
+                    comp = self._from_cache.get(cache_key)
+                    if comp is None or not comp.listeners:
+                        comp = parse_reactive(sql, self.tables, params)
+                        self._from_cache[cache_key] = comp
                     cursor = self.db.execute(comp.sql, converted_params)
                     col_names = comp.columns if not isinstance(comp.columns, str) else [comp.columns]
                 else:

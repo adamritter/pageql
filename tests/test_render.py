@@ -137,6 +137,64 @@ def test_from_reactive_uses_parse(monkeypatch):
     assert result.body == expected
 
 
+def test_from_reactive_caches_queries(monkeypatch):
+    import pageql.reactive_sql as rsql
+
+    seen = []
+    original = rsql.parse_reactive
+
+    def wrapper(sql, tables, params=None):
+        seen.append(sql)
+        return original(sql, tables, params)
+
+    monkeypatch.setattr(rsql, "parse_reactive", wrapper)
+    import pageql.pageql as pql
+    monkeypatch.setattr(pql, "parse_reactive", wrapper)
+
+    r = PageQL(":memory:")
+    r.db.execute("CREATE TABLE items(id INTEGER PRIMARY KEY, name TEXT)")
+    r.db.executemany("INSERT INTO items(name) VALUES (?)", [("a",), ("b",)])
+    snippet = (
+        "{{#reactive on}}"
+        "{{#set v 1}}"
+        "{{#from items where id=:v}}[{{id}}]{{/from}}"
+        "{{#from items where id=:v}}[{{id}}]{{/from}}"
+    )
+    r.load_module("m", snippet)
+    r.render("/m")
+    assert seen.count("SELECT * FROM items where id=:v") == 1
+
+
+def test_from_reactive_reparses_after_cleanup(monkeypatch):
+    import pageql.reactive_sql as rsql
+
+    seen = []
+    original = rsql.parse_reactive
+
+    def wrapper(sql, tables, params=None):
+        seen.append(sql)
+        return original(sql, tables, params)
+
+    monkeypatch.setattr(rsql, "parse_reactive", wrapper)
+    import pageql.pageql as pql
+    monkeypatch.setattr(pql, "parse_reactive", wrapper)
+
+    r = PageQL(":memory:")
+    r.db.execute("CREATE TABLE items(id INTEGER PRIMARY KEY, name TEXT)")
+    r.db.executemany("INSERT INTO items(name) VALUES (?)", [("a",), ("b",)])
+    snippet = (
+        "{{#reactive on}}"
+        "{{#from items}}[{{id}}]{{/from}}"
+        "{{#reactive off}}"
+    )
+    r.load_module("m", snippet)
+
+    r.render("/m")
+    assert seen.count("SELECT * FROM items") == 1
+    r.render("/m")
+    assert seen.count("SELECT * FROM items") == 2
+
+
 
 
 def test_reactive_set_comments():

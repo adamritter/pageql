@@ -253,7 +253,7 @@ class PageQLApp:
                 params,
                 None,
                 method,
-                reactive=self.reactive_default,
+                reactive=bool(incoming_client_id),
             )
             if client_id:
                 self.render_contexts[client_id] = result.context

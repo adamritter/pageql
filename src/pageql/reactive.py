@@ -131,6 +131,8 @@ class ReactiveTable:
             new_row = cursor.fetchone()
             if new_row is None:
                 raise Exception(f"Update on table {self.table_name} failed for query: {update_sql} with params: {params}")
+            if new_row == row:
+                continue
             for listener in self.listeners:
                 listener([3, row, new_row])
             

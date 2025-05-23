@@ -64,7 +64,7 @@ def reload_ws_script(client_id: str) -> str:
           try {{
             eval(event.data);
           }} catch (e) {{
-            console.error("Failed to eval script", e);
+            console.error("Failed to eval script", event.data, e);
           }}
         }}
       }};

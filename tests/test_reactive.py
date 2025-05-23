@@ -408,6 +408,28 @@ def test_intersect_deduplication():
     assert_eq(events, [[1, ('x',)]])
 
 
+def test_intersect_update_with_remaining_duplicate():
+    """Updating one of several matching rows shouldn't emit a delete."""
+    conn = sqlite3.connect(":memory:")
+    for t in ("a", "b"):
+        conn.execute(f"CREATE TABLE {t}(id INTEGER PRIMARY KEY, name TEXT)")
+    r1, r2 = ReactiveTable(conn, "a"), ReactiveTable(conn, "b")
+    inter = Intersect(Select(r1, "name"), Select(r2, "name"))
+    events = []
+    inter.listeners.append(events.append)
+
+    r1.insert("INSERT INTO a(name) VALUES ('z')", {})
+    r2.insert("INSERT INTO b(name) VALUES ('x')", {})
+    r1.update("UPDATE a SET name='x' WHERE id=1", {})
+    r1.insert("INSERT INTO a(name) VALUES ('x')", {})
+
+    events.clear()
+    r1.update("UPDATE a SET name='z' WHERE id=1", {})
+
+    assert events == []
+    assert_eq(list(conn.execute(inter.sql).fetchall()), [("x",)])
+
+
 def test_derived_signal_multiple_updates():
     a_val = [1]
     b_val = [2]

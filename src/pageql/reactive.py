@@ -90,6 +90,18 @@ class DerivedSignal(Signal):
         # recompute and notify if changed
         self.set_value(self.f())
 
+
+def _normalize_params(params):
+    """Return a copy of *params* with signal-like objects replaced by their values."""
+
+    normalized = {}
+    for k, v in params.items():
+        if isinstance(v, Signal) or getattr(v, "__class__", None).__name__ == "ReadOnly":
+            normalized[k] = v.value
+        else:
+            normalized[k] = v
+    return normalized
+
 class ReactiveTable(Signal):
     def __init__(self, conn, table_name):
         super().__init__()
@@ -99,6 +111,7 @@ class ReactiveTable(Signal):
         self.sql = f"SELECT * FROM {self.table_name}"
 
     def insert(self, sql, params):
+        params = _normalize_params(params)
         try:
             query = sql + " RETURNING *"
             cursor = self.conn.execute(query, params)
@@ -112,6 +125,7 @@ class ReactiveTable(Signal):
         """
         Delete rows **one by one**, notifying listeners after each deletion.
         """
+        params = _normalize_params(params)
         query = sql + " RETURNING * LIMIT 1"
         try:
             while True:
@@ -128,6 +142,7 @@ class ReactiveTable(Signal):
         """
         Update rows **one by one**, notifying listeners after each update.
         """
+        params = _normalize_params(params)
         m = re.search(r'update\s+([^\s]+)\s+set\s+(.*?)(?:\s+where\s+(.*?))?;?\s*$', sql, re.I | re.S)
         if not m:
             raise ValueError(f"Couldn’t parse UPDATE statement {sql}")

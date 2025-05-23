@@ -10,6 +10,7 @@ from .reactive import (
     CountAll,
     DerivedSignal,
     DependentValue,
+    Signal,
 )
 
 
@@ -35,14 +36,14 @@ def _replace_placeholders(expr: exp.Expression, params: dict[str, object] | None
         ph.replace(lit)
 
 
-class FallbackReactive:
+class FallbackReactive(Signal):
     """Generic reactive component for unsupported queries."""
 
     def __init__(self, tables: Tables, sql: str, expr: exp.Expression | None = None):
+        super().__init__(None)
         self.tables = tables
         self.conn = tables.conn
         self.sql = sql
-        self.listeners = []
 
         if expr is None:
             expr = sqlglot.parse_one(sql)
@@ -53,6 +54,7 @@ class FallbackReactive:
             dep = tables._get(tbl.name)
             self.deps.append(dep)
             dep.listeners.append(self._on_parent_event)
+        self.update = self._on_parent_event
 
         cur = self.conn.execute(sql)
         self.columns = [d[0] for d in cur.description]
@@ -87,14 +89,6 @@ class FallbackReactive:
         self.rows = rows
         self._counts = new_counts
 
-    def remove_listener(self, listener):
-        """Remove *listener* and detach from dependencies when unused."""
-        if listener in self.listeners:
-            self.listeners.remove(listener)
-        if not self.listeners:
-            for dep in self.deps:
-                if self._on_parent_event in getattr(dep, "listeners", []):
-                    dep.listeners.remove(self._on_parent_event)
 
 
 def build_reactive(expr, tables: Tables):

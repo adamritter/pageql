@@ -1,12 +1,12 @@
-from .reactive import execute
+from .reactive import execute, Signal
 
 
-class Join:
+class Join(Signal):
     def __init__(self, parent1, parent2, on_sql):
+        super().__init__(None)
         self.parent1 = parent1
         self.parent2 = parent2
         self.on_sql = on_sql
-        self.listeners = []
         self.conn = self.parent1.conn
         self.sql = (
             f"SELECT * FROM ({self.parent1.sql}) AS a JOIN ({self.parent2.sql}) AS b ON {self.on_sql}"
@@ -16,6 +16,7 @@ class Join:
         self.parent1.listeners.append(self._cb1)
         self.parent2.listeners.append(self._cb2)
         self.columns = list(self.parent1.columns) + list(self.parent2.columns)
+        self.deps = [self.parent1, self.parent2]
 
         left_cols = ", ".join([f"? as {c}" for c in self.parent1.columns])
         right_cols = ", ".join([f"? as {c}" for c in self.parent2.columns])

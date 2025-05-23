@@ -436,7 +436,8 @@ class PageQL:
         
         return param_name, param_value
 
-    def handle_render(self, node_content, path, params, includes, http_verb=None, reactive=False):
+    def handle_render(self, node_content, path, params, includes,
+                     http_verb=None, reactive=False, ctx=None):
         """
         Handles the #render directive processing.
         
@@ -446,6 +447,7 @@ class PageQL:
             params: Current parameters dictionary
             includes: Dictionary mapping module aliases to real paths
             http_verb: Optional HTTP verb for accessing verb-specific partials
+            ctx: Optional :class:`RenderContext` to reuse for nested renders
             
         Returns:
             The rendered content as a string
@@ -510,7 +512,15 @@ class PageQL:
                     raise Exception(f"Warning: Empty value expression for key `{key}` in #render args")
 
         # Perform the recursive render call with the potentially modified parameters
-        result = self.render(render_path, render_params, partial_names, http_verb, in_render_directive=True, reactive=reactive)
+        result = self.render(
+            render_path,
+            render_params,
+            partial_names,
+            http_verb,
+            in_render_directive=True,
+            reactive=reactive,
+            ctx=ctx,
+        )
         if result.status_code == 404:
             raise ValueError(f"handle_render: Partial or import '{partial_name_str}' not found with http verb {http_verb}, render_path: {render_path}, partial_names: {partial_names}")
         
@@ -650,7 +660,15 @@ class PageQL:
                 else:
                     params[var] = evalone(self.db, args, params, False, self.tables)
             elif node_type == '#render':
-                rendered_content = self.handle_render(node_content, path, params, includes, None, reactive)
+                rendered_content = self.handle_render(
+                    node_content,
+                    path,
+                    params,
+                    includes,
+                    None,
+                    reactive,
+                    ctx,
+                )
                 ctx.out.append(rendered_content)
             elif node_type == '#reactive':
                 mode = node_content.strip().lower()
@@ -1066,7 +1084,8 @@ class PageQL:
             reactive = self.process_node(node, params, path, includes, http_verb, reactive, ctx, out)
         return reactive
 
-    def render(self, path, params={}, partial=None, http_verb=None, in_render_directive=False, reactive=False):
+    def render(self, path, params={}, partial=None, http_verb=None,
+               in_render_directive=False, reactive=False, ctx=None):
         """
         Renders a module using its parsed AST.
 
@@ -1075,6 +1094,8 @@ class PageQL:
             params: An optional dictionary.
             partial: Name of partial to render instead of the full template.
             http_verb: Optional HTTP verb for accessing verb-specific partials.
+            ctx: Optional :class:`RenderContext` to reuse when rendering
+                 recursively.  A new context is created when omitted.
 
         Returns:
             A RenderResult object.
@@ -1113,9 +1134,13 @@ class PageQL:
 
         try:
             if self._parse_errors.get(module_name):
-                raise ValueError(f"Error parsing module {module_name}: {self._parse_errors[module_name]}")
+                raise ValueError(
+                    f"Error parsing module {module_name}: {self._parse_errors[module_name]}"
+                )
             if module_name in self._modules:
-                ctx = RenderContext()
+                own_ctx = ctx is None
+                if own_ctx:
+                    ctx = RenderContext()
                 includes = {None: module_name}  # Dictionary to track imported modules
                 module_body, partials = self._modules[module_name]
                 
@@ -1170,12 +1195,13 @@ class PageQL:
                 result.context = ctx
 
                 # Clean up listeners only when not rendering reactively
-                if not reactive:
+                if not reactive and own_ctx:
                     ctx.cleanup()
 
                 # Process the output to match the expected format in tests
                 result.body = result.body.replace('\n\n', '\n')  # Normalize extra newlines
-                ctx.rendering = False
+                if own_ctx:
+                    ctx.rendering = False
             else:
                 result.status_code = 404
                 result.body = f"Module {original_module_name} not found"

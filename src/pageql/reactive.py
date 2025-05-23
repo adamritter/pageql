@@ -23,6 +23,18 @@ class Signal:
             for l in list(self.listeners):
                 l(value)
 
+    def remove_listener(self, listener):
+        """Remove *listener* from ``listeners`` and cleanup dependencies."""
+        if listener in self.listeners:
+            self.listeners.remove(listener)
+        # If this signal no longer has listeners and it has dependencies,
+        # detach from them. ``DerivedSignal`` and other reactive components
+        # attach their update callbacks to ``deps`` attributes.
+        if not self.listeners and hasattr(self, "deps"):
+            for dep in list(self.deps):
+                if getattr(self, "update", None) in getattr(dep, "listeners", []):
+                    dep.listeners.remove(self.update)
+
 
 def get_dependencies(expr):
     """Return parameter names referenced in *expr*.

@@ -58,6 +58,7 @@ from pageql.reactive import (
     CountAll,
     DependentValue,
     DerivedSignal,
+    Signal,
     Where,
     UnionAll,
     Union,
@@ -66,6 +67,7 @@ from pageql.reactive import (
     Select,
     get_dependencies,
 )
+from pageql.pageql import RenderContext
 
 
 def _db():
@@ -525,6 +527,32 @@ def test_dependent_value_reset():
     rt.update("UPDATE items SET name='y' WHERE id=:id", {"id": rid})
     assert_eq(dv.value, "y")
     assert_eq(seen[-1], "y")
+
+
+def test_signal_remove_listener_detaches_dependencies():
+    src = Signal(1)
+    derived = DerivedSignal(lambda: src.value + 1, [src])
+    seen = []
+    derived.listeners.append(seen.append)
+    assert derived.update in src.listeners
+    derived.remove_listener(seen.append)
+    assert derived.update not in src.listeners
+    assert derived.listeners == []
+
+
+def test_rendercontext_cleanup_detaches_dependency_listeners():
+    ctx = RenderContext()
+    src = Signal(1)
+    derived = DerivedSignal(lambda: src.value + 1, [src])
+
+    def cb(_):
+        pass
+
+    ctx.add_listener(derived, cb)
+    assert derived.update in src.listeners
+    ctx.cleanup()
+    assert derived.update not in src.listeners
+    assert cb not in derived.listeners
 
 
 def test_check_component_reactive_table():

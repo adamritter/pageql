@@ -248,12 +248,22 @@ def _apply_add_reactive(n):
 
     if isinstance(n, list):
         name = n[0]
-        if name in {"#if", "#ifdef", "#ifndef"}:
+        if name == "#if":
             res = [name, n[1], add_reactive_elements(n[2])]
-            for i in range(3, len(n), 2):
+            i = 3
+            while i < len(n):
+                if i == len(n) - 1:
+                    res.append(add_reactive_elements(n[i]))
+                    break
                 res.append(n[i])
                 if i + 1 < len(n):
                     res.append(add_reactive_elements(n[i + 1]))
+                i += 2
+            return res
+        if name in {"#ifdef", "#ifndef"}:
+            res = [name, n[1], add_reactive_elements(n[2])]
+            if len(n) > 3:
+                res.append(add_reactive_elements(n[3]))
             return res
         if name == "#from":
             return [name, n[1], add_reactive_elements(n[2])]

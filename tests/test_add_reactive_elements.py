@@ -107,3 +107,31 @@ def test_delete_insert_input_and_text():
         ("text", "</p>"),
         ("#insert", "into todos(text, completed) values ('test', 0)"),
     ]
+
+
+def test_wrap_inside_else_branch():
+    snippet = (
+        "<div>{{#if 1}}<span>hi</span>{{#else}}<input value='{{x}}'>{{/if}}</div>"
+    )
+    tokens = tokenize(snippet)
+    body, _ = build_ast(tokens)
+    res = add_reactive_elements(body)
+    assert res == [
+        ("text", "<div>"),
+        [
+            "#if",
+            "1",
+            [("text", "<span>hi</span>")],
+            [
+                [
+                    "#reactiveelement",
+                    [
+                        ("text", "<input value='"),
+                        ("render_param", "x"),
+                        ("text", "'>"),
+                    ],
+                ]
+            ],
+        ],
+        ("text", "</div>"),
+    ]

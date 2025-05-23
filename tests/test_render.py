@@ -104,6 +104,23 @@ def test_render_derived_signal_value_and_eval():
     assert result.body.strip() == "1 2"
 
 
+def test_set_signal_table_count_and_insert():
+    r = PageQL(":memory:")
+    r.db.execute(
+        "CREATE TABLE todos(id INTEGER PRIMARY KEY, text TEXT, completed INTEGER)"
+    )
+    snippet = (
+        "{{#reactive on}}"
+        "{{#set active_count_reactive COUNT(*) from todos WHERE completed = 0}}"
+        "{{#insert into todos(text, completed) values ('test', 0)}}"
+    )
+    r.load_module("m", snippet)
+    sig = DerivedSignal(lambda: 0, [])
+    result = r.render("/m", {"active_count_reactive": sig})
+    assert result.body == ""
+    assert sig.value == 1
+
+
 def test_from_reactive_uses_parse(monkeypatch):
     import pageql.reactive_sql as rsql
 

@@ -160,7 +160,9 @@ class RenderContext:
 
     def cleanup(self):
         for signal, listener in self.listeners:
-            if listener in getattr(signal, "listeners", []):
+            if hasattr(signal, "remove_listener"):
+                signal.remove_listener(listener)
+            elif listener in getattr(signal, "listeners", []):
                 signal.listeners.remove(listener)
         self.listeners.clear()
 

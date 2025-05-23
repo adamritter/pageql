@@ -480,6 +480,7 @@ class PageQLApp:
                             ctx = self.render_contexts.get(client_id)
                             if ctx:
                                 ctx.send_script = None
+                                ctx.cleanup()
                         return
 
                     elif result is True:

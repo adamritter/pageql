@@ -159,6 +159,10 @@ class RenderContext:
         signal.listeners.append(listener)
         self.listeners.append((signal, listener))
 
+    def add_dependency(self, signal):
+        """Track *signal* for cleanup without reacting to updates."""
+        self.add_listener(signal, lambda *_: None)
+
     def cleanup(self):
         for signal, listener in self.listeners:
             if hasattr(signal, "remove_listener"):
@@ -509,9 +513,13 @@ class PageQL:
                         evaluated_value = evalone(
                             self.db, value_expr, params, reactive, self.tables
                         )
+                        if isinstance(evaluated_value, Signal) and ctx:
+                            ctx.add_dependency(evaluated_value)
                         render_params[key] = evaluated_value
                     except Exception as e:
-                        raise Exception(f"Warning: Error evaluating SQL expression `{value_expr}` for key `{key}` in #render: {e}")
+                        raise Exception(
+                            f"Warning: Error evaluating SQL expression `{value_expr}` for key `{key}` in #render: {e}"
+                        )
                 else:
                     raise Exception(f"Warning: Empty value expression for key `{key}` in #render args")
 
@@ -661,8 +669,8 @@ class PageQL:
                     else:
                         signal = value if isinstance(value, Signal) else DerivedSignal(lambda v=value: v, [])
                         params[var] = signal
-                    # Add a no-op listener so cleanup detaches dependencies
-                    ctx.add_listener(signal, lambda *_: None)
+                    # Track dependency so cleanup detaches it after rendering
+                    ctx.add_dependency(signal)
                 else:
                     params[var] = evalone(self.db, args, params, False, self.tables)
             elif node_type == '#render':

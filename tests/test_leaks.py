@@ -52,7 +52,7 @@ def test_render_cleanup_no_leaks(tmp_path):
         else:
             print(f"{name}: no leak")
 
-        assert obj_diff < 200, (
+        assert obj_diff < 150, (
             f"{name} leaked: objs diff {obj_diff}, mem diff {mem_diff}"
         )
     pql.db.close()

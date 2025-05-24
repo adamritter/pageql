@@ -15,34 +15,34 @@ from playwright_helpers import load_page
 
 
 
-def test_hello_world_in_browser():
+def test_hello_world_in_browser(browser):
     pytest.importorskip("playwright.async_api")
 
     with tempfile.TemporaryDirectory() as tmpdir:
         Path(tmpdir, "hello.pageql").write_text("Hello world!", encoding="utf-8")
 
-        result = load_page(tmpdir, "hello")
+        result = load_page(tmpdir, "hello", browser_info=browser)
         status, body_text = result
 
         assert status == 200
         assert "Hello world!" in body_text
 
 
-def test_set_variable_in_browser():
+def test_set_variable_in_browser(browser):
     """Ensure directives work when rendered through the ASGI app."""
     pytest.importorskip("playwright.async_api")
 
     with tempfile.TemporaryDirectory() as tmpdir:
         Path(tmpdir, "greet.pageql").write_text("{{#set :a 'world'}}Hello {{a}}", encoding="utf-8")
 
-        result = load_page(tmpdir, "greet")
+        result = load_page(tmpdir, "greet", browser_info=browser)
         status, body_text = result
 
         assert status == 200
         assert "Hello world" in body_text
 
 
-def test_reactive_set_variable_in_browser():
+def test_reactive_set_variable_in_browser(browser):
     """Ensure reactive mode updates are sent to the browser."""
     pytest.importorskip("playwright.async_api")
     if (
@@ -57,13 +57,13 @@ def test_reactive_set_variable_in_browser():
             encoding="utf-8",
         )
 
-        body_text = load_page(tmpdir, "react")
+        body_text = load_page(tmpdir, "react", browser_info=browser)
         _, text = body_text
 
         assert text == "hello world"
 
 
-def test_reactive_count_insert_in_browser():
+def test_reactive_count_insert_in_browser(browser):
     """Count updates should be delivered to the browser when rows are inserted."""
     pytest.importorskip("playwright.async_api")
     if (
@@ -82,7 +82,7 @@ def test_reactive_count_insert_in_browser():
             encoding="utf-8",
         )
 
-        result = load_page(tmpdir, "count")
+        result = load_page(tmpdir, "count", browser_info=browser)
         if result is None:
             pytest.skip("Chromium not available for Playwright")
         _, body_text = result
@@ -90,7 +90,7 @@ def test_reactive_count_insert_in_browser():
         assert body_text == "1"
 
 
-def test_reactive_count_insert_via_execute():
+def test_reactive_count_insert_via_execute(browser):
     """Count updates should propagate when inserting after initial load."""
     pytest.importorskip("playwright.async_api")
     if (
@@ -114,13 +114,13 @@ def test_reactive_count_insert_via_execute():
                 "INSERT INTO nums(value) VALUES (1)", {}
             )
 
-        result = load_page(tmpdir, "count_after", after, reload=True)
+        result = load_page(tmpdir, "count_after", after, reload=True, browser_info=browser)
         _, body_text = result
 
         assert body_text == "1"
 
 
-def test_reactive_count_delete_via_execute():
+def test_reactive_count_delete_via_execute(browser):
     """Count should decrement when a row is deleted via executeone."""
     pytest.importorskip("playwright.async_api")
 
@@ -141,12 +141,12 @@ def test_reactive_count_delete_via_execute():
                 {},
             )
 
-        result = load_page(tmpdir, "count_after_delete", after, reload=True)
+        result = load_page(tmpdir, "count_after_delete", after, reload=True, browser_info=browser)
         _, body_text = result
 
         assert body_text == "0"
 
-def test_insert_via_execute_after_click():
+def test_insert_via_execute_after_click(browser):
     """Inserting via ``executeone`` should display the added text reactively."""
     pytest.importorskip("playwright.async_api")
 
@@ -165,13 +165,13 @@ def test_insert_via_execute_after_click():
             )
             await page.wait_for_timeout(500)
 
-        result = load_page(tmpdir, "msgs", after, reload=True)
+        result = load_page(tmpdir, "msgs", after, reload=True, browser_info=browser)
         _, body_text = result
 
         assert "hello" in body_text
 
 
-def test_todos_add_partial_in_separate_page():
+def test_todos_add_partial_in_separate_page(browser):
     """Render todos then invoke the add partial from a second page."""
     pytest.importorskip("playwright.async_api")
 
@@ -191,7 +191,7 @@ def test_todos_add_partial_in_separate_page():
             await page.goto(f"http://127.0.0.1:{port}/todos")
             await page.wait_for_timeout(500)
 
-        result = load_page(tmpdir, "todos", after, reload=True)
+        result = load_page(tmpdir, "todos", after, reload=True, browser_info=browser)
         if result is None:
             pytest.skip("Chromium not available for Playwright")
         status, body_text = result

@@ -135,10 +135,8 @@ class DerivedSignal2(Signal):
             self.listeners.remove(listener)
         if not self.listeners:
             for dep in self.deps:
-                if self._on_dep in getattr(dep, "listeners", []):
-                    dep.listeners.remove(self._on_dep)
-            if self._on_main in getattr(self.main, "listeners", []):
-                self.main.listeners.remove(self._on_main)
+                dep.remove_listener(self._on_dep)
+            self.main.remove_listener(self._on_main)
             self.listeners = None
 
 

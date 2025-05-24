@@ -13,7 +13,7 @@ sys.modules["watchfiles"].awatch = lambda *args, **kwargs: None
 from pageql.pageql import PageQL
 from benchmarks.benchmark_pageql import MODULES, SCENARIOS, bench_factory, reset_items
 
-ITERATIONS = 100
+ITERATIONS = 1000
 
 
 def test_render_cleanup_no_leaks(tmp_path):
@@ -38,7 +38,6 @@ def test_render_cleanup_no_leaks(tmp_path):
             res = bench(pql)
             if res.context:
                 res.context.cleanup()
-            gc.collect()
         gc.collect()
         after_objs = len(gc.get_objects())
         after_mem = tracemalloc.get_traced_memory()[0]
@@ -52,7 +51,7 @@ def test_render_cleanup_no_leaks(tmp_path):
         else:
             print(f"{name}: no leak")
 
-        assert obj_diff < 150, (
+        assert obj_diff < 300, (
             f"{name} leaked: objs diff {obj_diff}, mem diff {mem_diff}"
         )
     pql.db.close()

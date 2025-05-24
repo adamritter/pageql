@@ -110,6 +110,11 @@ class ReactiveTable(Signal):
         self.columns = [col[1] for col in self.conn.execute(f"PRAGMA table_info({self.table_name})")]
         self.sql = f"SELECT * FROM {self.table_name}"
 
+    def remove_listener(self, listener):
+        """Remove *listener* but don't set listeners to None as ReactiveTable can be reused."""
+        if listener in self.listeners:
+            self.listeners.remove(listener)
+
     def insert(self, sql, params):
         params = _normalize_params(params)
         try:

@@ -156,8 +156,6 @@ class RenderContext:
         return mid
 
     def add_listener(self, signal, listener):
-        if signal.listeners is None:
-            signal.listeners = []
         signal.listeners.append(listener)
         self.listeners.append((signal, listener))
 

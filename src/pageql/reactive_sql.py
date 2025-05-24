@@ -88,6 +88,12 @@ class FallbackReactive(Signal):
         self.rows = rows
         self._counts = new_counts
 
+    def remove_listener(self, listener):
+        super().remove_listener(listener)
+        if self.listeners is None:
+            for dep in self.deps:
+                dep.remove_listener(self._on_parent_event)
+
 
 
 def build_reactive(expr, tables: Tables):

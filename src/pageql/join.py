@@ -212,7 +212,6 @@ class Join(Signal):
             self.listeners.remove(listener)
         if not self.listeners:
             for parent, cb in ((self.parent1, self._cb1), (self.parent2, self._cb2)):
-                if cb in getattr(parent, "listeners", []):
-                    parent.listeners.remove(cb)
+                parent.remove_listener(cb)
             self.listeners = None
 

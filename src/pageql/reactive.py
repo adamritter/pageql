@@ -122,14 +122,9 @@ class ReactiveTable(Signal):
             cursor = self.conn.execute(query, params)
             row = cursor.fetchone()
         except Exception as e:
-            raise Exception(
-                f"Insert into table {self.table_name} failed for query: {query} with params: {params} with error: {e}"
-            )
-        else:
-            for listener in self.listeners:
-                listener([1, row])
-        finally:
-            cursor.close()
+            raise Exception(f"Insert into table {self.table_name} failed for query: {query} with params: {params} with error: {e}")            
+        for listener in self.listeners:
+            listener([1, row])
             
     def delete(self, sql, params):
         """
@@ -146,11 +141,7 @@ class ReactiveTable(Signal):
                 for listener in self.listeners:
                     listener([2, row])
         except Exception as e:
-            raise Exception(
-                f"Delete from table {self.table_name} failed for query: {query} with params: {params} with error: {e}"
-            )
-        finally:
-            cursor.close()
+            raise Exception(f"Delete from table {self.table_name} failed for query: {query} with params: {params} with error: {e}")
 
     def update(self, sql, params):
         """
@@ -167,7 +158,6 @@ class ReactiveTable(Signal):
         select_sql += ";"
         cursor = self.conn.execute(select_sql, params)
         rows = cursor.fetchall()
-        cursor.close()
         update_sql = f"UPDATE {table} SET {set_sql} WHERE {' AND '.join([f'{k} IS :_col{index}' for index, k in enumerate(self.columns)])} RETURNING * LIMIT 1"
         params = params.copy()
         for row in rows:
@@ -175,7 +165,6 @@ class ReactiveTable(Signal):
                 params[f"_col{index}"] = value
             cursor = self.conn.execute(update_sql, params)
             new_row = cursor.fetchone()
-            cursor.close()
             if new_row is None:
                 raise Exception(f"Update on table {self.table_name} failed for query: {update_sql} with params: {params}")
             if new_row == row:

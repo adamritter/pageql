@@ -122,8 +122,7 @@ class DerivedSignal2(Signal):
             dep.listeners.append(self._on_dep)
 
     def _on_dep(self, _=None):
-        if self._on_main in getattr(self.main, "listeners", []):
-            self.main.listeners.remove(self._on_main)
+        self.main.remove_listener(self._on_main)
         self.main = self.f()
         if not isinstance(self.main, Signal):
             raise ValueError("DerivedSignal2 callback must return a Signal")

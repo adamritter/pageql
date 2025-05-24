@@ -657,6 +657,8 @@ class PageQL:
                     else:
                         signal = value if isinstance(value, Signal) else DerivedSignal(lambda v=value: v, [])
                         params[var] = signal
+                    # Add a no-op listener so cleanup detaches dependencies
+                    ctx.add_listener(signal, lambda *_: None)
                 else:
                     params[var] = evalone(self.db, args, params, False, self.tables)
             elif node_type == '#render':

@@ -26,13 +26,7 @@ class Signal:
         """Remove *listener* from ``listeners`` and cleanup dependencies."""
         if listener in self.listeners:
             self.listeners.remove(listener)
-        # If this signal no longer has listeners, detach from dependencies and
-        # disable further listening.
         if not self.listeners:
-            if hasattr(self, "deps"):
-                for dep in list(self.deps):
-                    if getattr(self, "update", None) in getattr(dep, "listeners", []):
-                        dep.listeners.remove(self.update)
             self.listeners = None
 
 

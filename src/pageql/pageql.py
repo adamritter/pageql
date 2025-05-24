@@ -187,7 +187,11 @@ class RenderContext:
             # the ``</script>`` sequence by escaping it. This can happen when
             # reactive HTML snippets include nested ``<script>`` tags that are
             # inserted via ``pinsert`` or ``pupdate``.
-            safe_content = content.replace("</script>", "<\/script>")
+            # Escape any nested ``</script>`` sequences to avoid prematurely
+            # terminating the surrounding script tag. Using a double backslash
+            # prevents ``SyntaxWarning: invalid escape sequence`` from Python
+            # while producing the desired ``<\/script>`` string in HTML.
+            safe_content = content.replace("</script>", "<\\/script>")
             out.append(f"<script>{safe_content}</script>")
         else:
             if self.send_script is not None:

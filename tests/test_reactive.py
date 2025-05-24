@@ -541,7 +541,9 @@ def test_signal_remove_listener_detaches_dependencies():
 
 def test_derived_signal2_switches_main_signal():
     a = Signal(1)
+    a.listeners.append(lambda _=None: None)
     b = Signal(2)
+    b.listeners.append(lambda _=None: None)
     use_a = Signal(True)
     d = DerivedSignal2(lambda: a if use_a.value else b, [use_a])
     seen = []

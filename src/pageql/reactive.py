@@ -19,9 +19,8 @@ class Signal:
     def set_value(self, value):
         if self.value != value:
             self.value = value
-            if self.listeners is not None:
-                for l in list(self.listeners):
-                    l(value)
+            for l in list(self.listeners):
+                l(value)
 
     def remove_listener(self, listener):
         """Remove *listener* from ``listeners`` and cleanup dependencies."""
@@ -100,7 +99,8 @@ class DerivedSignal2(Signal):
         Parameters
         ----------
         f : callable
-            Function returning the signal to track.
+            Function returning the signal to track. Warning: this signal will be listened and then unlistened, so it
+            may not be reusable and need to be recreated.
         deps : list[Signal]
             Extra dependency signals. When any of them changes ``f`` is
             evaluated again to obtain the new main signal.

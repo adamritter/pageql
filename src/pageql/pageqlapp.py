@@ -495,6 +495,11 @@ class PageQLApp:
         else:
             client_id = await self.pageql_handler(scope, receive, send)
             message = await receive()
+            while isinstance(message, dict) and message.get("type") == "http.request":
+                if not message.get("more_body"):
+                    message = await receive()
+                    break
+                message = await receive()
             if (
                 isinstance(message, dict)
                 and message.get("type") == "http.disconnect"

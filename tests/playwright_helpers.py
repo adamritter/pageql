@@ -72,38 +72,68 @@ async def _load_page_async(
     page: str,
     after: Optional[Callable[["async_playwright.Page", int, PageQLApp], None]] = None,
     reload: bool = False,
+    playwright=None,
+    browser=None,
 ) -> Optional[Tuple[int, str]]:
     from playwright.async_api import async_playwright, Page
 
     server, task, port = await run_server_in_task(tmpdir, reload)
     app: PageQLApp = server.config.app
-    async with async_playwright() as p:
+
+    created_pw = False
+    created_browser = False
+    if browser is None:
+        p = playwright or await async_playwright().start()
+        created_pw = playwright is None
         if not chromium_available(p):
             server.should_exit = True
             await task
+            if created_pw:
+                await p.stop()
             return None
         browser = await p.chromium.launch(args=["--no-sandbox"])
-        pg: Page = await browser.new_page()
-        response = await pg.goto(f"http://127.0.0.1:{port}/{page}")
-        if after is not None:
-            if asyncio.iscoroutinefunction(after):
-                await after(pg, port, app)
-            else:
-                after(pg, port, app)
-        await pg.wait_for_timeout(500)
-        body = (await pg.evaluate("document.body.textContent")).strip()
-        status = response.status if response is not None else None
+        created_browser = True
+    else:
+        p = playwright
+
+    pg: Page = await browser.new_page()
+    response = await pg.goto(f"http://127.0.0.1:{port}/{page}")
+    if after is not None:
+        if asyncio.iscoroutinefunction(after):
+            await after(pg, port, app)
+        else:
+            after(pg, port, app)
+    await pg.wait_for_timeout(500)
+    body = (await pg.evaluate("document.body.textContent")).strip()
+    status = response.status if response is not None else None
+    await pg.close()
+
+    if created_browser:
         await browser.close()
+    if created_pw:
+        await p.stop()
 
     server.should_exit = True
     await task
     return status, body
 
 
-def load_page(tmpdir: str, page: str, after: Optional[Callable[["async_playwright.Page", int, PageQLApp], None]] = None, reload: bool = False) -> Optional[Tuple[int, str]]:
+def load_page(
+    tmpdir: str,
+    page: str,
+    after: Optional[Callable[["async_playwright.Page", int, PageQLApp], None]] = None,
+    reload: bool = False,
+    browser_info: Optional[Tuple[asyncio.AbstractEventLoop, object, object]] = None,
+) -> Optional[Tuple[int, str]]:
     """Utility used by integration tests to fetch a page in a browser.
 
     Returns ``(status_code, body_text)`` or ``None`` if Chromium is not available.
+    ``browser_info`` can be provided to reuse an existing browser and event loop.
     """
     pytest.importorskip("playwright.async_api")
-    return asyncio.run(_load_page_async(tmpdir, page, after, reload))
+    if browser_info is None:
+        return asyncio.run(_load_page_async(tmpdir, page, after, reload))
+    loop, pw, browser = browser_info
+    return loop.run_until_complete(
+        _load_page_async(tmpdir, page, after, reload, pw, browser)
+    )

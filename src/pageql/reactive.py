@@ -231,6 +231,13 @@ class Where(Signal):
         cursor = execute(self.conn, self.filter_sql, row)
         return cursor.fetchone() is not None
     
+    def remove_listener(self, listener):
+        if listener in self.listeners:
+            self.listeners.remove(listener)
+        if not self.listeners:
+            self.parent.remove_listener(self.onevent)
+            self.listeners = None
+    
     def onevent(self, event):
         if event[0] < 3:
             row = event[1]
@@ -274,6 +281,13 @@ class CountAll(Signal):
         if oldvalue != self.value:
             for listener in self.listeners:
                 listener([3, [oldvalue], [self.value]])
+    
+    def remove_listener(self, listener):
+        if listener in self.listeners:
+            self.listeners.remove(listener)
+        if not self.listeners:
+            self.parent.remove_listener(self.onevent)
+            self.listeners = None
 
 
 class DependentValue(Signal):
@@ -371,6 +385,14 @@ class UnionAll(Signal):
         for listener in self.listeners:
             listener(event)
 
+    def remove_listener(self, listener):
+        if listener in self.listeners:
+            self.listeners.remove(listener)
+        if not self.listeners:
+            self.parent1.remove_listener(self.onevent)
+            self.parent2.remove_listener(self.onevent)
+            self.listeners = None
+
 
 
 class Union(Signal):
@@ -450,6 +472,14 @@ class Union(Signal):
             self._delete(event[1])
         else:
             self._update(event[1], event[2])
+
+    def remove_listener(self, listener):
+        if listener in self.listeners:
+            self.listeners.remove(listener)
+        if not self.listeners:
+            self.parent1.remove_listener(self.onevent)
+            self.parent2.remove_listener(self.onevent)
+            self.listeners = None
 
 
 
@@ -570,8 +600,7 @@ class Intersect(Signal):
             self.listeners.remove(listener)
         if not self.listeners:
             for parent, cb in ((self.parent1, self._cb1), (self.parent2, self._cb2)):
-                if cb in getattr(parent, "listeners", []):
-                    parent.listeners.remove(cb)
+                parent.remove_listener(cb)
             self.listeners = None
 
 
@@ -606,7 +635,12 @@ class Select(Signal):
                 for listener in self.listeners:
                     listener([3, oldrow, newrow])
 
-
+    def remove_listener(self, listener):
+        if listener in self.listeners:
+            self.listeners.remove(listener)
+        if not self.listeners:
+            self.parent.remove_listener(self.onevent)
+            self.listeners = None
 
 class Tables:
     def __init__(self, conn):

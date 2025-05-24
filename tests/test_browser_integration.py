@@ -169,3 +169,32 @@ def test_insert_via_execute_after_click():
         _, body_text = result
 
         assert "hello" in body_text
+
+
+def test_todos_add_partial_in_separate_page():
+    """Render todos then invoke the add partial from a second page."""
+    pytest.importorskip("playwright.async_api")
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        src = Path(__file__).resolve().parent.parent / "website" / "todos.pageql"
+        Path(tmpdir, "todos.pageql").write_text(src.read_text(), encoding="utf-8")
+
+        async def after(page, port, app: PageQLApp):
+            await page.wait_for_timeout(500)
+            page2 = await page.context.browser.new_page()
+            await page2.request.post(
+                f"http://127.0.0.1:{port}/todos/add",
+                data="text=hello",
+                headers={"Content-Type": "application/x-www-form-urlencoded"},
+            )
+            await page2.close()
+            await page.goto(f"http://127.0.0.1:{port}/todos")
+            await page.wait_for_timeout(500)
+
+        result = load_page(tmpdir, "todos", after, reload=True)
+        if result is None:
+            pytest.skip("Chromium not available for Playwright")
+        status, body_text = result
+
+        assert status == 200
+        assert "hello" in body_text

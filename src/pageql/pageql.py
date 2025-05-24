@@ -320,6 +320,12 @@ class PageQL:
         self._modules = {} # Store parsed node lists here later
         self._parse_errors = {} # Store errors here
         self.db = sqlite3.connect(db_path)
+        # Configure SQLite for web server usage
+        with self.db:
+            self.db.execute("PRAGMA journal_mode=WAL")
+            self.db.execute("PRAGMA synchronous=NORMAL")
+            self.db.execute("PRAGMA temp_store=MEMORY")
+            self.db.execute("PRAGMA cache_size=10000")
         self.tables = Tables(self.db)
         self._from_cache = {}
 

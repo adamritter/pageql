@@ -67,6 +67,8 @@ pageql -path/to/your/database.sqlite ./templates
 *   `<path>`: (Required) Path to the SQLite database file.
 *   `<path>`: (Required) Path to the directory containing the PageQL template files (`.pageql`) to be served.
 *   `--port <number>`: (Optional) Port number to run the development server on. Defaults to a standard port (e.g., 8000 or 8080).
+*   PageQL automatically configures new SQLite databases with write-ahead logging
+    and an increased cache for better concurrency.
 
 *(Note: Actual command name and argument flags are subject to change.)*
 

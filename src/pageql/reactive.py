@@ -58,6 +58,12 @@ class DerivedSignal(Signal):
     def update(self, _=None):
         self.set_value(self.f())
 
+    def remove_listener(self, listener):
+        super().remove_listener(listener)
+        if self.listeners is None:
+            for dep in self.deps:
+                dep.remove_listener(self.update)
+
     def replace(self, f, deps):
         """Replace the compute function and dependencies.
 

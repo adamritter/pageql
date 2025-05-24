@@ -43,6 +43,16 @@ def test_render_cleanup_no_leaks(tmp_path):
         after_objs = len(gc.get_objects())
         after_mem = tracemalloc.get_traced_memory()[0]
         tracemalloc.stop()
-        assert after_objs - baseline_objs == 0
-        assert after_mem - baseline_mem == 0
+
+        obj_diff = after_objs - baseline_objs
+        mem_diff = after_mem - baseline_mem
+
+        if obj_diff or mem_diff:
+            print(f"LEAK in {name}: objs={obj_diff}, mem={mem_diff}")
+        else:
+            print(f"{name}: no leak")
+
+        assert obj_diff == 0 and mem_diff == 0, (
+            f"{name} leaked: objs diff {obj_diff}, mem diff {mem_diff}"
+        )
     pql.db.close()

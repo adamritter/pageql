@@ -58,6 +58,7 @@ from pageql.reactive import (
     CountAll,
     DependentValue,
     DerivedSignal,
+    DerivedSignal2,
     Signal,
     Where,
     UnionAll,
@@ -536,6 +537,47 @@ def test_signal_remove_listener_detaches_dependencies():
     derived.remove_listener(seen.append)
     assert derived.update not in src.listeners
     assert derived.listeners is None
+
+
+def test_derived_signal2_switches_main_signal():
+    a = Signal(1)
+    b = Signal(2)
+    use_a = Signal(True)
+    d = DerivedSignal2(lambda: a if use_a.value else b, [use_a])
+    seen = []
+    d.listeners.append(seen.append)
+
+    assert d.value == 1
+
+    a.set_value(3)
+    assert seen[-1] == 3
+
+    use_a.set_value(False)
+    assert d.value == 2
+    assert seen[-1] == 2
+
+    a.set_value(4)
+    assert seen[-1] == 2
+
+    b.set_value(5)
+    assert seen[-1] == 5
+
+    d.remove_listener(seen.append)
+
+
+def test_derived_signal2_remove_listener_detaches():
+    a = Signal(1)
+    b = Signal(2)
+    use_a = Signal(True)
+    d = DerivedSignal2(lambda: a if use_a.value else b, [use_a])
+    cb = lambda _=None: None
+    d.listeners.append(cb)
+    assert d._on_main in a.listeners
+    assert d._on_dep in use_a.listeners
+    d.remove_listener(cb)
+    assert d._on_main not in a.listeners
+    assert d._on_dep not in use_a.listeners
+    assert d.listeners is None
 
 
 def test_where_remove_listener_detaches_from_parent():

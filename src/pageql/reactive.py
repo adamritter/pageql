@@ -91,6 +91,57 @@ class DerivedSignal(Signal):
         self.set_value(self.f())
 
 
+class DerivedSignal2(Signal):
+    """Signal derived from another signal returned by a callback."""
+
+    def __init__(self, f, deps):
+        """Create a DerivedSignal2.
+
+        Parameters
+        ----------
+        f : callable
+            Function returning the signal to track.
+        deps : list[Signal]
+            Extra dependency signals. When any of them changes ``f`` is
+            evaluated again to obtain the new main signal.
+        """
+
+        self.f = f
+        self.deps = deps
+        self.main = f()
+        if not isinstance(self.main, Signal):
+            raise ValueError("DerivedSignal2 callback must return a Signal")
+
+        super().__init__(self.main.value)
+
+        self._on_main = lambda _=None: self.set_value(self.main.value)
+        self.main.listeners.append(self._on_main)
+
+        self.update = self._on_dep
+        for dep in deps:
+            dep.listeners.append(self._on_dep)
+
+    def _on_dep(self, _=None):
+        if self._on_main in getattr(self.main, "listeners", []):
+            self.main.listeners.remove(self._on_main)
+        self.main = self.f()
+        if not isinstance(self.main, Signal):
+            raise ValueError("DerivedSignal2 callback must return a Signal")
+        self.main.listeners.append(self._on_main)
+        self.set_value(self.main.value)
+
+    def remove_listener(self, listener):
+        if listener in self.listeners:
+            self.listeners.remove(listener)
+        if not self.listeners:
+            for dep in self.deps:
+                if self._on_dep in getattr(dep, "listeners", []):
+                    dep.listeners.remove(self._on_dep)
+            if self._on_main in getattr(self.main, "listeners", []):
+                self.main.listeners.remove(self._on_main)
+            self.listeners = None
+
+
 def _normalize_params(params):
     """Return a copy of *params* with signal-like objects replaced by their values."""
 

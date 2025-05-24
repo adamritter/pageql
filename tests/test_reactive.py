@@ -575,9 +575,29 @@ def test_derived_signal2_remove_listener_detaches():
     assert d._on_main in a.listeners
     assert d._on_dep in use_a.listeners
     d.remove_listener(cb)
-    assert d._on_main not in a.listeners
-    assert d._on_dep not in use_a.listeners
+    assert d._on_main not in (a.listeners or [])
+    assert d._on_dep not in (use_a.listeners or [])
     assert d.listeners is None
+
+
+def test_derived_signal2_remove_listener_uses_remove_listener():
+    class Tracker(Signal):
+        def __init__(self, value=0):
+            super().__init__(value)
+            self.removed = []
+
+        def remove_listener(self, listener):
+            self.removed.append(listener)
+            super().remove_listener(listener)
+
+    main = Tracker(1)
+    dep = Tracker()
+    d = DerivedSignal2(lambda: main, [dep])
+    cb = lambda _=None: None
+    d.listeners.append(cb)
+    d.remove_listener(cb)
+    assert d._on_dep in dep.removed
+    assert d._on_main in main.removed
 
 
 def test_where_remove_listener_detaches_from_parent():

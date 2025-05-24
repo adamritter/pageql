@@ -515,9 +515,13 @@ class PageQL:
                         evaluated_value = evalone(
                             self.db, value_expr, params, reactive, self.tables
                         )
+                        if isinstance(evaluated_value, Signal) and ctx:
+                            ctx.add_dependency(evaluated_value)
                         render_params[key] = evaluated_value
                     except Exception as e:
-                        raise Exception(f"Warning: Error evaluating SQL expression `{value_expr}` for key `{key}` in #render: {e}")
+                        raise Exception(
+                            f"Warning: Error evaluating SQL expression `{value_expr}` for key `{key}` in #render: {e}"
+                        )
                 else:
                     raise Exception(f"Warning: Empty value expression for key `{key}` in #render args")
 

@@ -22,7 +22,14 @@ if __package__ is None:                      # script / doctest-by-path
 
 
 from pageql.parser import tokenize, parsefirstword, build_ast, add_reactive_elements
-from pageql.reactive import Signal, DerivedSignal, DependentValue, get_dependencies, Tables
+from pageql.reactive import (
+    Signal,
+    DerivedSignal,
+    DerivedSignal2,
+    DependentValue,
+    get_dependencies,
+    Tables,
+)
 from pageql.reactive_sql import parse_reactive, _replace_placeholders
 import sqlglot
 
@@ -275,15 +282,11 @@ def evalone(db, exp, params, reactive=False, tables=None):
             if val is not None and not isinstance(val, (Signal, ReadOnly)):
                 params[name] = DerivedSignal(lambda v=val: v, [])
         deps = [params[name] for name in dep_names if isinstance(params[name], Signal)]
-        comp = parse_reactive(sql, tables, params)
-        dv = DependentValue(comp)
-
-        def reset_dependent_value(_=None):
+        def _build():
             comp = parse_reactive(sql, tables, params)
-            dv.reset(comp)
+            return DependentValue(comp)
 
-        for dep in deps:
-            dep.listeners.append(reset_dependent_value)
+        dv = DerivedSignal2(_build, deps)
 
         return dv
 

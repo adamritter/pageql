@@ -275,6 +275,26 @@ class DependentValue(Signal):
 
         self.set_value(value)
 
+    def remove_listener(self, listener):
+        """Remove *listener* and detach from parent when unused."""
+        if listener in self.listeners:
+            self.listeners.remove(listener)
+        if not self.listeners:
+            if hasattr(self.parent, "remove_listener"):
+                self.parent.remove_listener(self.onevent)
+            elif self.onevent in getattr(self.parent, "listeners", []):
+                self.parent.listeners.remove(self.onevent)
+
+            keep = getattr(self.parent, "_keepalive", None)
+            if keep is None:
+                keep = self.parent._keepalive = (lambda *_: None)
+            if self.parent.listeners is None:
+                self.parent.listeners = [keep]
+            elif keep not in self.parent.listeners:
+                self.parent.listeners.append(keep)
+
+            self.listeners = None
+
     def onevent(self, event):
         if event[0] == 1:
             value = event[1][0]

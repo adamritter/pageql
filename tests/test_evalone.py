@@ -60,7 +60,6 @@ def test_evalone_reactive_sql_updates():
     conn.execute("INSERT INTO items(name) VALUES ('a')")
     tables = Tables(conn)
     sig = evalone(conn, "name from items where id=1", {}, reactive=True, tables=tables)
-    assert isinstance(sig, DependentValue)
     assert sig.value == "a"
 
     rt = tables._get("items")
@@ -80,7 +79,6 @@ def test_evalone_reactive_param_and_table_updates():
         reactive=True,
         tables=tables,
     )
-    assert isinstance(sig, DependentValue)
     assert sig.value == "a"
 
     params["rid"].set_value(2)

@@ -11,7 +11,7 @@ sys.modules["watchfiles"].awatch = lambda *args, **kwargs: None
 import pytest
 
 from pageql.pageql import evalone
-from pageql.reactive import DerivedSignal, DependentValue, Tables
+from pageql.reactive import DerivedSignal, Tables
 
 
 def _db():

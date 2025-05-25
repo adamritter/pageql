@@ -685,4 +685,4 @@ class Tables:
         else:
             raise ValueError(f"Unsupported SQL statement {sql}")
 
-from .join import Join
+from .join import Join  # noqa: F401 - re-export for convenience

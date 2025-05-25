@@ -4,8 +4,6 @@ PageQL command-line interface
 """
 
 import argparse
-import asyncio
-import os
 import sys
 import uvicorn
 

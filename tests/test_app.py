@@ -4,7 +4,6 @@ import types
 import tempfile
 import http.client
 import asyncio
-import pytest
 # Ensure the package can be imported without optional dependencies
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 sys.modules.setdefault("watchfiles", types.ModuleType("watchfiles"))

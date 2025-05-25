@@ -375,7 +375,7 @@ class PageQLApp:
                 self.to_reload.append(filename)
             for n in self.notifies:
                 n.set()
-            self.notifies.clear()    
+            self.notifies.clear()
 
     async def lifespan(self, _scope, receive, send):
         while True:

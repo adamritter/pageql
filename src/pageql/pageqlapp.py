@@ -89,7 +89,7 @@ def reload_ws_script(client_id: str) -> str:
 
 
 class PageQLApp:
-    def __init__(self, db_path, template_dir, create_db=False, should_reload=True, reactive=True):
+    def __init__(self, db_path, template_dir, create_db=False, should_reload=True, reactive=True, quiet=False):
         self.stop_event = None
         self.notifies = []
         self.should_reload = should_reload
@@ -101,8 +101,16 @@ class PageQLApp:
         self.render_contexts = {}
         self.websockets = {}
         self.template_dir = template_dir
+        self.quiet = quiet
         self.load_builtin_static()
         self.prepare_server(db_path, template_dir, create_db)
+
+    def _log(self, msg):
+        if not self.quiet:
+            print(msg)
+
+    def _error(self, msg):
+        print(msg)
 
     def load_builtin_static(self):
         """Load bundled static assets like htmx."""
@@ -148,9 +156,9 @@ class PageQLApp:
                 with open(filepath, 'r', encoding='utf-8') as f:
                     source = f.read()
                     self.pageql_engine.load_module(module_name, source)
-                    print(f"  Loaded: {filename} as module '{module_name}'")
+                    self._log(f"  Loaded: {filename} as module '{module_name}'")
             except Exception as e:
-                print(f"  Error loading {filename}: {e}")
+                self._error(f"  Error loading {filename}: {e}")
                 # Optionally exit or continue loading others
                 # exit(1)
         else:
@@ -161,7 +169,7 @@ class PageQLApp:
             except IsADirectoryError:
                 pass
             except Exception as e:
-                print(f"  Error loading {filename}: {e}")
+                self._error(f"  Error loading {filename}: {e}")
                 del self.static_files[filename]
                 
 
@@ -199,7 +207,7 @@ class PageQLApp:
 
         if path_cleaned in self.static_files:
             content_type, _ = mimetypes.guess_type(path_cleaned)
-            print(f"Serving static file: {path_cleaned} as {content_type}")
+            self._log(f"Serving static file: {path_cleaned} as {content_type}")
             if content_type == 'text/html':
                 content_type = 'text/html; charset=utf-8'
                 scripts = base_script + (reload_ws_script(client_id) if self.should_reload else '')
@@ -221,7 +229,7 @@ class PageQLApp:
 
         # Form data parameters (for POST)
         if method == 'POST':
-            print(scope)
+            self._log(scope)
             headers = {k.decode('utf-8'): v.decode('utf-8') for k, v in scope['headers']}
             content_length = int(headers.get('content-length', 0))
             if content_length > 0:
@@ -232,21 +240,21 @@ class PageQLApp:
                     post_body = message['body']
                     post_body = post_body.decode('utf-8')
                     post_params = parse_qs(post_body, keep_blank_values=True)
-                    print(f"post_params: {post_params}")
+                    self._log(f"post_params: {post_params}")
                     # Merge/overwrite query params with post params
                     for key, value in post_params.items():
                         params[key] = value[0] if len(value) == 1 else value
                 else:
                     # Log or handle unsupported content types if necessary
-                    print(f"Warning: Unsupported POST Content-Type: {content_type}")
+                    self._log(f"Warning: Unsupported POST Content-Type: {content_type}")
 
         try:
             # The render method in pageql.py handles path resolution (e.g., /todos/add)
             t = time.time()
             path = parsed_path.path
-            print(f"Rendering {path} as {path_cleaned} with params: {params}")
+            self._log(f"Rendering {path} as {path_cleaned} with params: {params}")
             if path in self.before_hooks:
-                print(f"Before hook for {path}")
+                self._log(f"Before hook for {path}")
                 await self.before_hooks[path](params)
             result = self.pageql_engine.render(
                 path_cleaned,
@@ -263,8 +271,8 @@ class PageQLApp:
                         asyncio.create_task(send({"type": "websocket.send", "text": sc}))
 
                     result.context.send_script = sender
-            print(f"{method} {path_cleaned} Params: {params} ({(time.time() - t) * 1000:.2f} ms)")
-            print(f"Result: {result.status_code} {result.redirect_to} {result.headers}")
+            self._log(f"{method} {path_cleaned} Params: {params} ({(time.time() - t) * 1000:.2f} ms)")
+            self._log(f"Result: {result.status_code} {result.redirect_to} {result.headers}")
 
             # --- Handle Redirect ---
             if result.redirect_to:
@@ -278,7 +286,7 @@ class PageQLApp:
                     'type': 'http.response.body',
                     'body': result.body.encode('utf-8'),
                 })
-                print(f"Redirecting to: {result.redirect_to} (Status: {result.status_code})")
+                self._log(f"Redirecting to: {result.redirect_to} (Status: {result.status_code})")
             # --- Handle Normal Response ---
             else:
                 headers = [(b'Content-Type', b'text/html; charset=utf-8')]    
@@ -302,7 +310,7 @@ class PageQLApp:
                 })
 
         except sqlite3.Error as db_err:
-            print(f"ERROR: Database error during render: {db_err}")
+            self._error(f"ERROR: Database error during render: {db_err}")
             import traceback
             traceback.print_exc()  # Print full traceback for debugging
             await send({
@@ -315,8 +323,8 @@ class PageQLApp:
                 'type': 'http.response.body',
                 'body': (scripts + f"Database Error: {db_err}").encode('utf-8'),
             })
-        except ValueError as val_err: # Catch validation errors from #param etc.
-            print(f"ERROR: Validation or Value error during render: {val_err}")
+        except ValueError as val_err:  # Catch validation errors from #param etc.
+            self._error(f"ERROR: Validation or Value error during render: {val_err}")
             await send({
                 'type': 'http.response.start',
                 'status': 400,
@@ -327,8 +335,8 @@ class PageQLApp:
                 'type': 'http.response.body',
                 'body': (scripts + f"Bad Request: {val_err}").encode('utf-8'),
             })
-        except FileNotFoundError: # If pageql_engine.render raises this for missing modules
-            print(f"ERROR: Module not found for path: {path_cleaned}")
+        except FileNotFoundError:  # If pageql_engine.render raises this for missing modules
+            self._error(f"ERROR: Module not found for path: {path_cleaned}")
             await send({
                 'type': 'http.response.start',
                 'status': 404,
@@ -340,7 +348,7 @@ class PageQLApp:
                 'body': (scripts.encode('utf-8') + b"Not Found"),
             })
         except Exception as e:
-            print(f"ERROR: Unexpected error during render: {e}")
+            self._error(f"ERROR: Unexpected error during render: {e}")
             import traceback
             traceback.print_exc() # Print full traceback for debugging
             await send({
@@ -357,13 +365,13 @@ class PageQLApp:
         return client_id
     
     async def watch_directory(self, directory, stop_event):
-        print(f"Watching directory: {directory}")
+        self._log(f"Watching directory: {directory}")
         async for changes in awatch(directory, stop_event=stop_event, step=10):
-            print("Changes:", changes)
+            self._log(f"Changes: {changes}")
             for change in changes:
                 path = change[1]
                 filename = os.path.relpath(path, self.template_dir)
-                print(f"Reloading {filename}")
+                self._log(f"Reloading {filename}")
                 self.to_reload.append(filename)
             for n in self.notifies:
                 n.set()
@@ -398,33 +406,33 @@ class PageQLApp:
 
         if not db_exists:
             if create_db:
-                print(f"Database file not found at '{db_path}'. Creating...")
+                self._log(f"Database file not found at '{db_path}'. Creating...")
                 try:
                     # Connecting creates the file if it doesn't exist
                     conn = sqlite3.connect(db_path)
                     conn.close()
-                    print(f"Database file created successfully at '{db_path}'.")
+                    self._log(f"Database file created successfully at '{db_path}'.")
                 except sqlite3.Error as e:
-                    print(f"Error: Failed to create database file at '{db_path}': {e}")
+                    self._error(f"Error: Failed to create database file at '{db_path}': {e}")
                     exit(1)
             else:
-                print(f"Error: Database file not found at '{db_path}'. Use --create to create it.")
+                self._error(f"Error: Database file not found at '{db_path}'. Use --create to create it.")
                 exit(1)
 
         if not os.path.isdir(template_dir):
-            print(f"Error: Template directory not found at '{template_dir}'")
+            self._error(f"Error: Template directory not found at '{template_dir}'")
             exit(1)
 
-        print(f"Loading database from: {db_path}")
+        self._log(f"Loading database from: {db_path}")
 
         try:
             self.pageql_engine = PageQL(db_path)
             self.conn = self.pageql_engine.db
         except Exception as e:
-            print(f"Error initializing PageQL engine: {e}")
+            self._error(f"Error initializing PageQL engine: {e}")
             exit(1)
 
-        print(f"Loading templates from: {template_dir}")
+        self._log(f"Loading templates from: {template_dir}")
         try:
             for root, dirs, files in os.walk(template_dir):
                 for filename in files:
@@ -432,18 +440,18 @@ class PageQLApp:
                     rel_path = os.path.relpath(file_path, template_dir)
                     self.load(template_dir, rel_path)
         except OSError as e:
-            print(f"Error reading template directory '{template_dir}': {e}")
+            self._error(f"Error reading template directory '{template_dir}': {e}")
             exit(1)
 
         if not self.pageql_engine._modules:
-            print("Warning: No .pageql templates found or loaded.")
+            self._log("Warning: No .pageql templates found or loaded.")
         
     async def __call__(self, scope, receive, send):
         # print(f"Thread ID: {threading.get_ident()}")
         if scope['type'] == 'lifespan':
             return await self.lifespan(scope, receive, send)
         path = scope.get('path', '/')
-        print(f"path: {path}")
+        self._log(f"path: {path}")
         # ws_app.py
         if scope["type"] == "websocket" and scope["path"] == "/reload-request-ws":
             await send({"type": "websocket.accept"})
@@ -451,7 +459,7 @@ class PageQLApp:
             qs = parse_qs(scope.get("query_string", b""))
             if b"clientId" in qs:
                 client_id = qs[b"clientId"][0].decode()
-                print(f"Client connected with id: {client_id}")
+                self._log(f"Client connected with id: {client_id}")
                 self.websockets[client_id] = send
                 ctx = self.render_contexts.get(client_id)
                 if ctx:

@@ -3,6 +3,9 @@ import time
 import tempfile
 from pathlib import Path
 from pageql.pageql import PageQL
+import cProfile
+import pstats
+import io
 
 ITERATIONS = 100
 
@@ -19,12 +22,18 @@ def run_benchmark(db_path: str) -> None:
 
     # Ensure table is created before timing
     pql.render("/todos")
+    profiler = cProfile.Profile()
+    profiler.enable()
     start = time.perf_counter()
     for _ in range(ITERATIONS):
         pql.render("/todos")
     elapsed = time.perf_counter() - start
+    profiler.disable()
     pql.db.close()
     print(f"{(elapsed/ITERATIONS)*1000:.4f}ms per render")
+    s = io.StringIO()
+    pstats.Stats(profiler, stream=s).strip_dirs().sort_stats("cumulative").print_stats(5)
+    print(s.getvalue())
 
 
 if __name__ == "__main__":

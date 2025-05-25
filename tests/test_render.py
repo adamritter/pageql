@@ -441,11 +441,13 @@ def test_reactive_if_variable_and_table_dependency():
     r = PageQL(":memory:")
     snippet = (
         "{{#create table items(value INTEGER)}}"
+        "{{#create table vals(name TEXT, value INTEGER)}}"
+        "{{#insert into vals(name, value) values ('threshold', 1)}}"
         "{{#reactive on}}"
-        "{{#set threshold 1}}"
+        "{{#set threshold value from vals where name = 'threshold'}}"
         "{{#insert into items(value) values (1)}}"
         "{{#if (select count(*) from items) > :threshold}}MORE{{#else}}LESS{{/if}}"
-        "{{#set threshold 0}}"
+        "{{#update vals set value = 0 where name = 'threshold'}}"
         "{{#insert into items(value) values (2)}}"
         "{{#delete from items}}"
     )

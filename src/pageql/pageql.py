@@ -29,6 +29,7 @@ from pageql.reactive import (
     DependentValue,
     get_dependencies,
     Tables,
+    ReadOnly,
 )
 from pageql.reactive_sql import parse_reactive, _replace_placeholders
 import sqlglot
@@ -200,16 +201,6 @@ class RenderContext:
                 self.send_script(content)
             else:
                 self.scripts.append(content)
-
-
-class ReadOnly:
-    """Simple wrapper for read-only parameters."""
-
-    def __init__(self, value):
-        self.value = value
-
-    def __str__(self) -> str:  # pragma: no cover - trivial
-        return str(self.value)
 
 
 def db_execute_dot(db, exp, params):

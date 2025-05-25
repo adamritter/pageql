@@ -4,24 +4,32 @@ import tempfile
 import time
 import shutil
 from pathlib import Path
+import asyncio
+import threading
+
+import uvicorn
+
+from pageql.pageqlapp import PageQLApp
 
 
-def start_server(db_file: str, templates_dir: str, port: int) -> subprocess.Popen:
-    env = os.environ.copy()
-    src_path = Path(__file__).resolve().parents[1] / "src"
-    env["PYTHONPATH"] = str(src_path) + os.pathsep + env.get("PYTHONPATH", "")
-    cmd = [
-        "python",
-        "-u",
-        str(src_path / "pageql" / "cli.py"),
-        db_file,
-        templates_dir,
-        "--port",
-        str(port),
-        "--create",
-        "--no-reload",
-    ]
-    return subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env)
+def _run_server(loop: asyncio.AbstractEventLoop, server: uvicorn.Server) -> None:
+    asyncio.set_event_loop(loop)
+    loop.run_until_complete(server.serve())
+
+
+def start_server(db_file: str, templates_dir: str, port: int):
+    """Start the PageQL server in a background thread."""
+    app = PageQLApp(db_file, templates_dir, create_db=True, should_reload=False)
+    config = uvicorn.Config(app, host="127.0.0.1", port=port, log_level="warning")
+    server = uvicorn.Server(config)
+    loop = asyncio.new_event_loop()
+    thread = threading.Thread(target=_run_server, args=(loop, server), daemon=True)
+    thread.start()
+
+    while not server.started:
+        time.sleep(0.05)
+
+    return server, thread, loop
 
 
 def run_oha(url: str, runs: int = 3) -> None:
@@ -37,16 +45,13 @@ def load_test(template_file: str, request_path: str, port: int = 8000) -> None:
         os.mkdir(templates_dir)
         shutil.copy(template_file, os.path.join(templates_dir, os.path.basename(template_file)))
 
-        proc = start_server(db_path, templates_dir, port)
+        server, thread, loop = start_server(db_path, templates_dir, port)
         try:
-            time.sleep(1)  # wait for server to start
             run_oha(f"http://localhost:{port}/{request_path}")
         finally:
-            proc.terminate()
-            try:
-                proc.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                proc.kill()
+            server.should_exit = True
+            thread.join(timeout=5)
+            loop.close()
 
 
 if __name__ == "__main__":

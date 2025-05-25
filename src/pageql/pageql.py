@@ -276,6 +276,7 @@ def evalone(db, exp, params, reactive=False, tables=None, expr=None):
             nonlocal expr
             if expr is None:
                 expr = sqlglot.parse_one(sql)
+            #print("parse_reactive: ", expr.sql())
             comp = parse_reactive(expr, tables, params, one_value=True)
             return comp
 
@@ -648,6 +649,8 @@ class PageQL:
                 if var[0] == ':':
                     var = var[1:]
                 var = var.replace('.', '__')
+                if var in params:
+                    raise ValueError(f"Parameter '{var}' is already set")
                 if isinstance(params.get(var), ReadOnly):
                     raise ValueError(f"Parameter '{var}' is read only")
                 if reactive:

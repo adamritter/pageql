@@ -143,6 +143,7 @@ def parse_reactive(
     params: dict[str, object] | None = None,
     *,
     cache: bool = True,
+    one_value: bool = False,
 ):
     """Parse a SQL ``Expression`` into reactive components.
 
@@ -155,7 +156,7 @@ def parse_reactive(
 
     cache_key = None
     if cache:
-        cache_key = (id(tables), sql)
+        cache_key = (id(tables), sql, one_value)
         comp = _CACHE.get(cache_key)
         if comp is not None and comp.listeners:
             return comp
@@ -167,6 +168,9 @@ def parse_reactive(
             comp = build_reactive(expr, tables)
         except NotImplementedError:
             comp = FallbackReactive(tables, sql, expr)
+
+    if one_value:
+        comp = OneValue(comp)
 
     if cache:
         _CACHE[cache_key] = comp

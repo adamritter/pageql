@@ -119,9 +119,9 @@ def test_from_reactive_uses_parse(monkeypatch):
     seen = []
     original = rsql.parse_reactive
 
-    def wrapper(expr, tables, params=None):
+    def wrapper(expr, tables, params=None, **kwargs):
         seen.append(expr.sql())
-        return original(expr, tables, params)
+        return original(expr, tables, params, **kwargs)
 
     monkeypatch.setattr(rsql, "parse_reactive", wrapper)
     import pageql.pageql as pql
@@ -152,9 +152,9 @@ def test_from_reactive_caches_queries(monkeypatch):
     seen = []
     original = rsql.parse_reactive
 
-    def wrapper(expr, tables, params=None):
+    def wrapper(expr, tables, params=None, **kwargs):
         seen.append(expr.sql())
-        return original(expr, tables, params)
+        return original(expr, tables, params, **kwargs)
 
     monkeypatch.setattr(rsql, "parse_reactive", wrapper)
     import pageql.pageql as pql
@@ -180,9 +180,9 @@ def test_from_reactive_reparses_after_cleanup(monkeypatch):
     seen = []
     original = rsql.parse_reactive
 
-    def wrapper(expr, tables, params=None):
+    def wrapper(expr, tables, params=None, **kwargs):
         seen.append(expr.sql())
-        return original(expr, tables, params)
+        return original(expr, tables, params, **kwargs)
 
     monkeypatch.setattr(rsql, "parse_reactive", wrapper)
     import pageql.pageql as pql

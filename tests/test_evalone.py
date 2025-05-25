@@ -12,6 +12,7 @@ import pytest
 
 from pageql.pageql import evalone
 from pageql.reactive import DerivedSignal, Tables
+import sqlglot
 
 
 def _db():
@@ -87,4 +88,32 @@ def test_evalone_reactive_param_and_table_updates():
     rt = tables._get("items")
     rt.update("UPDATE items SET name='c' WHERE id=2", {})
     assert sig.value == "c"
+
+
+def test_evalone_reactive_uses_expr(monkeypatch):
+    conn = _db()
+    conn.execute("INSERT INTO items(name) VALUES ('z')")
+    tables = Tables(conn)
+    expr = sqlglot.parse_one("SELECT name FROM items WHERE id = 1")
+
+    called = False
+
+    def fake_parse_one(sql):
+        nonlocal called
+        called = True
+        return sqlglot.parse_one(sql)
+
+    monkeypatch.setattr(sqlglot, "parse_one", fake_parse_one)
+
+    sig = evalone(
+        conn,
+        "name from items where id=1",
+        {},
+        reactive=True,
+        tables=tables,
+        expr=expr,
+    )
+
+    assert sig.value == "z"
+    assert called is False
 

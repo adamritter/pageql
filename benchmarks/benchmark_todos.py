@@ -37,6 +37,6 @@ def run_benchmark(db_path: str) -> None:
 
 
 if __name__ == "__main__":
-    run_benchmark(":memory:")
+    # run_benchmark(":memory:")
     with tempfile.TemporaryDirectory() as tmp:
         run_benchmark(os.path.join(tmp, "bench.db"))

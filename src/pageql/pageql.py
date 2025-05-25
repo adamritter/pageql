@@ -236,7 +236,7 @@ def db_execute_dot(db, exp, params):
             converted_params[k] = v
     return db.execute(converted_exp, converted_params)
 
-def evalone(db, exp, params, reactive=False, tables=None):
+def evalone(db, exp, params, reactive=False, tables=None, expr=None):
     exp = exp.strip()
     if re.match("^:?[a-zA-z._][a-zA-z._0-9]*$", exp):
         if exp[0] == ':':
@@ -259,9 +259,11 @@ def evalone(db, exp, params, reactive=False, tables=None):
     exp = "select " + exp
 
     if reactive:
-        sql = re.sub(r':([A-Za-z0-9_]+(?:\.[A-Za-z0-9_]+)+)',
-                     lambda m: ':' + m.group(1).replace('.', '__'),
-                     exp)
+        sql = re.sub(
+            r':([A-Za-z0-9_]+(?:\.[A-Za-z0-9_]+)+)',
+            lambda m: ':' + m.group(1).replace('.', '__'),
+            exp,
+        )
         if tables is None:
             tables = Tables(db)
         dep_names = [name.replace('.', '__') for name in get_dependencies(sql)]
@@ -271,7 +273,9 @@ def evalone(db, exp, params, reactive=False, tables=None):
                 params[name] = DerivedSignal(lambda v=val: v, [])
         deps = [params[name] for name in dep_names if isinstance(params[name], Signal)]
         def _build():
-            expr = sqlglot.parse_one(sql)
+            nonlocal expr
+            if expr is None:
+                expr = sqlglot.parse_one(sql)
             comp = parse_reactive(expr, tables, params, one_value=True)
             return comp
 
@@ -640,14 +644,14 @@ class PageQL:
                 param_name, param_value = self.handle_param(node_content, params)
                 params[param_name] = param_value
             elif node_type == '#set':
-                var, sql, _ = node_content
+                var, sql, expr = node_content
                 if var[0] == ':':
                     var = var[1:]
                 var = var.replace('.', '__')
                 if isinstance(params.get(var), ReadOnly):
                     raise ValueError(f"Parameter '{var}' is read only")
                 if reactive:
-                    value = evalone(self.db, sql, params, True, self.tables)
+                    value = evalone(self.db, sql, params, True, self.tables, expr)
                     existing = params.get(var)
                     if isinstance(existing, Signal):
                         if isinstance(value, Signal):
@@ -664,7 +668,7 @@ class PageQL:
                     # Track dependency so cleanup detaches it after rendering
                     ctx.add_dependency(signal)
                 else:
-                    params[var] = evalone(self.db, sql, params, False, self.tables)
+                    params[var] = evalone(self.db, sql, params, False, self.tables, expr)
             elif node_type == '#render':
                 rendered_content = self.handle_render(
                     node_content,

@@ -163,8 +163,14 @@ def _read_block(node_list, i, stop, partials):
 
         if ntype == "#set":
             var, rest = parsefirstword(ncontent)
+            sql = rest or ""
+            sql_strip = sql.lstrip().lower()
+            if sql_strip.startswith("select") or sql_strip.startswith("(select"):
+                parse_sql = sql
+            else:
+                parse_sql = "SELECT " + sql
             try:
-                expr = sqlglot.parse_one("SELECT " + (rest or ""))
+                expr = sqlglot.parse_one(parse_sql)
             except Exception as e:  # pragma: no cover - invalid SQL
                 raise SyntaxError(f"bad SQL in #set: {e}")
             i += 1

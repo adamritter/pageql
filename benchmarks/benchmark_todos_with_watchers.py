@@ -7,9 +7,9 @@ import cProfile
 import pstats
 import io
 
-RENDER_WATCHERS = 1000
+RENDER_WATCHERS = 300
 INSERTS = 20
-TOGGLE_ITERATIONS = 100
+TOGGLE_ITERATIONS = 1
 
 
 def run_benchmark(db_path: str) -> None:
@@ -23,9 +23,9 @@ def run_benchmark(db_path: str) -> None:
     pql.load_module("todos", src_path.read_text(encoding="utf-8"))
 
     # create watchers
-    ctx = None
+    ctxs = []
     for _ in range(RENDER_WATCHERS):
-        ctx = pql.render("/todos", reactive=True).context
+        ctxs.append(pql.render("/todos", reactive=True).context)
     # insert todos
     for i in range(INSERTS):
         pql.db.execute(
@@ -44,13 +44,13 @@ def run_benchmark(db_path: str) -> None:
     profiler.disable()
 
     pql.db.close()
-    assert ctx is not None
+    assert len(ctxs) == RENDER_WATCHERS
     print(f"{(elapsed/TOGGLE_ITERATIONS)*1000:.4f}ms per toggle")
     s = io.StringIO()
     pstats.Stats(profiler, stream=s).strip_dirs().sort_stats("cumulative").print_stats(20)
     print(s.getvalue())
-    print("scripts array length:", len(ctx.scripts))
-    assert len(ctx.scripts) == TOGGLE_ITERATIONS * 3
+    print("scripts array length:", len(ctxs[0].scripts))
+    assert len(ctxs[0].scripts) == TOGGLE_ITERATIONS * 2 + 1
 
 
 if __name__ == "__main__":

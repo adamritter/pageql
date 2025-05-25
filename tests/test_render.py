@@ -378,15 +378,15 @@ def test_if_inside_from():
 
 def test_reactive_if_update():
     r = PageQL(":memory:")
-    snippet = """
-    {{#create table vals(name TEXT, value INTEGER)}}
-    {{#insert into vals(name, value) values ('a', 1)}}
-    {{#reactive on}}{{#set a value from vals where name = 'a'}}{{#if :a}}T{{#else}}F{{/if}}{{#update vals set value = 0 where name = 'a'}}{{#update vals set value = 1 where name = 'a'}}"""
+    snippet = (
+        "{{#create table vals(name TEXT, value INTEGER)}}"
+        "{{#insert into vals(name, value) values ('a', 1)}}"
+        "{{#reactive on}}{{#set a value from vals where name = 'a'}}{{#if :a}}T{{#else}}F{{/if}}{{#update vals set value = 0 where name = 'a'}}{{#update vals set value = 1 where name = 'a'}}"
+    )
     r.load_module("m", snippet)
     result = r.render("/m")
     expected = (
-        "\n\n\n"
-        f"    <script>pstart(0)</script>T<script>pend(0)</script>"
+        f"<script>pstart(0)</script>T<script>pend(0)</script>"
         f"<script>pset(0,\"F\")</script>"
         f"<script>pset(0,\"T\")</script>"
     )

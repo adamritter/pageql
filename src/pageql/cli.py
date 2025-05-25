@@ -16,6 +16,7 @@ def main():
     # Add positional arguments - these will be the primary way to use the command
     parser.add_argument('db_file', help="Path to the SQLite database file")
     parser.add_argument('templates_dir', help="Path to the directory containing .pageql template and static files")
+    parser.add_argument('--host', default='127.0.0.1', help="Host interface to bind the server.")
     parser.add_argument('--port', type=int, default=8000, help="Port number to run the server on.")
     parser.add_argument('--create', action='store_true', help="Create the database file if it doesn't exist.")
     parser.add_argument('--no-reload', action='store_true', help="Do not reload and refresh the templates on file changes.")
@@ -37,13 +38,13 @@ def main():
     )
 
     if not args.quiet:
-        print(f"\nPageQL server running on http://localhost:{args.port}")
+        print(f"\nPageQL server running on http://{args.host}:{args.port}")
         print(f"Using database: {args.db_file}")
         print(f"Serving templates from: {args.templates_dir}")
         print("Press Ctrl+C to stop.")
 
     log_level = "error" if args.quiet else "info"
-    uvicorn.run(app, host="0.0.0.0", port=args.port, log_level=log_level)
+    uvicorn.run(app, host=args.host, port=args.port, log_level=log_level)
 
 if __name__ == "__main__":
     main() 

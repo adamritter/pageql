@@ -56,7 +56,7 @@ import sqlite3
 from pageql.reactive import (
     ReactiveTable,
     CountAll,
-    DependentValue,
+    OneValue,
     DerivedSignal,
     DerivedSignal2,
     Signal,
@@ -508,7 +508,7 @@ def test_dependent_value_reset():
     rt = ReactiveTable(conn, "items")
 
     cnt = CountAll(rt)
-    dv = DependentValue(cnt)
+    dv = OneValue(cnt)
     seen = []
     dv.listeners.append(seen.append)
 

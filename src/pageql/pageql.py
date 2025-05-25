@@ -26,7 +26,7 @@ from pageql.reactive import (
     Signal,
     DerivedSignal,
     DerivedSignal2,
-    DependentValue,
+    OneValue,
     get_dependencies,
     Tables,
 )
@@ -281,7 +281,7 @@ def evalone(db, exp, params, reactive=False, tables=None):
         deps = [params[name] for name in dep_names if isinstance(params[name], Signal)]
         def _build():
             comp = parse_reactive(sql, tables, params)
-            return DependentValue(comp)
+            return OneValue(comp)
 
         dv = DerivedSignal2(_build, deps)
 

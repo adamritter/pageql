@@ -280,7 +280,8 @@ def evalone(db, exp, params, reactive=False, tables=None):
                 params[name] = DerivedSignal(lambda v=val: v, [])
         deps = [params[name] for name in dep_names if isinstance(params[name], Signal)]
         def _build():
-            comp = parse_reactive(sql, tables, params)
+            expr = sqlglot.parse_one(sql)
+            comp = parse_reactive(expr, tables, params)
             return DependentValue(comp)
 
         dv = DerivedSignal2(_build, deps)
@@ -997,12 +998,12 @@ class PageQL:
                         k: (v.value if isinstance(v, (DerivedSignal, ReadOnly)) else v)
                         for k, v in params.items()
                     }
-                    expr = sqlglot.parse_one(sql)
-                    _replace_placeholders(expr, converted_params)
-                    cache_key = expr.sql()
+                    expr_copy = expr.copy()
+                    _replace_placeholders(expr_copy, converted_params)
+                    cache_key = expr_copy.sql()
                     comp = self._from_cache.get(cache_key)
                     if comp is None or not comp.listeners:
-                        comp = parse_reactive(sql, self.tables, params)
+                        comp = parse_reactive(expr, self.tables, params)
                         self._from_cache[cache_key] = comp
                     cursor = self.db.execute(comp.sql, converted_params)
                     col_names = comp.columns if not isinstance(comp.columns, str) else [comp.columns]

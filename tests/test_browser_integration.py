@@ -53,7 +53,12 @@ def test_reactive_set_variable_in_browser():
 
     with tempfile.TemporaryDirectory() as tmpdir:
         Path(tmpdir, "react.pageql").write_text(
-            "{{#reactive on}}{{#set a 'ww'}}hello {{a}}{{#set a 'world'}}",
+            "{{#create table vars(val TEXT)}}"
+            "{{#insert into vars(val) values ('ww')}}"
+            "{{#reactive on}}"
+            "{{#set a (select val from vars)}}"
+            "hello {{a}}"
+            "{{#update vars set val = 'world'}}",
             encoding="utf-8",
         )
 

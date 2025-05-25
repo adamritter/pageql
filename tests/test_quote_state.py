@@ -3,7 +3,6 @@ sys.modules.setdefault("watchfiles", types.ModuleType("watchfiles"))
 sys.modules["watchfiles"].awatch = lambda *args, **kwargs: None
 sys.path.insert(0, "src")
 
-import pytest
 
 from pageql.parser import quote_state
 

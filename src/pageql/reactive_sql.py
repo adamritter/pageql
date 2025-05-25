@@ -2,7 +2,6 @@ import sqlglot
 from sqlglot import expressions as exp
 from .reactive import (
     Tables,
-    ReactiveTable,
     Select,
     Where,
     Union,

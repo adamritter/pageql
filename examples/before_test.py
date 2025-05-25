@@ -1,7 +1,7 @@
 import pageql
 import argparse
 import uvicorn
-import sqlite3, base64
+import base64
 
 
 parser = argparse.ArgumentParser(description="Run the PageQL development server.")

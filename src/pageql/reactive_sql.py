@@ -11,6 +11,7 @@ from .reactive import (
     DerivedSignal2,
     OneValue,
     Signal,
+    ReadOnly,
 )
 
 
@@ -25,7 +26,7 @@ def _replace_placeholders(expr: exp.Expression, params: dict[str, object] | None
         if name not in params:
             continue
         val = params[name]
-        if isinstance(val, (DerivedSignal, DerivedSignal2, OneValue)):
+        if isinstance(val, (DerivedSignal, DerivedSignal2, OneValue, ReadOnly)):
             val = val.value
         if isinstance(val, (int, float)):
             lit = exp.Literal.number(val)

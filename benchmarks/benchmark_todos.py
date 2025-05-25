@@ -32,7 +32,7 @@ def run_benchmark(db_path: str) -> None:
     pql.db.close()
     print(f"{(elapsed/ITERATIONS)*1000:.4f}ms per render")
     s = io.StringIO()
-    pstats.Stats(profiler, stream=s).strip_dirs().sort_stats("cumulative").print_stats(5)
+    pstats.Stats(profiler, stream=s).strip_dirs().sort_stats("cumulative").print_stats(20)
     print(s.getvalue())
 
 

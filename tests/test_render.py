@@ -119,9 +119,9 @@ def test_from_reactive_uses_parse(monkeypatch):
     seen = []
     original = rsql.parse_reactive
 
-    def wrapper(sql, tables, params=None):
-        seen.append(sql)
-        return original(sql, tables, params)
+    def wrapper(expr, tables, params=None):
+        seen.append(expr.sql())
+        return original(expr, tables, params)
 
     monkeypatch.setattr(rsql, "parse_reactive", wrapper)
     import pageql.pageql as pql
@@ -152,9 +152,9 @@ def test_from_reactive_caches_queries(monkeypatch):
     seen = []
     original = rsql.parse_reactive
 
-    def wrapper(sql, tables, params=None):
-        seen.append(sql)
-        return original(sql, tables, params)
+    def wrapper(expr, tables, params=None):
+        seen.append(expr.sql())
+        return original(expr, tables, params)
 
     monkeypatch.setattr(rsql, "parse_reactive", wrapper)
     import pageql.pageql as pql
@@ -171,7 +171,7 @@ def test_from_reactive_caches_queries(monkeypatch):
     )
     r.load_module("m", snippet)
     r.render("/m")
-    assert seen.count("SELECT * FROM items where id=:v") == 1
+    assert seen.count("SELECT * FROM items WHERE id = :v") == 1
 
 
 def test_from_reactive_reparses_after_cleanup(monkeypatch):
@@ -180,9 +180,9 @@ def test_from_reactive_reparses_after_cleanup(monkeypatch):
     seen = []
     original = rsql.parse_reactive
 
-    def wrapper(sql, tables, params=None):
-        seen.append(sql)
-        return original(sql, tables, params)
+    def wrapper(expr, tables, params=None):
+        seen.append(expr.sql())
+        return original(expr, tables, params)
 
     monkeypatch.setattr(rsql, "parse_reactive", wrapper)
     import pageql.pageql as pql

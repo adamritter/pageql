@@ -1,4 +1,5 @@
 import re
+import sqlglot
 
 def execute(conn, sql, params):
     try:
@@ -681,7 +682,8 @@ class Tables:
             self._get(table).delete(sql, params)
         elif lsql.startswith("select"):
             from .reactive_sql import parse_reactive
-            return parse_reactive(sql_strip, self, params)
+            expr = sqlglot.parse_one(sql_strip)
+            return parse_reactive(expr, self, params)
         else:
             raise ValueError(f"Unsupported SQL statement {sql}")
 

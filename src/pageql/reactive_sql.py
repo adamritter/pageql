@@ -137,23 +137,24 @@ _CACHE: dict[tuple[int, str], Signal] = {}
 
 
 def parse_reactive(
-    sql: str,
+    expr: exp.Expression,
     tables: Tables,
     params: dict[str, object] | None = None,
     *,
     cache: bool = True,
 ):
-    """Parse a SQL SELECT into reactive components.
+    """Parse a SQL ``Expression`` into reactive components.
 
-    Placeholders in *sql* are replaced using *params* before building the
+    Placeholders in *expr* are replaced using *params* before building the
     reactive expression tree.
     """
-    expr = sqlglot.parse_one(sql)
+    expr = expr.copy()
     _replace_placeholders(expr, params)
+    sql = expr.sql()
 
     cache_key = None
     if cache:
-        cache_key = (id(tables), expr.sql())
+        cache_key = (id(tables), sql)
         comp = _CACHE.get(cache_key)
         if comp is not None and comp.listeners:
             return comp

@@ -67,11 +67,13 @@ def test_reactive_count_with_param_dependency():
         "{{#insert into nums(value) values (1)}}"
         "{{#insert into nums(value) values (2)}}"
         "{{#insert into nums(value) values (3)}}"
+        "{{#create table vars(val INTEGER)}}"
+        "{{#insert into vars(val) values (1)}}"
         "{{#reactive on}}"
-        "{{#set a 1}}"
+        "{{#set a (select val from vars)}}"
         "{{#set cnt count(*) from nums where value > :a}}"
         "{{cnt}}"
-        "{{#set a 2}}"
+        "{{#update vars set val = 2}}"
         "{{#delete from nums where value = 3}}"
     )
     r.load_module("m", snippet)

@@ -648,14 +648,14 @@ class PageQL:
                 param_name, param_value = self.handle_param(node_content, params)
                 params[param_name] = param_value
             elif node_type == '#set':
-                var, args = parsefirstword(node_content)
+                var, sql, _ = node_content
                 if var[0] == ':':
                     var = var[1:]
                 var = var.replace('.', '__')
                 if isinstance(params.get(var), ReadOnly):
                     raise ValueError(f"Parameter '{var}' is read only")
                 if reactive:
-                    value = evalone(self.db, args, params, True, self.tables)
+                    value = evalone(self.db, sql, params, True, self.tables)
                     existing = params.get(var)
                     if isinstance(existing, Signal):
                         if isinstance(value, Signal):
@@ -672,7 +672,7 @@ class PageQL:
                     # Track dependency so cleanup detaches it after rendering
                     ctx.add_dependency(signal)
                 else:
-                    params[var] = evalone(self.db, args, params, False, self.tables)
+                    params[var] = evalone(self.db, sql, params, False, self.tables)
             elif node_type == '#render':
                 rendered_content = self.handle_render(
                     node_content,
@@ -985,7 +985,7 @@ class PageQL:
                         out,
                     )
             elif directive == '#from':
-                query = node[1]
+                query, expr = node[1]
                 body = node[2]
 
                 if reactive:

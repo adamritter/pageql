@@ -3,6 +3,7 @@ sys.modules.setdefault("watchfiles", types.ModuleType("watchfiles"))
 sys.modules["watchfiles"].awatch = lambda *args, **kwargs: None
 sys.path.insert(0, "src")
 
+import sqlglot
 from pageql.parser import add_reactive_elements, tokenize, build_ast
 
 
@@ -81,10 +82,15 @@ def test_delete_insert_input_and_text():
     tokens = tokenize(snippet)
     body, _ = build_ast(tokens)
     res = add_reactive_elements(body)
-    assert res == [
-        ("#reactive", "on"),
-        ("#delete", "from todos where completed = 0"),
-        ("#set", "active_count COUNT(*) from todos WHERE completed = 0"),
+    assert res[0] == ("#reactive", "on")
+    assert res[1] == ("#delete", "from todos where completed = 0")
+    assert res[2][0] == "#set"
+    assert res[2][1][0] == "active_count"
+    assert res[2][1][1] == "COUNT(*) from todos WHERE completed = 0"
+    assert res[2][1][2].sql() == sqlglot.parse_one(
+        "SELECT COUNT(*) from todos WHERE completed = 0"
+    ).sql()
+    assert res[3:] == [
         ("text", "<p>"),
         [
             "#reactiveelement",

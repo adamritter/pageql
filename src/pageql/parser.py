@@ -1,4 +1,5 @@
 import re
+import sqlglot
 
 
 def quote_state(text: str, start_state: str | None = None) -> str | None:
@@ -139,12 +140,26 @@ def _read_block(node_list, i, stop, partials):
         if ntype == "#from":
             from_terms = {"/from"}
             query = ncontent
+            try:
+                expr = sqlglot.parse_one("SELECT * FROM " + query)
+            except Exception as e:  # pragma: no cover - invalid SQL
+                raise SyntaxError(f"bad SQL in #from: {e}")
             i += 1
             loop_body, i = _read_block(node_list, i, from_terms, partials)
             if node_list[i][0] != "/from":
                 raise SyntaxError("missing {{/from}}")
             i += 1
-            body.append(["#from", query, loop_body])
+            body.append(["#from", (query, expr), loop_body])
+            continue
+
+        if ntype == "#set":
+            var, rest = parsefirstword(ncontent)
+            try:
+                expr = sqlglot.parse_one("SELECT " + (rest or ""))
+            except Exception as e:  # pragma: no cover - invalid SQL
+                raise SyntaxError(f"bad SQL in #set: {e}")
+            i += 1
+            body.append(("#set", (var, rest, expr)))
             continue
 
         # -------------------------------------------------------- #partial ...

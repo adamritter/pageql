@@ -511,10 +511,12 @@ def test_reactiveelement_input_value():
 def test_reactiveelement_self_closing_input():
     r = PageQL(":memory:")
     snippet = (
+        "{{#create table vals(name TEXT, value INTEGER)}}"
+        "{{#insert into vals(name, value) values ('c', 1)}}"
         "{{#reactive on}}"
-        "{{#set c 1}}"
+        "{{#set c value from vals where name = 'c'}}"
         "<input type='text' value='{{c}}' />"
-        "{{#set c 2}}"
+        "{{#update vals set value = 2 where name = 'c'}}"
     )
     r.load_module("m", snippet)
     result = r.render("/m")

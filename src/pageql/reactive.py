@@ -31,6 +31,16 @@ class Signal:
             self.listeners = None
 
 
+class ReadOnly:
+    """Simple wrapper for read-only parameters."""
+
+    def __init__(self, value):
+        self.value = value
+
+    def __str__(self) -> str:  # pragma: no cover - trivial
+        return str(self.value)
+
+
 def get_dependencies(expr):
     """Return parameter names referenced in *expr*.
 
@@ -145,7 +155,7 @@ def _normalize_params(params):
 
     normalized = {}
     for k, v in params.items():
-        if isinstance(v, Signal) or getattr(v, "__class__", None).__name__ == "ReadOnly":
+        if isinstance(v, (Signal, ReadOnly)):
             normalized[k] = v.value
         else:
             normalized[k] = v

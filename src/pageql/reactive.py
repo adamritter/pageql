@@ -297,7 +297,7 @@ class CountAll(Signal):
             self.listeners = None
 
 
-class DependentValue(Signal):
+class OneValue(Signal):
     """Wrap a reactive relation expected to yield a single-column row."""
 
     def __init__(self, parent):
@@ -308,7 +308,7 @@ class DependentValue(Signal):
         if isinstance(cols, str):
             cols = [cols]
         if len(cols) != 1:
-            raise ValueError("DependentValue parent must have exactly one column")
+            raise ValueError("OneValue parent must have exactly one column")
         self.columns = cols[0]
         row = self.conn.execute(self.sql).fetchone()
         super().__init__(row[0] if row else None)
@@ -332,7 +332,7 @@ class DependentValue(Signal):
         if isinstance(cols, str):
             cols = [cols]
         if len(cols) != 1:
-            raise ValueError("DependentValue parent must have exactly one column")
+            raise ValueError("OneValue parent must have exactly one column")
 
         self.columns = cols[0]
         parent.listeners.append(self.onevent)

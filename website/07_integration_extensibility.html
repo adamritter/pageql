@@ -427,8 +427,8 @@ app.conn.create_function(<span class="string">'base64_encode'</span>, 1,
         params[<span class="string">'image'</span>] = f.read()  <span class="comment"># raw bytes</span>
     <span class="keyword">return</span> params  <span class="comment"># merged into template namespace</span>
 
-<span class="function">print</span>(f<span class="string">"Visit http://localhost:{args.port}/before to test the hook"</span>)
-uvicorn.run(app, host=<span class="string">'0.0.0.0'</span>, port=args.port)
+<span class="function">print</span>(f<span class="string">"Visit http://{args.host}:{args.port}/before to test the hook"</span>)
+uvicorn.run(app, host=<span class="string">'127.0.0.1'</span>, port=args.port)
 </code><div class="clean-code">import pageql, argparse, uvicorn, base64
 
 parser = argparse.ArgumentParser(description="PageQL programmable server")
@@ -458,8 +458,8 @@ async def inject(params):
         params['image'] = f.read()  # raw bytes
     return params  # merged into template namespace
 
-print(f"Visit http://localhost:{args.port}/before to test the hook")
-uvicorn.run(app, host='0.0.0.0', port=args.port)</div></pre>
+print(f"Visit http://{args.host}:{args.port}/before to test the hook")
+uvicorn.run(app, host='127.0.0.1', port=args.port)</div></pre>
 
   <h3>How it works</h3>
 

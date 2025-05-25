@@ -830,7 +830,7 @@ class PageQL:
                             j += 1
 
                     cond_vals = [
-                        evalone(self.db, ce, params, True, self.tables) if ce is not None else True
+                        evalone(self.db, ce[0], params, True, self.tables, ce[1]) if ce is not None else True
                         for ce in cond_exprs
                     ]
                     signals = [v for v in cond_vals if isinstance(v, Signal)]
@@ -903,7 +903,8 @@ class PageQL:
                     i = 1
                     while i < len(node):
                         if i + 1 < len(node):
-                            if not evalone(self.db, node[i], params, reactive, self.tables):
+                            expr = node[i]
+                            if not evalone(self.db, expr[0], params, reactive, self.tables, expr[1]):
                                 i += 2
                                 continue
                             i += 1

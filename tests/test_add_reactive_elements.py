@@ -20,14 +20,14 @@ def test_no_wrap_when_closed_in_same_node():
 def test_wrap_across_directive():
     nodes = [
         ("text", "<div"),
-        ["#if", "cond", [("text", "class='x'")], []],
+        ["#if", ("cond", sqlglot.parse_one("SELECT cond")), [("text", "class='x'")], []],
         ("text", ">x</div>")
     ]
     res = add_reactive_elements(nodes)
     assert res == [
         ["#reactiveelement", [
             ("text", "<div"),
-            ["#if", "cond", [("text", "class='x'")], []],
+            ["#if", ("cond", sqlglot.parse_one("SELECT cond")), [("text", "class='x'")], []],
             ("text", ">")
         ]],
         ("text", "x</div>")
@@ -37,7 +37,7 @@ def test_wrap_across_directive():
 def test_wrap_with_directive_and_surrounding_text():
     nodes = [
         ("text", "hello <input "),
-        ["#if", "a", [("text", "checked")], []],
+        ["#if", ("a", sqlglot.parse_one("SELECT a")), [("text", "checked")], []],
         ("text", "type='submit'> world"),
     ]
     res = add_reactive_elements(nodes)
@@ -45,7 +45,7 @@ def test_wrap_with_directive_and_surrounding_text():
         ("text", "hello "),
         ["#reactiveelement", [
             ("text", "<input "),
-            ["#if", "a", [("text", "checked")], []],
+            ["#if", ("a", sqlglot.parse_one("SELECT a")), [("text", "checked")], []],
             ("text", "type='submit'>"),
         ]],
         ("text", " world"),
@@ -55,7 +55,7 @@ def test_wrap_with_directive_and_surrounding_text():
 def test_input_if_inside_paragraph():
     nodes = [
         ("text", "<p>Active count is 1: <input type='checkbox' "),
-        ["#if", ":active_count == 1", [("text", "checked")]],
+        ["#if", (":active_count == 1", sqlglot.parse_one("SELECT :active_count == 1")), [("text", "checked")]],
         ("text", "></p>")
     ]
     res = add_reactive_elements(nodes)
@@ -63,7 +63,7 @@ def test_input_if_inside_paragraph():
         ("text", "<p>Active count is 1: "),
         ["#reactiveelement", [
             ("text", "<input type='checkbox' "),
-            ["#if", ":active_count == 1", [("text", "checked")]],
+            ["#if", (":active_count == 1", sqlglot.parse_one("SELECT :active_count == 1")), [("text", "checked")]],
             ("text", ">")
         ]],
         ("text", "</p>")
@@ -98,7 +98,7 @@ def test_delete_insert_input_and_text():
                 ("text", "<input class=\"toggle"),
                 ("render_expression", "3"),
                 ("text", "\" type=\"checkbox\" "),
-                ["#if", "1", [("text", "checked")]],
+                ["#if", ("1", sqlglot.parse_one("SELECT 1")), [("text", "checked")]],
                 ("text", ">"),
             ],
         ],
@@ -126,7 +126,7 @@ def test_wrap_inside_else_branch():
         ("text", "<div>"),
         [
             "#if",
-            "1",
+            ("1", sqlglot.parse_one("SELECT 1")),
             [("text", "<span>hi</span>")],
             [
                 [

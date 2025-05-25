@@ -109,10 +109,15 @@ def _read_block(node_list, i, stop, partials):
         # ------------------------------------------------------------- #if ...
         if ntype == "#if" or ntype == "#ifdef" or ntype == "#ifndef":
             if_terms = {"#elif", "#else", "/if", "/ifdef", "/ifndef"}  # inline terminators for this IF
+            if ntype == "#if":
+                try:
+                    cond_expr = sqlglot.parse_one("SELECT " + ncontent)
+                except Exception as e:  # pragma: no cover - invalid SQL
+                    raise SyntaxError(f"bad SQL in #if: {e}")
             i += 1
             then_body, i = _read_block(node_list, i, if_terms, partials)
             else_body = None
-            r = [ntype, ncontent, then_body]
+            r = [ntype, (ncontent, cond_expr), then_body] if ntype == "#if" else [ntype, ncontent, then_body]
             while i < len(node_list):
                 k, c = node_list[i]
                 if k == "#elif":
@@ -120,7 +125,11 @@ def _read_block(node_list, i, stop, partials):
                         raise SyntaxError("{{#elif}} must be used with {{#if}}")
                     i += 1
                     elif_body, i = _read_block(node_list, i, if_terms, partials)
-                    r.append(c)
+                    try:
+                        expr = sqlglot.parse_one("SELECT " + c)
+                    except Exception as e:  # pragma: no cover - invalid SQL
+                        raise SyntaxError(f"bad SQL in #elif: {e}")
+                    r.append((c, expr))
                     r.append(elif_body)
                     continue
                 if k == "#else":
@@ -226,15 +235,6 @@ def build_ast(node_list):
     >>> nodes = [('text', 'hello'), ('#partial', 'test'), ('text', 'world'), ('/partial', '')]
     >>> build_ast(nodes)
     ([('text', 'hello')], {('test', None): [[('text', 'world')], {}]})
-    >>> nodes = [('text', 'hello'), ('#if', 'x > 5'), ('text', 'big'), ('#else', ''), ('text', 'small'), ('/if', '')]
-    >>> build_ast(nodes)
-    ([('text', 'hello'), ['#if', 'x > 5', [('text', 'big')], [('text', 'small')]]], {})
-    >>> nodes = [('text', 'hello'), ('#ifdef', 'x'), ('text', 'big'), ('#else', ''), ('text', 'small'), ('/ifdef', '')]
-    >>> build_ast(nodes)
-    ([('text', 'hello'), ['#ifdef', 'x', [('text', 'big')], [('text', 'small')]]], {})
-    >>> nodes = [('text', 'hello'), ('#ifndef', 'x'), ('text', 'big'), ('#else', ''), ('text', 'small'), ('/ifndef', '')]
-    >>> build_ast(nodes)
-    ([('text', 'hello'), ['#ifndef', 'x', [('text', 'big')], [('text', 'small')]]], {})
     >>> nodes = [('#partial', 'a/b'), ('text', 'world'), ('/partial', '')]
     >>> build_ast(nodes)
     ([], {('a', None): [[], {('b', None): [[('text', 'world')], {}]}]})

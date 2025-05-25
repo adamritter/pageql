@@ -649,8 +649,8 @@ class PageQL:
                 if var[0] == ':':
                     var = var[1:]
                 var = var.replace('.', '__')
-                if var in params:
-                    raise ValueError(f"Parameter '{var}' is already set")
+                #if var in params:
+                #    raise ValueError(f"Parameter '{var}' is already set")
                 if isinstance(params.get(var), ReadOnly):
                     raise ValueError(f"Parameter '{var}' is read only")
                 if reactive:

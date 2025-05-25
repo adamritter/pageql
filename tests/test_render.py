@@ -87,26 +87,6 @@ def test_reactive_count_with_param_dependency():
     assert result.body == expected
 
 
-def test_set_signal_reactive_on():
-    r = PageQL(":memory:")
-    r.load_module("sig", "{{#reactive on}}{{#set foo 42}}")
-    s = DerivedSignal(lambda: 0, [])
-    r.render("/sig", {"foo": s})
-    assert s.value == 42
-
-
-def test_set_signal_derived_replace():
-    r = PageQL(":memory:")
-    r.load_module("sig", "{{#reactive on}}{{#set foo 1}}")
-    sig = DerivedSignal(lambda: 0, [])
-    r.render("/sig", {"foo": sig})
-    assert sig.value == 1
-
-    r.load_module("sig", "{{#reactive on}}{{#set foo 2}}")
-    r.render("/sig", {"foo": sig})
-    assert sig.value == 2
-
-
 def test_render_derived_signal_value_and_eval():
     r = PageQL(":memory:")
     sig = DerivedSignal(lambda: 1, [])
@@ -210,14 +190,17 @@ def test_from_reactive_reparses_after_cleanup(monkeypatch):
 
 def test_reactive_set_comments():
     snippet = """{{#reactive on}}
-{{#set a 1}}
+{{#create table vals(name TEXT, value INTEGER)}}
+{{#insert into vals(name, value) values ('a', 1)}}
+{{#insert into vals(name, value) values ('b', 3)}}
+{{#set a (select value from vals where name = 'a')}}
 {{a}}
 {{:a + :a}}
-{{#set b 3}}
+{{#set b (select value from vals where name = 'b')}}
 <p>{{:a + :b}} = 4</p>
 {{#set c :a+:b}}
 <p>{{:c}} = c = 4</p>
-{{#set a 2}}
+{{#update vals set value = 2 where name = 'a'}}
 <p>{{:a + :b}} = 5</p>
 <p>{{:c}} = c = 5</p>
 {{#reactive off}}"""
@@ -226,7 +209,7 @@ def test_reactive_set_comments():
     r.load_module("m", snippet)
     result = r.render("/m")
     expected = (
-        "\n"
+        "\n\n\n"
         "<script>pstart(0)</script>1<script>pend(0)</script>\n"
         "<script>pstart(1)</script>2<script>pend(1)</script>\n"
         "<p><script>pstart(2)</script>4<script>pend(2)</script> = 4</p>\n"

@@ -650,8 +650,6 @@ class PageQL:
                 if var[0] == ':':
                     var = var[1:]
                 var = var.replace('.', '__')
-                if var in params:
-                    raise ValueError(f"Parameter '{var}' is already set")
                 if isinstance(params.get(var), ReadOnly):
                     raise ValueError(f"Parameter '{var}' is read only")
                 if reactive:
@@ -667,11 +665,15 @@ class PageQL:
                             existing.set_value(value)
                         signal = existing
                     else:
+                        if var in params:
+                            raise ValueError(f"Parameter '{var}' is already set")
                         signal = value if isinstance(value, Signal) else DerivedSignal(lambda v=value: v, [])
                         params[var] = signal
                     # Track dependency so cleanup detaches it after rendering
                     ctx.add_dependency(signal)
                 else:
+                    if var in params:
+                        raise ValueError(f"Parameter '{var}' is already set")
                     params[var] = evalone(self.db, sql, params, False, self.tables, expr)
             elif node_type == '#render':
                 rendered_content = self.handle_render(

@@ -272,8 +272,8 @@ def evalone(db, exp, params, reactive=False, tables=None):
         deps = [params[name] for name in dep_names if isinstance(params[name], Signal)]
         def _build():
             expr = sqlglot.parse_one(sql)
-            comp = parse_reactive(expr, tables, params)
-            return OneValue(comp)
+            comp = parse_reactive(expr, tables, params, one_value=True)
+            return comp
 
         dv = DerivedSignal2(_build, deps)
 

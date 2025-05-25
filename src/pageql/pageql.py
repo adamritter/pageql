@@ -256,7 +256,8 @@ def evalone(db, exp, params, reactive=False, tables=None, expr=None):
                 return val.value
             return val
         
-    exp = "select " + exp
+    if not re.match(r"(?i)^\s*(select|\(select)", exp):
+        exp = "select " + exp
 
     if reactive:
         sql = re.sub(

@@ -26,7 +26,7 @@ from pageql.reactive import (
     Signal,
     DerivedSignal,
     DerivedSignal2,
-    DependentValue,
+    OneValue,
     get_dependencies,
     Tables,
     ReadOnly,
@@ -273,7 +273,7 @@ def evalone(db, exp, params, reactive=False, tables=None):
         def _build():
             expr = sqlglot.parse_one(sql)
             comp = parse_reactive(expr, tables, params)
-            return DependentValue(comp)
+            return OneValue(comp)
 
         dv = DerivedSignal2(_build, deps)
 

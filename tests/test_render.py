@@ -493,11 +493,13 @@ def test_reactiveelement_updates_node():
 
 def test_reactiveelement_input_value():
     r = PageQL(":memory:")
+    r.db.execute("CREATE TABLE vals(name TEXT, value INTEGER)")
+    r.db.executemany("INSERT INTO vals(name, value) VALUES (?, ?)", [("c", 1)])
     snippet = (
         "{{#reactive on}}"
-        "{{#set c 1}}"
+        "{{#set c value from vals where name = 'c'}}"
         "<input type='text' value='{{c}}'>"
-        "{{#set c 2}}"
+        "{{#update vals set value = 2 where name = 'c'}}"
     )
     r.load_module("m", snippet)
     result = r.render("/m")

@@ -475,12 +475,14 @@ def test_reactiveelement_nonreactive_no_script():
 
 def test_reactiveelement_updates_node():
     r = PageQL(":memory:")
+    r.db.execute("CREATE TABLE vals(name TEXT, value INTEGER)")
+    r.db.executemany("INSERT INTO vals(name, value) VALUES (?, ?)", [("c", 1)])
     snippet = (
         "{{#reactive on}}"
-        "{{#set c 1}}"
+        "{{#set c value from vals where name = 'c'}}"
         "<div {{#if :c}}class='x'{{#else}}class='y'{{/if}}></div>"
-        "{{#set c 0}}"
-        "{{#set c 1}}"
+        "{{#update vals set value = 0 where name = 'c'}}"
+        "{{#update vals set value = 1 where name = 'c'}}"
     )
     r.load_module("m", snippet)
     result = r.render("/m")

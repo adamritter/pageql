@@ -21,6 +21,7 @@ def main():
     parser.add_argument('--port', type=int, default=8000, help="Port number to run the server on.")
     parser.add_argument('--create', action='store_true', help="Create the database file if it doesn't exist.")
     parser.add_argument('--no-reload', action='store_true', help="Do not reload and refresh the templates on file changes.")
+    parser.add_argument('-q', '--quiet', action='store_true', help="Only show errors in output.")
 
     # If no arguments were provided (only the script name), print help and exit.
     if len(sys.argv) == 1:
@@ -28,15 +29,23 @@ def main():
         sys.exit(1)
 
     args = parser.parse_args()
-    
-    app = PageQLApp(args.db_file, args.templates_dir, create_db=args.create, should_reload=not args.no_reload)
 
-    print(f"\nPageQL server running on http://localhost:{args.port}")
-    print(f"Using database: {args.db_file}")
-    print(f"Serving templates from: {args.templates_dir}")
-    print("Press Ctrl+C to stop.")
+    app = PageQLApp(
+        args.db_file,
+        args.templates_dir,
+        create_db=args.create,
+        should_reload=not args.no_reload,
+        quiet=args.quiet,
+    )
 
-    uvicorn.run(app, host="0.0.0.0", port=args.port)
+    if not args.quiet:
+        print(f"\nPageQL server running on http://localhost:{args.port}")
+        print(f"Using database: {args.db_file}")
+        print(f"Serving templates from: {args.templates_dir}")
+        print("Press Ctrl+C to stop.")
+
+    log_level = "error" if args.quiet else "info"
+    uvicorn.run(app, host="0.0.0.0", port=args.port, log_level=log_level)
 
 if __name__ == "__main__":
     main() 

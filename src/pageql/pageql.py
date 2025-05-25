@@ -245,7 +245,7 @@ def evalone(db, exp, params, reactive=False, tables=None, expr=None):
         if exp in params:
             val = params[exp]
             if reactive:
-                if isinstance(val, DerivedSignal):
+                if isinstance(val, Signal):
                     return val
                 if isinstance(val, ReadOnly):
                     return val.value

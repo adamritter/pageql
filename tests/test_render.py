@@ -547,11 +547,13 @@ def test_reactiveelement_if_with_table_insert_updates_input():
 def test_reactiveelement_if_variable_updates_checked():
     r = PageQL(":memory:")
     snippet = (
+        "{{#create table vals(name TEXT, value INTEGER)}}"
+        "{{#insert into vals(name, value) values ('flag', 1)}}"
         "{{#reactive on}}"
-        "{{#set flag 1}}"
+        "{{#set flag value from vals where name = 'flag'}}"
         "<input type='checkbox' {{#if :flag}}checked{{/if}}>"
-        "{{#set flag 0}}"
-        "{{#set flag 1}}"
+        "{{#update vals set value = 0 where name = 'flag'}}"
+        "{{#update vals set value = 1 where name = 'flag'}}"
     )
     r.load_module("m", snippet)
     result = r.render("/m")

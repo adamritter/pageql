@@ -395,13 +395,15 @@ def test_reactive_if_update():
 
 def test_reactive_if_elif_chain():
     r = PageQL(":memory:")
+    r.db.execute("CREATE TABLE vals(name TEXT, value INTEGER)")
+    r.db.executemany("INSERT INTO vals(name, value) VALUES (?, ?)", [("a", 1)])
     snippet = (
         "{{#reactive on}}"
-        "{{#set a 1}}"
+        "{{#set a value from vals where name = 'a'}}"
         "{{#if :a == 1}}A{{#elif :a == 2}}B{{#else}}C{{/if}}"
-        "{{#set a 2}}"
-        "{{#set a 3}}"
-        "{{#set a 1}}"
+        "{{#update vals set value = 2 where name = 'a'}}"
+        "{{#update vals set value = 3 where name = 'a'}}"
+        "{{#update vals set value = 1 where name = 'a'}}"
     )
     r.load_module("m", snippet)
     result = r.render("/m")

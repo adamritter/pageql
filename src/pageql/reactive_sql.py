@@ -169,6 +169,15 @@ def parse_reactive(
         except NotImplementedError:
             comp = FallbackReactive(tables, sql, expr)
 
+    # If the expression references no tables the result is constant, so
+    # return a simple ReadOnly wrapper instead of a reactive component.
+    if not list(expr.find_all(exp.Table)):
+        if one_value:
+            row = tables.conn.execute(sql).fetchone()
+            return ReadOnly(row[0] if row else None)
+        rows = tables.conn.execute(sql).fetchall()
+        return ReadOnly(rows)
+
     if one_value:
         comp = OneValue(comp)
 

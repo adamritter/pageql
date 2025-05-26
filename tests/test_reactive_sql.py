@@ -11,6 +11,7 @@ sys.modules["watchfiles"].awatch = lambda *args, **kwargs: None
 
 from pageql.reactive import Tables, ReactiveTable, Select, Where, CountAll, UnionAll
 from pageql.reactive_sql import parse_reactive, FallbackReactive
+from pageql.reactive import ReadOnly
 
 
 def _db():
@@ -113,6 +114,5 @@ def test_parse_select_constant():
     sql = "SELECT 42 AS answer"
     expr = sqlglot.parse_one(sql)
     comp = parse_reactive(expr, tables, {})
-    assert isinstance(comp, FallbackReactive)
-    assert comp.deps == []
-    assert_sql_equivalent(conn, sql, comp.sql)
+    assert isinstance(comp, ReadOnly)
+    assert comp.value == [(42,)]

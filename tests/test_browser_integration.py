@@ -3,11 +3,26 @@ import importlib.util
 import tempfile
 import types
 from pathlib import Path
+import warnings
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 sys.modules.setdefault("watchfiles", types.ModuleType("watchfiles"))
 sys.modules["watchfiles"].awatch = lambda *args, **kwargs: None
+
+pytestmark = [
+    pytest.mark.filterwarnings(
+        "ignore:websockets.server.WebSocketServerProtocol is deprecated",
+        category=DeprecationWarning,
+    ),
+    pytest.mark.filterwarnings(
+        "ignore:remove second argument of ws_handler", category=DeprecationWarning
+    ),
+    pytest.mark.filterwarnings(
+        "ignore:This process .* fork\\(\\) may lead to deadlocks in the child.",
+        category=DeprecationWarning,
+    ),
+]
 
 from pageql.pageqlapp import PageQLApp
 from playwright_helpers import load_page

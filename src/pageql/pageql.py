@@ -291,11 +291,14 @@ def evalone(db, exp, params, reactive=False, tables=None, expr=None):
                 expr = sqlglot.parse_one(sql)
             #print("parse_reactive: ", expr.sql())
             comp = parse_reactive(expr, tables, params, one_value=True)
+            if isinstance(comp, ReadOnly):
+                return DerivedSignal(lambda v=comp.value: v, [])
             return comp
         cache_key = (id(tables), sql, tuple(dep_keys))
         dv = _DV_CACHE.get(cache_key)
-        if dv is not None and dv.listeners:
-            return dv
+        if dv is not None:
+            if not hasattr(dv, "listeners") or dv.listeners:
+                return dv
         dv = derive_signal2(_build, deps)
         _DV_CACHE[cache_key] = dv
         return dv

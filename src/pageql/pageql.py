@@ -773,16 +773,7 @@ class PageQL:
                 prev = ctx.reactiveelement
                 ctx.reactiveelement = []
                 buf = []
-                self.process_nodes(
-                    node[1],
-                    params,
-                    path,
-                    includes,
-                    http_verb,
-                    reactive,
-                    ctx,
-                    out=buf,
-                )
+                self.process_nodes(node[1], params, path, includes, http_verb, reactive, ctx, out=buf)
                 signals = ctx.reactiveelement
                 ctx.reactiveelement = prev
                 out.extend(buf)
@@ -796,16 +787,7 @@ class PageQL:
                         new_buf = []
                         cur = ctx.reactiveelement
                         ctx.reactiveelement = []
-                        self.process_nodes(
-                            node[1],
-                            params,
-                            path,
-                            includes,
-                            http_verb,
-                            True,
-                            ctx,
-                            out=new_buf,
-                        )
+                        self.process_nodes(node[1], params, path, includes, http_verb, True, ctx, out=new_buf)
                         ctx.reactiveelement = cur
                         html_content = "".join(new_buf).strip()
                         tag = ''
@@ -863,16 +845,7 @@ class PageQL:
                     if ctx.reactiveelement is not None:
                         idx = pick_index()
                         if idx is not None:
-                            reactive = self.process_nodes(
-                                bodies[idx],
-                                params,
-                                path,
-                                includes,
-                                http_verb,
-                                True,
-                                ctx,
-                                out,
-                            )
+                            reactive = self.process_nodes(bodies[idx], params, path, includes, http_verb, True, ctx, out)
                         ctx.reactiveelement.extend(signals)
                     else:
                         mid = ctx.marker_id()
@@ -881,16 +854,7 @@ class PageQL:
 
                         idx = pick_index()
                         if idx is not None:
-                            reactive = self.process_nodes(
-                                bodies[idx],
-                                params,
-                                path,
-                                includes,
-                                http_verb,
-                                reactive,
-                                ctx,
-                                out,
-                            )
+                            reactive = self.process_nodes(bodies[idx], params, path, includes, http_verb, reactive, ctx, out)
 
                         ctx.append_script(f"pend({mid})", out)
 
@@ -899,16 +863,7 @@ class PageQL:
                             new_idx = pick_index()
                             buf = []
                             if new_idx is not None:
-                                self.process_nodes(
-                                    bodies[new_idx],
-                                    params,
-                                    path,
-                                    includes,
-                                    http_verb,
-                                    True,
-                                    ctx,
-                                    out=buf,
-                                )
+                                self.process_nodes(bodies[new_idx], params, path, includes, http_verb, True, ctx, out=buf)
                             html_content = "".join(buf).strip()
                             ctx.append_script(
                                 f"pset({mid},{json.dumps(html_content)})",
@@ -926,16 +881,7 @@ class PageQL:
                                 i += 2
                                 continue
                             i += 1
-                        reactive = self.process_nodes(
-                            node[i],
-                            params,
-                            path,
-                            includes,
-                            http_verb,
-                            reactive,
-                            ctx,
-                            out,
-                        )
+                        reactive = self.process_nodes(node[i], params, path, includes, http_verb, reactive, ctx, out)
                         i += 1
             elif directive == '#ifdef':
                 param_name = node[1].strip()

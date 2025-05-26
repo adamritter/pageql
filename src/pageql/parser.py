@@ -159,7 +159,9 @@ def _read_block(node_list, i, stop, partials):
             if node_list[i][0] != "/from":
                 raise SyntaxError("missing {{/from}}")
             i += 1
-            body.append(["#from", (query, expr), loop_body])
+            deps = set(get_dependencies("SELECT * FROM " + query))
+            deps.update(ast_param_dependencies(loop_body))
+            body.append(["#from", (query, expr), deps, loop_body])
             continue
 
         if ntype == "#set":
@@ -288,6 +290,8 @@ def _apply_add_reactive(n):
                 res.append(add_reactive_elements(n[3]))
             return res
         if name == "#from":
+            if len(n) == 4:
+                return [name, n[1], n[2], add_reactive_elements(n[3])]
             return [name, n[1], add_reactive_elements(n[2])]
     return n
 
@@ -414,7 +418,10 @@ def ast_param_dependencies(ast):
                     walk_nodes(node[3])
             elif name == "#from":
                 deps.update(get_dependencies("SELECT * FROM " + node[1][0]))
-                walk_nodes(node[2])
+                if len(node) == 4:
+                    walk_nodes(node[3])
+                else:
+                    walk_nodes(node[2])
             elif name == "#render":
                 _, rest = parsefirstword(node[1])
                 if rest:

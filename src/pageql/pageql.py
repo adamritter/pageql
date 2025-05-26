@@ -924,7 +924,10 @@ class PageQL:
                     reactive = self.process_nodes(body, params, path, includes, http_verb, reactive, ctx, out)
             elif directive == '#from':
                 query, expr = node[1]
-                body = node[2]
+                if len(node) == 4:
+                    _, _, deps, body = node
+                else:
+                    body = node[2]
 
                 if reactive:
                     sql = "SELECT * FROM " + query

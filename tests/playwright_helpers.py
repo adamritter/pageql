@@ -13,7 +13,6 @@ from pageql.pageqlapp import PageQLApp
 def chromium_available(playwright) -> bool:
     return Path(playwright.chromium.executable_path).exists()
 
-
 async def run_server_in_task(
     tmpdir: str, reload: bool = False
 ) -> Tuple[Server, "asyncio.Task", int]:
@@ -33,6 +32,7 @@ async def _load_page_async(
     page: str,
     after: Optional[Callable[["async_playwright.Page", int, PageQLApp], None]] = None,
     reload: bool = False,
+    browser = None,
 ) -> Optional[Tuple[int, str]]:
     from playwright.async_api import async_playwright, Page
 
@@ -43,7 +43,9 @@ async def _load_page_async(
             server.should_exit = True
             await task
             return None
-        browser = await p.chromium.launch(args=["--no-sandbox"])
+        has_browser = browser is not None
+        if browser is None:
+            browser = await p.chromium.launch(args=["--no-sandbox"])
         pg: Page = await browser.new_page()
         response = await pg.goto(f"http://127.0.0.1:{port}/{page}")
         if after is not None:
@@ -54,17 +56,18 @@ async def _load_page_async(
         await pg.wait_for_timeout(500)
         body = (await pg.evaluate("document.body.textContent")).strip()
         status = response.status if response is not None else None
-        await browser.close()
+        if not has_browser:
+            await browser.close()
 
     server.should_exit = True
     await task
     return status, body
 
 
-def load_page(tmpdir: str, page: str, after: Optional[Callable[["async_playwright.Page", int, PageQLApp], None]] = None, reload: bool = False) -> Optional[Tuple[int, str]]:
+def load_page(tmpdir: str, page: str, after: Optional[Callable[["async_playwright.Page", int, PageQLApp], None]] = None, reload: bool = False, browser = None) -> Optional[Tuple[int, str]]:
     """Utility used by integration tests to fetch a page in a browser.
 
     Returns ``(status_code, body_text)`` or ``None`` if Chromium is not available.
     """
     pytest.importorskip("playwright.async_api")
-    return asyncio.run(_load_page_async(tmpdir, page, after, reload))
+    return asyncio.run(_load_page_async(tmpdir, page, after, reload, browser))

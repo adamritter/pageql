@@ -19,12 +19,10 @@ sys.modules["watchfiles"].awatch = _awatch_stub
 from pageql.pageqlapp import PageQLApp
 from playwright_helpers import _load_page_async
 
-# conftest.py
-import asyncio
-from playwright.async_api import async_playwright
-
 @pytest.fixture(scope="module")
 async def browser():
+    pytest.importorskip("playwright.async_api")
+    from playwright.async_api import async_playwright
     playwright = await async_playwright().start()
     browser = await playwright.chromium.launch(headless=True)
 

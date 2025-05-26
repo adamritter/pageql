@@ -577,7 +577,10 @@ class PageQL:
                 out.append(node_content)
             elif node_type == 'render_expression':
                 result = evalone(self.db, node_content, params, reactive, self.tables)
-                if isinstance(result, Signal):
+                if isinstance(result, ReadOnly):
+                    signal = None
+                    result = result.value
+                elif isinstance(result, Signal):
                     signal = result
                     result = result.value
                 else:
@@ -633,7 +636,10 @@ class PageQL:
                     raise ValueError(f"Parameter `{node_content}` not found in params `{params}`")
             elif node_type == 'render_raw':
                 result = evalone(self.db, node_content, params, reactive, self.tables)
-                if isinstance(result, Signal):
+                if isinstance(result, ReadOnly):
+                    signal = None
+                    result = result.value
+                elif isinstance(result, Signal):
                     signal = result
                     result = result.value
                 else:

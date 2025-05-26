@@ -841,7 +841,10 @@ class PageQL:
                         evalone(self.db, ce[0], params, True, self.tables, ce[1]) if ce is not None else True
                         for ce in cond_exprs
                     ]
-                    signals = [v for v in cond_vals if isinstance(v, Signal)]
+                    signals = [
+                        v for v in cond_vals
+                        if isinstance(v, Signal) and not isinstance(v, ReadOnly)
+                    ]
 
                     def pick_index():
                         for idx, val in enumerate(cond_vals):
@@ -856,30 +859,34 @@ class PageQL:
                             reactive = self.process_nodes(bodies[idx], params, path, includes, http_verb, True, ctx, out)
                         ctx.reactiveelement.extend(signals)
                     else:
-                        mid = ctx.marker_id()
-                        ctx.ensure_init()
-                        ctx.append_script(f"pstart({mid})", out)
-
                         idx = pick_index()
-                        if idx is not None:
-                            reactive = self.process_nodes(bodies[idx], params, path, includes, http_verb, reactive, ctx, out)
-
-                        ctx.append_script(f"pend({mid})", out)
-
-                        def listener(_=None, *, mid=mid, ctx=ctx):
+                        if not signals:
+                            if idx is not None:
+                                reactive = self.process_nodes(bodies[idx], params, path, includes, http_verb, reactive, ctx, out)
+                        else:
+                            mid = ctx.marker_id()
                             ctx.ensure_init()
-                            new_idx = pick_index()
-                            buf = []
-                            if new_idx is not None:
-                                self.process_nodes(bodies[new_idx], params, path, includes, http_verb, True, ctx, out=buf)
-                            html_content = "".join(buf).strip()
-                            ctx.append_script(
-                                f"pset({mid},{json.dumps(html_content)})",
-                                out,
-                            )
+                            ctx.append_script(f"pstart({mid})", out)
 
-                        for sig in signals:
-                            ctx.add_listener(sig, listener)
+                            if idx is not None:
+                                reactive = self.process_nodes(bodies[idx], params, path, includes, http_verb, reactive, ctx, out)
+
+                            ctx.append_script(f"pend({mid})", out)
+
+                            def listener(_=None, *, mid=mid, ctx=ctx):
+                                ctx.ensure_init()
+                                new_idx = pick_index()
+                                buf = []
+                                if new_idx is not None:
+                                    self.process_nodes(bodies[new_idx], params, path, includes, http_verb, True, ctx, out=buf)
+                                html_content = "".join(buf).strip()
+                                ctx.append_script(
+                                    f"pset({mid},{json.dumps(html_content)})",
+                                    out,
+                                )
+
+                            for sig in signals:
+                                ctx.add_listener(sig, listener)
                 else:
                     i = 1
                     while i < len(node):

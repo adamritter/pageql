@@ -59,6 +59,7 @@ from pageql.reactive import (
     OneValue,
     DerivedSignal,
     DerivedSignal2,
+    derive_signal2,
     Signal,
     Where,
     UnionAll,
@@ -67,6 +68,7 @@ from pageql.reactive import (
     Join,
     Select,
     get_dependencies,
+    ReadOnly,
 )
 from pageql.pageql import RenderContext, Tables, evalone
 
@@ -598,6 +600,13 @@ def test_derived_signal2_remove_listener_uses_remove_listener():
     d.remove_listener(cb)
     assert d._on_dep in dep.removed
     assert d._on_main in main.removed
+
+
+def test_derive_signal2_returns_signal_if_all_readonly():
+    main = Signal(1)
+    ro1 = ReadOnly(1)
+    res = derive_signal2(lambda: main, [ro1])
+    assert res is main
 
 
 def test_evalone_cache_without_params_reuses_signal():

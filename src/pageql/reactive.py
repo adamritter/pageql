@@ -150,6 +150,16 @@ class DerivedSignal2(Signal):
             self.listeners = None
 
 
+def derive_signal2(f, deps):
+    """Return a :class:`DerivedSignal2` tracking *deps* if any are writable."""
+
+    if not deps or all(isinstance(d, ReadOnly) for d in deps):
+        return f()
+
+    deps = [d for d in deps if isinstance(d, Signal)]
+    return DerivedSignal2(f, deps)
+
+
 def _normalize_params(params):
     """Return a copy of *params* with signal-like objects replaced by their values."""
 

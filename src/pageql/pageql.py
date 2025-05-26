@@ -34,6 +34,7 @@ from pageql.reactive import (
 from pageql.reactive_sql import parse_reactive, _replace_placeholders
 import sqlglot
 
+_EVALONE_CACHE: dict[tuple[int, str, tuple[int, ...]], DerivedSignal2] = {}
 def flatten_params(params):
     """
     Recursively flattens a nested dictionary using __ separator.
@@ -277,11 +278,20 @@ def evalone(db, exp, params, reactive=False, tables=None, expr=None):
             nonlocal expr
             if expr is None:
                 expr = sqlglot.parse_one(sql)
-            #print("parse_reactive: ", expr.sql())
             comp = parse_reactive(expr, tables, params, one_value=True)
             return comp
 
+        cache_key = None
+        if deps:
+            cache_key = (id(tables), sql, tuple(id(d) for d in deps))
+            dv = _EVALONE_CACHE.get(cache_key)
+            if dv is not None:
+                return dv
+
         dv = DerivedSignal2(_build, deps)
+
+        if cache_key is not None:
+            _EVALONE_CACHE[cache_key] = dv
 
         return dv
 

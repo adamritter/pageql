@@ -94,3 +94,15 @@ def test_evalone_reactive_uses_expr(monkeypatch):
     assert sig.value == "z"
     assert called is False
 
+
+def test_evalone_caches_derived_signal():
+    conn = _db()
+    conn.execute("INSERT INTO items(name) VALUES ('a')")
+    tables = Tables(conn)
+    params = {"rid": 1}
+
+    sig1 = evalone(conn, "name from items where id=:rid", params, reactive=True, tables=tables)
+    sig2 = evalone(conn, "name from items where id=:rid", params, reactive=True, tables=tables)
+
+    assert sig1 is sig2
+

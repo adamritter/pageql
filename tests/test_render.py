@@ -467,9 +467,23 @@ def test_reactive_if_variable_and_table_dependency():
 
 def test_reactiveelement_adds_pprevioustag_script():
     r = PageQL(":memory:")
-    r.load_module("m", "{{#reactive on}}<div {{#if 1}}class='x'{{/if}}></div>")
+    r.db.execute("CREATE TABLE vals(name TEXT, value INTEGER)")
+    r.db.executemany("INSERT INTO vals(name, value) VALUES (?, ?)", [("c", 1)])
+    snippet = (
+        "{{#reactive on}}"
+        "{{#set c value from vals where name = 'c'}}"
+        "<div {{#if :c}}class='x'{{/if}}></div>"
+    )
+    r.load_module("m", snippet)
     result = r.render("/m")
     assert result.body == "<div class='x'><script>pprevioustag(0)</script></div>"
+
+
+def test_reactiveelement_constant_no_script():
+    r = PageQL(":memory:")
+    r.load_module("m", "{{#reactive on}}<div {{#if 1}}class='x'{{/if}}></div>")
+    result = r.render("/m")
+    assert result.body == "<div class='x'></div>"
 
 
 def test_reactiveelement_nonreactive_no_script():
@@ -591,8 +605,8 @@ def test_reactiveelement_delete_and_insert_updates_input_and_text():
     r.load_module("m", snippet)
     result = r.render("/m")
     expected = (
-        "<p><input class=\"toggle3\" type=\"checkbox\" checked><script>pprevioustag(0)</script><input type=\"text\" value=\"0\"><script>pprevioustag(1)</script></p>"
-        "<script>pupdatetag(1,\"<input type=\\\"text\\\" value=\\\"1\\\">\")</script>"
+        "<p><input class=\"toggle3\" type=\"checkbox\" checked><input type=\"text\" value=\"0\"><script>pprevioustag(0)</script></p>"
+        "<script>pupdatetag(0,\"<input type=\\\"text\\\" value=\\\"1\\\">\")</script>"
     )
     assert result.body == expected
 
@@ -637,7 +651,7 @@ def test_pinsert_escapes_script_tag():
     r.db.executemany("INSERT INTO todos(completed) VALUES (?)", [(0,), (1,)])
     snippet = (
         "{{#reactive on}}"
-        "{{#from todos}}<li><input type='checkbox' {{#if completed}}checked{{/if}}></li>{{/from}}"
+        "{{#from todos}}<li><input type='checkbox' {{#if completed}}checked{{/if}}><script>hi()</script></li>{{/from}}"
         "{{#insert into todos(completed) values (0)}}"
     )
     r.load_module("m", snippet)

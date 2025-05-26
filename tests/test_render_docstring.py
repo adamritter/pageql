@@ -9,6 +9,11 @@ sys.modules["watchfiles"].awatch = lambda *args, **kwargs: None
 __doc__ = """
 >>> from pageql.pageql import PageQL
 >>> r = PageQL(":memory:")
+>>> _render = r.render
+>>> def render_nonreactive(*a, **k):
+...     k.setdefault('reactive', False)
+...     return _render(*a, **k)
+>>> r.render = render_nonreactive
 >>> r.load_module("include_test", '''This is included
 ... {{#partial p}}
 ...   included partial {{z}}

@@ -8,7 +8,7 @@ sys.modules.setdefault("watchfiles", types.ModuleType("watchfiles"))
 sys.modules["watchfiles"].awatch = lambda *args, **kwargs: None
 
 from pageql.pageql import PageQL, RenderContext
-from pageql.reactive import DerivedSignal
+from pageql.reactive import DerivedSignal, ReadOnly
 
 
 def test_render_nonexistent_returns_404():
@@ -93,6 +93,13 @@ def test_render_derived_signal_value_and_eval():
     r.load_module("m", "{{foo}} {{:foo + :foo}}")
     result = r.render("/m", {"foo": sig})
     assert result.body.strip() == "1 2"
+
+
+def test_reactive_readonly_param_outputs_no_script():
+    r = PageQL(":memory:")
+    r.load_module("m", "{{#reactive on}}{{x}}")
+    result = r.render("/m", {"x": ReadOnly("hello")})
+    assert result.body == "hello"
 
 
 def test_from_reactive_uses_parse(monkeypatch):

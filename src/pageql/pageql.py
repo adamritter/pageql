@@ -291,15 +291,12 @@ def evalone(db, exp, params, reactive=False, tables=None, expr=None):
             #print("parse_reactive: ", expr.sql())
             comp = parse_reactive(expr, tables, params, one_value=True)
             return comp
-        cache_key = None
-        if dep_keys:
-            cache_key = (id(tables), sql, tuple(dep_keys))
-            dv = _DV_CACHE.get(cache_key)
-            if dv is not None and dv.listeners:
-                return dv
+        cache_key = (id(tables), sql, tuple(dep_keys))
+        dv = _DV_CACHE.get(cache_key)
+        if dv is not None and dv.listeners:
+            return dv
         dv = DerivedSignal2(_build, deps)
-        if cache_key:
-            _DV_CACHE[cache_key] = dv
+        _DV_CACHE[cache_key] = dv
         return dv
 
     try:

@@ -68,7 +68,7 @@ from pageql.reactive import (
     Select,
     get_dependencies,
 )
-from pageql.pageql import RenderContext
+from pageql.pageql import RenderContext, Tables, evalone
 
 
 def _db():
@@ -598,6 +598,17 @@ def test_derived_signal2_remove_listener_uses_remove_listener():
     d.remove_listener(cb)
     assert d._on_dep in dep.removed
     assert d._on_main in main.removed
+
+
+def test_evalone_cache_without_params_reuses_signal():
+    db = sqlite3.connect(":memory:")
+    db.execute("CREATE TABLE items(id INTEGER)")
+    db.execute("INSERT INTO items(id) VALUES (1)")
+    tables = Tables(db)
+    sig1 = evalone(db, "COUNT(*) from items", {}, reactive=True, tables=tables)
+    sig1.listeners.append(lambda _=None: None)
+    sig2 = evalone(db, "COUNT(*) from items", {}, reactive=True, tables=tables)
+    assert sig1 is sig2
 
 def test_select_remove_listener_detaches_from_parent():
     conn = _db()

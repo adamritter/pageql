@@ -7,7 +7,7 @@ import cProfile
 import pstats
 import io
 
-RENDER_WATCHERS = 300
+RENDER_WATCHERS = 1000
 INSERTS = 20
 TOGGLE_ITERATIONS = 1
 

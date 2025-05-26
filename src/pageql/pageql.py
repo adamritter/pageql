@@ -946,28 +946,9 @@ class PageQL:
                     param_name = param_name[1:]
                 param_name = param_name.replace('.', '__')
                 
-                if param_name in params:
-                    reactive = self.process_nodes(
-                        then_body,
-                        params,
-                        path,
-                        includes,
-                        http_verb,
-                        reactive,
-                        ctx,
-                        out,
-                    )
-                elif else_body:
-                    reactive = self.process_nodes(
-                        else_body,
-                        params,
-                        path,
-                        includes,
-                        http_verb,
-                        reactive,
-                        ctx,
-                        out,
-                    )
+                body = then_body if param_name in params else else_body
+                if body:
+                    reactive = self.process_nodes(body, params, path, includes, http_verb, reactive, ctx, out)
             elif directive == '#ifndef':
                 param_name = node[1].strip()
                 then_body = node[2]
@@ -977,28 +958,9 @@ class PageQL:
                     param_name = param_name[1:]
                 param_name = param_name.replace('.', '__')
                 
-                if param_name not in params:
-                    reactive = self.process_nodes(
-                        then_body,
-                        params,
-                        path,
-                        includes,
-                        http_verb,
-                        reactive,
-                        ctx,
-                        out,
-                    )
-                elif else_body:
-                    reactive = self.process_nodes(
-                        else_body,
-                        params,
-                        path,
-                        includes,
-                        http_verb,
-                        reactive,
-                        ctx,
-                        out,
-                    )
+                body = then_body if param_name not in params else else_body
+                if body:
+                    reactive = self.process_nodes(body, params, path, includes, http_verb, reactive, ctx, out)
             elif directive == '#from':
                 query, expr = node[1]
                 body = node[2]
@@ -1058,7 +1020,6 @@ class PageQL:
                                    saved_params=saved_params):
                         if ev[0] == 2:
                             row_id = f"{mid}_{base64.b64encode(hashlib.sha256(repr(tuple(ev[1])).encode()).digest())[:8].decode()}"
-                            ctx.ensure_init()
                             ctx.append_script(f"pdelete('{row_id}')")
                         elif ev[0] == 1:
                             row_id = f"{mid}_{base64.b64encode(hashlib.sha256(repr(tuple(ev[1])).encode()).digest())[:8].decode()}"
@@ -1068,7 +1029,6 @@ class PageQL:
                             row_buf = []
                             self.process_nodes(body, row_params, path, includes, http_verb, True, ctx, out=row_buf)
                             row_content = ''.join(row_buf).strip()
-                            ctx.ensure_init()
                             ctx.append_script(f"pinsert('{row_id}',{json.dumps(row_content)})")
                         elif ev[0] == 3:
                             old_id = f"{mid}_{base64.b64encode(hashlib.sha256(repr(tuple(ev[1])).encode()).digest())[:8].decode()}"
@@ -1077,9 +1037,9 @@ class PageQL:
                             for i, col_name in enumerate(col_names):
                                 row_params[col_name] = ReadOnly(ev[2][i])
                             row_buf = []
+                            #print("processing node for update", body)
                             self.process_nodes(body, row_params, path, includes, http_verb, True, ctx, out=row_buf)
                             row_content = ''.join(row_buf).strip()
-                            ctx.ensure_init()
                             ctx.append_script(f"pupdate('{old_id}','{new_id}',{json.dumps(row_content)})")
                     ctx.add_listener(comp, on_event)
 
@@ -1170,6 +1130,7 @@ class PageQL:
                 own_ctx = ctx is None
                 if own_ctx:
                     ctx = RenderContext()
+                    ctx.ensure_init()
                 includes = {None: module_name}  # Dictionary to track imported modules
                 module_body, partials = self._modules[module_name]
                 

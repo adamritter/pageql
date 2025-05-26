@@ -31,11 +31,11 @@ class Signal:
             self.listeners = None
 
 
-class ReadOnly:
+class ReadOnly(Signal):
     """Simple wrapper for read-only parameters."""
 
     def __init__(self, value):
-        self.value = value
+        super().__init__(value)
 
     def __str__(self) -> str:  # pragma: no cover - trivial
         return str(self.value)
@@ -156,7 +156,7 @@ def derive_signal2(f, deps):
     if not deps or all(isinstance(d, ReadOnly) for d in deps):
         return f()
 
-    deps = [d for d in deps if isinstance(d, Signal)]
+    deps = [d for d in deps if isinstance(d, Signal) and not isinstance(d, ReadOnly)]
     return DerivedSignal2(f, deps)
 
 
@@ -165,7 +165,7 @@ def _normalize_params(params):
 
     normalized = {}
     for k, v in params.items():
-        if isinstance(v, (Signal, ReadOnly)):
+        if isinstance(v, Signal):
             normalized[k] = v.value
         else:
             normalized[k] = v

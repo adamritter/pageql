@@ -11,7 +11,7 @@ sys.modules["watchfiles"].awatch = lambda *args, **kwargs: None
 import pytest
 
 from pageql.pageql import evalone
-from pageql.reactive import DerivedSignal, Tables
+from pageql.reactive import DerivedSignal, Tables, Signal
 import sqlglot
 
 
@@ -93,4 +93,25 @@ def test_evalone_reactive_uses_expr(monkeypatch):
 
     assert sig.value == "z"
     assert called is False
+
+
+def test_evalone_caches_derivedsignal2():
+    conn = _db()
+    conn.execute("INSERT INTO items(name) VALUES ('x')")
+    tables = Tables(conn)
+    v = Signal(1)
+    sig1 = evalone(conn, "name from items where id=:v", {"v": v}, reactive=True, tables=tables)
+    sig1.listeners.append(lambda _=None: None)
+    sig2 = evalone(conn, "name from items where id=:v", {"v": v}, reactive=True, tables=tables)
+    assert sig1 is sig2
+
+
+def test_evalone_cache_key_uses_readonly_value():
+    conn = _db()
+    conn.execute("INSERT INTO items(name) VALUES ('x')")
+    tables = Tables(conn)
+    sig1 = evalone(conn, "name from items where id=:v", {"v": 1}, reactive=True, tables=tables)
+    sig1.listeners.append(lambda _=None: None)
+    sig2 = evalone(conn, "name from items where id=:v", {"v": 1}, reactive=True, tables=tables)
+    assert sig1 is sig2
 

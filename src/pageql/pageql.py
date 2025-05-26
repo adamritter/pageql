@@ -785,7 +785,7 @@ class PageQL:
                 signals = ctx.reactiveelement
                 ctx.reactiveelement = prev
                 out.extend(buf)
-                if reactive and ctx:
+                if reactive and ctx and signals:
                     ctx.ensure_init()
                     mid = ctx.marker_id()
                     ctx.append_script(f"pprevioustag({mid})", out)

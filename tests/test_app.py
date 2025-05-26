@@ -4,6 +4,17 @@ import types
 import tempfile
 import http.client
 import asyncio
+import pytest
+
+pytestmark = [
+    pytest.mark.filterwarnings(
+        "ignore:websockets.legacy is deprecated;.*", category=DeprecationWarning
+    ),
+    pytest.mark.filterwarnings(
+        "ignore:websockets.server.WebSocketServerProtocol is deprecated",
+        category=DeprecationWarning,
+    ),
+]
 # Ensure the package can be imported without optional dependencies
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 sys.modules.setdefault("watchfiles", types.ModuleType("watchfiles"))

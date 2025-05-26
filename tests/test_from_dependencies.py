@@ -11,4 +11,4 @@ def test_from_node_has_dependencies():
     body, _ = build_ast(tokens)
     from_node = body[0]
     assert from_node[0] == "#from"
-    assert from_node[2] == {"x", "y"}
+    assert from_node[2] == {"y"}

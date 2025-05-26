@@ -26,6 +26,7 @@ from pageql.reactive import (
     Signal,
     DerivedSignal,
     DerivedSignal2,
+    derive_signal2,
     OneValue,
     get_dependencies,
     Tables,
@@ -295,7 +296,7 @@ def evalone(db, exp, params, reactive=False, tables=None, expr=None):
         dv = _DV_CACHE.get(cache_key)
         if dv is not None and dv.listeners:
             return dv
-        dv = DerivedSignal2(_build, deps)
+        dv = derive_signal2(_build, deps)
         _DV_CACHE[cache_key] = dv
         return dv
 

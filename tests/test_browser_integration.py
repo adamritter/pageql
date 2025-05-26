@@ -137,7 +137,7 @@ async def test_reactive_count_insert_via_execute(browser):
         )
 
         async def after(page, port, app: PageQLApp):
-            await page.wait_for_timeout(500)
+            await page.wait_for_timeout(30)
             app.pageql_engine.tables.executeone(
                 "INSERT INTO nums(value) VALUES (1)", {}
             )
@@ -164,7 +164,7 @@ async def test_reactive_count_delete_via_execute(browser):
         )
 
         async def after(page, port, app: PageQLApp):
-            await page.wait_for_timeout(500)
+            await page.wait_for_timeout(30)
             app.pageql_engine.tables.executeone(
                 "DELETE FROM nums WHERE value = 1",
                 {},
@@ -189,11 +189,11 @@ async def test_insert_via_execute_after_click(browser):
         )
 
         async def after(page, port, app: PageQLApp):
-            await page.wait_for_timeout(500)
+            await page.wait_for_timeout(30)
             app.pageql_engine.tables.executeone(
                 "INSERT INTO msgs(text) VALUES (:text)", {"text": "hello"}
             )
-            await page.wait_for_timeout(500)
+            await page.wait_for_timeout(30)
 
         result = await _load_page_async(tmpdir, "msgs", after, reload=True, browser=browser)
         _, body_text = result
@@ -211,7 +211,7 @@ async def test_todos_add_partial_in_separate_page(browser):
         Path(tmpdir, "todos.pageql").write_text(src.read_text(), encoding="utf-8")
 
         async def after(page, port, app: PageQLApp):
-            await page.wait_for_timeout(500)
+            await page.wait_for_timeout(30)
             page2 = await page.context.browser.new_page()
             await page2.request.post(
                 f"http://127.0.0.1:{port}/todos/add",
@@ -220,7 +220,7 @@ async def test_todos_add_partial_in_separate_page(browser):
             )
             await page2.close()
             await page.goto(f"http://127.0.0.1:{port}/todos")
-            await page.wait_for_timeout(500)
+            await page.wait_for_timeout(30)
 
         result = await _load_page_async(tmpdir, "todos", after, reload=True, browser=browser)
         if result is None:

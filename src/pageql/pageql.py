@@ -1024,7 +1024,7 @@ class PageQL:
         return reactive
 
     def render(self, path, params={}, partial=None, http_verb=None,
-               in_render_directive=False, reactive=False, ctx=None):
+               in_render_directive=False, reactive=True, ctx=None):
         """
         Renders a module using its parsed AST.
 

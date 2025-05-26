@@ -20,7 +20,7 @@ def test_render_nonexistent_returns_404():
 def test_rendercontext_stops_rendering_and_collects_scripts():
     r = PageQL(":memory:")
     r.load_module("m", "hello")
-    result = r.render("/m")
+    result = r.render("/m", reactive=False)
     ctx = result.context
     assert ctx.rendering is False
     assert ctx.scripts == []
@@ -53,9 +53,10 @@ def test_reactive_toggle():
     r.load_module("reactive", "{{reactive}} {{#reactive on}}{{reactive}} {{#reactive off}}{{reactive}}")
     result = r.render("/reactive")
     expected = (
-        "False "
         "<script>pstart(0)</script>True"
-        "<script>pend(0)</script> False"
+        "<script>pend(0)</script> "
+        "<script>pstart(1)</script>True"
+        "<script>pend(1)</script> False"
     )
     assert result.body == expected
 
@@ -77,7 +78,7 @@ def test_reactive_count_with_param_dependency():
         "{{#delete from nums where value = 3}}"
     )
     r.load_module("m", snippet)
-    result = r.render("/m")
+    result = r.render("/m", reactive=False)
     expected = (
         ""
         "<script>pstart(0)</script>2<script>pend(0)</script>"
@@ -91,7 +92,7 @@ def test_render_derived_signal_value_and_eval():
     r = PageQL(":memory:")
     sig = DerivedSignal(lambda: 1, [])
     r.load_module("m", "{{foo}} {{:foo + :foo}}")
-    result = r.render("/m", {"foo": sig})
+    result = r.render("/m", {"foo": sig}, reactive=False)
     assert result.body.strip() == "1 2"
 
 
@@ -113,7 +114,7 @@ def test_from_reactive_uses_parse(monkeypatch):
     r.db.execute("CREATE TABLE items(id INTEGER PRIMARY KEY, name TEXT)")
     r.db.executemany("INSERT INTO items(name) VALUES (?)", [("a",), ("b",)])
     r.load_module("m", "{{#reactive on}}{{#from items}}[{{id}}]{{/from}}")
-    result = r.render("/m")
+    result = r.render("/m", reactive=False)
     assert seen == ["SELECT * FROM items"]
     import hashlib
     h1 = base64.b64encode(hashlib.sha256(repr((1,"a",)).encode()).digest())[:8].decode()
@@ -207,7 +208,7 @@ def test_reactive_set_comments():
 
     r = PageQL(":memory:")
     r.load_module("m", snippet)
-    result = r.render("/m")
+    result = r.render("/m", reactive=False)
     expected = (
         "\n\n\n"
         "<script>pstart(0)</script>1<script>pend(0)</script>\n"
@@ -226,7 +227,7 @@ def test_from_reactive_delete_event():
     r.db.execute("CREATE TABLE items(id INTEGER PRIMARY KEY, name TEXT)")
     r.db.executemany("INSERT INTO items(name) VALUES (?)", [("a",), ("b",)])
     r.load_module("m", "{{#reactive on}}{{#from items}}[{{id}}]{{/from}}{{#delete from items where id=1}}")
-    result = r.render("/m")
+    result = r.render("/m", reactive=False)
     import hashlib
     h1 = base64.b64encode(hashlib.sha256(repr((1,"a",)).encode()).digest())[:8].decode()
     h2 = base64.b64encode(hashlib.sha256(repr((2,"b",)).encode()).digest())[:8].decode()
@@ -249,7 +250,7 @@ def test_from_reactive_update_event():
         "m",
         "{{#reactive on}}{{#from items}}[{{name}}]{{/from}}{{#update items set name='c' where id=1}}",
     )
-    result = r.render("/m")
+    result = r.render("/m", reactive=False)
     import hashlib
 
     h1_old = base64.b64encode(hashlib.sha256(repr((1, "a",)).encode()).digest())[:8].decode()
@@ -272,7 +273,7 @@ def test_from_reactive_insert_event():
         "m",
         "{{#reactive on}}{{#from items}}[{{name}}]{{/from}}{{#insert into items(name) values ('c')}}",
     )
-    result = r.render("/m")
+    result = r.render("/m", reactive=False)
     import hashlib
 
     h1 = base64.b64encode(hashlib.sha256(repr((1, "a",)).encode()).digest())[:8].decode()
@@ -368,7 +369,7 @@ def test_if_inside_from():
         "\n      <li>\n          <input class=\"toggle\" type=\"checkbox\" {{#if 1}}checked{{/if}}>\n      text\n      </li>\n    {{/from}}"
     )
     r.load_module("m", snippet)
-    result = r.render("/m")
+    result = r.render("/m", reactive=False)
     expected = (
         "<li>\n          <input class=\"toggle\" type=\"checkbox\" checked>\n      text\n      </li>\n"
         "<li>\n          <input class=\"toggle\" type=\"checkbox\" checked>\n      text\n      </li>\n"
@@ -474,7 +475,7 @@ def test_reactiveelement_adds_pprevioustag_script():
 def test_reactiveelement_nonreactive_no_script():
     r = PageQL(":memory:")
     r.load_module("m", "<div {{#if 1}}class='x'{{/if}}></div>")
-    result = r.render("/m")
+    result = r.render("/m", reactive=False)
     assert result.body == "<div class='x'></div>"
 
 def test_reactiveelement_updates_node():

@@ -11,7 +11,7 @@ sys.modules.setdefault("watchfiles", types.ModuleType("watchfiles"))
 sys.modules["watchfiles"].awatch = lambda *args, **kwargs: None
 
 from pageql.pageql import PageQL
-from benchmarks.benchmark_pageql import MODULES, SCENARIOS, bench_factory, reset_items
+from benchmarks.benchmark_pageql import MODULES, SCENARIOS, bench_factory, reset_items, PARAMS
 
 ITERATIONS = 1000
 
@@ -25,7 +25,7 @@ def test_render_cleanup_no_leaks(tmp_path):
             if m != 'other' and m != name:
                 continue
             pql.load_module(m, src)
-        bench = bench_factory(name)
+        bench = lambda p, n=name: p.render('/' + n, PARAMS.get(n, {}), reactive=False)
         # Warm up caches
         result = bench(pql)
         if result.context:

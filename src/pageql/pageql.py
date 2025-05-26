@@ -1095,8 +1095,8 @@ class PageQL:
         params = flatten_params(params)
         if reactive:
             for k, v in list(params.items()):
-                if not isinstance(v, DerivedSignal):
-                    params[k] = DerivedSignal(lambda v=v: v, [])
+                if not isinstance(v, Signal):
+                    params[k] = ReadOnly(v)
         params['reactive'] = reactive
         
         # Convert partial to list if it's a string

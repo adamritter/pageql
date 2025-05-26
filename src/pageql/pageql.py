@@ -271,7 +271,7 @@ def evalone(db, exp, params, reactive=False, tables=None, expr=None):
         for name in dep_names:
             val = params.get(name)
             if val is not None and not isinstance(val, (Signal, ReadOnly)):
-                params[name] = DerivedSignal(lambda v=val: v, [])
+                params[name] = ReadOnly(val)
         deps = [params[name] for name in dep_names if isinstance(params[name], Signal)]
         def _build():
             nonlocal expr

@@ -67,29 +67,6 @@ def test_evalone_reactive_sql_updates():
     rt.update("UPDATE items SET name='b' WHERE id=1", {})
     assert sig.value == "b"
 
-
-def test_evalone_reactive_param_and_table_updates():
-    conn = _db()
-    conn.executemany("INSERT INTO items(name) VALUES (?)", [("a",), ("b",)])
-    tables = Tables(conn)
-    params = {"rid": 1}
-    sig = evalone(
-        conn,
-        "name from items where id=:rid",
-        params,
-        reactive=True,
-        tables=tables,
-    )
-    assert sig.value == "a"
-
-    params["rid"].set_value(2)
-    assert sig.value == "b"
-
-    rt = tables._get("items")
-    rt.update("UPDATE items SET name='c' WHERE id=2", {})
-    assert sig.value == "c"
-
-
 def test_evalone_reactive_uses_expr(monkeypatch):
     conn = _db()
     conn.execute("INSERT INTO items(name) VALUES ('z')")

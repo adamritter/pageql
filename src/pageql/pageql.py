@@ -233,7 +233,7 @@ def db_execute_dot(db, exp, params):
                           exp)
     converted_params = {}
     for k, v in params.items():
-        if isinstance(v, (DerivedSignal, ReadOnly)):
+        if isinstance(v, Signal):
             converted_params[k] = v.value
         else:
             converted_params[k] = v
@@ -248,14 +248,14 @@ def evalone(db, exp, params, reactive=False, tables=None, expr=None):
         if exp in params:
             val = params[exp]
             if reactive:
+                if isinstance(val, ReadOnly):
+                    return val
                 if isinstance(val, Signal):
                     return val
-                if isinstance(val, ReadOnly):
-                    return val.value
                 signal = DerivedSignal(lambda v=val: v, [])
                 params[exp] = signal
                 return signal
-            if isinstance(val, (DerivedSignal, ReadOnly)):
+            if isinstance(val, Signal):
                 return val.value
             return val
         
@@ -273,13 +273,13 @@ def evalone(db, exp, params, reactive=False, tables=None, expr=None):
         dep_names = [name.replace('.', '__') for name in get_dependencies(sql)]
         for name in dep_names:
             val = params.get(name)
-            if val is not None and not isinstance(val, (Signal, ReadOnly)):
+            if val is not None and not isinstance(val, Signal):
                 params[name] = ReadOnly(val)
         deps = []
         dep_keys = []
         for name in dep_names:
             val = params.get(name)
-            if isinstance(val, Signal):
+            if isinstance(val, Signal) and not isinstance(val, ReadOnly):
                 deps.append(val)
             if isinstance(val, ReadOnly):
                 dep_keys.append(val.value)
@@ -291,8 +291,6 @@ def evalone(db, exp, params, reactive=False, tables=None, expr=None):
                 expr = sqlglot.parse_one(sql)
             #print("parse_reactive: ", expr.sql())
             comp = parse_reactive(expr, tables, params, one_value=True)
-            if isinstance(comp, ReadOnly):
-                return DerivedSignal(lambda v=comp.value: v, [])
             return comp
         cache_key = (id(tables), sql, tuple(dep_keys))
         dv = _DV_CACHE.get(cache_key)
@@ -921,7 +919,7 @@ class PageQL:
                                  lambda m: ':' + m.group(1).replace('.', '__'),
                                  sql)
                     converted_params = {
-                        k: (v.value if isinstance(v, (DerivedSignal, ReadOnly)) else v)
+                        k: (v.value if isinstance(v, Signal) else v)
                         for k, v in params.items()
                     }
                     expr_copy = expr.copy()

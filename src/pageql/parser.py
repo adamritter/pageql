@@ -1,5 +1,6 @@
 import re
 import sqlglot
+from .reactive import get_dependencies
 
 
 def quote_state(text: str, start_state: str | None = None) -> str | None:
@@ -350,3 +351,91 @@ def add_reactive_elements(nodes):
             output_nodes.extend(tag_buffer)
 
     return output_nodes
+
+
+def ast_param_dependencies(ast):
+    """Return parameter names referenced anywhere in *ast* expressions.
+
+    The function traverses the AST produced by :func:`build_ast` and
+    collects all parameter names used in SQL expressions or directives.
+    """
+    if isinstance(ast, tuple) and len(ast) == 2:
+        body, partials = ast
+    else:
+        body, partials = ast, {}
+
+    deps: set[str] = set()
+
+    def walk_nodes(nodes):
+        for node in nodes:
+            walk(node)
+
+    def walk(node):
+        if isinstance(node, tuple):
+            t, c = node
+            if t in {"render_expression", "render_raw"}:
+                deps.update(get_dependencies(c))
+            elif t == "#set":
+                deps.update(get_dependencies(c[1]))
+            elif t in {"#update", "#insert", "#delete", "#merge", "#create", "#redirect", "#statuscode"}:
+                deps.update(get_dependencies(c))
+            elif t == "#render":
+                _, rest = parsefirstword(c)
+                if rest:
+                    for expr in re.findall(r"=[^=]+(?:(?=\s+[A-Za-z_][A-Za-z0-9_.]*\s*=)|$)", rest):
+                        deps.update(get_dependencies(expr[1:].strip()))
+            elif t in {"#ifdef", "#ifndef"}:
+                param = c.strip()
+                if param.startswith(":"):
+                    param = param[1:]
+                param = param.replace(".", "__")
+                deps.add(param)
+        elif isinstance(node, list):
+            name = node[0]
+            if name == "#if":
+                deps.update(get_dependencies(node[1][0]))
+                walk_nodes(node[2])
+                i = 3
+                while i < len(node):
+                    if i == len(node) - 1:
+                        walk_nodes(node[i])
+                        break
+                    deps.update(get_dependencies(node[i][0]))
+                    walk_nodes(node[i + 1])
+                    i += 2
+            elif name in {"#ifdef", "#ifndef"}:
+                param = node[1].strip()
+                if param.startswith(":"):
+                    param = param[1:]
+                param = param.replace(".", "__")
+                deps.add(param)
+                walk_nodes(node[2])
+                if len(node) > 3:
+                    walk_nodes(node[3])
+            elif name == "#from":
+                deps.update(get_dependencies("SELECT * FROM " + node[1][0]))
+                walk_nodes(node[2])
+            elif name == "#render":
+                _, rest = parsefirstword(node[1])
+                if rest:
+                    for expr in re.findall(r"=[^=]+(?:(?=\s+[A-Za-z_][A-Za-z0-9_.]*\s*=)|$)", rest):
+                        deps.update(get_dependencies(expr[1:].strip()))
+            else:
+                for part in node[1:]:
+                    if isinstance(part, list):
+                        walk_nodes(part)
+        # ignore other nodes
+
+    walk_nodes(body)
+
+    def walk_partials(parts):
+        for val in parts.values():
+            if len(val) == 2:
+                b, sub = val
+            else:
+                _, b, sub = val
+            walk_nodes(b)
+            walk_partials(sub)
+
+    walk_partials(partials)
+    return deps

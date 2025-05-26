@@ -663,4 +663,4 @@ def test_pinsert_does_not_send_marker_scripts():
     assert len(ctx.scripts) == 1
     sc = ctx.scripts[0]
     assert sc.startswith("pinsert(")
-    assert "pstart" in sc and "pend" in sc
+    assert "pstart" not in sc and "pend" not in sc

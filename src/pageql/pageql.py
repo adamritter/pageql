@@ -317,8 +317,8 @@ class PageQL:
         Args:
             db_path: Path to the SQLite database file to be used.
         """
-        self._modules = {} # Store parsed node lists here later
-        self._parse_errors = {} # Store errors here
+        self._modules = {}  # Store parsed node lists here later
+        self._parse_errors = {}  # Store errors here
         self.db = sqlite3.connect(db_path)
         # Configure SQLite for web server usage
         with self.db:
@@ -328,6 +328,18 @@ class PageQL:
             self.db.execute("PRAGMA cache_size=10000")
         self.tables = Tables(self.db)
         self._from_cache = {}
+
+    def close(self):
+        """Close the underlying SQLite connection."""
+        if getattr(self, "db", None):
+            self.db.close()
+            self.db = None
+
+    def __del__(self):
+        try:
+            self.close()
+        except Exception:
+            pass
 
     def load_module(self, name, source):
         """

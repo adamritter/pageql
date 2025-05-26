@@ -14,7 +14,7 @@ from playwright_helpers import load_page
 
 
 
-
+@pytest.mark.filterwarnings("ignore:.*:DeprecationWarning")
 def test_hello_world_in_browser():
     pytest.importorskip("playwright.async_api")
 
@@ -28,6 +28,7 @@ def test_hello_world_in_browser():
         assert "Hello world!" in body_text
 
 
+@pytest.mark.filterwarnings("ignore:.*:DeprecationWarning")
 def test_set_variable_in_browser():
     """Ensure directives work when rendered through the ASGI app."""
     pytest.importorskip("playwright.async_api")
@@ -42,6 +43,7 @@ def test_set_variable_in_browser():
         assert "Hello world" in body_text
 
 
+@pytest.mark.filterwarnings("ignore:.*:DeprecationWarning")
 def test_reactive_set_variable_in_browser():
     """Ensure reactive mode updates are sent to the browser."""
     pytest.importorskip("playwright.async_api")
@@ -68,6 +70,7 @@ def test_reactive_set_variable_in_browser():
         assert text == "hello world"
 
 
+@pytest.mark.filterwarnings("ignore:.*:DeprecationWarning")
 def test_reactive_count_insert_in_browser():
     """Count updates should be delivered to the browser when rows are inserted."""
     pytest.importorskip("playwright.async_api")
@@ -95,6 +98,7 @@ def test_reactive_count_insert_in_browser():
         assert body_text == "1"
 
 
+@pytest.mark.filterwarnings("ignore:.*:DeprecationWarning")
 def test_reactive_count_insert_via_execute():
     """Count updates should propagate when inserting after initial load."""
     pytest.importorskip("playwright.async_api")
@@ -125,6 +129,7 @@ def test_reactive_count_insert_via_execute():
         assert body_text == "1"
 
 
+@pytest.mark.filterwarnings("ignore:.*:DeprecationWarning")
 def test_reactive_count_delete_via_execute():
     """Count should decrement when a row is deleted via executeone."""
     pytest.importorskip("playwright.async_api")
@@ -151,6 +156,7 @@ def test_reactive_count_delete_via_execute():
 
         assert body_text == "0"
 
+@pytest.mark.filterwarnings("ignore:.*:DeprecationWarning")
 def test_insert_via_execute_after_click():
     """Inserting via ``executeone`` should display the added text reactively."""
     pytest.importorskip("playwright.async_api")
@@ -176,6 +182,7 @@ def test_insert_via_execute_after_click():
         assert "hello" in body_text
 
 
+@pytest.mark.filterwarnings("ignore:.*:DeprecationWarning")
 def test_todos_add_partial_in_separate_page():
     """Render todos then invoke the add partial from a second page."""
     pytest.importorskip("playwright.async_api")

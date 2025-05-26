@@ -161,14 +161,6 @@ def parse_reactive(
         if comp is not None and comp.listeners:
             return comp
 
-    if list(expr.find_all(exp.Join)):
-        comp = FallbackReactive(tables, sql, expr)
-    else:
-        try:
-            comp = build_reactive(expr, tables)
-        except NotImplementedError:
-            comp = FallbackReactive(tables, sql, expr)
-
     # If the expression references no tables the result is constant, so
     # return a simple ReadOnly wrapper instead of a reactive component.
     if not list(expr.find_all(exp.Table)):
@@ -177,6 +169,14 @@ def parse_reactive(
             return ReadOnly(row[0] if row else None)
         rows = tables.conn.execute(sql).fetchall()
         return ReadOnly(rows)
+
+    if list(expr.find_all(exp.Join)):
+        comp = FallbackReactive(tables, sql, expr)
+    else:
+        try:
+            comp = build_reactive(expr, tables)
+        except NotImplementedError:
+            comp = FallbackReactive(tables, sql, expr)
 
     if one_value:
         comp = OneValue(comp)

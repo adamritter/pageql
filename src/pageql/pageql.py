@@ -95,6 +95,8 @@ def parse_param_attrs(s):
 
     return attrs
 
+_DV_CACHE: dict[tuple[int, str, tuple], DerivedSignal2] = {}
+
 # Short descriptions for valid PageQL directives. Each entry includes a
 # minimal syntax reminder to make the help output more useful.
 DIRECTIVE_HELP: dict[str, str] = {
@@ -272,7 +274,16 @@ def evalone(db, exp, params, reactive=False, tables=None, expr=None):
             val = params.get(name)
             if val is not None and not isinstance(val, (Signal, ReadOnly)):
                 params[name] = ReadOnly(val)
-        deps = [params[name] for name in dep_names if isinstance(params[name], Signal)]
+        deps = []
+        dep_keys = []
+        for name in dep_names:
+            val = params.get(name)
+            if isinstance(val, Signal):
+                deps.append(val)
+            if isinstance(val, ReadOnly):
+                dep_keys.append(val.value)
+            else:
+                dep_keys.append(id(val))
         def _build():
             nonlocal expr
             if expr is None:
@@ -280,9 +291,15 @@ def evalone(db, exp, params, reactive=False, tables=None, expr=None):
             #print("parse_reactive: ", expr.sql())
             comp = parse_reactive(expr, tables, params, one_value=True)
             return comp
-
+        cache_key = None
+        if dep_keys:
+            cache_key = (id(tables), sql, tuple(dep_keys))
+            dv = _DV_CACHE.get(cache_key)
+            if dv is not None and dv.listeners:
+                return dv
         dv = DerivedSignal2(_build, deps)
-
+        if cache_key:
+            _DV_CACHE[cache_key] = dv
         return dv
 
     try:

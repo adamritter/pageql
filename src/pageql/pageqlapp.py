@@ -190,6 +190,7 @@ class PageQLApp:
 
         # Decode headers and query parameters early so we can obtain the client id
         headers = {k.decode('utf-8').replace('-', '_'): v.decode('utf-8') for k, v in scope['headers']}
+        include_scripts = headers.get('hx_mode', '').lower() != 'none'
         query = scope['query_string']
         query_params = parse_qs(query, keep_blank_values=True)
 
@@ -210,8 +211,12 @@ class PageQLApp:
             self._log(f"Serving static file: {path_cleaned} as {content_type}")
             if content_type == 'text/html':
                 content_type = 'text/html; charset=utf-8'
-                scripts = base_script + (reload_ws_script(client_id) if self.should_reload else '')
-                body = scripts.encode('utf-8') + self.static_files[path_cleaned]
+                body = self.static_files[path_cleaned]
+                if include_scripts:
+                    scripts = base_script + (
+                        reload_ws_script(client_id) if self.should_reload else ''
+                    )
+                    body = scripts.encode('utf-8') + body
             else:
                 body = self.static_files[path_cleaned]
             headers_list = [(b'content-type', content_type.encode('utf-8'))]
@@ -297,7 +302,12 @@ class PageQLApp:
                     'status': result.status_code,
                     'headers': headers,
                 })
-                scripts = base_script + (reload_ws_script(client_id) if self.should_reload else '')
+                scripts = (
+                    base_script
+                    + (reload_ws_script(client_id) if self.should_reload else '')
+                    if include_scripts
+                    else ''
+                )
                 body_content = scripts + result.body
                 low = result.body.lower()
                 if '<body' not in low:
@@ -318,7 +328,12 @@ class PageQLApp:
                 'status': 500,
                 'headers': [(b'content-type', b'text/html; charset=utf-8')],
             })
-            scripts = base_script + (reload_ws_script(client_id) if self.should_reload else '')
+            scripts = (
+                base_script
+                + (reload_ws_script(client_id) if self.should_reload else '')
+                if include_scripts
+                else ''
+            )
             await send({
                 'type': 'http.response.body',
                 'body': (scripts + f"Database Error: {db_err}").encode('utf-8'),
@@ -330,7 +345,12 @@ class PageQLApp:
                 'status': 400,
                 'headers': [(b'content-type', b'text/html; charset=utf-8')],
             })
-            scripts = base_script + (reload_ws_script(client_id) if self.should_reload else '')
+            scripts = (
+                base_script
+                + (reload_ws_script(client_id) if self.should_reload else '')
+                if include_scripts
+                else ''
+            )
             await send({
                 'type': 'http.response.body',
                 'body': (scripts + f"Bad Request: {val_err}").encode('utf-8'),
@@ -342,10 +362,15 @@ class PageQLApp:
                 'status': 404,
                 'headers': [(b'content-type', b'text/html; charset=utf-8')],
             })
-            scripts = base_script + (reload_ws_script(client_id) if self.should_reload else '')
+            scripts = (
+                base_script
+                + (reload_ws_script(client_id) if self.should_reload else '')
+                if include_scripts
+                else ''
+            )
             await send({
                 'type': 'http.response.body',
-                'body': (scripts.encode('utf-8') + b"Not Found"),
+                'body': (scripts.encode('utf-8') + b"Not Found") if include_scripts else b"Not Found",
             })
         except Exception as e:
             self._error(f"ERROR: Unexpected error during render: {e}")
@@ -356,10 +381,15 @@ class PageQLApp:
                 'status': 500,
                 'headers': [(b'content-type', b'text/html; charset=utf-8')],
             })
-            scripts = base_script + (reload_ws_script(client_id) if self.should_reload else '')
+            scripts = (
+                base_script
+                + (reload_ws_script(client_id) if self.should_reload else '')
+                if include_scripts
+                else ''
+            )
             await send({
                 'type': 'http.response.body',
-                'body': (scripts + f"Internal Server Error: {e}").encode('utf-8'),
+                'body': ((scripts + f"Internal Server Error: {e}").encode('utf-8')) if include_scripts else f"Internal Server Error: {e}".encode('utf-8'),
             })
 
         return client_id

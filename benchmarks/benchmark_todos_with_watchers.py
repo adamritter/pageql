@@ -8,8 +8,8 @@ import pstats
 import io
 
 RENDER_WATCHERS = 1000
-INSERTS = 20
-TOGGLE_ITERATIONS = 1
+INSERTS = 200
+TOGGLE_ITERATIONS = 10
 
 
 def run_benchmark(db_path: str) -> None:
@@ -45,12 +45,14 @@ def run_benchmark(db_path: str) -> None:
 
     pql.db.close()
     assert len(ctxs) == RENDER_WATCHERS
-    print(f"{(elapsed/TOGGLE_ITERATIONS)*1000:.4f}ms per toggle")
     s = io.StringIO()
     pstats.Stats(profiler, stream=s).strip_dirs().sort_stats("cumulative").print_stats(20)
     print(s.getvalue())
-    print("scripts array length:", len(ctxs[0].scripts))
     assert len(ctxs[0].scripts) == TOGGLE_ITERATIONS * 2 + 1
+    print(f"{(elapsed/TOGGLE_ITERATIONS)*1000:.4f}ms per toggle")
+    total_messages = RENDER_WATCHERS * TOGGLE_ITERATIONS
+    messages_per_second = total_messages / elapsed
+    print(f"{messages_per_second:.0f} messages/second")
 
 
 if __name__ == "__main__":

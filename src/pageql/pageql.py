@@ -97,7 +97,7 @@ def parse_param_attrs(s):
     return attrs
 
 _DV_CACHE: dict[tuple[int, str, tuple], DerivedSignal2] = {}
-_ONEVENT_CACHE: dict[tuple[int, int, tuple], str] = {}
+_ONEVENT_CACHE: dict[tuple[int, int, str, tuple], str] = {}
 
 # Short descriptions for valid PageQL directives. Each entry includes a
 # minimal syntax reminder to make the help output more useful.
@@ -959,10 +959,20 @@ class PageQL:
                     mid = ctx.marker_id()
                     ctx.append_script(f"pstart({mid})")
                 saved_params = params.copy()
-                cachable_onevent = False
+                extra_cache_key = ""
                 if ctx and reactive:
                     dep_set = deps if len(node) == 4 else set()
-                    cachable_onevent = all(d in col_names for d in dep_set)
+                    extra_params = sorted(d for d in dep_set if d not in col_names)
+                    if extra_params:
+                        extra_cache_values = {}
+                        for k in extra_params:
+                            v = saved_params.get(k)
+                            if isinstance(v, ReadOnly):
+                                v = v.value
+                            if isinstance(v, Signal):
+                                v = v.value
+                            extra_cache_values[k] = v
+                        extra_cache_key = json.dumps(extra_cache_values, sort_keys=True)
                 for row in rows:
                     row_params = params.copy()
                     for i, col_name in enumerate(col_names):
@@ -987,30 +997,29 @@ class PageQL:
                                    body=body, col_names=col_names, path=path,
                                    includes=includes, http_verb=http_verb,
                                    saved_params=saved_params,
-                                   cachable=cachable_onevent):
+                                   extra_cache_key=extra_cache_key):
                         if ev[0] == 2:
                             row_id = f"{mid}_{base64.b64encode(hashlib.sha256(repr(tuple(ev[1])).encode()).digest())[:8].decode()}"
                             ctx.append_script(f"pdelete('{row_id}')")
                         elif ev[0] == 1:
                             row_id = f"{mid}_{base64.b64encode(hashlib.sha256(repr(tuple(ev[1])).encode()).digest())[:8].decode()}"
-                            cache_key = (id(comp), 1, tuple(ev[1]))
+                            cache_key = (id(comp), 1, extra_cache_key, tuple(ev[1]))
                             row_content = _ONEVENT_CACHE.get(cache_key)
-                            if row_content is None or not cachable:
+                            if row_content is None:
                                 row_params = saved_params.copy()
                                 for i, col_name in enumerate(col_names):
                                     row_params[col_name] = ReadOnly(ev[1][i])
                                 row_buf = []
                                 self.process_nodes(body, row_params, path, includes, http_verb, True, ctx, out=row_buf)
                                 row_content = ''.join(row_buf).strip()
-                                if cachable:
-                                    _ONEVENT_CACHE[cache_key] = row_content
+                                _ONEVENT_CACHE[cache_key] = row_content
                             ctx.append_script(f"pinsert('{row_id}',{json.dumps(row_content)})")
                         elif ev[0] == 3:
                             old_id = f"{mid}_{base64.b64encode(hashlib.sha256(repr(tuple(ev[1])).encode()).digest())[:8].decode()}"
                             new_id = f"{mid}_{base64.b64encode(hashlib.sha256(repr(tuple(ev[2])).encode()).digest())[:8].decode()}"
-                            cache_key = (id(comp), 3, tuple(ev[2]))
+                            cache_key = (id(comp), 3, extra_cache_key, tuple(ev[2]))
                             row_content = _ONEVENT_CACHE.get(cache_key)
-                            if row_content is None or not cachable:
+                            if row_content is None:
                                 row_params = saved_params.copy()
                                 for i, col_name in enumerate(col_names):
                                     row_params[col_name] = ReadOnly(ev[2][i])
@@ -1018,8 +1027,7 @@ class PageQL:
                                 #print("processing node for update", body)
                                 self.process_nodes(body, row_params, path, includes, http_verb, True, ctx, out=row_buf)
                                 row_content = ''.join(row_buf).strip()
-                                if cachable:
-                                    _ONEVENT_CACHE[cache_key] = row_content
+                                _ONEVENT_CACHE[cache_key] = row_content
                             ctx.append_script(f"pupdate('{old_id}','{new_id}',{json.dumps(row_content)})")
                     ctx.add_listener(comp, on_event)
 

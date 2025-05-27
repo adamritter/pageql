@@ -23,7 +23,7 @@ def test_from_cachable_true_with_column_param():
     )
     result = r.render("/m")
     listener = result.context.listeners[0][1]
-    assert listener.__kwdefaults__["cachable"] is True
+    assert listener.__kwdefaults__["extra_cache_key"] == ""
 
 
 def test_from_cachable_false_with_external_param():
@@ -35,4 +35,4 @@ def test_from_cachable_false_with_external_param():
     )
     result = r.render("/m", params={"other": 1})
     listener = result.context.listeners[0][1]
-    assert listener.__kwdefaults__["cachable"] is False
+    assert listener.__kwdefaults__["extra_cache_key"] == '{"other": 1}'

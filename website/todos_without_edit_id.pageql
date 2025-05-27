@@ -1,3 +1,4 @@
+{{#reactive on}}
 {{#partial post add}}
   {{#insert into todos(text) values (:text)}}
 {{/partial}}

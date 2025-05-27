@@ -57,7 +57,16 @@
   ORDER BY id}}
     <li {{#if completed}}class="completed"{{/if}}>
         <input hx-post="/todos/{{id}}/toggle" class="toggle" type="checkbox" {{#if completed}}checked{{/if}}>
-        <label hx-get="/?edit_id={{id}}">{{text}}</label>
+        <label
+          contenteditable="false"
+          onclick="this.contentEditable=true;this.focus();"
+          onblur="this.contentEditable=false;"
+          onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}"
+          hx-patch="/todos/{{id}}"
+          hx-trigger="blur"
+          hx-vals='js:{text: this.innerText}'
+          hx-swap="none"
+        >{{text}}</label>
         <button hx-delete="/todos/{{id}}" class="destroy" style="cursor:pointer; background:none; border:none; color:#ac4a1a;">✕</button>
     </li>
 {{/from}}

@@ -757,13 +757,13 @@ class PageQL:
                 # fetchall the table and dump it
                 cursor = db_execute_dot(self.db, "select * from " + node_content, params)
                 t = time.time()
-                all = cursor.fetchall()
+                rows_all = cursor.fetchall()
                 end_time = time.time()
                 ctx.out.append("<table>")
                 for col in cursor.description:
                     ctx.out.append("<th>" + col[0] + "</th>")
                 ctx.out.append("</tr>")
-                for row in all:
+                for row in rows_all:
                     ctx.out.append("<tr>")
                     for cell in row:
                         ctx.out.append("<td>" + str(cell) + "</td>")
@@ -958,6 +958,10 @@ class PageQL:
                     mid = ctx.marker_id()
                     ctx.append_script(f"pstart({mid})")
                 saved_params = params.copy()
+                cachable_onevent = False
+                if ctx and reactive:
+                    dep_set = deps if len(node) == 4 else set()
+                    cachable_onevent = all(d in col_names for d in dep_set)
                 for row in rows:
                     row_params = params.copy()
                     for i, col_name in enumerate(col_names):
@@ -981,7 +985,8 @@ class PageQL:
                     def on_event(ev, *, mid=mid, ctx=ctx,
                                    body=body, col_names=col_names, path=path,
                                    includes=includes, http_verb=http_verb,
-                                   saved_params=saved_params):
+                                   saved_params=saved_params,
+                                   cachable=cachable_onevent):
                         if ev[0] == 2:
                             row_id = f"{mid}_{base64.b64encode(hashlib.sha256(repr(tuple(ev[1])).encode()).digest())[:8].decode()}"
                             ctx.append_script(f"pdelete('{row_id}')")

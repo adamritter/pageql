@@ -97,6 +97,7 @@ def parse_param_attrs(s):
     return attrs
 
 _DV_CACHE: dict[tuple[int, str, tuple], DerivedSignal2] = {}
+_ONEVENT_CACHE: dict[tuple[int, int, tuple], str] = {}
 
 # Short descriptions for valid PageQL directives. Each entry includes a
 # minimal syntax reminder to make the help output more useful.
@@ -992,23 +993,33 @@ class PageQL:
                             ctx.append_script(f"pdelete('{row_id}')")
                         elif ev[0] == 1:
                             row_id = f"{mid}_{base64.b64encode(hashlib.sha256(repr(tuple(ev[1])).encode()).digest())[:8].decode()}"
-                            row_params = saved_params.copy()
-                            for i, col_name in enumerate(col_names):
-                                row_params[col_name] = ReadOnly(ev[1][i])
-                            row_buf = []
-                            self.process_nodes(body, row_params, path, includes, http_verb, True, ctx, out=row_buf)
-                            row_content = ''.join(row_buf).strip()
+                            cache_key = (id(comp), 1, tuple(ev[1]))
+                            row_content = _ONEVENT_CACHE.get(cache_key)
+                            if row_content is None or not cachable:
+                                row_params = saved_params.copy()
+                                for i, col_name in enumerate(col_names):
+                                    row_params[col_name] = ReadOnly(ev[1][i])
+                                row_buf = []
+                                self.process_nodes(body, row_params, path, includes, http_verb, True, ctx, out=row_buf)
+                                row_content = ''.join(row_buf).strip()
+                                if cachable:
+                                    _ONEVENT_CACHE[cache_key] = row_content
                             ctx.append_script(f"pinsert('{row_id}',{json.dumps(row_content)})")
                         elif ev[0] == 3:
                             old_id = f"{mid}_{base64.b64encode(hashlib.sha256(repr(tuple(ev[1])).encode()).digest())[:8].decode()}"
                             new_id = f"{mid}_{base64.b64encode(hashlib.sha256(repr(tuple(ev[2])).encode()).digest())[:8].decode()}"
-                            row_params = saved_params.copy()
-                            for i, col_name in enumerate(col_names):
-                                row_params[col_name] = ReadOnly(ev[2][i])
-                            row_buf = []
-                            #print("processing node for update", body)
-                            self.process_nodes(body, row_params, path, includes, http_verb, True, ctx, out=row_buf)
-                            row_content = ''.join(row_buf).strip()
+                            cache_key = (id(comp), 3, tuple(ev[2]))
+                            row_content = _ONEVENT_CACHE.get(cache_key)
+                            if row_content is None or not cachable:
+                                row_params = saved_params.copy()
+                                for i, col_name in enumerate(col_names):
+                                    row_params[col_name] = ReadOnly(ev[2][i])
+                                row_buf = []
+                                #print("processing node for update", body)
+                                self.process_nodes(body, row_params, path, includes, http_verb, True, ctx, out=row_buf)
+                                row_content = ''.join(row_buf).strip()
+                                if cachable:
+                                    _ONEVENT_CACHE[cache_key] = row_content
                             ctx.append_script(f"pupdate('{old_id}','{new_id}',{json.dumps(row_content)})")
                     ctx.add_listener(comp, on_event)
 
@@ -1168,6 +1179,7 @@ class PageQL:
             self.db.commit()
             return e.render_result
         self.db.commit()
+        _ONEVENT_CACHE.clear()
         return result
 
 # Example of how to run the examples if this file is executed

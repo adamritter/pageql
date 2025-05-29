@@ -151,13 +151,26 @@ async def run_benchmark() -> None:
 
     print(f"{1000/elapsed:.2f} QPS")
 
-    # insert a todo and wait for websocket updates
+    # insert multiple todos concurrently and wait for websocket updates
     start = time.perf_counter()
-    r, w, _ = await post("127.0.0.1", port, "/todos/add", "text=bench")
-    connections.append((r, w))
-    await asyncio.gather(*[ws.recv() for ws in websocket_connections])
+    post_tasks = [
+        asyncio.create_task(
+            post("127.0.0.1", port, "/todos/add", f"text=bench{i}")
+        )
+        for i in range(10)
+    ]
+    results = await asyncio.gather(*post_tasks)
+    for r, w, _ in results:
+        connections.append((r, w))
+
+    async def drain_ws(ws):
+        for _ in range(10):
+            await ws.recv()
+
+    await asyncio.gather(*(drain_ws(ws) for ws in websocket_connections))
     ws_elapsed = time.perf_counter() - start
-    print(f"{len(websocket_connections)/ws_elapsed:.2f} WS QPS")
+    total_msgs = len(websocket_connections) * 10
+    print(f"{total_msgs/ws_elapsed:.2f} WS QPS")
 
     server.should_exit = True
     await server_task

@@ -9,6 +9,12 @@ from uvicorn.server import Server
 from pageql.pageqlapp import PageQLApp
 import websockets
 
+# number of HTTP requests to issue when measuring request/response throughput
+REQUEST_ITERATIONS = 1000
+
+# number of todo items inserted and websocket messages drained
+TODO_COUNT = 10
+
 
 async def _read_chunked_body(reader: asyncio.StreamReader) -> bytes:
     chunks = []
@@ -135,7 +141,7 @@ async def run_benchmark() -> None:
         print("Client ID not found")
 
     start = time.perf_counter()
-    for _ in range(1000):
+    for _ in range(REQUEST_ITERATIONS):
         reader, writer, body = await fetch("127.0.0.1", port, "/todos", return_body=True)
         connections.append((reader, writer))
         match = re.search(r"const clientId = \"([^\"]+)\"", body)
@@ -149,7 +155,7 @@ async def run_benchmark() -> None:
                 pass
     elapsed = time.perf_counter() - start
 
-    print(f"{1000/elapsed:.2f} QPS")
+    print(f"{REQUEST_ITERATIONS/elapsed:.2f} QPS")
 
     # insert multiple todos concurrently and wait for websocket updates
     start = time.perf_counter()
@@ -157,19 +163,19 @@ async def run_benchmark() -> None:
         asyncio.create_task(
             post("127.0.0.1", port, "/todos/add", f"text=bench{i}")
         )
-        for i in range(10)
+        for i in range(TODO_COUNT)
     ]
     results = await asyncio.gather(*post_tasks)
     for r, w, _ in results:
         connections.append((r, w))
 
     async def drain_ws(ws):
-        for _ in range(10):
+        for _ in range(TODO_COUNT):
             await ws.recv()
 
     await asyncio.gather(*(drain_ws(ws) for ws in websocket_connections))
     ws_elapsed = time.perf_counter() - start
-    total_msgs = len(websocket_connections) * 10
+    total_msgs = len(websocket_connections) * TODO_COUNT
     print(f"{total_msgs/ws_elapsed:.2f} WS QPS")
 
     server.should_exit = True

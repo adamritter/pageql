@@ -59,6 +59,43 @@ async def fetch(host: str, port: int, path: str, *, return_body: bool = False):
     return reader, writer, body
 
 
+async def post(host: str, port: int, path: str, data: str, *, return_body: bool = False):
+    reader, writer = await asyncio.open_connection(host, port)
+    body_bytes = data.encode()
+    request = (
+        f"POST {path} HTTP/1.1\r\n"
+        f"Host: {host}\r\n"
+        "Content-Type: application/x-www-form-urlencoded\r\n"
+        f"Content-Length: {len(body_bytes)}\r\n"
+        "Connection: keep-alive\r\n"
+        "\r\n"
+    )
+    writer.write(request.encode() + body_bytes)
+    await writer.drain()
+
+    await reader.readline()  # status line
+    headers = {}
+    while True:
+        line = await reader.readline()
+        if line == b"\r\n":
+            break
+        key, val = line.decode().split(":", 1)
+        headers[key.strip().lower()] = val.strip()
+
+    body = None
+    if return_body:
+        if headers.get("transfer-encoding") == "chunked":
+            body_bytes = await _read_chunked_body(reader)
+        elif "content-length" in headers:
+            length = int(headers["content-length"])
+            body_bytes = await reader.readexactly(length)
+        else:
+            body_bytes = await reader.read()  # fallback
+        body = body_bytes.decode()
+
+    return reader, writer, body
+
+
 async def run_benchmark() -> None:
     templates_dir = Path(__file__).resolve().parents[1] / "website"
     app = PageQLApp(
@@ -113,6 +150,14 @@ async def run_benchmark() -> None:
     elapsed = time.perf_counter() - start
 
     print(f"{1000/elapsed:.2f} QPS")
+
+    # insert a todo and wait for websocket updates
+    start = time.perf_counter()
+    r, w, _ = await post("127.0.0.1", port, "/todos/add", "text=bench")
+    connections.append((r, w))
+    await asyncio.gather(*[ws.recv() for ws in websocket_connections])
+    ws_elapsed = time.perf_counter() - start
+    print(f"{len(websocket_connections)/ws_elapsed:.2f} WS QPS")
 
     server.should_exit = True
     await server_task

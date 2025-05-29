@@ -98,7 +98,7 @@ async def run_benchmark() -> None:
         print("Client ID not found")
 
     start = time.perf_counter()
-    for _ in range(10000):
+    for _ in range(1000):
         reader, writer, body = await fetch("127.0.0.1", port, "/todos", return_body=True)
         connections.append((reader, writer))
         match = re.search(r"const clientId = \"([^\"]+)\"", body)
@@ -112,7 +112,7 @@ async def run_benchmark() -> None:
                 pass
     elapsed = time.perf_counter() - start
 
-    print(f"{10000/elapsed:.2f} QPS")
+    print(f"{1000/elapsed:.2f} QPS")
 
     server.should_exit = True
     await server_task

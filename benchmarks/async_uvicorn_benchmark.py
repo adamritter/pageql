@@ -79,25 +79,37 @@ async def run_benchmark() -> None:
 
     # warmup and extract client id
     connections = []
+    websocket_connections = []
+
     reader, writer, body = await fetch("127.0.0.1", port, "/todos", return_body=True)
     connections.append((reader, writer))
+
     match = re.search(r"const clientId = \"([^\"]+)\"", body)
     if match:
         client_id = match.group(1)
         print(f"Client ID: {client_id}")
         ws_url = f"ws://127.0.0.1:{port}/reload-request-ws?clientId={client_id}"
         try:
-            async with websockets.connect(ws_url) as ws:
-                msg = await asyncio.wait_for(ws.recv(), timeout=1)
-                print(f"First WS message: {msg}")
+            ws = await websockets.connect(ws_url)
+            websocket_connections.append(ws)
         except Exception as exc:
-            print(f"Failed to receive WS message: {exc}")
+            print(f"Failed to connect WS: {exc}")
     else:
         print("Client ID not found")
+
     start = time.perf_counter()
     for _ in range(10000):
-        reader, writer, _ = await fetch("127.0.0.1", port, "/todos")
+        reader, writer, body = await fetch("127.0.0.1", port, "/todos", return_body=True)
         connections.append((reader, writer))
+        match = re.search(r"const clientId = \"([^\"]+)\"", body)
+        if match:
+            cid = match.group(1)
+            ws_url = f"ws://127.0.0.1:{port}/reload-request-ws?clientId={cid}"
+            try:
+                ws = await websockets.connect(ws_url)
+                websocket_connections.append(ws)
+            except Exception:
+                pass
     elapsed = time.perf_counter() - start
 
     print(f"{10000/elapsed:.2f} QPS")
@@ -109,6 +121,12 @@ async def run_benchmark() -> None:
         w.close()
         try:
             await w.wait_closed()
+        except Exception:
+            pass
+
+    for ws in websocket_connections:
+        try:
+            await ws.close()
         except Exception:
             pass
 

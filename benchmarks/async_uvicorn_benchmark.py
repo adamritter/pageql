@@ -9,23 +9,53 @@ from uvicorn.server import Server
 from pageql.pageqlapp import PageQLApp
 
 
+async def _read_chunked_body(reader: asyncio.StreamReader) -> bytes:
+    chunks = []
+    while True:
+        size_line = await reader.readline()
+        size = int(size_line.strip(), 16)
+        if size == 0:
+            await reader.readline()  # trailing CRLF after last chunk
+            break
+        chunk = await reader.readexactly(size)
+        chunks.append(chunk)
+        await reader.readline()  # CRLF after each chunk
+    return b"".join(chunks)
+
+
 async def fetch(host: str, port: int, path: str, *, return_body: bool = False):
     reader, writer = await asyncio.open_connection(host, port)
     request = (
         f"GET {path} HTTP/1.1\r\n"
         f"Host: {host}\r\n"
-        "Connection: close\r\n"
+        "Connection: keep-alive\r\n"
         "\r\n"
     )
     writer.write(request.encode())
     await writer.drain()
-    data = await reader.read()
-    writer.close()
-    await writer.wait_closed()
+
+    # parse status line and headers
+    await reader.readline()  # status line
+    headers = {}
+    while True:
+        line = await reader.readline()
+        if line == b"\r\n":
+            break
+        key, val = line.decode().split(":", 1)
+        headers[key.strip().lower()] = val.strip()
+
+    body = None
     if return_body:
-        body = data.split(b"\r\n\r\n", 1)[-1]
-        return body.decode()
-    return None
+        if headers.get("transfer-encoding") == "chunked":
+            body_bytes = await _read_chunked_body(reader)
+        elif "content-length" in headers:
+            length = int(headers["content-length"])
+            body_bytes = await reader.readexactly(length)
+        else:
+            body_bytes = await reader.read()  # fallback
+        body = body_bytes.decode()
+
+    return reader, writer, body
 
 
 async def run_benchmark() -> None:
@@ -47,7 +77,9 @@ async def run_benchmark() -> None:
     port = server.servers[0].sockets[0].getsockname()[1]
 
     # warmup and extract client id
-    body = await fetch("127.0.0.1", port, "/todos", return_body=True)
+    connections = []
+    reader, writer, body = await fetch("127.0.0.1", port, "/todos", return_body=True)
+    connections.append((reader, writer))
     match = re.search(r"const clientId = \"([^\"]+)\"", body)
     if match:
         client_id = match.group(1)
@@ -56,13 +88,21 @@ async def run_benchmark() -> None:
         print("Client ID not found")
     start = time.perf_counter()
     for _ in range(10000):
-        await fetch("127.0.0.1", port, "/todos")
+        reader, writer, _ = await fetch("127.0.0.1", port, "/todos")
+        connections.append((reader, writer))
     elapsed = time.perf_counter() - start
 
     print(f"{10000/elapsed:.2f} QPS")
 
     server.should_exit = True
     await server_task
+
+    for r, w in connections:
+        w.close()
+        try:
+            await w.wait_closed()
+        except Exception:
+            pass
 
 
 if __name__ == "__main__":

@@ -6,9 +6,31 @@ import mimetypes
 from urllib.parse import urlparse, parse_qs
 from watchfiles import awatch
 import uuid
+from collections import defaultdict
+from typing import Callable, Awaitable, Dict, List, Optional
 
 # Assuming pageql.py is in the same directory or Python path
 from .pageql import PageQL
+
+scripts_by_send: defaultdict = defaultdict(list)
+_idle_task: Optional[asyncio.Task] = None
+
+async def _flush_ws_scripts() -> None:
+    global scripts_by_send, _idle_task
+    await asyncio.sleep(0)
+    current = scripts_by_send
+    scripts_by_send = defaultdict(list)
+    _idle_task = None
+    await asyncio.gather(
+        *(send({"type": "websocket.send", "text": ";".join(scripts)})
+          for send, scripts in current.items() if scripts)
+    )
+
+def queue_ws_script(send: Callable[[dict], Awaitable[None]], script: str) -> None:
+    global _idle_task
+    scripts_by_send[send].append(script)
+    if _idle_task is None or _idle_task.done():
+        _idle_task = asyncio.create_task(_flush_ws_scripts())
 
 # Base client script used for reactive updates.
 base_script = """
@@ -273,7 +295,7 @@ class PageQLApp:
                 ws = self.websockets.get(client_id)
                 if ws:
                     def sender(sc, send=ws):
-                        asyncio.create_task(send({"type": "websocket.send", "text": sc}))
+                        queue_ws_script(send, sc)
 
                     result.context.send_script = sender
             self._log(f"{method} {path_cleaned} Params: {params} ({(time.time() - t) * 1000:.2f} ms)")
@@ -494,13 +516,13 @@ class PageQLApp:
                 ctx = self.render_contexts.get(client_id)
                 if ctx:
                     def sender(sc, send=send):
-                        asyncio.create_task(send({"type": "websocket.send", "text": sc}))
+                        queue_ws_script(send, sc)
 
                     ctx.send_script = sender
                     scripts = list(ctx.scripts)
                     ctx.scripts.clear()
                     for sc in scripts:
-                        await send({"type": "websocket.send", "text": sc})
+                        queue_ws_script(send, sc)
             fut = asyncio.Event()
             self.notifies.append(fut)
             receive_task = asyncio.create_task(receive())

@@ -7,6 +7,7 @@ from uvicorn.config import Config
 from uvicorn.server import Server
 
 from pageql.pageqlapp import PageQLApp
+import websockets
 
 
 async def _read_chunked_body(reader: asyncio.StreamReader) -> bytes:
@@ -84,6 +85,13 @@ async def run_benchmark() -> None:
     if match:
         client_id = match.group(1)
         print(f"Client ID: {client_id}")
+        ws_url = f"ws://127.0.0.1:{port}/reload-request-ws?clientId={client_id}"
+        try:
+            async with websockets.connect(ws_url) as ws:
+                msg = await asyncio.wait_for(ws.recv(), timeout=1)
+                print(f"First WS message: {msg}")
+        except Exception as exc:
+            print(f"Failed to receive WS message: {exc}")
     else:
         print("Client ID not found")
     start = time.perf_counter()

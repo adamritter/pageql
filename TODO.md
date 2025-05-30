@@ -1,10 +1,7 @@
 
 
 - "Reactive" Aspect:
-As the README.md clearly states, the core "reactive query" vision (automatic UI updates on data change) is a future goal and not implemented. Currently, it functions as a server-side templating engine that queries a database on request.
-
-I'm thinking of just rewriting rsql.py for this
-
+UI updates are now implemented. The reactive query model updates the browser automatically whenever the underlying data changes.
 
 Later:
 - Code completion (language server) / VS code pluigin

@@ -163,7 +163,7 @@ def _read_block(node_list, i, stop, partials):
             body.append(["#from", (query, expr), deps, loop_body])
             continue
 
-        if ntype == "#set":
+        if ntype == "#let":
             var, rest = parsefirstword(ncontent)
             sql = rest or ""
             sql_strip = sql.lstrip().lower()
@@ -174,9 +174,9 @@ def _read_block(node_list, i, stop, partials):
             try:
                 expr = sqlglot.parse_one(parse_sql)
             except Exception as e:  # pragma: no cover - invalid SQL
-                raise SyntaxError(f"bad SQL in #set: {e}")
+                raise SyntaxError(f"bad SQL in #let: {e}")
             i += 1
-            body.append(("#set", (var, rest, expr)))
+            body.append(("#let", (var, rest, expr)))
             continue
 
         # -------------------------------------------------------- #partial ...
@@ -378,7 +378,7 @@ def ast_param_dependencies(ast):
             t, c = node
             if t in {"render_expression", "render_raw"}:
                 deps.update(get_dependencies(c))
-            elif t == "#set":
+            elif t == "#let":
                 deps.update(get_dependencies(c[1]))
             elif t in {"#update", "#insert", "#delete", "#merge", "#create", "#redirect", "#statuscode", "#error"}:
                 deps.update(get_dependencies(c))

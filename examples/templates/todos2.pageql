@@ -51,8 +51,8 @@ Cool, this is a test for creating a todos app from nothing
 </td><td onclick="document.location.href='/todos2/edit?id={{:id}}'">  {{text}}</td></tr>
 {{/from}}
 </table>
-{{#set total count(*) from todos}}
-{{#set active count(*) from todos where completed>0}}
+{{#let total count(*) from todos}}
+{{#let active count(*) from todos where completed>0}}
 
 Active: {{active}}/{{total}}
 

@@ -8,7 +8,7 @@ from pageql.parser import tokenize, build_ast, ast_param_dependencies
 
 def test_basic_ast_dependencies():
     snippet = (
-        "{{#set cnt count(*) from nums where value > :limit}}"
+        "{{#let cnt count(*) from nums where value > :limit}}"
         "{{#if :flag}}ok{{#else}}no{{/if}}"
         "{{#from items where id=:item_id}}{{/from}}"
     )

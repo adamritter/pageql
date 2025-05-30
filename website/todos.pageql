@@ -11,7 +11,7 @@
 {{/partial}}
 
 {{#partial post toggle_all}}
-  {{#set active_count COUNT(*) from todos WHERE completed = 0}}
+  {{#let active_count COUNT(*) from todos WHERE completed = 0}}
   {{#update todos set completed =  IIF(:active_count = 0, 0, 1)}}
 {{/partial}}
 
@@ -33,10 +33,10 @@
     completed INTEGER DEFAULT 0 CHECK(completed IN (0,1))
 )}}
 
-{{#set active_count    COUNT(*) from todos WHERE completed = 0}}
-{{#set completed_count COUNT(*) from todos WHERE completed = 1}}
-{{#set total_count     COUNT(*) from todos}}
-{{#set all_complete    (:active_count == 0 AND :total_count > 0)}}
+{{#let active_count    COUNT(*) from todos WHERE completed = 0}}
+{{#let completed_count COUNT(*) from todos WHERE completed = 1}}
+{{#let total_count     COUNT(*) from todos}}
+{{#let all_complete    (:active_count == 0 AND :total_count > 0)}}
 
 
 <!doctype html>

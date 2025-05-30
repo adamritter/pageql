@@ -71,8 +71,8 @@ def test_reactive_count_with_param_dependency():
         "{{#create table vars(val INTEGER)}}"
         "{{#insert into vars(val) values (1)}}"
         "{{#reactive on}}"
-        "{{#set a (select val from vars)}}"
-        "{{#set cnt count(*) from nums where value > :a}}"
+        "{{#let a (select val from vars)}}"
+        "{{#let cnt count(*) from nums where value > :a}}"
         "{{cnt}}"
         "{{#update vars set val = 2}}"
         "{{#delete from nums where value = 3}}"
@@ -148,7 +148,7 @@ def test_from_reactive_caches_queries(monkeypatch):
     r.db.executemany("INSERT INTO items(name) VALUES (?)", [("a",), ("b",)])
     snippet = (
         "{{#reactive on}}"
-        "{{#set v 1}}"
+        "{{#let v 1}}"
         "{{#from items where id=:v}}[{{id}}]{{/from}}"
         "{{#from items where id=:v}}[{{id}}]{{/from}}"
     )
@@ -194,12 +194,12 @@ def test_reactive_set_comments():
 {{#create table vals(name TEXT, value INTEGER)}}
 {{#insert into vals(name, value) values ('a', 1)}}
 {{#insert into vals(name, value) values ('b', 3)}}
-{{#set a (select value from vals where name = 'a')}}
+{{#let a (select value from vals where name = 'a')}}
 {{a}}
 {{:a + :a}}
-{{#set b (select value from vals where name = 'b')}}
+{{#let b (select value from vals where name = 'b')}}
 <p>{{:a + :b}} = 4</p>
-{{#set c :a+:b}}
+{{#let c :a+:b}}
 <p>{{:c}} = c = 4</p>
 {{#update vals set value = 2 where name = 'a'}}
 <p>{{:a + :b}} = 5</p>
@@ -382,7 +382,7 @@ def test_reactive_if_update():
     snippet = (
         "{{#create table vals(name TEXT, value INTEGER)}}"
         "{{#insert into vals(name, value) values ('a', 1)}}"
-        "{{#reactive on}}{{#set a value from vals where name = 'a'}}{{#if :a}}T{{#else}}F{{/if}}{{#update vals set value = 0 where name = 'a'}}{{#update vals set value = 1 where name = 'a'}}"
+        "{{#reactive on}}{{#let a value from vals where name = 'a'}}{{#if :a}}T{{#else}}F{{/if}}{{#update vals set value = 0 where name = 'a'}}{{#update vals set value = 1 where name = 'a'}}"
     )
     r.load_module("m", snippet)
     result = r.render("/m")
@@ -400,7 +400,7 @@ def test_reactive_if_elif_chain():
     r.db.executemany("INSERT INTO vals(name, value) VALUES (?, ?)", [("a", 1)])
     snippet = (
         "{{#reactive on}}"
-        "{{#set a value from vals where name = 'a'}}"
+        "{{#let a value from vals where name = 'a'}}"
         "{{#if :a == 1}}A{{#elif :a == 2}}B{{#else}}C{{/if}}"
         "{{#update vals set value = 2 where name = 'a'}}"
         "{{#update vals set value = 3 where name = 'a'}}"
@@ -447,7 +447,7 @@ def test_reactive_if_variable_and_table_dependency():
         "{{#create table vals(name TEXT, value INTEGER)}}"
         "{{#insert into vals(name, value) values ('threshold', 1)}}"
         "{{#reactive on}}"
-        "{{#set threshold value from vals where name = 'threshold'}}"
+        "{{#let threshold value from vals where name = 'threshold'}}"
         "{{#insert into items(value) values (1)}}"
         "{{#if (select count(*) from items) > :threshold}}MORE{{#else}}LESS{{/if}}"
         "{{#update vals set value = 0 where name = 'threshold'}}"
@@ -471,7 +471,7 @@ def test_reactiveelement_adds_pprevioustag_script():
     r.db.executemany("INSERT INTO vals(name, value) VALUES (?, ?)", [("c", 1)])
     snippet = (
         "{{#reactive on}}"
-        "{{#set c value from vals where name = 'c'}}"
+        "{{#let c value from vals where name = 'c'}}"
         "<div {{#if :c}}class='x'{{/if}}></div>"
     )
     r.load_module("m", snippet)
@@ -498,7 +498,7 @@ def test_reactiveelement_updates_node():
     r.db.executemany("INSERT INTO vals(name, value) VALUES (?, ?)", [("c", 1)])
     snippet = (
         "{{#reactive on}}"
-        "{{#set c value from vals where name = 'c'}}"
+        "{{#let c value from vals where name = 'c'}}"
         "<div {{#if :c}}class='x'{{#else}}class='y'{{/if}}></div>"
         "{{#update vals set value = 0 where name = 'c'}}"
         "{{#update vals set value = 1 where name = 'c'}}"
@@ -518,7 +518,7 @@ def test_reactiveelement_input_value():
     r.db.executemany("INSERT INTO vals(name, value) VALUES (?, ?)", [("c", 1)])
     snippet = (
         "{{#reactive on}}"
-        "{{#set c value from vals where name = 'c'}}"
+        "{{#let c value from vals where name = 'c'}}"
         "<input type='text' value='{{c}}'>"
         "{{#update vals set value = 2 where name = 'c'}}"
     )
@@ -537,7 +537,7 @@ def test_reactiveelement_self_closing_input():
         "{{#create table vals(name TEXT, value INTEGER)}}"
         "{{#insert into vals(name, value) values ('c', 1)}}"
         "{{#reactive on}}"
-        "{{#set c value from vals where name = 'c'}}"
+        "{{#let c value from vals where name = 'c'}}"
         "<input type='text' value='{{c}}' />"
         "{{#update vals set value = 2 where name = 'c'}}"
     )
@@ -556,7 +556,7 @@ def test_reactiveelement_if_with_table_insert_updates_input():
     )
     snippet = (
         "{{#reactive on}}"
-        "{{#set active_count count(*) from todos}}"
+        "{{#let active_count count(*) from todos}}"
         "<p>Active count is 1: <input type='checkbox' {{#if :active_count == 1}}checked{{/if}}></p>"
         "{{#insert into todos(text, completed) values ('test', 0)}}"
     )
@@ -575,7 +575,7 @@ def test_reactiveelement_if_variable_updates_checked():
         "{{#create table vals(name TEXT, value INTEGER)}}"
         "{{#insert into vals(name, value) values ('flag', 1)}}"
         "{{#reactive on}}"
-        "{{#set flag value from vals where name = 'flag'}}"
+        "{{#let flag value from vals where name = 'flag'}}"
         "<input type='checkbox' {{#if :flag}}checked{{/if}}>"
         "{{#update vals set value = 0 where name = 'flag'}}"
         "{{#update vals set value = 1 where name = 'flag'}}"
@@ -598,7 +598,7 @@ def test_reactiveelement_delete_and_insert_updates_input_and_text():
     snippet = (
         "{{#reactive on}}"
         "{{#delete from todos where completed = 0}}"
-        "{{#set active_count COUNT(*) from todos WHERE completed = 0}}"
+        "{{#let active_count COUNT(*) from todos WHERE completed = 0}}"
         '<p><input class="toggle{{3}}" type="checkbox" {{#if 1}}checked{{/if}}><input type="text" value="{{active_count}}"></p>'
         "{{#insert into todos(text, completed) values ('test', 0)}}"
     )
@@ -665,7 +665,7 @@ def test_pinsert_does_not_send_marker_scripts():
     r.db.execute("CREATE TABLE items(id INTEGER PRIMARY KEY, value INTEGER)")
     snippet = (
         "{{#reactive on}}"
-        "{{#from items}}<li>{{#set a 1}}{{#if :a}}X{{/if}}</li>{{/from}}"
+        "{{#from items}}<li>{{#let a 1}}{{#if :a}}X{{/if}}</li>{{/from}}"
     )
     r.load_module("m", snippet)
     result = r.render("/m")

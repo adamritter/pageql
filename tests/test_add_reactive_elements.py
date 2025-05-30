@@ -74,7 +74,7 @@ def test_delete_insert_input_and_text():
     snippet = (
         "{{#reactive on}}"
         "{{#delete from todos where completed = 0}}"
-        "{{#set active_count COUNT(*) from todos WHERE completed = 0}}"
+        "{{#let active_count COUNT(*) from todos WHERE completed = 0}}"
         '<p><input class="toggle{{3}}" type="checkbox" {{#if 1}}checked{{/if}}>'
         '<input type="text" value="{{active_count}}"></p>'
         "{{#insert into todos(text, completed) values ('test', 0)}}"
@@ -84,7 +84,7 @@ def test_delete_insert_input_and_text():
     res = add_reactive_elements(body)
     assert res[0] == ("#reactive", "on")
     assert res[1] == ("#delete", "from todos where completed = 0")
-    assert res[2][0] == "#set"
+    assert res[2][0] == "#let"
     assert res[2][1][0] == "active_count"
     assert res[2][1][1] == "COUNT(*) from todos WHERE completed = 0"
     assert res[2][1][2].sql() == sqlglot.parse_one(

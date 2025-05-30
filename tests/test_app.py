@@ -3,6 +3,9 @@ from pathlib import Path
 import types
 import tempfile
 import http.client
+import http.server
+import threading
+import pageql.pageqlapp
 import asyncio
 # Ensure the package can be imported without optional dependencies
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
@@ -66,6 +69,48 @@ def test_fallback_app_handles_unknown_route():
 
             server.should_exit = True
             await task
+            return status_body
+
+        status, body = asyncio.run(run_test())
+
+        assert status == 200
+        assert body == "fallback"
+
+
+def test_fallback_url_handles_unknown_route():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        class Handler(http.server.BaseHTTPRequestHandler):
+            def do_GET(self):
+                self.send_response(200)
+                self.send_header("content-type", "text/plain")
+                self.end_headers()
+                self.wfile.write(b"fallback")
+
+            def log_message(self, *args):
+                pass
+
+        httpd = http.server.HTTPServer(("127.0.0.1", 0), Handler)
+        fb_port = httpd.server_address[1]
+        thread = threading.Thread(target=httpd.serve_forever)
+        thread.daemon = True
+        thread.start()
+
+        async def run_test():
+            server, task, port = await run_server_in_task(tmpdir)
+            server.config.app.fallback_url = f"http://127.0.0.1:{fb_port}"
+
+            async def make_request():
+                status, _headers, body = await pageql.pageqlapp._http_get(
+                    f"http://127.0.0.1:{port}/missing"
+                )
+                return status, body.decode()
+
+            status_body = await make_request()
+
+            server.should_exit = True
+            await task
+            httpd.shutdown()
+            thread.join()
             return status_body
 
         status, body = asyncio.run(run_test())

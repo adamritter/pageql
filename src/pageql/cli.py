@@ -21,6 +21,7 @@ def main():
     parser.add_argument('--create', action='store_true', help="Create the database file if it doesn't exist.")
     parser.add_argument('--no-reload', action='store_true', help="Do not reload and refresh the templates on file changes.")
     parser.add_argument('-q', '--quiet', action='store_true', help="Only show errors in output.")
+    parser.add_argument('--fallback-url', help="Forward unknown routes to this base URL")
 
     # If no arguments were provided (only the script name), print help and exit.
     if len(sys.argv) == 1:
@@ -35,6 +36,7 @@ def main():
         create_db=args.create,
         should_reload=not args.no_reload,
         quiet=args.quiet,
+        fallback_url=args.fallback_url,
     )
 
     if not args.quiet:

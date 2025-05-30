@@ -18,8 +18,8 @@ MODULES = {
     's1_static': "Hello",
     's2_expr': "{{1+1}}",
     's3_param': "{{name}}",
-    's4_set': "{{#set a 5}}{{a}}",
-    's5_set_expr': "{{#set a 2}}{{:a + :a}}",
+    's4_set': "{{#let a 5}}{{a}}",
+    's5_set_expr': "{{#let a 2}}{{:a + :a}}",
     's6_if': "{{#if 1==1}}yes{{#else}}no{{/if}}",
     's7_ifdef': "{{#ifdef name}}hi{{#else}}bye{{/ifdef}}",
     's8_ifndef': "{{#ifndef name}}hi{{#else}}bye{{/ifndef}}",
@@ -34,9 +34,9 @@ MODULES = {
     's17_status': "{{#statuscode 201}}created",
     's18_redirect': "{{#redirect '/target'}}",
     's19_import': "{{#import other as o}}{{#render o}}",
-    's20_reactive': "{{#reactive on}}{{#set foo 1}}{{foo}}",
+    's20_reactive': "{{#reactive on}}{{#let foo 1}}{{foo}}",
     'other': "import works",
-    'qtest': '''{{#delete from items}}{{#reactive on}}{{#set active_count_reactive COUNT(*) from items WHERE name = 'x'}}
+    'qtest': '''{{#delete from items}}{{#reactive on}}{{#let active_count_reactive COUNT(*) from items WHERE name = 'x'}}
             {{#insert into items(name) values ('x')}}'''
 }
 

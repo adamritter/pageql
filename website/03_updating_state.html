@@ -386,7 +386,7 @@
   <h1>Updating State <small>(toggle &amp; edit)</small></h1>
 
   <p><strong>Goal:</strong> Let users flip a Todo between <em>active</em> and <em>completed</em> and edit its text. You'll meet
-    <code>#update</code>, <code>#set</code>, stronger <code>#param</code> validation and conditional <code>#if</code>.</p>
+    <code>#update</code>, <code>#let</code>, stronger <code>#param</code> validation and conditional <code>#if</code>.</p>
 
   <blockquote><p><em>Estimated time: 20 minutes.</em></p></blockquote>
 
@@ -404,20 +404,20 @@
   <h3>2.1 Computed counts &amp; flags</h3>
 
   <pre class="code-block"><code class="language-diff">
-&#123;&#123;<span class="keyword">#set</span> <span class="variable">active_count</span>    COUNT(*) from todos WHERE completed = 0&#125;&#125;
-&#123;&#123;<span class="keyword">#set</span> <span class="variable">completed_count</span> COUNT(*) from todos WHERE completed = 1&#125;&#125;
-&#123;&#123;<span class="keyword">#set</span> <span class="variable">total_count</span>     COUNT(*) from todos&#125;&#125;
-&#123;&#123;<span class="keyword">#set</span> <span class="variable">all_complete</span>    (:<span class="variable">active_count</span> == 0 AND :<span class="variable">total_count</span> &gt; 0)&#125;&#125;
+&#123;&#123;<span class="keyword">#let</span> <span class="variable">active_count</span>    COUNT(*) from todos WHERE completed = 0&#125;&#125;
+&#123;&#123;<span class="keyword">#let</span> <span class="variable">completed_count</span> COUNT(*) from todos WHERE completed = 1&#125;&#125;
+&#123;&#123;<span class="keyword">#let</span> <span class="variable">total_count</span>     COUNT(*) from todos&#125;&#125;
+&#123;&#123;<span class="keyword">#let</span> <span class="variable">all_complete</span>    (:<span class="variable">active_count</span> == 0 AND :<span class="variable">total_count</span> &gt; 0)&#125;&#125;
 
 &#123;&#123;<span class="keyword">#param</span> <span class="variable">edit_id</span> <span class="attribute">type</span>=<span class="string">integer</span> <span class="attribute">optional</span>&#125;&#125;
-</code><div class="clean-code">&#123;&#123;#set active_count    COUNT(*) from todos WHERE completed = 0&#125;&#125;
-&#123;&#123;#set completed_count COUNT(*) from todos WHERE completed = 1&#125;&#125;
-&#123;&#123;#set total_count     COUNT(*) from todos&#125;&#125;
-&#123;&#123;#set all_complete    (:active_count == 0 AND :total_count &gt; 0)&#125;&#125;
+</code><div class="clean-code">&#123;&#123;#let active_count    COUNT(*) from todos WHERE completed = 0&#125;&#125;
+&#123;&#123;#let completed_count COUNT(*) from todos WHERE completed = 1&#125;&#125;
+&#123;&#123;#let total_count     COUNT(*) from todos&#125;&#125;
+&#123;&#123;#let all_complete    (:active_count == 0 AND :total_count &gt; 0)&#125;&#125;
 
 &#123;&#123;#param edit_id type=integer optional&#125;&#125;</div></pre>
 
-  <p>The <code>#set</code> directive calculates values that will be used throughout the template. Here we're computing counts of todos in various states (active, completed, total) and deriving a flag to indicate if all todos are complete. These variables are scoped to the current template or partial.</p>
+  <p>The <code>#let</code> directive calculates values that will be used throughout the template. Here we're computing counts of todos in various states (active, completed, total) and deriving a flag to indicate if all todos are complete. These variables are scoped to the current template or partial.</p>
   
   <p>Note how the <code>all_complete</code> flag uses the colon syntax <code>:variable</code> to reference other variables in expressions. In PageQL, the colon prefix is required when using variables in SQL-like expressions to distinguish them from column names and prevent SQL injection. <code>:active_count</code> refers to the previously set variable.</p>
   
@@ -529,7 +529,7 @@
 &#123;&#123;/<span class="keyword">partial</span>&#125;&#125;
 
 &#123;&#123;<span class="keyword">#partial</span> <span class="attribute">public</span> <span class="function">toggle_all</span>&#125;&#125;
-  &#123;&#123;<span class="keyword">#set</span> <span class="variable">active_count</span> COUNT(*) from todos WHERE completed = 0&#125;&#125;
+  &#123;&#123;<span class="keyword">#let</span> <span class="variable">active_count</span> COUNT(*) from todos WHERE completed = 0&#125;&#125;
   &#123;&#123;<span class="keyword">#update</span> todos <span class="keyword">set</span> completed = <span class="keyword">IIF</span>(:<span class="variable">active_count</span> = 0, 0, 1)&#125;&#125;
   &#123;&#123;<span class="keyword">#redirect</span> <span class="string">'/todos'</span>&#125;&#125;
 &#123;&#123;/<span class="keyword">partial</span>&#125;&#125;
@@ -547,7 +547,7 @@
 {{/partial}}
 
 {{#partial public toggle_all}}
-  {{#set active_count COUNT(*) from todos WHERE completed = 0}}
+  {{#let active_count COUNT(*) from todos WHERE completed = 0}}
   {{#update todos set completed = IIF(:active_count = 0, 0, 1)}}
   {{#redirect '/todos'}}
 {{/partial}}</div></pre>
@@ -571,7 +571,7 @@
     <thead><tr><th>Piece</th><th>Purpose</th></tr></thead>
     <tbody>
       <tr><td><code>#update</code></td><td>Mutate an existing row (toggle, edit, bulk).</td></tr>
-      <tr><td><code>#set</code></td><td>Compute derived counts used in the UI.</td></tr>
+      <tr><td><code>#let</code></td><td>Compute derived counts used in the UI.</td></tr>
       <tr><td><code>#if …</code></td><td>Swaps markup between view and edit modes.</td></tr>
       <tr><td><code>1 - completed</code></td><td>A SQL trick to flip <code>0⇄1</code> with one statement.</td></tr>
     </tbody>
@@ -601,7 +601,7 @@
   <h2>5 Recap</h2>
   <ul>
     <li><strong>#update</strong> powers both inline edits and mass updates.</li>
-    <li><strong>#set</strong> variables keep UI reactive without JavaScript.</li>
+    <li><strong>#let</strong> variables keep UI reactive without JavaScript.</li>
     <li><strong>#if</strong> renders alternate markup based on query params.</li>
   </ul>
 

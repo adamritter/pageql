@@ -103,7 +103,7 @@ pageql -path/to/your/database.sqlite ./templates
 
 **Variable Manipulation:**
 
-*   `#set :<variable> <expression> [from <table> [WHERE ...]]`: Sets a variable. The value can be a literal (string, integer, float, `NULL`), or the result of a SQL expression, optionally evaluated against a table with a `WHERE` clause.
+*   `#let :<variable> <expression> [from <table> [WHERE ...]]`: Sets a variable. The value can be a literal (string, integer, float, `NULL`), or the result of a SQL expression, optionally evaluated against a table with a `WHERE` clause.
 *   `#param <name> [type=<type>] [optional | required] [default=<simple_expression>] [min=<num>] [max=<num>] [minlength=<num>] [maxlength=<num>] [pattern="<regex>"]`: Declares and optionally validates an expected request parameter (URL query string or POST form variable) named `<name>`.
     *   **Behavior:** Choose `optional` or `required`. **If neither is specified, the default is `required`.**
         *   `required` (or default): Processing stops with an error if the parameter is missing and no `default` is provided.
@@ -151,7 +151,7 @@ encountered.
 PageQL uses a unified namespace for variables originating from different sources:
 
 *   Request parameters declared and validated via `#param`.
-*   Variables explicitly set using `#set`.
+*   Variables explicitly set using `#let`.
 *   Columns selected within a `#from` loop (each column becomes a variable within the loop's scope).
 *   Parameters passed to a partial via `#render <partial> param_name=value`.
 *   (Potentially cookie values, details TBD).
@@ -160,7 +160,7 @@ The engine distinguishes between binding these variables *into* SQL queries and 
 
 **1. SQL Parameter Binding (`:param_name`)**
 
-*   **Purpose:** To safely include dynamic values within SQL statements (`WHERE` clauses, `VALUES` lists, `SET` assignments in `#from`, `#insert`, `#update`, `#delete`, `#view`, `#set ... from`).
+*   **Purpose:** To safely include dynamic values within SQL statements (`WHERE` clauses, `VALUES` lists, `SET` assignments in `#from`, `#insert`, `#update`, `#delete`, `#view`, `#let ... from`).
 *   **Syntax:** Use a colon prefix followed by the parameter name (e.g., `:user_id`, `:search_term`, `:text`, `:id`, `:active_count`).
 *   **Security:** **This is the ONLY safe way to include dynamic data in SQL queries.** It prevents SQL injection vulnerabilities by ensuring the database driver handles the value correctly, rather than simply concatenating strings. The colon prefix is **mandatory** in these SQL contexts.
 *   **`#from` Scope:** Within a `#from` loop, each selected column is directly accessible as a parameter using the colon prefix (e.g., `{{ :column_name }}`).
@@ -188,8 +188,8 @@ PageQL does not define its own expression language. Instead, it leverages the ex
 Expressions are primarily used in:
 
 *   **`#if <expression>` / `#elif <expression>`:** To conditionally render blocks of content. The expression should evaluate to a boolean-like value (in SQLite, 0 is false, non-zero is true). If the expression is more complex than a single variable name, it **must** use the colon prefix for variables (e.g., `#if :count > 10`).
-*   **`#set :<variable> <expression> [from ...]`:** To compute a value to assign to a variable. Variables used within the `<expression>` **must** use the colon prefix (e.g., `#set :total_price :quantity * :unit_price`).
-*   **`WHERE <expression>` clauses:** Within database query tags (`#from`, `#update`, `#delete`, `#view`, `#set ... from`) to filter data. Variables **must** use the colon prefix (e.g., `WHERE user_id = :id`).
+*   **`#let :<variable> <expression> [from ...]`:** To compute a value to assign to a variable. Variables used within the `<expression>` **must** use the colon prefix (e.g., `#let :total_price :quantity * :unit_price`).
+*   **`WHERE <expression>` clauses:** Within database query tags (`#from`, `#update`, `#delete`, `#view`, `#let ... from`) to filter data. Variables **must** use the colon prefix (e.g., `WHERE user_id = :id`).
 *   **Value clauses:** In `#insert` (`values (...)`), `#update` (`set col = ...`), `#cookie`, `#header`, `#redirect`. Variables **must** use the colon prefix.
 
 **Allowed Expressions:**
@@ -252,10 +252,10 @@ Generally, you can use standard SQL expressions supported by your database, such
 {{#partial POST toggle_all}}
   {{#param filter default='all'}} {{!-- Preserve filter for redirect --}}
   {{!-- Check if all are currently complete to decide toggle direction --}}
-  {{#set :active_count COUNT(*) from todos WHERE completed = 0}}
-  {{#set :new_status 1}} {{!-- Default to marking all complete --}}
+  {{#let :active_count COUNT(*) from todos WHERE completed = 0}}
+  {{#let :new_status 1}} {{!-- Default to marking all complete --}}
   {{#if :active_count == 0}} {{!-- If none active, mark all incomplete --}}
-    {{#set :new_status 0}}
+    {{#let :new_status 0}}
   {{/if}}
   {{#update todos set completed = :new_status}}
   {{#redirect '/todos?filter=' || :filter}} {{!-- Redirect to base path --}}
@@ -280,10 +280,10 @@ Generally, you can use standard SQL expressions supported by your database, such
 
 
 {{!-- Get counts for footer and toggle-all logic --}}
-{{#set active_count COUNT(*) from todos WHERE completed = 0}}
-{{#set completed_count COUNT(*) from todos WHERE completed = 1}}
-{{#set total_count  COUNT(*) from todos}}
-{{#set all_complete (:active_count == 0 AND :total_count > 0)}}
+{{#let active_count COUNT(*) from todos WHERE completed = 0}}
+{{#let completed_count COUNT(*) from todos WHERE completed = 1}}
+{{#let total_count  COUNT(*) from todos}}
+{{#let all_complete (:active_count == 0 AND :total_count > 0)}}
 
 <!doctype html>
 <html lang="en">

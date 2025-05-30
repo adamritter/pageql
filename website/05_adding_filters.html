@@ -409,7 +409,7 @@
   <!-- 2 -->
   <h2>2 Declare the <code>filter</code> parameter</h2>
 
-  <p>Near the top of <strong>templates/todos.pageql</strong>, right after any existing <code>#set</code> or <code>#create</code> tags, insert:</p>
+  <p>Near the top of <strong>templates/todos.pageql</strong>, right after any existing <code>#let</code> or <code>#create</code> tags, insert:</p>
 
   <pre class="code-block"><code class="language-html">
 &#123;&#123;<span class="keyword">#param</span> <span class="variable">filter</span> <span class="attribute">default</span>=<span class="string">'all'</span> <span class="attribute">pattern</span>=<span class="string">"^(all|active|completed)$"</span> <span class="attribute">optional</span>&#125;&#125;

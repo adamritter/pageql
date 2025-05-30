@@ -165,7 +165,7 @@ DIRECTIVE_HELP: dict[str, str] = {
     "#redirect <url>": "issue an HTTP redirect",
     "#error <expr>": "raise an error with the evaluated expression",
     "#render <name>": "render a named partial",
-    "#set <name> <expr>": "assign a variable from an expression",
+    "#let <name> <expr>": "assign a variable from an expression",
     "#statuscode <code>": "set the HTTP status code",
     "#header <name> <expr>": "add an HTTP response header",
     "#cookie <name> <expr> [opts]": "set an HTTP cookie",
@@ -740,7 +740,7 @@ class PageQL:
             elif node_type == '#param':
                 param_name, param_value = self.handle_param(node_content, params)
                 params[param_name] = param_value
-            elif node_type == '#set':
+            elif node_type == '#let':
                 var, sql, expr = node_content
                 if var[0] == ':':
                     var = var[1:]

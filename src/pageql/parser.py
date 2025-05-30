@@ -382,6 +382,16 @@ def ast_param_dependencies(ast):
                 deps.update(get_dependencies(c[1]))
             elif t in {"#update", "#insert", "#delete", "#merge", "#create", "#redirect", "#statuscode"}:
                 deps.update(get_dependencies(c))
+            elif t == "#header":
+                _, rest = parsefirstword(c)
+                if rest:
+                    deps.update(get_dependencies(rest))
+            elif t == "#cookie":
+                _, rest = parsefirstword(c)
+                if rest:
+                    m = re.match(r'("[^"]*"|\'[^\']*\'|\S+)', rest)
+                    if m:
+                        deps.update(get_dependencies(m.group(1)))
             elif t == "#render":
                 _, rest = parsefirstword(c)
                 if rest:

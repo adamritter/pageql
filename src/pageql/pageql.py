@@ -120,6 +120,8 @@ DIRECTIVE_HELP: dict[str, str] = {
     "#render <name>": "render a named partial",
     "#set <name> <expr>": "assign a variable from an expression",
     "#statuscode <code>": "set the HTTP status code",
+    "#header <name> <expr>": "add an HTTP response header",
+    "#cookie <name> <expr> [opts]": "set an HTTP cookie",
     "#update <table> set <expr> where <cond>": "execute an SQL UPDATE",
 }
 
@@ -135,12 +137,15 @@ def format_unknown_directive(directive: str) -> str:
 class RenderResult:
     """Holds the results of a render operation."""
 
-    def __init__(self, status_code=200, headers=None, body="", context=None):
+    def __init__(self, status_code=200, headers=None, cookies=None, body="", context=None):
         if headers is None:
             headers = []
+        if cookies is None:
+            cookies = []
         self.body = body
         self.status_code = status_code
         self.headers = headers  # List of (name, value) tuples
+        self.cookies = cookies  # List of (name, value, opts) tuples
         self.redirect_to = None
         self.context = context
 
@@ -157,6 +162,8 @@ class RenderContext:
         self.send_script = None
         self.rendering = True
         self.reactiveelement = None
+        self.headers: list[tuple[str, str]] = []
+        self.cookies: list[tuple[str, str, dict]] = []
 
     def ensure_init(self):
         if not self.initialized:
@@ -718,10 +725,41 @@ class PageQL:
                 params['reactive'] = reactive
             elif node_type == '#redirect':
                 url = evalone(self.db, node_content, params, reactive, self.tables)
-                raise RenderResultException(RenderResult(status_code=302, headers=[('Location', url)]))
+                raise RenderResultException(
+                    RenderResult(
+                        status_code=302,
+                        headers=[('Location', url), *ctx.headers],
+                        cookies=ctx.cookies,
+                    )
+                )
             elif node_type == '#statuscode':
                 code = evalone(self.db, node_content, params, reactive, self.tables)
-                raise RenderResultException(RenderResult(status_code=code, body="".join(ctx.out)))
+                raise RenderResultException(
+                    RenderResult(
+                        status_code=code,
+                        headers=ctx.headers,
+                        cookies=ctx.cookies,
+                        body="".join(ctx.out),
+                    )
+                )
+            elif node_type == '#header':
+                name, value_expr = parsefirstword(node_content)
+                if value_expr is None:
+                    raise ValueError("#header requires a name and expression")
+                value = str(evalone(self.db, value_expr, params, reactive, self.tables))
+                ctx.headers.append((name, value))
+            elif node_type == '#cookie':
+                name, rest = parsefirstword(node_content)
+                if rest is None:
+                    raise ValueError("#cookie requires a name and expression")
+                m = re.match(r'("[^"]*"|\'[^\']*\'|\S+)(?:\s+(.*))?$', rest)
+                if not m:
+                    raise ValueError("Invalid #cookie syntax")
+                expr = m.group(1)
+                attr_str = m.group(2) or ''
+                value = str(evalone(self.db, expr, params, reactive, self.tables))
+                attrs = parse_param_attrs(attr_str)
+                ctx.cookies.append((name, value, attrs))
             elif node_type in ("#update", "#insert", "#delete"):
                 try:
                     # Use the reactive table helpers for data modifications so
@@ -1171,6 +1209,8 @@ class PageQL:
 
                 # Store the render context so callers can keep it if needed
                 result.context = ctx
+                result.headers = ctx.headers
+                result.cookies = ctx.cookies
 
                 # Clean up listeners only when not rendering reactively
                 if not reactive and own_ctx:

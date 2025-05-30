@@ -74,6 +74,8 @@ pageql -path/to/your/database.sqlite ./templates
     and an increased cache for better concurrency.
 *   When a PostgreSQL or MySQL URL is provided, `--create` is ignored and the
     database must already exist.
+*   Although `postgres://` and `mysql://` URLs work, remote connections add read
+    latency that can degrade performance of reactive queries.
 
 *(Note: Actual command name and argument flags are subject to change.)*
 

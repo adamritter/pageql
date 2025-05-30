@@ -105,9 +105,68 @@ def reload_ws_script(client_id: str) -> str:
       window.addEventListener('DOMContentLoaded', setup);
     }}
     document.currentScript.remove();
+
   }})();
 </script>
 """
+
+
+async def _read_chunked_body(reader: asyncio.StreamReader) -> bytes:
+    chunks = []
+    while True:
+        size_line = await reader.readline()
+        size = int(size_line.strip(), 16)
+        if size == 0:
+            await reader.readline()
+            break
+        chunk = await reader.readexactly(size)
+        chunks.append(chunk)
+        await reader.readline()
+    return b"".join(chunks)
+
+
+async def _http_get(url: str) -> tuple[int, list[tuple[bytes, bytes]], bytes]:
+    parsed = urlparse(url)
+    host = parsed.hostname or ""
+    port = parsed.port or (443 if parsed.scheme == "https" else 80)
+    path = parsed.path or "/"
+    if parsed.query:
+        path += "?" + parsed.query
+    reader, writer = await asyncio.open_connection(host, port, ssl=parsed.scheme == "https")
+    request = (
+        f"GET {path} HTTP/1.1\r\n"
+        f"Host: {host}\r\n"
+        "Connection: close\r\n"
+        "\r\n"
+    )
+    writer.write(request.encode())
+    await writer.drain()
+
+    status_line = await reader.readline()
+    parts = status_line.decode().split()
+    status = int(parts[1]) if len(parts) > 1 else 502
+    headers: list[tuple[bytes, bytes]] = []
+    hdr_dict = {}
+    while True:
+        line = await reader.readline()
+        if line == b"\r\n":
+            break
+        key, val = line.decode().split(":", 1)
+        val = val.strip()
+        headers.append((key.lower().encode(), val.encode()))
+        hdr_dict[key.lower()] = val
+
+    if hdr_dict.get("transfer-encoding") == "chunked":
+        body = await _read_chunked_body(reader)
+    elif "content-length" in hdr_dict:
+        length = int(hdr_dict["content-length"])
+        body = await reader.readexactly(length)
+    else:
+        body = await reader.read()
+
+    writer.close()
+    await writer.wait_closed()
+    return status, headers, body
 
 
 class PageQLApp:
@@ -120,6 +179,7 @@ class PageQLApp:
         reactive=True,
         quiet=False,
         fallback_app=None,
+        fallback_url: Optional[str] = None,
     ):
         self.stop_event = None
         self.notifies = []
@@ -134,6 +194,7 @@ class PageQLApp:
         self.template_dir = template_dir
         self.quiet = quiet
         self.fallback_app = fallback_app
+        self.fallback_url = fallback_url
         self.load_builtin_static()
         self.prepare_server(db_path, template_dir, create_db)
 
@@ -301,9 +362,23 @@ class PageQLApp:
                 reactive=self.reactive_default,
             )
 
-            if result.status_code == 404 and self.fallback_app is not None:
-                await self.fallback_app(scope, receive, send)
-                return None
+            if result.status_code == 404:
+                if self.fallback_app is not None:
+                    await self.fallback_app(scope, receive, send)
+                    return None
+                if self.fallback_url is not None:
+                    url = self.fallback_url.rstrip("/") + scope["path"]
+                    if scope.get("query_string"):
+                        qs = scope["query_string"].decode()
+                        url += "?" + qs
+                    status, headers, body = await _http_get(url)
+                    await send({
+                        "type": "http.response.start",
+                        "status": status,
+                        "headers": headers,
+                    })
+                    await send({"type": "http.response.body", "body": body})
+                    return None
 
             if client_id:
                 self.render_contexts[client_id] = result.context
@@ -408,6 +483,19 @@ class PageQLApp:
             self._error(f"ERROR: Module not found for path: {path_cleaned}")
             if self.fallback_app is not None:
                 await self.fallback_app(scope, receive, send)
+                return None
+            if self.fallback_url is not None:
+                url = self.fallback_url.rstrip("/") + scope["path"]
+                if scope.get("query_string"):
+                    qs = scope["query_string"].decode()
+                    url += "?" + qs
+                status, headers, body = await _http_get(url)
+                await send({
+                    "type": "http.response.start",
+                    "status": status,
+                    "headers": headers,
+                })
+                await send({"type": "http.response.body", "body": body})
                 return None
             await send({
                 'type': 'http.response.start',

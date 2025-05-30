@@ -111,7 +111,16 @@ def reload_ws_script(client_id: str) -> str:
 
 
 class PageQLApp:
-    def __init__(self, db_path, template_dir, create_db=False, should_reload=True, reactive=True, quiet=False):
+    def __init__(
+        self,
+        db_path,
+        template_dir,
+        create_db=False,
+        should_reload=True,
+        reactive=True,
+        quiet=False,
+        fallback_app=None,
+    ):
         self.stop_event = None
         self.notifies = []
         self.should_reload = should_reload
@@ -124,6 +133,7 @@ class PageQLApp:
         self.websockets = {}
         self.template_dir = template_dir
         self.quiet = quiet
+        self.fallback_app = fallback_app
         self.load_builtin_static()
         self.prepare_server(db_path, template_dir, create_db)
 
@@ -290,6 +300,11 @@ class PageQLApp:
                 method,
                 reactive=self.reactive_default,
             )
+
+            if result.status_code == 404 and self.fallback_app is not None:
+                await self.fallback_app(scope, receive, send)
+                return None
+
             if client_id:
                 self.render_contexts[client_id] = result.context
                 ws = self.websockets.get(client_id)
@@ -379,6 +394,9 @@ class PageQLApp:
             })
         except FileNotFoundError:  # If pageql_engine.render raises this for missing modules
             self._error(f"ERROR: Module not found for path: {path_cleaned}")
+            if self.fallback_app is not None:
+                await self.fallback_app(scope, receive, send)
+                return None
             await send({
                 'type': 'http.response.start',
                 'status': 404,
@@ -554,20 +572,21 @@ class PageQLApp:
                         fut_task = asyncio.create_task(fut.wait())
         else:
             client_id = await self.pageql_handler(scope, receive, send)
-            message = await receive()
-            if (
-                isinstance(message, dict)
-                and message.get("type") == "http.disconnect"
-                and client_id
-            ):
-                async def cleanup_later():
-                    await asyncio.sleep(0.1)
-                    if client_id not in self.websockets:
-                        ctx = self.render_contexts.pop(client_id, None)
-                        if ctx:
-                            ctx.cleanup()
+            if client_id is not None:
+                message = await receive()
+                if (
+                    isinstance(message, dict)
+                    and message.get("type") == "http.disconnect"
+                    and client_id
+                ):
+                    async def cleanup_later():
+                        await asyncio.sleep(0.1)
+                        if client_id not in self.websockets:
+                            ctx = self.render_contexts.pop(client_id, None)
+                            if ctx:
+                                ctx.cleanup()
 
-                asyncio.create_task(cleanup_later())
+                    asyncio.create_task(cleanup_later())
 
 if __name__ == "__main__":
     try:

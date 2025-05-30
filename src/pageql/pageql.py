@@ -425,9 +425,10 @@ class PageQL:
             try:
                 if param_type == 'integer':
                     param_value = int(param_value)
-                elif param_type == 'boolean': # Basic truthiness
+                elif param_type == 'float':
+                    param_value = float(param_value)
+                elif param_type == 'boolean':  # Basic truthiness
                     param_value = bool(param_value) and str(param_value).lower() not in ['0', 'false', '']
-                # Add float later if needed
                 else: # Default to string
                     param_value = str(param_value)
 
@@ -443,14 +444,18 @@ class PageQL:
                     pattern = attrs['pattern']
                     if not re.match(pattern, param_value):
                         raise ValueError(f"Parameter '{param_name}' does not match pattern '{pattern}'.")
-                if param_type == 'integer' and 'min' in attrs:
-                    minval = int(attrs['min'])
+                if param_type in ('integer', 'float') and 'min' in attrs:
+                    minval = float(attrs['min']) if param_type == 'float' else int(attrs['min'])
                     if param_value < minval:
-                        raise ValueError(f"Parameter '{param_name}' value {param_value} is less than min {minval}.")
-                if param_type == 'integer' and 'max' in attrs:
-                    maxval = int(attrs['max'])
+                        raise ValueError(
+                            f"Parameter '{param_name}' value {param_value} is less than min {minval}."
+                        )
+                if param_type in ('integer', 'float') and 'max' in attrs:
+                    maxval = float(attrs['max']) if param_type == 'float' else int(attrs['max'])
                     if param_value > maxval:
-                        raise ValueError(f"Parameter '{param_name}' value {param_value} is greater than max {maxval}.")
+                        raise ValueError(
+                            f"Parameter '{param_name}' value {param_value} is greater than max {maxval}."
+                        )
                 if param_type == 'boolean' and 'required' in attrs:
                     if param_value is None:
                         raise ValueError(f"Parameter '{param_name}' is required but was not provided.")

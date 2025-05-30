@@ -13,7 +13,7 @@ import websockets
 REQUEST_ITERATIONS = 1000
 
 # number of todo items inserted and websocket messages drained
-TODO_COUNT = 10
+TODO_COUNT = 30
 
 
 async def _read_chunked_body(reader: asyncio.StreamReader) -> bytes:
@@ -155,7 +155,7 @@ async def run_benchmark() -> None:
                 pass
     elapsed = time.perf_counter() - start
 
-    print(f"{REQUEST_ITERATIONS/elapsed:.2f} QPS")
+    print(f"{REQUEST_ITERATIONS/elapsed:.0f} QPS")
 
     # insert multiple todos concurrently and wait for websocket updates
     start = time.perf_counter()
@@ -169,14 +169,19 @@ async def run_benchmark() -> None:
     for r, w, _ in results:
         connections.append((r, w))
 
+    recvs = 0
     async def drain_ws(ws):
-        for _ in range(TODO_COUNT):
-            await ws.recv()
+        nonlocal recvs
+        a=""
+        while f"/todos/{TODO_COUNT}" not in a:
+            a = await ws.recv()
+            recvs += 1
 
     await asyncio.gather(*(drain_ws(ws) for ws in websocket_connections))
     ws_elapsed = time.perf_counter() - start
     total_msgs = len(websocket_connections) * TODO_COUNT
-    print(f"{total_msgs/ws_elapsed:.2f} WS QPS")
+    print(f"{total_msgs/ws_elapsed:.0f} WS QPS")
+    print(f"Batch size: {total_msgs/recvs:.0f}")
 
     server.should_exit = True
     await server_task

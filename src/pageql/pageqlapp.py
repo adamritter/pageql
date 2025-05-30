@@ -472,7 +472,9 @@ class PageQLApp:
         self.stop_event = asyncio.Event()
 
         # --- Database File Handling ---
-        db_exists = os.path.isfile(db_path)
+        parsed = urlparse(db_path)
+        is_url = parsed.scheme in ("postgres", "postgresql", "mysql")
+        db_exists = os.path.isfile(db_path) if not is_url else True
 
         if not db_exists:
             if create_db:
@@ -596,7 +598,7 @@ if __name__ == "__main__":
         exit(1)
 
     parser = argparse.ArgumentParser(description="Run the PageQL development server.")
-    parser.add_argument('--db', required=True, help="Path to the SQLite database file.")
+    parser.add_argument('--db', required=True, help="Path to the SQLite database file or a database URL.")
     parser.add_argument('--dir', required=True, help="Path to the directory containing .pageql template files.")
     parser.add_argument('--host', default='127.0.0.1', help="Host interface to bind the server.")
     parser.add_argument('--port', type=int, default=8000, help="Port number to run the server on.")

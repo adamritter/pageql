@@ -325,8 +325,8 @@ class PageQLApp:
             })
             return
 
-        # Form data parameters (for POST)
-        if method == 'POST':
+        # Form data parameters (for POST, PUT, PATCH, DELETE)
+        if method in ('POST', 'PUT', 'PATCH', 'DELETE'):
             self._log(scope)
             headers = {k.decode('utf-8'): v.decode('utf-8') for k, v in scope['headers']}
             content_length = int(headers.get('content-length', 0))
@@ -344,7 +344,7 @@ class PageQLApp:
                         params[key] = value[0] if len(value) == 1 else value
                 else:
                     # Log or handle unsupported content types if necessary
-                    self._log(f"Warning: Unsupported POST Content-Type: {content_type}")
+                    self._log(f"Warning: Unsupported Content-Type: {content_type}")
 
         try:
             # The render method in pageql.py handles path resolution (e.g., /todos/add)

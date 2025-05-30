@@ -380,7 +380,7 @@ def ast_param_dependencies(ast):
                 deps.update(get_dependencies(c))
             elif t == "#set":
                 deps.update(get_dependencies(c[1]))
-            elif t in {"#update", "#insert", "#delete", "#merge", "#create", "#redirect", "#statuscode"}:
+            elif t in {"#update", "#insert", "#delete", "#merge", "#create", "#redirect", "#statuscode", "#error"}:
                 deps.update(get_dependencies(c))
             elif t == "#header":
                 _, rest = parsefirstword(c)

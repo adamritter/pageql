@@ -125,6 +125,7 @@ pageql -path/to/your/database.sqlite ./templates
 
 *   `#statuscode <expression>`: Sets the HTTP response status code.
 *   `#redirect <url_expression>`: Performs an HTTP redirect by setting the `Location` header and status code to 302.
+*   `#error <expression>`: Raises an error with the evaluated expression.
 *   `#header <name> <value_expression>`: Sets an HTTP response header. The `<name>` (e.g., `Cache-Control`, `"X-Custom-Header"`) and `<value_expression>` (e.g., `"no-cache"`, `:some_variable`) are required positional arguments. Example: `#header Cache-Control "no-cache, no-store, must-revalidate"`.
 *   `#cookie <name> <expression> [options...]`: Sets an outgoing HTTP cookie. The `<name>` is a literal string and `<expression>` is evaluated to determine the cookie value. Optional attributes like `expires="..."`, `path="..."`, `domain="..."`, `secure`, and `httponly` may follow.
 *   [NOT IMPLEMENTED] `#contenttype <expression>`: Sets the `Content-Type` HTTP response header (e.g., `text/html; charset=utf-8`).

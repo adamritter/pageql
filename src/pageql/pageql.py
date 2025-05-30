@@ -14,6 +14,7 @@ Classes:
 import re, time, sys, json, hashlib, base64
 import doctest
 import sqlite3
+import os
 import html
 import pathlib
 from urllib.parse import urlparse
@@ -389,8 +390,20 @@ class PageQL:
         """
         self._modules = {} # Store parsed node lists here later
         self._parse_errors = {} # Store errors here
+        sqlite_file = None
+        if not (
+            db_path.startswith("postgres://")
+            or db_path.startswith("postgresql://")
+            or db_path.startswith("mysql://")
+        ):
+            sqlite_file = db_path
+            if sqlite_file.startswith("sqlite://"):
+                sqlite_file = sqlite_file.split("://", 1)[1]
+        new_db = False
+        if sqlite_file is not None:
+            new_db = sqlite_file == ":memory:" or not os.path.exists(sqlite_file)
         self.db = connect_database(db_path)
-        if isinstance(self.db, sqlite3.Connection):
+        if isinstance(self.db, sqlite3.Connection) and new_db:
             # Configure SQLite for web server usage
             with self.db:
                 self.db.execute("PRAGMA journal_mode=WAL")

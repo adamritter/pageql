@@ -4,7 +4,7 @@ It was inspired by ColdFusion language that allows embedding SQL and Handlebars 
 
 PageQL is **reactive-first**: rendered HTML automatically updates when the underlying database data changes.
 
-Usage: ```pageql data.db templates --create```
+Usage: ```pageql <database> templates [--create]```
 
 Install: pip install pageql
 
@@ -60,18 +60,20 @@ To maintain focus and simplicity, several design choices have been made:
 
 ## Usage (Preliminary)
 
-PageQL is intended to be run via a command-line tool. The basic usage involves pointing the tool at a directory of `.pageql` files and specifying the SQLite database to use.
+PageQL is intended to be run via a command-line tool. The basic usage involves pointing the tool at a directory of `.pageql` files and specifying the SQLite database or a database URL to use.
 
 ```bash
 pageql -path/to/your/database.sqlite ./templates
 ```
 
-*   `<path>`: (Required) Path to the SQLite database file.
+*   `<database>`: (Required) Path to the SQLite database file or a PostgreSQL/MySQL connection URL.
 *   `<path>`: (Required) Path to the directory containing the PageQL template files (`.pageql`) to be served.
 *   `--port <number>`: (Optional) Port number to run the development server on. Defaults to a standard port (e.g., 8000 or 8080).
 *   `-q, --quiet`: (Optional) Only output errors when running the server.
 *   PageQL automatically configures new SQLite databases with write-ahead logging
     and an increased cache for better concurrency.
+*   When a PostgreSQL or MySQL URL is provided, `--create` is ignored and the
+    database must already exist.
 
 *(Note: Actual command name and argument flags are subject to change.)*
 

@@ -16,6 +16,7 @@ import doctest
 import sqlite3
 import html
 import pathlib
+from urllib.parse import urlparse
 
 if __package__ is None:                      # script / doctest-by-path
     sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
@@ -34,6 +35,50 @@ from pageql.reactive import (
 )
 from pageql.reactive_sql import parse_reactive, _replace_placeholders
 import sqlglot
+
+
+def connect_database(db_path: str):
+    """Return a DB-API connection for the given path or URL."""
+    if db_path.startswith("postgres://") or db_path.startswith("postgresql://"):
+        try:
+            import psycopg
+            return psycopg.connect(db_path)
+        except ImportError:
+            try:
+                import psycopg2
+                return psycopg2.connect(db_path)
+            except ImportError:  # pragma: no cover - optional deps
+                raise ImportError(
+                    "PostgreSQL support requires psycopg or psycopg2 to be installed"
+                )
+    if db_path.startswith("mysql://"):
+        parsed = urlparse(db_path)
+        try:
+            import mysql.connector
+            return mysql.connector.connect(
+                user=parsed.username,
+                password=parsed.password,
+                host=parsed.hostname,
+                port=parsed.port or 3306,
+                database=parsed.path.lstrip("/"),
+            )
+        except ImportError:
+            try:
+                import pymysql
+                return pymysql.connect(
+                    host=parsed.hostname,
+                    user=parsed.username,
+                    password=parsed.password,
+                    database=parsed.path.lstrip("/"),
+                    port=parsed.port or 3306,
+                )
+            except ImportError:  # pragma: no cover - optional deps
+                raise ImportError(
+                    "MySQL support requires mysql-connector-python or PyMySQL"
+                )
+    if db_path.startswith("sqlite://"):
+        db_path = db_path.split("://", 1)[1]
+    return sqlite3.connect(db_path)
 
 def flatten_params(params):
     """
@@ -328,10 +373,10 @@ class RenderResultException(Exception):
 
 class PageQL:
     """
-    Manages and renders PageQL templates against an SQLite database.
+    Manages and renders PageQL templates against a database.
 
     Attributes:
-        db_path: Path to the SQLite database file.
+        db_path: Path to the SQLite database file or a database URL.
         _modules: Internal storage for loaded module source strings or parsed nodes.
     """
 
@@ -340,17 +385,18 @@ class PageQL:
         Initializes the PageQL engine instance.
 
         Args:
-            db_path: Path to the SQLite database file to be used.
+            db_path: Path to the SQLite database file or database URL.
         """
         self._modules = {} # Store parsed node lists here later
         self._parse_errors = {} # Store errors here
-        self.db = sqlite3.connect(db_path)
-        # Configure SQLite for web server usage
-        with self.db:
-            self.db.execute("PRAGMA journal_mode=WAL")
-            self.db.execute("PRAGMA synchronous=NORMAL")
-            self.db.execute("PRAGMA temp_store=MEMORY")
-            self.db.execute("PRAGMA cache_size=10000")
+        self.db = connect_database(db_path)
+        if isinstance(self.db, sqlite3.Connection):
+            # Configure SQLite for web server usage
+            with self.db:
+                self.db.execute("PRAGMA journal_mode=WAL")
+                self.db.execute("PRAGMA synchronous=NORMAL")
+                self.db.execute("PRAGMA temp_store=MEMORY")
+                self.db.execute("PRAGMA cache_size=10000")
         self.tables = Tables(self.db)
         self._from_cache = {}
 

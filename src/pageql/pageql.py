@@ -117,6 +117,7 @@ DIRECTIVE_HELP: dict[str, str] = {
     "#partial <name>": "define a reusable partial block",
     "#reactive on|off": "toggle reactive rendering mode",
     "#redirect <url>": "issue an HTTP redirect",
+    "#error <expr>": "raise an error with the evaluated expression",
     "#render <name>": "render a named partial",
     "#set <name> <expr>": "assign a variable from an expression",
     "#statuscode <code>": "set the HTTP status code",
@@ -737,6 +738,9 @@ class PageQL:
                         cookies=ctx.cookies,
                     )
                 )
+            elif node_type == '#error':
+                msg = evalone(self.db, node_content, params, reactive, self.tables)
+                raise ValueError(str(msg))
             elif node_type == '#statuscode':
                 code = evalone(self.db, node_content, params, reactive, self.tables)
                 raise RenderResultException(

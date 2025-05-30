@@ -2,6 +2,8 @@ PageQL is a template / application language / micro python web framework that al
 
 It was inspired by ColdFusion language that allows embedding SQL and Handlebars / Mustache logic-less templates and also HTMX that simplifies web development
 
+PageQL is **reactive-first**: rendered HTML automatically updates when the underlying database data changes.
+
 Usage: ```pageql data.db templates --create```
 
 Install: pip install pageql

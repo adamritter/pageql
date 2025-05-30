@@ -318,12 +318,19 @@ class PageQLApp:
 
             # --- Handle Redirect ---
             if result.redirect_to:
+                headers = [(b'Location', result.redirect_to)]
+                for name, value in result.headers:
+                    headers.append((name.encode('utf-8'), value.encode('utf-8')))
+                for name, value, opts in result.cookies:
+                    parts = [f"{name}={value}"]
+                    for k, v in opts.items():
+                        parts.append(k if v is True else f"{k}={v}")
+                    headers.append((b'Set-Cookie', "; ".join(parts).encode('utf-8')))
                 await send({
                     'type': 'http.response.start',
                     'status': result.status_code,
-                    'headers': [(b'Location', result.redirect_to)],
+                    'headers': headers,
                 })
-                # Send other headers added by #header or #cookie? (Currently not implemented in RenderResult)
                 await send({
                     'type': 'http.response.body',
                     'body': result.body.encode('utf-8'),
@@ -331,9 +338,14 @@ class PageQLApp:
                 self._log(f"Redirecting to: {result.redirect_to} (Status: {result.status_code})")
             # --- Handle Normal Response ---
             else:
-                headers = [(b'Content-Type', b'text/html; charset=utf-8')]    
+                headers = [(b'Content-Type', b'text/html; charset=utf-8')]
                 for name, value in result.headers:
                     headers.append((name.encode('utf-8'), value.encode('utf-8')))
+                for name, value, opts in result.cookies:
+                    parts = [f"{name}={value}"]
+                    for k, v in opts.items():
+                        parts.append(k if v is True else f"{k}={v}")
+                    headers.append((b'Set-Cookie', "; ".join(parts).encode('utf-8')))
                 await send({
                     'type': 'http.response.start',
                     'status': result.status_code,

@@ -4,6 +4,7 @@ import os, time
 import sqlite3
 import mimetypes
 import re
+import base64
 from urllib.parse import urlparse, parse_qs
 from watchfiles import awatch
 import uuid
@@ -649,6 +650,13 @@ class PageQLApp:
         try:
             self.pageql_engine = PageQL(db_path)
             self.conn = self.pageql_engine.db
+            try:
+                self.conn.create_function(
+                    "base64_encode", 1,
+                    lambda blob: base64.b64encode(blob).decode("utf-8") if blob is not None else None,
+                )
+            except Exception as e:
+                self._log(f"Warning: could not register base64_encode: {e}")
         except Exception as e:
             self._error(f"Error initializing PageQL engine: {e}")
             exit(1)

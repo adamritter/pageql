@@ -171,6 +171,13 @@ def _normalize_params(params):
             normalized[k] = v
     return normalized
 
+_DOT_PARAM_RE = re.compile(r":([A-Za-z0-9_]+(?:\.[A-Za-z0-9_]+)+)")
+
+def _convert_dot_sql(sql: str) -> str:
+    """Return *sql* with ``:a.b`` placeholders rewritten as ``:a__b``."""
+
+    return _DOT_PARAM_RE.sub(lambda m: ":" + m.group(1).replace(".", "__"), sql)
+
 class ReactiveTable(Signal):
     def __init__(self, conn, table_name):
         super().__init__()
@@ -186,12 +193,12 @@ class ReactiveTable(Signal):
 
     def insert(self, sql, params):
         params = _normalize_params(params)
+        query = _convert_dot_sql(sql + " RETURNING *")
         try:
-            query = sql + " RETURNING *"
             cursor = self.conn.execute(query, params)
             row = cursor.fetchone()
         except Exception as e:
-            raise Exception(f"Insert into table {self.table_name} failed for query: {query} with params: {params} with error: {e}")            
+            raise Exception(f"Insert into table {self.table_name} failed for query: {query} with params: {params} with error: {e}")
         for listener in self.listeners:
             listener([1, row])
             
@@ -200,7 +207,7 @@ class ReactiveTable(Signal):
         Delete rows **one by one**, notifying listeners after each deletion.
         """
         params = _normalize_params(params)
-        query = sql + " RETURNING * LIMIT 1"
+        query = _convert_dot_sql(sql + " RETURNING * LIMIT 1")
         try:
             while True:
                 cursor = self.conn.execute(query, params)
@@ -225,14 +232,14 @@ class ReactiveTable(Signal):
         if where:
             select_sql += f" WHERE {where.rstrip()}"
         select_sql += ";"
-        cursor = self.conn.execute(select_sql, params)
+        cursor = self.conn.execute(_convert_dot_sql(select_sql), params)
         rows = cursor.fetchall()
         update_sql = f"UPDATE {table} SET {set_sql} WHERE {' AND '.join([f'{k} IS :_col{index}' for index, k in enumerate(self.columns)])} RETURNING * LIMIT 1"
         params = params.copy()
         for row in rows:
             for index, value in enumerate(row):
                 params[f"_col{index}"] = value
-            cursor = self.conn.execute(update_sql, params)
+            cursor = self.conn.execute(_convert_dot_sql(update_sql), params)
             new_row = cursor.fetchone()
             if new_row is None:
                 raise Exception(f"Update on table {self.table_name} failed for query: {update_sql} with params: {params}")

@@ -127,6 +127,7 @@ class PageQLApp:
         quiet=False,
         fallback_app=None,
         fallback_url: Optional[str] = None,
+        csrf_protect: bool = True,
     ):
         self.stop_event = None
         self.notifies = []
@@ -142,6 +143,7 @@ class PageQLApp:
         self.quiet = quiet
         self.fallback_app = fallback_app
         self.fallback_url = fallback_url
+        self.csrf_protect = csrf_protect
         self.load_builtin_static()
         self.prepare_server(db_path, template_dir, create_db)
 
@@ -297,6 +299,27 @@ class PageQLApp:
                         params[key] = value
                 else:
                     self._log(f"Warning: Unsupported Content-Type: {content_type}")
+
+            if self.csrf_protect:
+                csrf_token = params.pop('__csrf', None)
+                cid_header = headers.get('ClientId')
+                token = cid_header or csrf_token
+                if not token or token not in self.render_contexts:
+                    await send(
+                        {
+                            'type': 'http.response.start',
+                            'status': 403,
+                            'headers': [(b'content-type', b'text/plain')],
+                        }
+                    )
+                    await send(
+                        {
+                            'type': 'http.response.body',
+                            'body': b'CSRF verification failed',
+                        }
+                    )
+                    return None
+                client_id = token
 
         try:
             # The render method in pageql.py handles path resolution (e.g., /todos/add)
@@ -663,11 +686,18 @@ if __name__ == "__main__":
     parser.add_argument('--port', type=int, default=8000, help="Port number to run the server on.")
     parser.add_argument('--create', action='store_true', help="Create the database file and directory if it doesn't exist.")
     parser.add_argument('--no-reload', action='store_true', help="Do not reload and refresh the templates on file changes.")
+    parser.add_argument('--no-csrf', action='store_true', help="Disable CSRF protection.")
 
     args = parser.parse_args()
     if args.create:
         os.makedirs(args.dir, exist_ok=True)
-    app = PageQLApp(args.db, args.dir, create_db=args.create, should_reload=not args.no_reload)
+    app = PageQLApp(
+        args.db,
+        args.dir,
+        create_db=args.create,
+        should_reload=not args.no_reload,
+        csrf_protect=not args.no_csrf,
+    )
 
     config = uvicorn.Config(app, host=args.host, port=args.port)
     server = uvicorn.Server(config)

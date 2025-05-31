@@ -351,29 +351,101 @@ pageql data.db templates --create</code></pre>
               </svg>
             </button>
           </div>
-          <pre><code class="language-html"><span style="color: #7f848e;">&#123;&#123;!-- Ensure the table exists (harmless if already created) --&#125;&#125;</span>
-<span style="color: #c586c0;">&#123;&#123;#create table if not exists</span> <span style="color: #e06c75;">todos</span> <span style="color: #c586c0;">(</span>
-    <span style="color: #e5c07b;">id</span> <span style="color: #569cd6;">INTEGER</span> <span style="color: #d7ba7d;">PRIMARY KEY AUTOINCREMENT</span>,
-    <span style="color: #e5c07b;">text</span> <span style="color: #569cd6;">TEXT</span> <span style="color: #d7ba7d;">NOT NULL</span>,
-    <span style="color: #e5c07b;">completed</span> <span style="color: #569cd6;">INTEGER</span> <span style="color: #d7ba7d;">DEFAULT</span> <span style="color: #b5cea8;">0</span> <span style="color: #d7ba7d;">CHECK</span>(<span style="color: #e5c07b;">completed</span> <span style="color: #d7ba7d;">IN</span> (<span style="color: #b5cea8;">0</span>,<span style="color: #b5cea8;">1</span>))
-<span style="color: #c586c0;">)&#125;&#125;</span>
+<pre><code class="language-html">
+{{#partial post add}}
+  {{#insert into todos(text) values (:text)}}
+{{/partial}}
 
-<span style="color: #61afef;">&lt;!doctype</span> <span style="color: #e5c07b;">html</span><span style="color: #61afef;">&gt;</span>
-<span style="color: #61afef;">&lt;html</span> <span style="color: #e5c07b;">lang</span>=<span style="color: #98c379;">"en"</span><span style="color: #61afef;">&gt;</span>
-<span style="color: #61afef;">&lt;head&gt;</span>
-  <span style="color: #61afef;">&lt;meta</span> <span style="color: #e5c07b;">charset</span>=<span style="color: #98c379;">"utf-8"</span><span style="color: #61afef;">&gt;</span>
-  <span style="color: #61afef;">&lt;title&gt;</span>Todos (read‑only)<span style="color: #61afef;">&lt;/title&gt;</span>
-<span style="color: #61afef;">&lt;/head&gt;</span>
-<span style="color: #61afef;">&lt;body&gt;</span>
-  <span style="color: #61afef;">&lt;h1&gt;</span>Todos<span style="color: #61afef;">&lt;/h1&gt;</span>
-  <span style="color: #61afef;">&lt;ul&gt;</span>
-    <span style="color: #7f848e;">&#123;&#123;!-- 🚀  Query & loop in one tag --&#125;&#125;</span>
-    <span style="color: #c586c0;">&#123;&#123;#from</span> <span style="color: #e06c75;">todos</span> <span style="color: #d7ba7d;">ORDER BY</span> <span style="color: #e5c07b;">id</span><span style="color: #c586c0;">&#125;&#125;</span>
-      <span style="color: #61afef;">&lt;li&gt;</span><span style="color: #c586c0;">&#123;&#123;</span><span style="color: #e06c75;">text</span><span style="color: #c586c0;">&#125;&#125;</span><span style="color: #61afef;">&lt;/li&gt;</span>
-    <span style="color: #c586c0;">&#123;&#123;/from&#125;&#125;</span>
-  <span style="color: #61afef;">&lt;/ul&gt;</span>
-<span style="color: #61afef;">&lt;/body&gt;</span>
-<span style="color: #61afef;">&lt;/html&gt;</span></code></pre>
+{{#partial post :id/toggle}}
+  {{#update todos set completed = 1 - completed WHERE id = :id}}
+{{/partial}}
+
+{{#partial patch :id}}
+  {{#update todos set text = :text WHERE id = :id}}
+{{/partial}}
+
+{{#partial post toggle_all}}
+  {{#let active_count COUNT(*) from todos WHERE completed = 0}}
+  {{#update todos set completed =  IIF(:active_count = 0, 0, 1)}}
+{{/partial}}
+
+{{#partial delete :id}}
+  {{#delete from todos WHERE id = :id}}
+{{/partial}}
+
+{{#partial post clear_completed}}
+  {{#delete from todos WHERE completed = 1}}
+{{/partial}}
+
+{{#param edit_id optional}}
+{{#param filter default='all' pattern="^(all|active|completed)$"}}
+
+{{!-- Ensure the table exists (harmless if already created) --}}
+{{#create table if not exists todos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    text TEXT NOT NULL,
+    completed INTEGER DEFAULT 0 CHECK(completed IN (0,1))
+)}}
+
+{{#let active_count    COUNT(*) from todos WHERE completed = 0}}
+{{#let completed_count COUNT(*) from todos WHERE completed = 1}}
+{{#let total_count     COUNT(*) from todos}}
+{{#let all_complete    (:active_count == 0 AND :total_count &gt; 0)}}
+
+
+&lt;!doctype html&gt;
+&lt;html lang="en"&gt;
+&lt;head&gt;
+  &lt;meta charset="utf-8"&gt;
+  &lt;title&gt;Todos&lt;/title&gt;
+&lt;/head&gt;
+&lt;body&gt;
+  &lt;h1&gt;Todos&lt;/h1&gt;
+  &lt;input name="text" placeholder="What needs to be done?" autofocus autocomplete="off"
+    hx-post="/todos/add" hx-trigger="keyup[key=='Enter']" hx-on:htmx:after-on-load="this.value=''"&gt;
+  &lt;ul&gt;
+{{#from todos
+  WHERE (:filter == 'all')
+        OR (:filter == 'active'    AND completed = 0)
+        OR (:filter == 'completed' AND completed = 1)
+  ORDER BY id}}
+    &lt;li {{#if completed}}class="completed"{{/if}}&gt;
+        &lt;input hx-post="/todos/{{id}}/toggle" class="toggle" type="checkbox" {{#if completed}}checked{{/if}}&gt;
+        &lt;label
+          contenteditable="false"
+          onclick="this.contentEditable=true;this.focus();"
+          onblur="this.contentEditable=false;"
+          onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}"
+          hx-patch="/todos/{{id}}"
+          hx-trigger="blur"
+          hx-vals='js:{text: event.target.innerText}'
+          hx-swap="none"
+        &gt;{{text}}&lt;/label&gt;
+        &lt;button hx-delete="/todos/{{id}}" class="destroy" style="cursor:pointer; background:none; border:none; color:#ac4a1a;"&gt;✕&lt;/button&gt;
+    &lt;/li&gt;
+{{/from}}
+  &lt;/ul&gt;
+
+  &lt;input id="toggle-all" class="toggle-all" type="checkbox" {{#if all_complete}}checked{{/if}} hx-post="/todos/toggle_all"&gt;
+  &lt;label for="toggle-all"&gt;Mark all as complete&lt;/label&gt;
+
+&lt;span class="todo-count"&gt;
+  &lt;strong&gt;{{active_count}}&lt;/strong&gt;
+  item{{#if :active_count != 1}}s{{/if}} left
+&lt;/span&gt;
+
+
+{{#if :completed_count &gt; 0}}
+  &lt;button class="clear-completed" hx-post="/todos/clear_completed"&gt;Clear completed&lt;/button&gt;
+{{/if}}
+&lt;div class="filters"&gt;
+  &lt;a {{#if :filter == 'all'}}class="selected"{{/if}} href="/todos?filter=all"&gt;All&lt;/a&gt; |
+  &lt;a {{#if :filter == 'active'}}class="selected"{{/if}} href="/todos?filter=active"&gt;Active&lt;/a&gt; |
+  &lt;a {{#if :filter == 'completed'}}class="selected"{{/if}} href="/todos?filter=completed"&gt;Completed&lt;/a&gt;
+&lt;/div&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+</code></pre>
         </div>
       </div>
 

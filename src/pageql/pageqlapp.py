@@ -3,6 +3,7 @@ import argparse
 import os, time
 import sqlite3
 import mimetypes
+import re
 from urllib.parse import urlparse, parse_qs
 from watchfiles import awatch
 import uuid
@@ -123,6 +124,49 @@ async def _read_chunked_body(reader: asyncio.StreamReader) -> bytes:
         chunks.append(chunk)
         await reader.readline()
     return b"".join(chunks)
+
+
+def _parse_multipart_data(body: bytes, boundary: str) -> Dict[str, object]:
+    """Very small multipart/form-data parser.
+
+    Returns a dict mapping field names to either strings or ``{"filename": str, "body": bytes}``.
+    """
+    result: Dict[str, object] = {}
+    if not boundary:
+        return result
+    delim = b"--" + boundary.encode()
+    parts = body.split(delim)
+    for part in parts[1:]:
+        part = part.strip()
+        if not part or part == b"--":
+            continue
+        if part.startswith(b"\r\n"):
+            part = part[2:]
+        if part.endswith(b"\r\n"):
+            part = part[:-2]
+        header_end = part.find(b"\r\n\r\n")
+        if header_end == -1:
+            continue
+        header_bytes = part[:header_end].decode("utf-8", "ignore")
+        content = part[header_end + 4 :]
+        headers = {}
+        for line in header_bytes.split("\r\n"):
+            if ":" not in line:
+                continue
+            k, v = line.split(":", 1)
+            headers[k.strip().lower()] = v.strip()
+        disp = headers.get("content-disposition", "")
+        m = re.findall(r"([a-zA-Z0-9_-]+)=\"([^\"]*)\"", disp)
+        disp_dict = {k: v for k, v in m}
+        name = disp_dict.get("name")
+        filename = disp_dict.get("filename")
+        if not name:
+            continue
+        if filename is not None:
+            result[name] = {"filename": filename, "body": content}
+        else:
+            result[name] = content.decode("utf-8")
+    return result
 
 
 async def _http_get(url: str) -> tuple[int, list[tuple[bytes, bytes]], bytes]:
@@ -333,17 +377,22 @@ class PageQLApp:
             if content_length > 0:
                 content_type = headers.get('content-type', '')
                 # Basic form data parsing
+                message = await receive()
+                post_body = message['body']
                 if 'application/x-www-form-urlencoded' in content_type:
-                    message = await receive()
-                    post_body = message['body']
                     post_body = post_body.decode('utf-8')
                     post_params = parse_qs(post_body, keep_blank_values=True)
                     self._log(f"post_params: {post_params}")
-                    # Merge/overwrite query params with post params
                     for key, value in post_params.items():
                         params[key] = value[0] if len(value) == 1 else value
+                elif 'multipart/form-data' in content_type:
+                    m = re.search('boundary=([^;]+)', content_type)
+                    boundary = m.group(1).strip('"') if m else ''
+                    files_and_params = _parse_multipart_data(post_body, boundary)
+                    self._log(f"multipart_params: {files_and_params}")
+                    for key, value in files_and_params.items():
+                        params[key] = value
                 else:
-                    # Log or handle unsupported content types if necessary
                     self._log(f"Warning: Unsupported Content-Type: {content_type}")
 
         try:

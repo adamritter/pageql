@@ -1,0 +1,24 @@
+{{#create table if not exists uploads (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    filename TEXT,
+    data BLOB
+)}}
+
+{{#partial post add}}
+  {{#insert into uploads(filename, data) values (:file.filename, :file.body)}}
+  {{#redirect '/upload'}}
+{{/partial}}
+
+<form method="POST" action="/upload/add" enctype="multipart/form-data">
+  <input type="file" name="file" required>
+  <button type="submit">Upload</button>
+</form>
+
+<ul>
+{{#from uploads order by id desc}}
+  <li>
+    {{filename}} - {{length(data)}} bytes<br>
+    <img src="data:image;base64,{{base64_encode(:data)}}" width="150"/>
+  </li>
+{{/from}}
+</ul>

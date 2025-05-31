@@ -16,7 +16,13 @@ def chromium_available(playwright) -> bool:
 async def run_server_in_task(
     tmpdir: str, reload: bool = False
 ) -> Tuple[Server, "asyncio.Task", int]:
-    app = PageQLApp(":memory:", tmpdir, create_db=True, should_reload=reload)
+    app = PageQLApp(
+        ":memory:",
+        tmpdir,
+        create_db=True,
+        should_reload=reload,
+        csrf_protect=False,
+    )
     config = Config(app, host="127.0.0.1", port=0, log_level="warning")
     server = Server(config)
     task = asyncio.create_task(server.serve())

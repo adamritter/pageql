@@ -22,6 +22,7 @@ def main():
     parser.add_argument('--no-reload', action='store_true', help="Do not reload and refresh the templates on file changes.")
     parser.add_argument('-q', '--quiet', action='store_true', help="Only show errors in output.")
     parser.add_argument('--fallback-url', help="Forward unknown routes to this base URL")
+    parser.add_argument('--no-csrf', action='store_true', help="Disable CSRF protection")
 
     # If no arguments were provided (only the script name), print help and exit.
     if len(sys.argv) == 1:
@@ -30,14 +31,16 @@ def main():
 
     args = parser.parse_args()
 
-    app = PageQLApp(
-        args.db_file,
-        args.templates_dir,
-        create_db=args.create,
-        should_reload=not args.no_reload,
-        quiet=args.quiet,
-        fallback_url=args.fallback_url,
-    )
+    kwargs = {
+        "create_db": args.create,
+        "should_reload": not args.no_reload,
+        "quiet": args.quiet,
+        "fallback_url": args.fallback_url,
+    }
+    import inspect
+    if "csrf_protect" in inspect.signature(PageQLApp).parameters:
+        kwargs["csrf_protect"] = not args.no_csrf
+    app = PageQLApp(args.db_file, args.templates_dir, **kwargs)
 
     if not args.quiet:
         print(f"\nPageQL server running on http://{args.host}:{args.port}")

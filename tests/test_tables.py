@@ -58,3 +58,14 @@ def test_tables_executeone_invalid():
     else:
         assert False, "expected ValueError"
 
+
+def test_tables_executeone_dotted_param():
+    conn = _db()
+    tables = Tables(conn)
+    tables.executeone(
+        "INSERT INTO items(name) VALUES (:file.name)",
+        {"file__name": "dot"},
+    )
+    row = conn.execute("SELECT name FROM items").fetchone()
+    assert row[0] == "dot"
+

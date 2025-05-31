@@ -14,6 +14,13 @@ from .tokens import (
     store_token,
     get_and_delete_token,
 )
+from .sessions import (
+    create_session,
+    validate_session,
+    extend_session,
+    delete_session,
+    invalidate_user_sessions,
+)
 # Define the version
 __version__ = "0.1.0"
 
@@ -29,4 +36,9 @@ __all__ = [
     "create_tokens_table",
     "store_token",
     "get_and_delete_token",
+    "create_session",
+    "validate_session",
+    "extend_session",
+    "delete_session",
+    "invalidate_user_sessions",
 ]

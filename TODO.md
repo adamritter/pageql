@@ -13,7 +13,7 @@ Later:
 
 - Parsing Robustness: The parse_simple function in pageql.py is very basic (simple regex split). It might struggle with nested tags, complex attribute quoting, or minor syntax variations, making templates potentially brittle.
 - HTTP Server & Request Handling (pageql_server.py):
-Limited Request Handling: Currently handles URL query parameters and basic application/x-www-form-urlencoded POST data. It lacks built-in support for other common needs like JSON payloads, multipart/form-data (file uploads), accessing request headers easily within templates, or differentiating easily between PUT, DELETE, etc.
+Limited Request Handling: Handles URL query parameters, application/x-www-form-urlencoded POST data, and multipart/form-data (file uploads). Still lacks built-in support for JSON payloads, easy access to request headers within templates, or differentiating easily between PUT, DELETE, etc.
 
 No Middleware Concept: Frameworks often use middleware for handling tasks across many requests (e.g., authentication, logging, CORS).
 

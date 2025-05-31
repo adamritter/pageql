@@ -6,6 +6,7 @@ import http.client
 import http.server
 import threading
 import pageql.pageqlapp
+from pageql.http_utils import _http_get
 import asyncio
 import base64
 # Ensure the package can be imported without optional dependencies
@@ -101,7 +102,7 @@ def test_fallback_url_handles_unknown_route():
             server.config.app.fallback_url = f"http://127.0.0.1:{fb_port}"
 
             async def make_request():
-                status, _headers, body = await pageql.pageqlapp._http_get(
+                status, _headers, body = await _http_get(
                     f"http://127.0.0.1:{port}/missing"
                 )
                 return status, body.decode()

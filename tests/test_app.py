@@ -7,6 +7,7 @@ import http.server
 import threading
 import pageql.pageqlapp
 import asyncio
+import base64
 # Ensure the package can be imported without optional dependencies
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 sys.modules.setdefault("watchfiles", types.ModuleType("watchfiles"))
@@ -117,4 +118,10 @@ def test_fallback_url_handles_unknown_route():
 
         assert status == 200
         assert body == "fallback"
+
+
+def test_base64_encode_function_is_registered(tmp_path):
+    app = pageql.pageqlapp.PageQLApp(":memory:", tmp_path, create_db=True, should_reload=False)
+    result = app.conn.execute("select base64_encode(?)", (b'abcd',)).fetchone()[0]
+    assert result == base64.b64encode(b'abcd').decode()
 

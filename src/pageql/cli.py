@@ -36,10 +36,8 @@ def main():
         "should_reload": not args.no_reload,
         "quiet": args.quiet,
         "fallback_url": args.fallback_url,
+        "csrf_protect": not args.no_csrf,
     }
-    import inspect
-    if "csrf_protect" in inspect.signature(PageQLApp).parameters:
-        kwargs["csrf_protect"] = not args.no_csrf
     app = PageQLApp(args.db_file, args.templates_dir, **kwargs)
 
     if not args.quiet:

@@ -12,7 +12,17 @@ def test_cli_fallback_url(monkeypatch, tmp_path):
     created = {}
 
     class DummyApp:
-        def __init__(self, db_file, templates_dir, create_db=False, should_reload=True, quiet=False, fallback_app=None, fallback_url=None):
+        def __init__(
+            self,
+            db_file,
+            templates_dir,
+            create_db=False,
+            should_reload=True,
+            quiet=False,
+            fallback_app=None,
+            fallback_url=None,
+            csrf_protect=True,
+        ):
             created["db"] = db_file
             created["tpl"] = templates_dir
             created["fallback_url"] = fallback_url

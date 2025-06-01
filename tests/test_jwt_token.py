@@ -21,9 +21,7 @@ def test_jwt_round_trip_load_render(tmp_path):
     r.db.create_function(
         "jws_deserialize_compact",
         1,
-        lambda token: json.dumps(
-            jws_deserialize_compact(token, key_path=str(key_path))
-        ),
+        lambda token: jws_deserialize_compact(token, key_path=str(key_path)).decode(),
     )
     src = """
 {{#let payload json_set('{}', '$.uid', 42)}}

@@ -39,15 +39,15 @@ import sqlglot
 
 
 def connect_database(db_path: str):
-    """Return a DB-API connection for the given path or URL."""
+    """Return ``(connection, dialect)`` for the given path or URL."""
     if db_path.startswith("postgres://") or db_path.startswith("postgresql://"):
         try:
             import psycopg
-            return psycopg.connect(db_path)
+            return psycopg.connect(db_path), "postgresql"
         except ImportError:
             try:
                 import psycopg2
-                return psycopg2.connect(db_path)
+                return psycopg2.connect(db_path), "postgresql"
             except ImportError:  # pragma: no cover - optional deps
                 raise ImportError(
                     "PostgreSQL support requires psycopg or psycopg2 to be installed"
@@ -56,22 +56,28 @@ def connect_database(db_path: str):
         parsed = urlparse(db_path)
         try:
             import mysql.connector
-            return mysql.connector.connect(
-                user=parsed.username,
-                password=parsed.password,
-                host=parsed.hostname,
-                port=parsed.port or 3306,
-                database=parsed.path.lstrip("/"),
+            return (
+                mysql.connector.connect(
+                    user=parsed.username,
+                    password=parsed.password,
+                    host=parsed.hostname,
+                    port=parsed.port or 3306,
+                    database=parsed.path.lstrip("/"),
+                ),
+                "mysql",
             )
         except ImportError:
             try:
                 import pymysql
-                return pymysql.connect(
-                    host=parsed.hostname,
-                    user=parsed.username,
-                    password=parsed.password,
-                    database=parsed.path.lstrip("/"),
-                    port=parsed.port or 3306,
+                return (
+                    pymysql.connect(
+                        host=parsed.hostname,
+                        user=parsed.username,
+                        password=parsed.password,
+                        database=parsed.path.lstrip("/"),
+                        port=parsed.port or 3306,
+                    ),
+                    "mysql",
                 )
             except ImportError:  # pragma: no cover - optional deps
                 raise ImportError(
@@ -79,7 +85,7 @@ def connect_database(db_path: str):
                 )
     if db_path.startswith("sqlite://"):
         db_path = db_path.split("://", 1)[1]
-    return sqlite3.connect(db_path)
+    return sqlite3.connect(db_path), "sqlite"
 
 def flatten_params(params):
     """
@@ -379,6 +385,7 @@ class PageQL:
     Attributes:
         db_path: Path to the SQLite database file or a database URL.
         _modules: Internal storage for loaded module source strings or parsed nodes.
+        dialect: SQL dialect used by the connected database.
     """
 
     def __init__(self, db_path):
@@ -402,7 +409,7 @@ class PageQL:
         new_db = False
         if sqlite_file is not None:
             new_db = sqlite_file == ":memory:" or not os.path.exists(sqlite_file)
-        self.db = connect_database(db_path)
+        self.db, self.dialect = connect_database(db_path)
         if isinstance(self.db, sqlite3.Connection) and new_db:
             # Configure SQLite for web server usage
             with self.db:

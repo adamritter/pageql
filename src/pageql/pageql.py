@@ -308,7 +308,12 @@ def db_execute_dot(db, exp, params):
             converted_params[k] = v.value
         else:
             converted_params[k] = v
-    return db.execute(converted_exp, converted_params)
+    try:
+        return db.execute(converted_exp, converted_params)
+    except sqlite3.Error as e:
+        raise ValueError(
+            f"Error executing SQL `{converted_exp}` with params {converted_params}: {e}"
+        )
 
 def evalone(db, exp, params, reactive=False, tables=None, expr=None):
     exp = exp.strip()
@@ -1073,7 +1078,12 @@ class PageQL:
                         comp = parse_reactive(expr, self.tables, params)
                         if cache_allowed:
                             self._from_cache[cache_key] = comp
-                    cursor = self.db.execute(comp.sql, converted_params)
+                    try:
+                        cursor = self.db.execute(comp.sql, converted_params)
+                    except sqlite3.Error as e:
+                        raise ValueError(
+                            f"Error executing SQL `{comp.sql}` with params {converted_params}: {e}"
+                        )
                     col_names = comp.columns if not isinstance(comp.columns, str) else [comp.columns]
                 else:
                     cursor = db_execute_dot(self.db, "select * from " + query, params)

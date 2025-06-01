@@ -1,0 +1,55 @@
+{{#create table if not exists users (
+    id INTEGER PRIMARY KEY,
+    username TEXT UNIQUE,
+    password TEXT
+)}}
+
+{{#insert or ignore into users(id, username, password) values (1, 'alice', 'password')}}
+{{#insert or ignore into users(id, username, password) values (2, 'bob', 'pass')}}
+
+{{!-- Load username/password from session cookie --}}
+{{#param session optional}}
+{{#let sess_username substr(:session, 1, instr(:session, ':') - 1)}}
+{{#let sess_password substr(:session, instr(:session, ':') + 1)}}
+{{#let uid id from users where username=:sess_username and password=:sess_password}}
+
+{{#if uid}}
+<p>Logged in as {{sess_username}}. <a href="/basic_auth_sessionless/profile">Profile</a> <a href="/basic_auth_sessionless/logout">Logout</a></p>
+{{#else}}
+<p>You are not logged in. <a href="/basic_auth_sessionless/login">Login</a></p>
+{{/if}}
+
+{{#partial POST login}}
+  {{#param username required}}
+  {{#param password required}}
+  {{#cookie session (:username || ':' || :password) path='/' httponly}}
+  {{#redirect '/basic_auth_sessionless'}}
+{{/partial}}
+
+{{#partial GET login}}
+  <h1>Login</h1>
+  <form method="POST" action="/basic_auth_sessionless/login">
+    <input name="username" placeholder="Username">
+    <input name="password" type="password" placeholder="Password">
+    <button type="submit">Login</button>
+  </form>
+{{/partial}}
+
+{{#partial GET profile}}
+  {{#param session optional}}
+  {{#let sess_username substr(:session, 1, instr(:session, ':') - 1)}}
+  {{#let sess_password substr(:session, instr(:session, ':') + 1)}}
+  {{#let uid id from users where username=:sess_username and password=:sess_password}}
+
+  {{#if uid}}
+    <h1>Hello {{sess_username}}</h1>
+    <p><a href="/basic_auth_sessionless/logout">Logout</a></p>
+  {{#else}}
+    {{#redirect '/basic_auth_sessionless/login'}}
+  {{/if}}
+{{/partial}}
+
+{{#partial public logout}}
+  {{#cookie session '' path='/' expires='Thu, 01 Jan 1970 00:00:00 GMT'}}
+  {{#redirect '/basic_auth_sessionless'}}
+{{/partial}}

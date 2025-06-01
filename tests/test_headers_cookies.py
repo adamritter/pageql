@@ -46,3 +46,31 @@ def test_header_cookie_sent():
             assert "httponly" in cookie.lower()
 
     asyncio.run(run())
+
+
+def test_cookie_map_available():
+    async def run():
+        with tempfile.TemporaryDirectory() as tmpdir:
+            Path(tmpdir, "c.pageql").write_text("{{ cookies.session }}", encoding="utf-8")
+            app = PageQLApp(":memory:", tmpdir, create_db=True, should_reload=False)
+            sent: list[dict] = []
+
+            async def send(msg):
+                sent.append(msg)
+
+            async def receive():
+                return {"type": "http.request"}
+
+            scope = {
+                "type": "http",
+                "method": "GET",
+                "path": "/c",
+                "headers": [(b"cookie", b"session=s123")],
+                "query_string": b"",
+            }
+
+            await app.pageql_handler(scope, receive, send)
+            body = next(m for m in sent if m["type"] == "http.response.body")["body"].decode()
+            assert "s123" in body
+
+    asyncio.run(run())

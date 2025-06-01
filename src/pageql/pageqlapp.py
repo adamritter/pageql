@@ -13,7 +13,12 @@ from typing import Callable, Awaitable, Dict, List, Optional
 
 # Assuming pageql.py is in the same directory or Python path
 from .pageql import PageQL
-from .http_utils import _http_get, _parse_multipart_data, _read_chunked_body
+from .http_utils import (
+    _http_get,
+    _parse_multipart_data,
+    _read_chunked_body,
+    _parse_cookies,
+)
 
 scripts_by_send: defaultdict = defaultdict(list)
 _idle_task: Optional[asyncio.Task] = None
@@ -269,6 +274,7 @@ class PageQLApp:
             incoming_client_id = headers.get('ClientId') or headers.get('clientid')
         client_id = incoming_client_id or uuid.uuid4().hex
 
+        params['cookies'] = _parse_cookies(headers.get('cookie', ''))
         params['headers'] = headers
         params['method'] = method
 

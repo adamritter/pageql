@@ -37,8 +37,4 @@ def jws_deserialize_compact(value, *, key_path=DEFAULT_KEY_PATH):
     """Deserialize a JWS Compact string and return the payload."""
     key = _load_or_create_key(key_path)
     obj = jws.deserialize_compact(value, key)
-    data = obj.payload
-    try:
-        return json.loads(data)
-    except Exception:
-        return data.decode() if isinstance(data, (bytes, bytearray)) else data
+    return obj.payload

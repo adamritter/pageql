@@ -625,7 +625,7 @@ class PageQLApp:
                 )
                 self.conn.create_function(
                     "jws_deserialize_compact", 1,
-                    lambda token: json.dumps(jws_deserialize_compact(token)),
+                    lambda token: jws_deserialize_compact(token),
                 )
             except Exception as e:
                 self._log(f"Warning: could not register base64_encode: {e}")

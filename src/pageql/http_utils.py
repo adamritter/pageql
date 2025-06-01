@@ -5,7 +5,7 @@ import re
 from urllib.parse import urlparse
 from typing import Dict, List, Tuple
 
-__all__ = ["_http_get", "_parse_multipart_data", "_read_chunked_body"]
+__all__ = ["_http_get", "_parse_multipart_data", "_read_chunked_body", "_parse_cookies"]
 
 
 async def _read_chunked_body(reader: asyncio.StreamReader) -> bytes:
@@ -112,3 +112,16 @@ async def _http_get(url: str) -> Tuple[int, List[Tuple[bytes, bytes]], bytes]:
     writer.close()
     await writer.wait_closed()
     return status, headers, body
+
+
+def _parse_cookies(cookie_header: str) -> Dict[str, str]:
+    """Parse an HTTP ``Cookie`` header into a mapping."""
+    cookies: Dict[str, str] = {}
+    if not cookie_header:
+        return cookies
+    for part in cookie_header.split(';'):
+        if '=' not in part:
+            continue
+        name, value = part.split('=', 1)
+        cookies[name.strip()] = value.strip()
+    return cookies

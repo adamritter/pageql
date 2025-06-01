@@ -365,7 +365,7 @@ pageql data.db templates --create</code></pre>
 {{/partial}}
 
 {{#partial post toggle_all}}
-  {{#let active_count COUNT(*) from todos WHERE completed = 0}}
+  {{#let active_count = COUNT(*) from todos WHERE completed = 0}}
   {{#update todos set completed =  IIF(:active_count = 0, 0, 1)}}
 {{/partial}}
 
@@ -387,10 +387,10 @@ pageql data.db templates --create</code></pre>
     completed INTEGER DEFAULT 0 CHECK(completed IN (0,1))
 )}}
 
-{{#let active_count    COUNT(*) from todos WHERE completed = 0}}
-{{#let completed_count COUNT(*) from todos WHERE completed = 1}}
-{{#let total_count     COUNT(*) from todos}}
-{{#let all_complete    (:active_count == 0 AND :total_count &gt; 0)}}
+{{#let active_count    = COUNT(*) from todos WHERE completed = 0}}
+{{#let completed_count = COUNT(*) from todos WHERE completed = 1}}
+{{#let total_count     = COUNT(*) from todos}}
+{{#let all_complete    = (:active_count == 0 AND :total_count &gt; 0)}}
 
 
 &lt;!doctype html&gt;

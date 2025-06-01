@@ -51,7 +51,7 @@ async def test_set_variable_in_browser(browser):
     pytest.importorskip("playwright.async_api")
 
     with tempfile.TemporaryDirectory() as tmpdir:
-        Path(tmpdir, "greet.pageql").write_text("{{#let :a 'world'}}Hello {{a}}", encoding="utf-8")
+        Path(tmpdir, "greet.pageql").write_text("{{#let :a = 'world'}}Hello {{a}}", encoding="utf-8")
 
         result = await _load_page_async(tmpdir, "greet", browser=browser)
         status, body_text = result
@@ -75,7 +75,7 @@ async def test_reactive_set_variable_in_browser(browser):
             "{{#create table vars(val TEXT)}}"
             "{{#insert into vars(val) values ('ww')}}"
             "{{#reactive on}}"
-            "{{#let a (select val from vars)}}"
+            "{{#let a = (select val from vars)}}"
             "hello {{a}}"
             "{{#update vars set val = 'world'}}",
             encoding="utf-8",
@@ -101,7 +101,7 @@ async def test_reactive_count_insert_in_browser(browser):
         Path(tmpdir, "count.pageql").write_text(
             "{{#create table nums(value INTEGER)}}"
             "{{#reactive on}}"
-            "{{#let a count(*) from nums}}"
+            "{{#let a = count(*) from nums}}"
             "{{a}}"
             "{{#insert into nums(value) values (1)}}",
             encoding="utf-8",
@@ -129,7 +129,7 @@ async def test_reactive_count_insert_via_execute(browser):
         Path(tmpdir, "count_after.pageql").write_text(
             "{{#create table if not exists nums(value INTEGER)}}"
             "{{#reactive on}}"
-            "{{#let a count(*) from nums}}"
+            "{{#let a = count(*) from nums}}"
             "{{a}}",
             encoding="utf-8",
         )
@@ -156,7 +156,7 @@ async def test_reactive_count_delete_via_execute(browser):
             "{{#create table if not exists nums(value INTEGER)}}"
             "{{#insert into nums(value) values (1)}}"
             "{{#reactive on}}"
-            "{{#let a count(*) from nums}}"
+            "{{#let a = count(*) from nums}}"
             "{{a}}",
             encoding="utf-8",
         )

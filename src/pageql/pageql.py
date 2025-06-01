@@ -172,7 +172,7 @@ DIRECTIVE_HELP: dict[str, str] = {
     "#redirect <url>": "issue an HTTP redirect",
     "#error <expr>": "raise an error with the evaluated expression",
     "#render <name>": "render a named partial",
-    "#let <name> <expr>": "assign a variable from an expression",
+    "#let <name> = <expr>": "assign a variable from an expression",
     "#statuscode <code>": "set the HTTP status code",
     "#header <name> <expr>": "add an HTTP response header",
     "#cookie <name> <expr> [opts]": "set an HTTP cookie",

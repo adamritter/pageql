@@ -404,16 +404,16 @@
   <h3>2.1 Computed counts &amp; flags</h3>
 
   <pre class="code-block"><code class="language-diff">
-&#123;&#123;<span class="keyword">#let</span> <span class="variable">active_count</span>    COUNT(*) from todos WHERE completed = 0&#125;&#125;
-&#123;&#123;<span class="keyword">#let</span> <span class="variable">completed_count</span> COUNT(*) from todos WHERE completed = 1&#125;&#125;
-&#123;&#123;<span class="keyword">#let</span> <span class="variable">total_count</span>     COUNT(*) from todos&#125;&#125;
-&#123;&#123;<span class="keyword">#let</span> <span class="variable">all_complete</span>    (:<span class="variable">active_count</span> == 0 AND :<span class="variable">total_count</span> &gt; 0)&#125;&#125;
+&#123;&#123;<span class="keyword">#let</span> <span class="variable">active_count</span>    = COUNT(*) from todos WHERE completed = 0&#125;&#125;
+&#123;&#123;<span class="keyword">#let</span> <span class="variable">completed_count</span> = COUNT(*) from todos WHERE completed = 1&#125;&#125;
+&#123;&#123;<span class="keyword">#let</span> <span class="variable">total_count</span>     = COUNT(*) from todos&#125;&#125;
+&#123;&#123;<span class="keyword">#let</span> <span class="variable">all_complete</span>    = (:<span class="variable">active_count</span> == 0 AND :<span class="variable">total_count</span> &gt; 0)&#125;&#125;
 
 &#123;&#123;<span class="keyword">#param</span> <span class="variable">edit_id</span> <span class="attribute">type</span>=<span class="string">integer</span> <span class="attribute">optional</span>&#125;&#125;
-</code><div class="clean-code">&#123;&#123;#let active_count    COUNT(*) from todos WHERE completed = 0&#125;&#125;
-&#123;&#123;#let completed_count COUNT(*) from todos WHERE completed = 1&#125;&#125;
-&#123;&#123;#let total_count     COUNT(*) from todos&#125;&#125;
-&#123;&#123;#let all_complete    (:active_count == 0 AND :total_count &gt; 0)&#125;&#125;
+</code><div class="clean-code">&#123;&#123;#let active_count    = COUNT(*) from todos WHERE completed = 0&#125;&#125;
+&#123;&#123;#let completed_count = COUNT(*) from todos WHERE completed = 1&#125;&#125;
+&#123;&#123;#let total_count     = COUNT(*) from todos&#125;&#125;
+&#123;&#123;#let all_complete    = (:active_count == 0 AND :total_count &gt; 0)&#125;&#125;
 
 &#123;&#123;#param edit_id type=integer optional&#125;&#125;</div></pre>
 
@@ -547,7 +547,7 @@
 {{/partial}}
 
 {{#partial public toggle_all}}
-  {{#let active_count COUNT(*) from todos WHERE completed = 0}}
+  {{#let active_count = COUNT(*) from todos WHERE completed = 0}}
   {{#update todos set completed = IIF(:active_count = 0, 0, 1)}}
   {{#redirect '/todos'}}
 {{/partial}}</div></pre>

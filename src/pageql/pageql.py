@@ -855,7 +855,10 @@ class PageQL:
                 name, value_expr = parsefirstword(node_content)
                 if value_expr is None:
                     raise ValueError("#header requires a name and expression")
-                value = str(evalone(self.db, value_expr, params, reactive, self.tables))
+                value = evalone(self.db, value_expr, params, reactive, self.tables)
+                if isinstance(value, Signal):
+                    value = value.value
+                value = str(value)
                 ctx.headers.append((name, value))
             elif node_type == '#cookie':
                 name, rest = parsefirstword(node_content)
@@ -866,7 +869,10 @@ class PageQL:
                     raise ValueError("Invalid #cookie syntax")
                 expr = m.group(1)
                 attr_str = m.group(2) or ''
-                value = str(evalone(self.db, expr, params, reactive, self.tables))
+                value = evalone(self.db, expr, params, reactive, self.tables)
+                if isinstance(value, Signal):
+                    value = value.value
+                value = str(value)
                 attrs = parse_param_attrs(attr_str)
                 ctx.cookies.append((name, value, attrs))
             elif node_type in ("#update", "#insert", "#delete"):

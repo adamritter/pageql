@@ -22,3 +22,13 @@ def test_param_float_validation():
     with pytest.raises(ValueError) as exc:
         r.render("/m", {"val": "abc"}, reactive=False)
     assert "failed type/validation 'float'" in str(exc.value)
+
+
+def test_missing_param_error():
+    r = PageQL(":memory:")
+    r.load_module("m", "{{#let session :non_existent}}")
+    with pytest.raises(ValueError) as exc:
+        r.render("/m", reactive=False)
+    msg = str(exc.value).lower()
+    assert "missing parameter 'non_existent'" in msg
+    assert "available parameters" in msg

@@ -48,15 +48,6 @@ def run_pageql_tests(templates_dir: str) -> bool:
 
 def main():
     """Entry point for the pageql command-line tool."""
-    if '--test' in sys.argv:
-        idx = sys.argv.index('--test')
-        if len(sys.argv) <= idx + 1:
-            print('Usage: pageql --test <templates_dir>')
-            sys.exit(1)
-        templates_dir = sys.argv[idx + 1]
-        success = run_pageql_tests(templates_dir)
-        sys.exit(0 if success else 1)
-
     parser = argparse.ArgumentParser(description="Run the PageQL development server.")
 
     # Add positional arguments - these will be the primary way to use the command
@@ -69,6 +60,7 @@ def main():
     parser.add_argument('-q', '--quiet', action='store_true', help="Only show errors in output.")
     parser.add_argument('--fallback-url', help="Forward unknown routes to this base URL")
     parser.add_argument('--no-csrf', action='store_true', help="Disable CSRF protection")
+    parser.add_argument('--test', action='store_true', help="Run tests instead of serving")
 
     # If no arguments were provided (only the script name), print help and exit.
     if len(sys.argv) == 1:
@@ -76,6 +68,10 @@ def main():
         sys.exit(1)
 
     args = parser.parse_args()
+
+    if args.test:
+        success = run_pageql_tests(args.templates_dir)
+        sys.exit(0 if success else 1)
 
     if args.db_file is None or args.templates_dir is None:
         parser.error("db_file and templates_dir are required")

@@ -26,6 +26,8 @@
 {{#partial POST login}}
   {{#param username required}}
   {{#param password required}}
+  {{#param session optional}}
+  {{#delete from sessions where token=:session}}
   {{#let uid id from users where username=:username and password=:password}}
   {{#if uid}}
     {{#let token lower(hex(randomblob(16)))}}

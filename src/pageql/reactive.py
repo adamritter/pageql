@@ -199,6 +199,10 @@ class ReactiveTable(Signal):
             row = cursor.fetchone()
         except Exception as e:
             raise Exception(f"Insert into table {self.table_name} failed for query: {query} with params: {params} with error: {e}")
+        if row is None:
+            # insert .. or ignore may not return a row when it affects nothing
+            # In this case the statement had no effect so we don't emit events
+            return
         for listener in self.listeners:
             listener([1, row])
             

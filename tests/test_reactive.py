@@ -1,6 +1,7 @@
 import sys
 from pathlib import Path
 import types
+import pytest
 
 # Ensure the package can be imported without optional dependencies
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
@@ -150,6 +151,22 @@ def test_reactive_table_delete_multiple_rows():
     rt.delete("DELETE FROM items WHERE name = :name", {"name": "x"})
 
     assert_eq(events, [[2, (ids[0], 'x')], [2, (ids[1], 'x')]])
+
+
+def test_delete_propagates_renderresultexception():
+    conn = _db()
+    rt = ReactiveTable(conn, "items")
+
+    from pageql.pageql import RenderResult, RenderResultException
+
+    def boom(_):
+        raise RenderResultException(RenderResult(status_code=302))
+
+    rt.insert("INSERT INTO items(name) VALUES ('x')", {})
+    rt.listeners.append(boom)
+
+    with pytest.raises(RenderResultException):
+        rt.delete("DELETE FROM items", {})
 
 
 def test_count_all():

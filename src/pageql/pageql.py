@@ -169,6 +169,7 @@ DIRECTIVE_HELP: dict[str, str] = {
     "#param <name> [type] [attrs]": "declare and validate a request parameter",
     "#partial <name>": "define a reusable partial block",
     "#reactive on|off": "toggle reactive rendering mode",
+    "#test <name>": "define a unit test",
     "#redirect <url>": "issue an HTTP redirect",
     "#error <expr>": "raise an error with the evaluated expression",
     "#render <name>": "render a named partial",
@@ -423,6 +424,7 @@ class PageQL:
         """
         self._modules = {} # Store parsed node lists here later
         self._parse_errors = {} # Store errors here
+        self.tests = {}
         sqlite_file = None
         if not (
             db_path.startswith("postgres://")
@@ -474,10 +476,13 @@ class PageQL:
             del self._modules[name]
         if name in self._parse_errors:
             del self._parse_errors[name]
+        if name in self.tests:
+            del self.tests[name]
         # Tokenize the source and build AST
         try:
             tokens = tokenize(source)
-            body, partials = build_ast(tokens, self.dialect)
+            tests = {}
+            body, partials = build_ast(tokens, self.dialect, tests)
             body = add_reactive_elements(body)
 
             def _apply(parts):
@@ -491,6 +496,8 @@ class PageQL:
 
             _apply(partials)
             self._modules[name] = [body, partials]
+            if tests:
+                self.tests[name] = tests
         except Exception as e:
             print(f"Error parsing module {name}: {e}")
             self._parse_errors[name] = e

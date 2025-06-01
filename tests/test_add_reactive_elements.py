@@ -74,7 +74,7 @@ def test_delete_insert_input_and_text():
     snippet = (
         "{{#reactive on}}"
         "{{#delete from todos where completed = 0}}"
-        "{{#let active_count COUNT(*) from todos WHERE completed = 0}}"
+        "{{#let active_count = COUNT(*) from todos WHERE completed = 0}}"
         '<p><input class="toggle{{3}}" type="checkbox" {{#if 1}}checked{{/if}}>'
         '<input type="text" value="{{active_count}}"></p>'
         "{{#insert into todos(text, completed) values ('test', 0)}}"

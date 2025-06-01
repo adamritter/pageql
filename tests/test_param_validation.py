@@ -26,7 +26,7 @@ def test_param_float_validation():
 
 def test_missing_param_error():
     r = PageQL(":memory:")
-    r.load_module("m", "{{#let session :non_existent}}")
+    r.load_module("m", "{{#let session = :non_existent}}")
     with pytest.raises(ValueError) as exc:
         r.render("/m", reactive=False)
     msg = str(exc.value).lower()

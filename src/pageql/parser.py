@@ -177,6 +177,8 @@ def _read_block(node_list, i, stop, partials, dialect):
         if ntype == "#let":
             var, rest = parsefirstword(ncontent)
             sql = rest or ""
+            if sql.lstrip().startswith("="):
+                sql = sql.lstrip()[1:].lstrip()
             sql_strip = sql.lstrip().lower()
             if sql_strip.startswith("select") or sql_strip.startswith("(select"):
                 parse_sql = sql
@@ -187,7 +189,7 @@ def _read_block(node_list, i, stop, partials, dialect):
             except Exception as e:  # pragma: no cover - invalid SQL
                 raise SyntaxError(f"bad SQL in #let: {e}")
             i += 1
-            body.append(("#let", (var, rest, expr)))
+            body.append(("#let", (var, sql, expr)))
             continue
 
         # -------------------------------------------------------- #partial ...

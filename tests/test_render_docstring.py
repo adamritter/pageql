@@ -21,7 +21,7 @@ __doc__ = """
 ... ''')
 
 >>> source_with_comment = '''
-... {{#let :ww 3+3}}
+... {{#let :ww = 3+3}}
 ... Start Text.
 ... {{!-- This is a comment --}}
 ... {{ :hello }}
@@ -55,7 +55,7 @@ __doc__ = """
 ... {{#else}}
 ... He.lo isn't defined!
 ... {{/ifdef}}
-... {{#let a.b he.lo}}
+... {{#let a.b = he.lo}}
 ... {{#ifdef a.b}}
 ... a.b is defined
 ... {{/ifdef}}
@@ -165,7 +165,7 @@ cool
 >>> r.load_module("delete_test", "{{#partial delete :id}}deleted[{{id}}]{{/partial}}")
 >>> print(r.render("/delete_test/1", http_verb="DELETE").body)
 deleted[1]
->>> r.load_module("varnum", "{{#let idd0 3}}{{idd0}}")
+>>> r.load_module("varnum", "{{#let idd0 = 3}}{{idd0}}")
 >>> print(r.render("/varnum").body)
 3
 >>> r.load_module("fromtest", "{{#from (select 1 as id)}}[{{id}}]{{/from}}")

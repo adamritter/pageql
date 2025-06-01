@@ -104,7 +104,7 @@ pageql -path/to/your/database.sqlite ./templates
 
 **Variable Manipulation:**
 
-*   `#let :<variable> <expression> [from <table> [WHERE ...]]`: Sets a variable. The value can be a literal (string, integer, float, `NULL`), or the result of a SQL expression, optionally evaluated against a table with a `WHERE` clause.
+*   `#let :<variable> = <expression> [from <table> [WHERE ...]]`: Sets a variable. The value can be a literal (string, integer, float, `NULL`), or the result of a SQL expression, optionally evaluated against a table with a `WHERE` clause.
 *   `#param <name> [type=<type>] [optional | required] [default=<simple_expression>] [min=<num>] [max=<num>] [minlength=<num>] [maxlength=<num>] [pattern="<regex>"]`: Declares and optionally validates an expected request parameter (URL query string or POST form variable) named `<name>`.
     *   **Behavior:** Choose `optional` or `required`. **If neither is specified, the default is `required`.**
         *   `required` (or default): Processing stops with an error if the parameter is missing and no `default` is provided.
@@ -190,7 +190,7 @@ PageQL does not define its own expression language. Instead, it leverages the ex
 Expressions are primarily used in:
 
 *   **`#if <expression>` / `#elif <expression>`:** To conditionally render blocks of content. The expression should evaluate to a boolean-like value (in SQLite, 0 is false, non-zero is true). If the expression is more complex than a single variable name, it **must** use the colon prefix for variables (e.g., `#if :count > 10`).
-*   **`#let :<variable> <expression> [from ...]`:** To compute a value to assign to a variable. Variables used within the `<expression>` **must** use the colon prefix (e.g., `#let :total_price :quantity * :unit_price`).
+*   **`#let :<variable> = <expression> [from ...]`:** To compute a value to assign to a variable. Variables used within the `<expression>` **must** use the colon prefix (e.g., `#let :total_price = :quantity * :unit_price`).
 *   **`WHERE <expression>` clauses:** Within database query tags (`#from`, `#update`, `#delete`, `#view`, `#let ... from`) to filter data. Variables **must** use the colon prefix (e.g., `WHERE user_id = :id`).
 *   **Value clauses:** In `#insert` (`values (...)`), `#update` (`set col = ...`), `#cookie`, `#header`, `#redirect`. Variables **must** use the colon prefix.
 
@@ -254,10 +254,10 @@ Generally, you can use standard SQL expressions supported by your database, such
 {{#partial POST toggle_all}}
   {{#param filter default='all'}} {{!-- Preserve filter for redirect --}}
   {{!-- Check if all are currently complete to decide toggle direction --}}
-  {{#let :active_count COUNT(*) from todos WHERE completed = 0}}
-  {{#let :new_status 1}} {{!-- Default to marking all complete --}}
+  {{#let :active_count = COUNT(*) from todos WHERE completed = 0}}
+  {{#let :new_status = 1}} {{!-- Default to marking all complete --}}
   {{#if :active_count == 0}} {{!-- If none active, mark all incomplete --}}
-    {{#let :new_status 0}}
+    {{#let :new_status = 0}}
   {{/if}}
   {{#update todos set completed = :new_status}}
   {{#redirect '/todos?filter=' || :filter}} {{!-- Redirect to base path --}}
@@ -282,10 +282,10 @@ Generally, you can use standard SQL expressions supported by your database, such
 
 
 {{!-- Get counts for footer and toggle-all logic --}}
-{{#let active_count COUNT(*) from todos WHERE completed = 0}}
-{{#let completed_count COUNT(*) from todos WHERE completed = 1}}
-{{#let total_count  COUNT(*) from todos}}
-{{#let all_complete (:active_count == 0 AND :total_count > 0)}}
+{{#let active_count = COUNT(*) from todos WHERE completed = 0}}
+{{#let completed_count = COUNT(*) from todos WHERE completed = 1}}
+{{#let total_count  = COUNT(*) from todos}}
+{{#let all_complete = (:active_count == 0 AND :total_count > 0)}}
 
 <!doctype html>
 <html lang="en">

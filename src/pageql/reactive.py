@@ -691,7 +691,7 @@ class Tables:
         sql_strip = sql.strip()
         lsql = sql_strip.lower()
         if lsql.startswith("insert"):
-            m = re.search(r"insert\s+into\s+([^\s(]+)", sql_strip, re.I)
+            m = re.search(r"insert\s+(?:or\s+\w+\s+)?into\s+([^\s(]+)", sql_strip, re.I)
             if not m:
                 raise ValueError(f"Couldn't parse INSERT statement {sql}")
             table = m.group(1)

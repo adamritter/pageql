@@ -13,7 +13,7 @@ def test_basic_ast_dependencies():
         "{{#from items where id=:item_id}}{{/from}}"
     )
     tokens = tokenize(snippet)
-    ast = build_ast(tokens)
+    ast = build_ast(tokens, dialect="sqlite")
     deps = ast_param_dependencies(ast)
     assert deps == {"limit", "flag", "item_id"}
 
@@ -21,6 +21,6 @@ def test_basic_ast_dependencies():
 def test_partial_ast_dependencies():
     snippet = "{{#partial sub}} {{count(*) from nums where id=:pid}} {{/partial}}"
     tokens = tokenize(snippet)
-    ast = build_ast(tokens)
+    ast = build_ast(tokens, dialect="sqlite")
     deps = ast_param_dependencies(ast)
     assert deps == {"pid"}

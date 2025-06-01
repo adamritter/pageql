@@ -18,7 +18,7 @@
 {{#if uid and jwt_valid}}
 <p>Logged in as {{sess_username}}. <a href="/basic_auth_sessionless/profile">Profile</a> <a href="/basic_auth_sessionless/logout">Logout</a></p>
 {{#else}}
-<p>You are not logged in. <a href="/basic_auth_sessionless/login">Login</a></p>
+<p>You are not logged in. <a href="/basic_auth_sessionless/login">Login</a> or <a href="/basic_auth_sessionless/register">Register</a></p>
 {{/if}}
 
 {{#partial POST login}}
@@ -43,6 +43,34 @@
     <input name="password" type="password" placeholder="Password">
     <button type="submit">Login</button>
   </form>
+  <p><a href="/basic_auth_sessionless/register">Register</a></p>
+{{/partial}}
+
+{{#partial POST register}}
+  {{#param username required}}
+  {{#param password required}}
+  {{#let existing id from users where username=:username}}
+  {{#if existing}}
+    <p>User already exists</p>
+  {{#else}}
+    {{#insert into users(username, password) values(:username, :password)}}
+    {{#let uid last_insert_rowid()}}
+    {{#let expiry (cast(strftime('%s','now') as integer) + 3600)}}
+    {{#let payload json_set('{"role":"member"}', '$.exp', :expiry, '$.uid', :uid)}}
+    {{#let token jws_serialize_compact(:payload)}}
+    {{#cookie session :token path='/' httponly}}
+    {{#redirect '/basic_auth_sessionless'}}
+  {{/if}}
+{{/partial}}
+
+{{#partial GET register}}
+  <h1>Register</h1>
+  <form method="POST" action="/basic_auth_sessionless/register">
+    <input name="username" placeholder="Username">
+    <input name="password" type="password" placeholder="Password">
+    <button type="submit">Register</button>
+  </form>
+  <p><a href="/basic_auth_sessionless/login">Login</a></p>
 {{/partial}}
 
 {{#partial GET profile}}

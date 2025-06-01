@@ -4,15 +4,61 @@ PageQL command-line interface
 """
 
 import argparse
+import os
 import sys
 import uvicorn
 
+from .pageql import PageQL, RenderContext
 from .pageqlapp import PageQLApp
+
+
+def run_pageql_tests(templates_dir: str) -> bool:
+    """Load ``.pageql`` files from *templates_dir* and run all ``#test`` blocks."""
+
+    engine = PageQL(":memory:")
+
+    for root, _dirs, files in os.walk(templates_dir):
+        for name in files:
+            if not name.endswith(".pageql"):
+                continue
+            file_path = os.path.join(root, name)
+            module_name = os.path.splitext(os.path.relpath(file_path, templates_dir))[0]
+            module_name = module_name.replace(os.sep, "/")
+            with open(file_path, "r", encoding="utf-8") as f:
+                engine.load_module(module_name, f.read())
+
+    total = 0
+    passed = 0
+
+    for module, tests in engine.tests.items():
+        for name, body in tests.items():
+            total += 1
+            ctx = RenderContext()
+            try:
+                engine.process_nodes(body, {}, module, {None: module}, None, False, ctx)
+                engine.db.commit()
+                print(f"PASS {module}:{name}")
+                passed += 1
+            except Exception as e:
+                engine.db.rollback()
+                print(f"FAIL {module}:{name} {e}")
+
+    print(f"{passed}/{total} tests passed")
+    return passed == total
 
 def main():
     """Entry point for the pageql command-line tool."""
+    if '--test' in sys.argv:
+        idx = sys.argv.index('--test')
+        if len(sys.argv) <= idx + 1:
+            print('Usage: pageql --test <templates_dir>')
+            sys.exit(1)
+        templates_dir = sys.argv[idx + 1]
+        success = run_pageql_tests(templates_dir)
+        sys.exit(0 if success else 1)
+
     parser = argparse.ArgumentParser(description="Run the PageQL development server.")
-    
+
     # Add positional arguments - these will be the primary way to use the command
     parser.add_argument('db_file', help="Path to the SQLite database file or a database URL")
     parser.add_argument('templates_dir', help="Path to the directory containing .pageql template and static files")
@@ -30,6 +76,9 @@ def main():
         sys.exit(1)
 
     args = parser.parse_args()
+
+    if args.db_file is None or args.templates_dir is None:
+        parser.error("db_file and templates_dir are required")
 
     kwargs = {
         "create_db": args.create,

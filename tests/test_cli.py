@@ -1,6 +1,7 @@
 import sys
 from pathlib import Path
 import types
+import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 sys.modules.setdefault("watchfiles", types.ModuleType("watchfiles"))
@@ -40,4 +41,17 @@ def test_cli_fallback_url(monkeypatch, tmp_path):
     monkeypatch.setattr(sys, "argv", argv)
     cli.main()
     assert created["fallback_url"] == "http://example.com"
+
+
+def test_cli_test_command(monkeypatch, tmp_path, capsys):
+    (tmp_path / "t.pageql").write_text(
+        "{{#test a}}{{#create table t(x int)}}{{#insert into t values (1)}}{{count(*) from t}}{{/test}}"
+    )
+    argv = ["pageql", "--test", str(tmp_path)]
+    monkeypatch.setattr(sys, "argv", argv)
+    with pytest.raises(SystemExit) as exc:
+        cli.main()
+    assert exc.value.code == 0
+    out = capsys.readouterr().out
+    assert "1/1 tests passed" in out
 

@@ -35,7 +35,9 @@ def _replace_placeholders(
         val = params[name]
         if isinstance(val, (DerivedSignal, DerivedSignal2, OneValue, ReadOnly)):
             val = val.value
-        if isinstance(val, (int, float)):
+        if val is None:
+            lit = exp.Null()
+        elif isinstance(val, (int, float)):
             lit = exp.Literal.number(val)
         elif isinstance(val, (bytes, bytearray)):
             if dialect == "mysql":

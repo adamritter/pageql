@@ -703,3 +703,14 @@ def test_pinsert_does_not_send_marker_scripts():
     sc = ctx.scripts[0]
     assert sc.startswith("pinsert(")
     assert "pstart" not in sc and "pend" not in sc
+
+
+def test_let_null_literal():
+    r = PageQL(":memory:")
+    snippet = (
+        "{{#let v = NULL}}"
+        "{{#if :v IS NULL}}null{{#else}}not null{{/if}}"
+    )
+    r.load_module("m", snippet)
+    result = r.render("/m")
+    assert "null" in result.body

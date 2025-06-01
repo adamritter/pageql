@@ -82,7 +82,12 @@ def tokenize(source):
             if inner.startswith('!--') and inner.endswith('--'):
                 pass  # Skip comment nodes
             elif inner.startswith('#') or inner.startswith('/'):
-                nodes.append(parsefirstword(inner))
+                first, rest = parsefirstword(inner)
+                if first == '#param' and rest:
+                    pn, attrs = parsefirstword(rest)
+                    pn = pn.replace('.', '__')
+                    rest = pn if not attrs else f"{pn} {attrs}"
+                nodes.append((first, rest))
             else:
                 if re.match(r'^:?[a-zA-Z._$][a-zA-Z0-9._$]*$', inner):
                     if inner[0] == ':':

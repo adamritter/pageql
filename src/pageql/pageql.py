@@ -498,6 +498,7 @@ class PageQL:
             Tuple of (param_name, param_value) after validation
         """
         param_name, attrs_str = parsefirstword(node_content)
+        param_name = param_name.replace('.', '__')
         attrs = parse_param_attrs(attrs_str)
 
         is_required = attrs.get('required', not attrs.__contains__('optional')) # Default required

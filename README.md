@@ -112,6 +112,7 @@ pageql -path/to/your/database.sqlite ./templates
     *   `default=<simple_expression>`: Provides a default value if the parameter is missing from the request. If present, this prevents the `required` check from failing.
     *   **Validation:** Optional attributes (`type`, `min`/`max`, `minlength`/`maxlength`, `pattern`) enforce rules on the parameter's value (after applying the default, if applicable). If any validation fails, processing stops with an error.
     *   **Access:** The validated (and potentially defaulted) parameter value is made available as `:<name>`. Direct access via `:<name>` without this tag bypasses validation and defaults.
+    *   Dots in `<name>` are converted to `__` when the parameter is looked up, so `#param cookies.session` binds the value of `cookies__session`.
 
 **Flow Control:**
 

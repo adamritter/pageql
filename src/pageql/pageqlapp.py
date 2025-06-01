@@ -368,9 +368,9 @@ class PageQLApp:
 
             # --- Handle Redirect ---
             if result.redirect_to:
-                headers = [(b'Location', result.redirect_to)]
+                headers = [(b'Location', str(result.redirect_to).encode('utf-8'))]
                 for name, value in result.headers:
-                    headers.append((name.encode('utf-8'), value.encode('utf-8')))
+                    headers.append((str(name).encode('utf-8'), str(value).encode('utf-8')))
                 for name, value, opts in result.cookies:
                     parts = [f"{name}={value}"]
                     for k, v in opts.items():
@@ -390,7 +390,7 @@ class PageQLApp:
             else:
                 headers = [(b'Content-Type', b'text/html; charset=utf-8')]
                 for name, value in result.headers:
-                    headers.append((name.encode('utf-8'), value.encode('utf-8')))
+                    headers.append((str(name).encode('utf-8'), str(value).encode('utf-8')))
                 for name, value, opts in result.cookies:
                     parts = [f"{name}={value}"]
                     for k, v in opts.items():

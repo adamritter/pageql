@@ -283,7 +283,10 @@ class PageQLApp:
                 content_type = headers.get('content-type', '')
                 # Basic form data parsing
                 message = await receive()
-                post_body = message['body']
+                post_body = message.get('body', b'')
+                while message.get('more_body'):
+                    message = await receive()
+                    post_body += message.get('body', b'')
                 if 'application/x-www-form-urlencoded' in content_type:
                     post_body = post_body.decode('utf-8')
                     post_params = parse_qs(post_body, keep_blank_values=True)

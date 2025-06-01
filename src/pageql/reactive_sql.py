@@ -15,8 +15,15 @@ from .reactive import (
 )
 
 
-def _replace_placeholders(expr: exp.Expression, params: dict[str, object] | None) -> None:
-    """Replace ``Placeholder`` nodes in *expr* using values from *params*."""
+def _replace_placeholders(
+    expr: exp.Expression,
+    params: dict[str, object] | None,
+    dialect: str = "sqlite",
+) -> None:
+    """Replace ``Placeholder`` nodes in *expr* using values from *params*.
+
+    ``dialect`` controls how binary literals are emitted.
+    """
 
     if not params:
         return
@@ -31,7 +38,10 @@ def _replace_placeholders(expr: exp.Expression, params: dict[str, object] | None
         if isinstance(val, (int, float)):
             lit = exp.Literal.number(val)
         elif isinstance(val, (bytes, bytearray)):
-            lit = exp.Literal(this=f"X'{val.hex()}'", is_string=False)
+            if dialect == "mysql":
+                lit = exp.Literal(this="0x" + val.hex(), is_string=False)
+            else:
+                lit = exp.Literal(this=f"X'{val.hex()}'", is_string=False)
         else:
             lit = exp.Literal.string(str(val))
         ph.replace(lit)
@@ -153,7 +163,7 @@ def parse_reactive(
     reactive expression tree.
     """
     expr = expr.copy()
-    _replace_placeholders(expr, params)
+    _replace_placeholders(expr, params, tables.dialect)
     sql = expr.sql(dialect=tables.dialect)
 
     cache_key = None

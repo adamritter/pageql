@@ -104,7 +104,7 @@ def tokenize(source):
     return nodes
 
 
-def _read_block(node_list, i, stop, partials, dialect):
+def _read_block(node_list, i, stop, partials, dialect, tests=None):
     """Return (body, new_index) while filling *partials* dict in‑place."""
     body = []
     while i < len(node_list):
@@ -123,7 +123,7 @@ def _read_block(node_list, i, stop, partials, dialect):
                 except Exception as e:  # pragma: no cover - invalid SQL
                     raise SyntaxError(f"bad SQL in #if: {e}")
             i += 1
-            then_body, i = _read_block(node_list, i, if_terms, partials, dialect)
+            then_body, i = _read_block(node_list, i, if_terms, partials, dialect, tests)
             else_body = None
             r = [ntype, (ncontent, cond_expr), then_body] if ntype == "#if" else [ntype, ncontent, then_body]
             while i < len(node_list):
@@ -132,7 +132,7 @@ def _read_block(node_list, i, stop, partials, dialect):
                     if ntype != "#if":
                         raise SyntaxError("{{#elif}} must be used with {{#if}}")
                     i += 1
-                    elif_body, i = _read_block(node_list, i, if_terms, partials, dialect)
+                    elif_body, i = _read_block(node_list, i, if_terms, partials, dialect, tests)
                     try:
                         expr = sqlglot.parse_one(
                             _convert_dot_sql("SELECT " + c), read=dialect
@@ -144,7 +144,7 @@ def _read_block(node_list, i, stop, partials, dialect):
                     continue
                 if k == "#else":
                     i += 1
-                    else_body, i = _read_block(node_list, i, if_terms, partials, dialect)
+                    else_body, i = _read_block(node_list, i, if_terms, partials, dialect, tests)
                     r.append(else_body)
                     break
                 if k == "/if" or k == "/ifdef" or k == "/ifndef":
@@ -166,7 +166,7 @@ def _read_block(node_list, i, stop, partials, dialect):
             except Exception as e:  # pragma: no cover - invalid SQL
                 raise SyntaxError(f"bad SQL in #from: {e}")
             i += 1
-            loop_body, i = _read_block(node_list, i, from_terms, partials, dialect)
+            loop_body, i = _read_block(node_list, i, from_terms, partials, dialect, tests)
             if node_list[i][0] != "/from":
                 raise SyntaxError("missing {{/from}}")
             i += 1
@@ -208,7 +208,7 @@ def _read_block(node_list, i, stop, partials, dialect):
                 
             i += 1
             partial_partials = {}
-            part_body, i = _read_block(node_list, i, part_terms, partial_partials, dialect)
+            part_body, i = _read_block(node_list, i, part_terms, partial_partials, dialect, tests)
             if node_list[i][0] != "/partial":
                 raise SyntaxError("missing {{/partial}}")
             i += 1
@@ -239,12 +239,25 @@ def _read_block(node_list, i, stop, partials, dialect):
                 dest_partials[(name1, partial_type)] = [part_body, partial_partials]
             continue
 
+        if ntype == "#test":
+            test_terms = {"/test"}
+            test_name = ncontent.strip()
+            i += 1
+            dummy_partials = {}
+            test_body, i = _read_block(node_list, i, test_terms, dummy_partials, dialect, tests)
+            if node_list[i][0] != "/test":
+                raise SyntaxError("missing {{/test}}")
+            i += 1
+            if tests is not None:
+                tests[test_name] = test_body
+            continue
+
         # -------------------------------------------------------------- leaf --
         body.append((ntype, ncontent))
         i += 1
     return body, i
 
-def build_ast(node_list, dialect="sqlite"):
+def build_ast(node_list, dialect="sqlite", tests=None):
     """
     Builds an abstract syntax tree from a list of nodes.
     
@@ -268,7 +281,7 @@ def build_ast(node_list, dialect="sqlite"):
     ([], {(':', None): [':a', [('text', 'world')], {}]})
     """
     partials = {}
-    body, idx = _read_block(node_list, 0, set(), partials, dialect)
+    body, idx = _read_block(node_list, 0, set(), partials, dialect, tests)
     if idx != len(node_list):
         raise SyntaxError("extra tokens after top‑level parse")
     return body, partials

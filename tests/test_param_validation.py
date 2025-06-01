@@ -32,3 +32,13 @@ def test_missing_param_error():
     msg = str(exc.value).lower()
     assert "missing parameter 'non_existent'" in msg
     assert "available parameters" in msg
+
+
+def test_missing_param_error_reactive():
+    r = PageQL(":memory:")
+    r.load_module("m", "{{:c + 0}}")
+    with pytest.raises(ValueError) as exc:
+        r.render("/m", reactive=True)
+    msg = str(exc.value).lower()
+    assert "missing parameter(s) c" in msg
+    assert "available parameters" in msg

@@ -112,7 +112,7 @@ def _read_block(node_list, i, stop, partials):
             if_terms = {"#elif", "#else", "/if", "/ifdef", "/ifndef"}  # inline terminators for this IF
             if ntype == "#if":
                 try:
-                    cond_expr = sqlglot.parse_one("SELECT " + ncontent)
+                    cond_expr = sqlglot.parse_one("SELECT " + ncontent, read="sqlite")
                 except Exception as e:  # pragma: no cover - invalid SQL
                     raise SyntaxError(f"bad SQL in #if: {e}")
             i += 1
@@ -127,7 +127,7 @@ def _read_block(node_list, i, stop, partials):
                     i += 1
                     elif_body, i = _read_block(node_list, i, if_terms, partials)
                     try:
-                        expr = sqlglot.parse_one("SELECT " + c)
+                        expr = sqlglot.parse_one("SELECT " + c, read="sqlite")
                     except Exception as e:  # pragma: no cover - invalid SQL
                         raise SyntaxError(f"bad SQL in #elif: {e}")
                     r.append((c, expr))
@@ -151,7 +151,7 @@ def _read_block(node_list, i, stop, partials):
             from_terms = {"/from"}
             query = ncontent
             try:
-                expr = sqlglot.parse_one("SELECT * FROM " + query)
+                expr = sqlglot.parse_one("SELECT * FROM " + query, read="sqlite")
             except Exception as e:  # pragma: no cover - invalid SQL
                 raise SyntaxError(f"bad SQL in #from: {e}")
             i += 1
@@ -172,7 +172,7 @@ def _read_block(node_list, i, stop, partials):
             else:
                 parse_sql = "SELECT " + sql
             try:
-                expr = sqlglot.parse_one(parse_sql)
+                expr = sqlglot.parse_one(parse_sql, read="sqlite")
             except Exception as e:  # pragma: no cover - invalid SQL
                 raise SyntaxError(f"bad SQL in #let: {e}")
             i += 1

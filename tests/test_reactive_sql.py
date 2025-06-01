@@ -33,7 +33,7 @@ def test_parse_select_basic():
     conn = _db()
     tables = Tables(conn)
     sql = "SELECT * FROM items"
-    expr = sqlglot.parse_one(sql)
+    expr = sqlglot.parse_one(sql, read="sqlite")
     comp = parse_reactive(expr, tables, {})
     assert isinstance(comp, ReactiveTable)
     assert_sql_equivalent(conn, sql, comp.sql)
@@ -43,7 +43,7 @@ def test_parse_select_where():
     conn = _db()
     tables = Tables(conn)
     sql = "SELECT name FROM items WHERE name='x'"
-    expr = sqlglot.parse_one(sql)
+    expr = sqlglot.parse_one(sql, read="sqlite")
     comp = parse_reactive(expr, tables, {})
     assert isinstance(comp, Select)
     assert isinstance(comp.parent, Where)
@@ -54,7 +54,7 @@ def test_parse_count():
     conn = _db()
     tables = Tables(conn)
     sql = "SELECT COUNT(*) FROM items"
-    expr = sqlglot.parse_one(sql)
+    expr = sqlglot.parse_one(sql, read="sqlite")
     comp = parse_reactive(expr, tables, {})
     assert isinstance(comp, CountAll)
     assert_sql_equivalent(conn, sql, comp.sql)
@@ -69,7 +69,7 @@ def test_parse_union_all():
     # Add sample rows so result comparison is non-trivial
     conn.execute("INSERT INTO a(name) VALUES ('a1')")
     conn.execute("INSERT INTO b(name) VALUES ('b1')")
-    expr = sqlglot.parse_one(sql)
+    expr = sqlglot.parse_one(sql, read="sqlite")
     comp = parse_reactive(expr, tables, {})
     assert isinstance(comp, UnionAll)
     assert_sql_equivalent(conn, sql, comp.sql)
@@ -81,7 +81,7 @@ def test_parse_reactive_fallback_join():
     conn.execute("CREATE TABLE b(id INTEGER PRIMARY KEY, a_id INTEGER, title TEXT)")
     tables = Tables(conn)
     sql = "SELECT a.name, b.title FROM a JOIN b ON a.id=b.a_id"
-    expr = sqlglot.parse_one(sql)
+    expr = sqlglot.parse_one(sql, read="sqlite")
     comp = parse_reactive(expr, tables, {})
     events = []
     comp.listeners.append(events.append)
@@ -101,7 +101,7 @@ def test_parse_select_with_params():
     conn = _db()
     tables = Tables(conn)
     sql = "SELECT name FROM items WHERE id = :id"
-    expr = sqlglot.parse_one(sql)
+    expr = sqlglot.parse_one(sql, read="sqlite")
     comp = parse_reactive(expr, tables, {"id": 1})
     assert isinstance(comp, Select)
     assert isinstance(comp.parent, Where)
@@ -112,7 +112,7 @@ def test_parse_select_constant():
     conn = _db()
     tables = Tables(conn)
     sql = "SELECT 42 AS answer"
-    expr = sqlglot.parse_one(sql)
+    expr = sqlglot.parse_one(sql, read="sqlite")
     comp = parse_reactive(expr, tables, {})
     assert isinstance(comp, ReadOnly)
     assert comp.value == [(42,)]

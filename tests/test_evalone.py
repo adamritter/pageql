@@ -71,14 +71,14 @@ def test_evalone_reactive_uses_expr(monkeypatch):
     conn = _db()
     conn.execute("INSERT INTO items(name) VALUES ('z')")
     tables = Tables(conn)
-    expr = sqlglot.parse_one("SELECT name FROM items WHERE id = 1")
+    expr = sqlglot.parse_one("SELECT name FROM items WHERE id = 1", read="sqlite")
 
     called = False
 
     def fake_parse_one(sql):
         nonlocal called
         called = True
-        return sqlglot.parse_one(sql)
+        return sqlglot.parse_one(sql, read="sqlite")
 
     monkeypatch.setattr(sqlglot, "parse_one", fake_parse_one)
 

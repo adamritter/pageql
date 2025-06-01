@@ -709,7 +709,7 @@ class Tables:
             self._get(table).delete(sql, params)
         elif lsql.startswith("select"):
             from .reactive_sql import parse_reactive
-            expr = sqlglot.parse_one(sql_strip)
+            expr = sqlglot.parse_one(sql_strip, read="sqlite")
             return parse_reactive(expr, self, params)
         else:
             raise ValueError(f"Unsupported SQL statement {sql}")

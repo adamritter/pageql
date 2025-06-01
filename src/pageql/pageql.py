@@ -343,7 +343,7 @@ def evalone(db, exp, params, reactive=False, tables=None, expr=None):
         def _build():
             nonlocal expr
             if expr is None:
-                expr = sqlglot.parse_one(sql)
+                expr = sqlglot.parse_one(sql, read="sqlite")
             #print("parse_reactive: ", expr.sql())
             comp = parse_reactive(expr, tables, params, one_value=True)
             return comp
@@ -1047,7 +1047,7 @@ class PageQL:
                     }
                     expr_copy = expr.copy()
                     _replace_placeholders(expr_copy, converted_params)
-                    cache_key = expr_copy.sql()
+                    cache_key = expr_copy.sql(dialect="sqlite")
                     comp = self._from_cache.get(cache_key)
                     if comp is None or not comp.listeners:
                         comp = parse_reactive(expr, self.tables, params)

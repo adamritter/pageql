@@ -67,6 +67,25 @@ def test_evalone_reactive_sql_updates():
     rt.update("UPDATE items SET name='b' WHERE id=1", {})
     assert sig.value == "b"
 
+
+def test_evalone_reactive_dotted_param():
+    conn = sqlite3.connect(":memory:")
+    conn.execute("CREATE TABLE sessions(token TEXT PRIMARY KEY, user_id INTEGER)")
+    conn.execute("INSERT INTO sessions(token, user_id) VALUES ('abc', 1)")
+    tables = Tables(conn)
+    sig = evalone(
+        conn,
+        "user_id from sessions where token=:cookies.session",
+        {"cookies__session": "abc"},
+        reactive=True,
+        tables=tables,
+    )
+    assert sig.value == 1
+
+    rt = tables._get("sessions")
+    rt.update("UPDATE sessions SET user_id=2 WHERE token='abc'", {})
+    assert sig.value == 2
+
 def test_evalone_reactive_uses_expr(monkeypatch):
     conn = _db()
     conn.execute("INSERT INTO items(name) VALUES ('z')")

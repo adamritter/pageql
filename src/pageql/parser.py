@@ -1,6 +1,6 @@
 import re
 import sqlglot
-from .reactive import get_dependencies
+from .reactive import get_dependencies, _convert_dot_sql
 
 
 def quote_state(text: str, start_state: str | None = None) -> str | None:
@@ -112,7 +112,9 @@ def _read_block(node_list, i, stop, partials, dialect):
             if_terms = {"#elif", "#else", "/if", "/ifdef", "/ifndef"}  # inline terminators for this IF
             if ntype == "#if":
                 try:
-                    cond_expr = sqlglot.parse_one("SELECT " + ncontent, read=dialect)
+                    cond_expr = sqlglot.parse_one(
+                        _convert_dot_sql("SELECT " + ncontent), read=dialect
+                    )
                 except Exception as e:  # pragma: no cover - invalid SQL
                     raise SyntaxError(f"bad SQL in #if: {e}")
             i += 1
@@ -127,7 +129,9 @@ def _read_block(node_list, i, stop, partials, dialect):
                     i += 1
                     elif_body, i = _read_block(node_list, i, if_terms, partials, dialect)
                     try:
-                        expr = sqlglot.parse_one("SELECT " + c, read=dialect)
+                        expr = sqlglot.parse_one(
+                            _convert_dot_sql("SELECT " + c), read=dialect
+                        )
                     except Exception as e:  # pragma: no cover - invalid SQL
                         raise SyntaxError(f"bad SQL in #elif: {e}")
                     r.append((c, expr))
@@ -151,7 +155,9 @@ def _read_block(node_list, i, stop, partials, dialect):
             from_terms = {"/from"}
             query = ncontent
             try:
-                expr = sqlglot.parse_one("SELECT * FROM " + query, read=dialect)
+                expr = sqlglot.parse_one(
+                    _convert_dot_sql("SELECT * FROM " + query), read=dialect
+                )
             except Exception as e:  # pragma: no cover - invalid SQL
                 raise SyntaxError(f"bad SQL in #from: {e}")
             i += 1
@@ -172,7 +178,7 @@ def _read_block(node_list, i, stop, partials, dialect):
             else:
                 parse_sql = "SELECT " + sql
             try:
-                expr = sqlglot.parse_one(parse_sql, read=dialect)
+                expr = sqlglot.parse_one(_convert_dot_sql(parse_sql), read=dialect)
             except Exception as e:  # pragma: no cover - invalid SQL
                 raise SyntaxError(f"bad SQL in #let: {e}")
             i += 1
@@ -378,26 +384,26 @@ def ast_param_dependencies(ast):
         if isinstance(node, tuple):
             t, c = node
             if t in {"render_expression", "render_raw"}:
-                deps.update(get_dependencies(c))
+                deps.update(get_dependencies(_convert_dot_sql(c)))
             elif t == "#let":
-                deps.update(get_dependencies(c[1]))
+                deps.update(get_dependencies(_convert_dot_sql(c[1])))
             elif t in {"#update", "#insert", "#delete", "#merge", "#create", "#redirect", "#statuscode", "#error"}:
-                deps.update(get_dependencies(c))
+                deps.update(get_dependencies(_convert_dot_sql(c)))
             elif t == "#header":
                 _, rest = parsefirstword(c)
                 if rest:
-                    deps.update(get_dependencies(rest))
+                    deps.update(get_dependencies(_convert_dot_sql(rest)))
             elif t == "#cookie":
                 _, rest = parsefirstword(c)
                 if rest:
                     m = re.match(r'("[^"]*"|\'[^\']*\'|\S+)', rest)
                     if m:
-                        deps.update(get_dependencies(m.group(1)))
+                        deps.update(get_dependencies(_convert_dot_sql(m.group(1))))
             elif t == "#render":
                 _, rest = parsefirstword(c)
                 if rest:
                     for expr in re.findall(r"=[^=]+(?:(?=\s+[A-Za-z_][A-Za-z0-9_.]*\s*=)|$)", rest):
-                        deps.update(get_dependencies(expr[1:].strip()))
+                        deps.update(get_dependencies(_convert_dot_sql(expr[1:].strip())))
             elif t in {"#ifdef", "#ifndef"}:
                 param = c.strip()
                 if param.startswith(":"):
@@ -407,14 +413,14 @@ def ast_param_dependencies(ast):
         elif isinstance(node, list):
             name = node[0]
             if name == "#if":
-                deps.update(get_dependencies(node[1][0]))
+                deps.update(get_dependencies(_convert_dot_sql(node[1][0])))
                 walk_nodes(node[2])
                 i = 3
                 while i < len(node):
                     if i == len(node) - 1:
                         walk_nodes(node[i])
                         break
-                    deps.update(get_dependencies(node[i][0]))
+                    deps.update(get_dependencies(_convert_dot_sql(node[i][0])))
                     walk_nodes(node[i + 1])
                     i += 2
             elif name in {"#ifdef", "#ifndef"}:
@@ -427,7 +433,7 @@ def ast_param_dependencies(ast):
                 if len(node) > 3:
                     walk_nodes(node[3])
             elif name == "#from":
-                deps.update(get_dependencies("SELECT * FROM " + node[1][0]))
+                deps.update(get_dependencies(_convert_dot_sql("SELECT * FROM " + node[1][0])))
                 if len(node) == 4:
                     walk_nodes(node[3])
                 else:
@@ -436,7 +442,7 @@ def ast_param_dependencies(ast):
                 _, rest = parsefirstword(node[1])
                 if rest:
                     for expr in re.findall(r"=[^=]+(?:(?=\s+[A-Za-z_][A-Za-z0-9_.]*\s*=)|$)", rest):
-                        deps.update(get_dependencies(expr[1:].strip()))
+                        deps.update(get_dependencies(_convert_dot_sql(expr[1:].strip())))
             else:
                 for part in node[1:]:
                     if isinstance(part, list):

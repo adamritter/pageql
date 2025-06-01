@@ -266,7 +266,7 @@ class PageQLApp:
 
         incoming_client_id = params.pop('clientId', None)
         if incoming_client_id is None:
-            incoming_client_id = headers.get('ClientId')
+            incoming_client_id = headers.get('ClientId') or headers.get('clientid')
         client_id = incoming_client_id or uuid.uuid4().hex
 
         params['headers'] = headers
@@ -329,7 +329,7 @@ class PageQLApp:
 
             if self.csrf_protect:
                 csrf_token = params.pop('__csrf', None)
-                cid_header = headers.get('ClientId')
+                cid_header = headers.get('ClientId') or headers.get('clientid')
                 token = cid_header or csrf_token
                 if not token or token not in self.render_contexts:
                     await send(

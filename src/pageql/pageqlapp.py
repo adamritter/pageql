@@ -117,6 +117,30 @@ def reload_ws_script(client_id: str) -> str:
 
 
 class PageQLApp:
+    """ASGI application for serving PageQL templates.
+
+    Parameters
+    ----------
+    db_path : str
+        Path to the SQLite database file or a database URL.
+    template_dir : str
+        Directory containing ``.pageql`` template files.
+    create_db : bool, optional
+        Create the database file if it doesn't exist.
+    should_reload : bool, optional
+        Reload templates automatically when files change.
+    reactive : bool, optional
+        Enable reactive rendering by default.
+    quiet : bool, optional
+        Suppress logging output.
+    fallback_app : Optional[Callable]
+        ASGI application to use when no template matches.
+    fallback_url : Optional[str]
+        Forward unmatched routes to this base URL.
+    csrf_protect : bool, optional
+        Enable CSRF protection on state-changing requests.
+        Pass ``--no-csrf`` on the command line to disable.
+    """
     def __init__(
         self,
         db_path,

@@ -292,6 +292,15 @@ def db_execute_dot(db, exp, params):
     converted_exp = re.sub(r':([a-zA-Z0-9_]+(?:\.[a-zA-Z0-9_]+)+)',
                           lambda m: ':' + m.group(1).replace('.', '__'),
                           exp)
+    param_names = [m.replace('.', '__') for m in re.findall(r':([a-zA-Z0-9_]+(?:\.[a-zA-Z0-9_]+)*)', exp)]
+    missing = [n for n in param_names if n not in params]
+    if missing:
+        avail = ', '.join(sorted(params.keys()))
+        raise ValueError(
+            f"Missing parameter(s) {', '.join(m.replace('__', '.') for m in missing)} "
+            f"for SQL expression `{exp}`. Available parameters: {avail}"
+        )
+
     converted_params = {}
     for k, v in params.items():
         if isinstance(v, Signal):
@@ -304,22 +313,25 @@ def evalone(db, exp, params, reactive=False, tables=None, expr=None):
     exp = exp.strip()
     dialect = getattr(tables, "dialect", "sqlite") if tables is not None else "sqlite"
     if re.match("^:?[a-zA-z._][a-zA-z._0-9]*$", exp):
-        if exp[0] == ':':
-            exp = exp[1:]
-        exp = exp.replace('.', '__')
-        if exp in params:
-            val = params[exp]
+        original = exp[1:] if exp.startswith(":") else exp
+        name = original.replace('.', '__')
+        if name in params:
+            val = params[name]
             if reactive:
                 if isinstance(val, ReadOnly):
                     return val
                 if isinstance(val, Signal):
                     return val
                 signal = DerivedSignal(lambda v=val: v, [])
-                params[exp] = signal
+                params[name] = signal
                 return signal
             if isinstance(val, Signal):
                 return val.value
             return val
+        raise ValueError(
+            f"Missing parameter '{original}' for expression `{exp}`. "
+            f"Available parameters: {', '.join(sorted(params.keys()))}"
+        )
         
     if not re.match(r"(?i)^\s*(select|\(select)", exp):
         exp = "select " + exp

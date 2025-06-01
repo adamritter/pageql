@@ -4,7 +4,7 @@ It was inspired by ColdFusion language that allows embedding SQL and Handlebars 
 
 PageQL is **reactive-first**: rendered HTML automatically updates when the underlying database data changes.
 
-Usage: ```pageql <database> templates [--create]```
+Usage: ```pageql <database> templates [--create] [--test]```
 
 Install: pip install pageql
 
@@ -72,6 +72,7 @@ pageql -path/to/your/database.sqlite ./templates
 *   `-q, --quiet`: (Optional) Only output errors when running the server.
 *   `--fallback-url <url>`: (Optional) Forward unknown routes to this base URL.
 *   `--no-csrf`: (Optional) Disable CSRF protection. Useful for local testing but not recommended in production.
+*   `--test`: (Optional) Run template tests and exit instead of serving.
 *   PageQL automatically configures new SQLite databases with write-ahead logging
     and an increased cache for better concurrency.
 *   When a PostgreSQL or MySQL URL is provided, `--create` is ignored and the

@@ -198,7 +198,12 @@ class ReactiveTable(Signal):
             cursor = self.conn.execute(query, params)
             row = cursor.fetchone()
         except Exception as e:
-            raise Exception(f"Insert into table {self.table_name} failed for query: {query} with params: {params} with error: {e}")
+            from .pageql import RenderResultException
+            if isinstance(e, RenderResultException):
+                raise
+            raise Exception(
+                f"Insert into table {self.table_name} failed for query: {query} with params: {params} with error: {e}"
+            )
         if row is None:
             # insert .. or ignore may not return a row when it affects nothing
             # In this case the statement had no effect so we don't emit events
@@ -221,7 +226,12 @@ class ReactiveTable(Signal):
                 for listener in self.listeners:
                     listener([2, row])
         except Exception as e:
-            raise Exception(f"Delete from table {self.table_name} failed for query: {query} with params: {params} with error: {e}")
+            from .pageql import RenderResultException
+            if isinstance(e, RenderResultException):
+                raise
+            raise Exception(
+                f"Delete from table {self.table_name} failed for query: {query} with params: {params} with error: {e}"
+            )
 
     def update(self, sql, params):
         """

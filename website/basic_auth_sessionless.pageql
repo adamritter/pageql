@@ -9,13 +9,13 @@
 
 {{!-- Load JWT from session cookie --}}
 {{#param cookies.session optional}}
-{{#let payload jws_deserialize_compact(:cookies.session)}}
-{{#let uid cast(json_extract(:payload, '$.uid') as integer)}}
-{{#let expiry cast(json_extract(:payload, '$.exp') as integer)}}
-{{#let jwt_valid (:expiry > cast(strftime('%s','now') as integer))}}
-{{#let sess_username username from users where id=:uid}}
+{{#let payload = jws_deserialize_compact(:cookies.session)}}
+{{#let uid = cast(json_extract(:payload, '$.uid') as integer)}}
+{{#let expiry = cast(json_extract(:payload, '$.exp') as integer)}}
+{{#let jwt_valid = (:expiry > cast(strftime('%s','now') as integer))}}
+{{#let sess_username = username from users where id=:uid}}
 
-{{#if uid and jwt_valid}}
+{{#if :uid and :jwt_valid}}
 <p>Logged in as {{sess_username}}. <a href="/basic_auth_sessionless/profile">Profile</a> <a href="/basic_auth_sessionless/logout">Logout</a></p>
 {{#else}}
 <p>You are not logged in. <a href="/basic_auth_sessionless/login">Login</a> or <a href="/basic_auth_sessionless/register">Register</a></p>
@@ -81,7 +81,7 @@
   {{#let jwt_valid (:expiry > cast(strftime('%s','now') as integer))}}
   {{#let sess_username username from users where id=:uid}}
 
-  {{#if uid and jwt_valid}}
+  {{#if :uid and :jwt_valid}}
     <h1>Hello {{sess_username}}</h1>
     <p><a href="/basic_auth_sessionless/logout">Logout</a></p>
   {{#else}}

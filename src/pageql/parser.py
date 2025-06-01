@@ -183,10 +183,11 @@ def _read_block(node_list, i, stop, partials, dialect):
         if ntype == "#partial":
             part_terms = {"/partial"}
             first, rest = parsefirstword(ncontent)
-            
-            # Check if first token is a verb or 'public'
-            if first in ["public", "get", "post", "put", "delete", "patch"]:
-                partial_type = first.upper() if first != "public" else "PUBLIC"
+
+            # Check if first token is a verb or 'public' (case-insensitive)
+            first_lower = first.lower()
+            if first_lower in ["public", "get", "post", "put", "delete", "patch"]:
+                partial_type = first_lower.upper() if first_lower != "public" else "PUBLIC"
                 name = rest
             else:
                 partial_type = None

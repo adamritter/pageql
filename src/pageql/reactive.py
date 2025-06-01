@@ -677,8 +677,9 @@ class Select(Signal):
             self.listeners = None
 
 class Tables:
-    def __init__(self, conn):
+    def __init__(self, conn, dialect="sqlite"):
         self.conn = conn
+        self.dialect = dialect
         self.tables = {}
 
     def _get(self, name):
@@ -709,7 +710,7 @@ class Tables:
             self._get(table).delete(sql, params)
         elif lsql.startswith("select"):
             from .reactive_sql import parse_reactive
-            expr = sqlglot.parse_one(sql_strip, read="sqlite")
+            expr = sqlglot.parse_one(sql_strip, read=self.dialect)
             return parse_reactive(expr, self, params)
         else:
             raise ValueError(f"Unsupported SQL statement {sql}")

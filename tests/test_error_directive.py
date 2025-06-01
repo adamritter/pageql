@@ -18,6 +18,6 @@ def test_error_directive_raises():
 
 def test_error_directive_dependencies():
     tokens = tokenize("{{#error :msg}}")
-    ast = build_ast(tokens)
+    ast = build_ast(tokens, dialect="sqlite")
     deps = ast_param_dependencies(ast)
     assert deps == {"msg"}

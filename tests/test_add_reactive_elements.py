@@ -80,7 +80,7 @@ def test_delete_insert_input_and_text():
         "{{#insert into todos(text, completed) values ('test', 0)}}"
     )
     tokens = tokenize(snippet)
-    body, _ = build_ast(tokens)
+    body, _ = build_ast(tokens, dialect="sqlite")
     res = add_reactive_elements(body)
     assert res[0] == ("#reactive", "on")
     assert res[1] == ("#delete", "from todos where completed = 0")
@@ -120,7 +120,7 @@ def test_wrap_inside_else_branch():
         "<div>{{#if 1}}<span>hi</span>{{#else}}<input value='{{x}}'>{{/if}}</div>"
     )
     tokens = tokenize(snippet)
-    body, _ = build_ast(tokens)
+    body, _ = build_ast(tokens, dialect="sqlite")
     res = add_reactive_elements(body)
     assert res == [
         ("text", "<div>"),

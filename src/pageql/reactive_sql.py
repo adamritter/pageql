@@ -47,7 +47,7 @@ class FallbackReactive(Signal):
         self.sql = sql
 
         if expr is None:
-            expr = sqlglot.parse_one(sql, read="sqlite")
+            expr = sqlglot.parse_one(sql, read=tables.dialect)
 
         # Determine table dependencies
         self.deps = []
@@ -110,10 +110,10 @@ def build_reactive(expr, tables: Tables):
     if isinstance(expr, exp.Select):
         from_expr = expr.args.get("from")
         if from_expr is None:
-            return FallbackReactive(tables, expr.sql(dialect="sqlite"))
+            return FallbackReactive(tables, expr.sql(dialect=tables.dialect))
         parent = build_from(from_expr.this, tables)
         if expr.args.get("where"):
-            parent = Where(parent, expr.args["where"].this.sql(dialect="sqlite"))
+            parent = Where(parent, expr.args["where"].this.sql(dialect=tables.dialect))
         select_list = expr.args.get("expressions") or [exp.Star()]
         if len(select_list) == 1:
             col = select_list[0]
@@ -121,7 +121,7 @@ def build_reactive(expr, tables: Tables):
                 return parent
             if isinstance(col, exp.Count) and isinstance(col.this, exp.Star):
                 return CountAll(parent)
-        select_sql = ", ".join(col.sql(dialect="sqlite") for col in select_list)
+        select_sql = ", ".join(col.sql(dialect=tables.dialect) for col in select_list)
         return Select(parent, select_sql)
     if isinstance(expr, exp.Table):
         return tables._get(expr.name)
@@ -154,7 +154,7 @@ def parse_reactive(
     """
     expr = expr.copy()
     _replace_placeholders(expr, params)
-    sql = expr.sql(dialect="sqlite")
+    sql = expr.sql(dialect=tables.dialect)
 
     cache_key = None
     if cache:

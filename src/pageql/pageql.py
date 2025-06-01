@@ -302,6 +302,7 @@ def db_execute_dot(db, exp, params):
 
 def evalone(db, exp, params, reactive=False, tables=None, expr=None):
     exp = exp.strip()
+    dialect = getattr(tables, "dialect", "sqlite") if tables is not None else "sqlite"
     if re.match("^:?[a-zA-z._][a-zA-z._0-9]*$", exp):
         if exp[0] == ':':
             exp = exp[1:]
@@ -330,7 +331,7 @@ def evalone(db, exp, params, reactive=False, tables=None, expr=None):
             exp,
         )
         if tables is None:
-            tables = Tables(db)
+            tables = Tables(db, dialect)
         dep_names = [name.replace('.', '__') for name in get_dependencies(sql)]
         for name in dep_names:
             val = params.get(name)
@@ -349,7 +350,7 @@ def evalone(db, exp, params, reactive=False, tables=None, expr=None):
         def _build():
             nonlocal expr
             if expr is None:
-                expr = sqlglot.parse_one(sql, read="sqlite")
+                expr = sqlglot.parse_one(sql, read=dialect)
             #print("parse_reactive: ", expr.sql())
             comp = parse_reactive(expr, tables, params, one_value=True)
             return comp
@@ -417,7 +418,7 @@ class PageQL:
                 self.db.execute("PRAGMA synchronous=NORMAL")
                 self.db.execute("PRAGMA temp_store=MEMORY")
                 self.db.execute("PRAGMA cache_size=10000")
-        self.tables = Tables(self.db)
+        self.tables = Tables(self.db, self.dialect)
         self._from_cache = {}
 
     def load_module(self, name, source):
@@ -451,7 +452,7 @@ class PageQL:
         # Tokenize the source and build AST
         try:
             tokens = tokenize(source)
-            body, partials = build_ast(tokens)
+            body, partials = build_ast(tokens, self.dialect)
             body = add_reactive_elements(body)
 
             def _apply(parts):
@@ -1054,7 +1055,7 @@ class PageQL:
                     }
                     expr_copy = expr.copy()
                     _replace_placeholders(expr_copy, converted_params)
-                    cache_key = expr_copy.sql(dialect="sqlite")
+                    cache_key = expr_copy.sql(dialect=self.dialect)
                     comp = self._from_cache.get(cache_key)
                     if comp is None or not comp.listeners:
                         comp = parse_reactive(expr, self.tables, params)

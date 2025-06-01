@@ -166,6 +166,9 @@ def parse_reactive(
     _replace_placeholders(expr, params, tables.dialect)
     sql = expr.sql(dialect=tables.dialect)
 
+    if "randomblob" in sql.lower():
+        cache = False
+
     cache_key = None
     if cache:
         cache_key = (id(tables), sql, one_value)

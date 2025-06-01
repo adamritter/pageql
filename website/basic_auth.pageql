@@ -1,0 +1,71 @@
+{{#create table if not exists users (
+    id INTEGER PRIMARY KEY,
+    username TEXT UNIQUE,
+    password TEXT
+)}}
+
+{{#create table if not exists sessions (
+    token TEXT PRIMARY KEY,
+    user_id INTEGER
+)}}
+
+{{#insert or ignore into users(id, username, password) values (1, 'alice', 'password')}}
+{{#insert or ignore into users(id, username, password) values (2, 'bob', 'pass')}}
+
+{{!-- Helper to load the logged in user from session cookie --}}
+{{#param session optional}}
+{{#let user_id user_id from sessions where token=:session}}
+{{#let username username from users where id=:user_id}}
+
+{{#if username}}
+<p>Logged in as {{username}}. <a href="/basic_auth/profile">Profile</a> <a href="/basic_auth/logout">Logout</a></p>
+{{#else}}
+<p>You are not logged in. <a href="/basic_auth/login">Login</a></p>
+{{/if}}
+
+{{#partial POST login}}
+  {{#param username required}}
+  {{#param password required}}
+  {{#let uid id from users where username=:username and password=:password}}
+  {{#if uid}}
+    {{#let token lower(hex(randomblob(16)))}}
+    {{#insert into sessions(token, user_id) values(:token, :uid)}}
+    {{#cookie session :token path='/' httponly}}
+    {{#redirect '/basic_auth'}}
+  {{#else}}
+    <p>Invalid credentials</p>
+  {{/if}}
+{{/partial}}
+
+{{#partial GET login}}
+  {{#param session optional}}
+  {{#let user_id user_id from sessions where token=:session}}
+  {{#let username username from users where id=:user_id}}
+
+  <h1>Login</h1>
+  <form method="POST" action="/basic_auth/login">
+    <input name="username" placeholder="Username">
+    <input name="password" type="password" placeholder="Password">
+    <button type="submit">Login</button>
+  </form>
+{{/partial}}
+
+{{#partial GET profile}}
+  {{#param session optional}}
+  {{#let user_id user_id from sessions where token=:session}}
+  {{#let username username from users where id=:user_id}}
+
+  {{#if username}}
+    <h1>Hello {{username}}</h1>
+    <p><a href="/basic_auth/logout">Logout</a></p>
+  {{#else}}
+    {{#redirect '/basic_auth/login'}}
+  {{/if}}
+{{/partial}}
+
+{{#partial public logout}}
+  {{#param session optional}}
+  {{#delete from sessions where token=:session}}
+  {{#cookie session '' path='/' expires='Thu, 01 Jan 1970 00:00:00 GMT'}}
+  {{#redirect '/basic_auth'}}
+{{/partial}}

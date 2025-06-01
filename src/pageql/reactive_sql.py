@@ -30,6 +30,8 @@ def _replace_placeholders(expr: exp.Expression, params: dict[str, object] | None
             val = val.value
         if isinstance(val, (int, float)):
             lit = exp.Literal.number(val)
+        elif isinstance(val, (bytes, bytearray)):
+            lit = exp.Literal(this=f"X'{val.hex()}'", is_string=False)
         else:
             lit = exp.Literal.string(str(val))
         ph.replace(lit)

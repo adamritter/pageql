@@ -12,6 +12,7 @@ from .reactive import (
     OneValue,
     Signal,
     ReadOnly,
+    execute,
 )
 
 
@@ -67,7 +68,7 @@ class FallbackReactive(Signal):
             dep.listeners.append(self._on_parent_event)
         self.update = self._on_parent_event
 
-        cur = self.conn.execute(sql)
+        cur = execute(self.conn, sql, [])
         self.columns = [d[0] for d in cur.description]
         self.rows = list(cur.fetchall())
         self._counts = {}
@@ -79,7 +80,7 @@ class FallbackReactive(Signal):
             l(event)
 
     def _on_parent_event(self, _):
-        cur = self.conn.execute(self.sql)
+        cur = execute(self.conn, self.sql, [])
         rows = list(cur.fetchall())
         new_counts = {}
         for r in rows:
@@ -180,9 +181,9 @@ def parse_reactive(
     # return a simple ReadOnly wrapper instead of a reactive component.
     if not list(expr.find_all(exp.Table)):
         if one_value:
-            row = tables.conn.execute(sql).fetchone()
+            row = execute(tables.conn, sql, []).fetchone()
             return ReadOnly(row[0] if row else None)
-        rows = tables.conn.execute(sql).fetchall()
+        rows = execute(tables.conn, sql, []).fetchall()
         return ReadOnly(rows)
 
     if list(expr.find_all(exp.Join)):

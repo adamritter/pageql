@@ -183,7 +183,8 @@ class ReactiveTable(Signal):
         super().__init__()
         self.conn = conn
         self.table_name = table_name
-        self.columns = [col[1] for col in self.conn.execute(f"PRAGMA table_info({self.table_name})")]
+        cur = execute(self.conn, f"PRAGMA table_info({self.table_name})", [])
+        self.columns = [col[1] for col in cur]
         self.sql = f"SELECT * FROM {self.table_name}"
 
     def remove_listener(self, listener):
@@ -195,7 +196,7 @@ class ReactiveTable(Signal):
         params = _normalize_params(params)
         query = _convert_dot_sql(sql + " RETURNING *")
         try:
-            cursor = self.conn.execute(query, params)
+            cursor = execute(self.conn, query, params)
             row = cursor.fetchone()
         except Exception as e:
             from .pageql import RenderResultException
@@ -219,7 +220,7 @@ class ReactiveTable(Signal):
         query = _convert_dot_sql(sql + " RETURNING * LIMIT 1")
         try:
             while True:
-                cursor = self.conn.execute(query, params)
+                cursor = execute(self.conn, query, params)
                 row = cursor.fetchone()
                 if row is None:
                     break
@@ -246,14 +247,14 @@ class ReactiveTable(Signal):
         if where:
             select_sql += f" WHERE {where.rstrip()}"
         select_sql += ";"
-        cursor = self.conn.execute(_convert_dot_sql(select_sql), params)
+        cursor = execute(self.conn, _convert_dot_sql(select_sql), params)
         rows = cursor.fetchall()
         update_sql = f"UPDATE {table} SET {set_sql} WHERE {' AND '.join([f'{k} IS :_col{index}' for index, k in enumerate(self.columns)])} RETURNING * LIMIT 1"
         params = params.copy()
         for row in rows:
             for index, value in enumerate(row):
                 params[f"_col{index}"] = value
-            cursor = self.conn.execute(_convert_dot_sql(update_sql), params)
+            cursor = execute(self.conn, _convert_dot_sql(update_sql), params)
             new_row = cursor.fetchone()
             if new_row is None:
                 raise Exception(f"Update on table {self.table_name} failed for query: {update_sql} with params: {params}")
@@ -314,7 +315,7 @@ class CountAll(Signal):
         self.parent = parent
         self.conn = self.parent.conn
         self.sql = f"SELECT COUNT(*) FROM ({self.parent.sql})"
-        self.value = self.conn.execute(self.sql).fetchone()[0]
+        self.value = execute(self.conn, self.sql, []).fetchone()[0]
         self.parent.listeners.append(self.onevent)
         self.columns = "COUNT(*)"
         self.deps = [self.parent]
@@ -351,7 +352,7 @@ class OneValue(Signal):
         if len(cols) != 1:
             raise ValueError("OneValue parent must have exactly one column")
         self.columns = cols[0]
-        row = self.conn.execute(self.sql).fetchone()
+        row = execute(self.conn, self.sql, []).fetchone()
         super().__init__(row[0] if row else None)
         self.parent.listeners.append(self.onevent)
 
@@ -379,7 +380,7 @@ class OneValue(Signal):
         parent.listeners.append(self.onevent)
         self.deps = [parent]
 
-        row = self.conn.execute(self.sql).fetchone()
+        row = execute(self.conn, self.sql, []).fetchone()
         value = row[0] if row else None
 
         self.set_value(value)
@@ -460,9 +461,9 @@ class Union(Signal):
 
         # Track how many times a row appears across parents
         self._counts = {}
-        for row in self.conn.execute(self.parent1.sql).fetchall():
+        for row in execute(self.conn, self.parent1.sql, []).fetchall():
             self._counts[row] = self._counts.get(row, 0) + 1
-        for row in self.conn.execute(self.parent2.sql).fetchall():
+        for row in execute(self.conn, self.parent2.sql, []).fetchall():
             self._counts[row] = self._counts.get(row, 0) + 1
         self.deps = [self.parent1, self.parent2]
         self.update = self.onevent
@@ -555,9 +556,9 @@ class Intersect(Signal):
         # result in duplicate intersection rows.
         self._counts1 = {}
         self._counts2 = {}
-        for row in self.conn.execute(self.parent1.sql).fetchall():
+        for row in execute(self.conn, self.parent1.sql, []).fetchall():
             self._counts1[row] = self._counts1.get(row, 0) + 1
-        for row in self.conn.execute(self.parent2.sql).fetchall():
+        for row in execute(self.conn, self.parent2.sql, []).fetchall():
             self._counts2[row] = self._counts2.get(row, 0) + 1
 
         # Set of rows currently present in the intersection
@@ -662,7 +663,7 @@ class Select(Signal):
         self.sql = f"SELECT {self.select_sql} FROM ({self.parent.sql})"
         self.parent.listeners.append(self.onevent)
         self.sql_from_row = f"SELECT {self.select_sql} FROM (SELECT {', '.join([f'? as {col}' for col in self.parent.columns])})"
-        cursor = self.conn.execute(f"SELECT * FROM ({self.sql}) LIMIT 0")
+        cursor = execute(self.conn, f"SELECT * FROM ({self.sql}) LIMIT 0", [])
         self.columns = [col[0] for col in cursor.description]
         self.deps = [self.parent]
         self.update = self.onevent

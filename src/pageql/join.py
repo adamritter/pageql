@@ -24,8 +24,8 @@ class Join(Signal):
             f"SELECT 1 FROM (SELECT {left_cols}) AS a JOIN (SELECT {right_cols}) AS b ON {self.on_sql}"
         )
 
-        self.rows1 = list(self.conn.execute(self.parent1.sql).fetchall())
-        self.rows2 = list(self.conn.execute(self.parent2.sql).fetchall())
+        self.rows1 = list(execute(self.conn, self.parent1.sql, []).fetchall())
+        self.rows2 = list(execute(self.conn, self.parent2.sql, []).fetchall())
 
         self._counts = {}
         for r1 in self.rows1:

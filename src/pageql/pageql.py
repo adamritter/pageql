@@ -1054,7 +1054,7 @@ class PageQL:
                         for k, v in params.items()
                     }
                     expr_copy = expr.copy()
-                    _replace_placeholders(expr_copy, converted_params)
+                    _replace_placeholders(expr_copy, converted_params, self.dialect)
                     cache_key = expr_copy.sql(dialect=self.dialect)
                     comp = self._from_cache.get(cache_key)
                     if comp is None or not comp.listeners:

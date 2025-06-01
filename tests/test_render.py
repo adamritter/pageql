@@ -103,7 +103,7 @@ def test_from_reactive_uses_parse(monkeypatch):
     original = rsql.parse_reactive
 
     def wrapper(expr, tables, params=None, **kwargs):
-        seen.append(expr.sql())
+        seen.append(expr.sql(dialect="sqlite"))
         return original(expr, tables, params, **kwargs)
 
     monkeypatch.setattr(rsql, "parse_reactive", wrapper)
@@ -136,7 +136,7 @@ def test_from_reactive_caches_queries(monkeypatch):
     original = rsql.parse_reactive
 
     def wrapper(expr, tables, params=None, **kwargs):
-        seen.append(expr.sql())
+        seen.append(expr.sql(dialect="sqlite"))
         return original(expr, tables, params, **kwargs)
 
     monkeypatch.setattr(rsql, "parse_reactive", wrapper)
@@ -164,7 +164,7 @@ def test_from_reactive_reparses_after_cleanup(monkeypatch):
     original = rsql.parse_reactive
 
     def wrapper(expr, tables, params=None, **kwargs):
-        seen.append(expr.sql())
+        seen.append(expr.sql(dialect="sqlite"))
         return original(expr, tables, params, **kwargs)
 
     monkeypatch.setattr(rsql, "parse_reactive", wrapper)

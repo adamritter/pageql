@@ -33,6 +33,7 @@ from pageql.reactive import (
     get_dependencies,
     Tables,
     ReadOnly,
+    _convert_dot_sql,
 )
 from pageql.reactive_sql import parse_reactive, _replace_placeholders
 import sqlglot
@@ -337,11 +338,7 @@ def evalone(db, exp, params, reactive=False, tables=None, expr=None):
         exp = "select " + exp
 
     if reactive:
-        sql = re.sub(
-            r':([A-Za-z0-9_]+(?:\.[A-Za-z0-9_]+)+)',
-            lambda m: ':' + m.group(1).replace('.', '__'),
-            exp,
-        )
+        sql = _convert_dot_sql(exp)
         if tables is None:
             tables = Tables(db, dialect)
         dep_names = [name.replace('.', '__') for name in get_dependencies(sql)]

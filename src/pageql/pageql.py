@@ -355,12 +355,14 @@ def evalone(db, exp, params, reactive=False, tables=None, expr=None):
             comp = parse_reactive(expr, tables, params, one_value=True)
             return comp
         cache_key = (id(tables), sql, tuple(dep_keys))
-        dv = _DV_CACHE.get(cache_key)
+        cache_allowed = "randomblob" not in sql.lower()
+        dv = _DV_CACHE.get(cache_key) if cache_allowed else None
         if dv is not None:
             if not hasattr(dv, "listeners") or dv.listeners:
                 return dv
         dv = derive_signal2(_build, deps)
-        _DV_CACHE[cache_key] = dv
+        if cache_allowed:
+            _DV_CACHE[cache_key] = dv
         return dv
 
     try:
@@ -1056,10 +1058,12 @@ class PageQL:
                     expr_copy = expr.copy()
                     _replace_placeholders(expr_copy, converted_params, self.dialect)
                     cache_key = expr_copy.sql(dialect=self.dialect)
-                    comp = self._from_cache.get(cache_key)
+                    cache_allowed = "randomblob" not in cache_key.lower()
+                    comp = self._from_cache.get(cache_key) if cache_allowed else None
                     if comp is None or not comp.listeners:
                         comp = parse_reactive(expr, self.tables, params)
-                        self._from_cache[cache_key] = comp
+                        if cache_allowed:
+                            self._from_cache[cache_key] = comp
                     cursor = self.db.execute(comp.sql, converted_params)
                     col_names = comp.columns if not isinstance(comp.columns, str) else [comp.columns]
                 else:

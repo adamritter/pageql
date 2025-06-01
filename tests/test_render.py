@@ -157,6 +157,31 @@ def test_from_reactive_caches_queries(monkeypatch):
     assert seen.count("SELECT * FROM items WHERE id = :v") == 1
 
 
+def test_randomblob_expression_not_cached(monkeypatch):
+    import pageql.reactive_sql as rsql
+
+    seen = []
+    original = rsql.parse_reactive
+
+    def wrapper(expr, tables, params=None, **kwargs):
+        seen.append(expr.sql(dialect="sqlite"))
+        return original(expr, tables, params, **kwargs)
+
+    monkeypatch.setattr(rsql, "parse_reactive", wrapper)
+    import pageql.pageql as pql
+    monkeypatch.setattr(pql, "parse_reactive", wrapper)
+
+    r = PageQL(":memory:")
+    snippet = (
+        "{{#reactive on}}"
+        "{{#let t1 lower(hex(randomblob(4)))}}"
+        "{{#let t2 lower(hex(randomblob(4)))}}"
+    )
+    r.load_module("m", snippet)
+    r.render("/m")
+    assert seen.count("SELECT LOWER(HEX(RANDOMBLOB(4)))") == 2
+
+
 def test_from_reactive_reparses_after_cleanup(monkeypatch):
     import pageql.reactive_sql as rsql
 

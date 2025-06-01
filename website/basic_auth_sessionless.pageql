@@ -8,10 +8,8 @@
 {{#insert or ignore into users(id, username, password) values (2, 'bob', 'pass')}}
 
 {{!-- Load JWT from session cookie --}}
-{{#param session optional}}
-{{#let jwt_part substr(:session, instr(:session, '.') + 1)}}
-{{#let jwt_part substr(:jwt_part, 1, instr(:jwt_part, '.') - 1)}}
-{{#let payload base64_decode(:jwt_part)}}
+{{#param cookies.session optional}}
+{{#let payload jws_deserialize_compact(:cookies.session)}}
 {{#let uid cast(json_extract(:payload, '$.uid') as integer)}}
 {{#let expiry cast(json_extract(:payload, '$.exp') as integer)}}
 {{#let jwt_valid (:expiry > cast(strftime('%s','now') as integer))}}
@@ -30,7 +28,7 @@
   {{#if uid}}
     {{#let expiry (cast(strftime('%s','now') as integer) + 3600)}}
     {{#let payload json_set('{"role":"member"}', '$.exp', :expiry, '$.uid', :uid)}}
-    {{#let token (base64_encode('{"alg":"none","typ":"JWT"}') || '.' || base64_encode(:payload) || '.')}}
+    {{#let token jws_serialize_compact(:payload)}}
     {{#cookie session :token path='/' httponly}}
     {{#redirect '/basic_auth_sessionless'}}
   {{#else}}
@@ -48,10 +46,8 @@
 {{/partial}}
 
 {{#partial GET profile}}
-  {{#param session optional}}
-  {{#let jwt_part substr(:session, instr(:session, '.') + 1)}}
-  {{#let jwt_part substr(:jwt_part, 1, instr(:jwt_part, '.') - 1)}}
-  {{#let payload base64_decode(:jwt_part)}}
+  {{#param cookies.session optional}}
+  {{#let payload jws_deserialize_compact(:cookies.session)}}
   {{#let uid cast(json_extract(:payload, '$.uid') as integer)}}
   {{#let expiry cast(json_extract(:payload, '$.exp') as integer)}}
   {{#let jwt_valid (:expiry > cast(strftime('%s','now') as integer))}}

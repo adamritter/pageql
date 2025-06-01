@@ -5,6 +5,7 @@ import sqlite3
 import mimetypes
 import re
 import base64
+import json
 from urllib.parse import urlparse, parse_qs
 from watchfiles import awatch
 import uuid
@@ -19,6 +20,7 @@ from .http_utils import (
     _read_chunked_body,
     _parse_cookies,
 )
+from .jws_utils import jws_serialize_compact, jws_deserialize_compact
 
 scripts_by_send: defaultdict = defaultdict(list)
 _idle_task: Optional[asyncio.Task] = None
@@ -616,6 +618,14 @@ class PageQLApp:
                 self.conn.create_function(
                     "base64_decode", 1,
                     lambda txt: base64.b64decode(txt).decode("utf-8") if txt is not None else None,
+                )
+                self.conn.create_function(
+                    "jws_serialize_compact", 1,
+                    lambda payload: jws_serialize_compact(payload),
+                )
+                self.conn.create_function(
+                    "jws_deserialize_compact", 1,
+                    lambda token: json.dumps(jws_deserialize_compact(token)),
                 )
             except Exception as e:
                 self._log(f"Warning: could not register base64_encode: {e}")

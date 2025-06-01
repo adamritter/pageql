@@ -34,7 +34,15 @@ def jws_serialize_compact(payload, protected=None, *, key_path=DEFAULT_KEY_PATH)
 
 
 def jws_deserialize_compact(value, *, key_path=DEFAULT_KEY_PATH):
-    """Deserialize a JWS Compact string and return the payload."""
+    """Deserialize a JWS Compact string and return the payload.
+
+    If *value* is ``None`` return ``None`` instead of attempting to
+    deserialize it. This mirrors SQLite's ``NULL`` behaviour when the
+    function is exposed as a database function.
+    """
+    if value is None:
+        return None
+
     key = _load_or_create_key(key_path)
     obj = jws.deserialize_compact(value, key)
     return obj.payload

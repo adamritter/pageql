@@ -71,6 +71,7 @@ pageql -path/to/your/database.sqlite ./templates
 *   `--port <number>`: (Optional) Port number to run the development server on. Defaults to a standard port (e.g., 8000 or 8080).
 *   `-q, --quiet`: (Optional) Only output errors when running the server.
 *   `--fallback-url <url>`: (Optional) Forward unknown routes to this base URL.
+*   `--no-csrf`: (Optional) Disable CSRF protection. Useful for local testing but not recommended in production.
 *   PageQL automatically configures new SQLite databases with write-ahead logging
     and an increased cache for better concurrency.
 *   When a PostgreSQL or MySQL URL is provided, `--create` is ignored and the

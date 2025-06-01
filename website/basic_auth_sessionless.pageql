@@ -7,13 +7,17 @@
 {{#insert or ignore into users(id, username, password) values (1, 'alice', 'password')}}
 {{#insert or ignore into users(id, username, password) values (2, 'bob', 'pass')}}
 
-{{!-- Load username/password from session cookie --}}
+{{!-- Load JWT from session cookie --}}
 {{#param session optional}}
-{{#let sess_username substr(:session, 1, instr(:session, ':') - 1)}}
-{{#let sess_password substr(:session, instr(:session, ':') + 1)}}
-{{#let uid id from users where username=:sess_username and password=:sess_password}}
+{{#let jwt_part substr(:session, instr(:session, '.') + 1)}}
+{{#let jwt_part substr(:jwt_part, 1, instr(:jwt_part, '.') - 1)}}
+{{#let payload base64_decode(:jwt_part)}}
+{{#let uid cast(json_extract(:payload, '$.uid') as integer)}}
+{{#let expiry cast(json_extract(:payload, '$.exp') as integer)}}
+{{#let jwt_valid (:expiry > cast(strftime('%s','now') as integer))}}
+{{#let sess_username username from users where id=:uid}}
 
-{{#if uid}}
+{{#if uid and jwt_valid}}
 <p>Logged in as {{sess_username}}. <a href="/basic_auth_sessionless/profile">Profile</a> <a href="/basic_auth_sessionless/logout">Logout</a></p>
 {{#else}}
 <p>You are not logged in. <a href="/basic_auth_sessionless/login">Login</a></p>
@@ -22,8 +26,16 @@
 {{#partial POST login}}
   {{#param username required}}
   {{#param password required}}
-  {{#cookie session (:username || ':' || :password) path='/' httponly}}
-  {{#redirect '/basic_auth_sessionless'}}
+  {{#let uid id from users where username=:username and password=:password}}
+  {{#if uid}}
+    {{#let expiry (cast(strftime('%s','now') as integer) + 3600)}}
+    {{#let payload json_set('{"role":"member"}', '$.exp', :expiry, '$.uid', :uid)}}
+    {{#let token (base64_encode('{"alg":"none","typ":"JWT"}') || '.' || base64_encode(:payload) || '.')}}
+    {{#cookie session :token path='/' httponly}}
+    {{#redirect '/basic_auth_sessionless'}}
+  {{#else}}
+    <p>Invalid credentials</p>
+  {{/if}}
 {{/partial}}
 
 {{#partial GET login}}
@@ -37,11 +49,15 @@
 
 {{#partial GET profile}}
   {{#param session optional}}
-  {{#let sess_username substr(:session, 1, instr(:session, ':') - 1)}}
-  {{#let sess_password substr(:session, instr(:session, ':') + 1)}}
-  {{#let uid id from users where username=:sess_username and password=:sess_password}}
+  {{#let jwt_part substr(:session, instr(:session, '.') + 1)}}
+  {{#let jwt_part substr(:jwt_part, 1, instr(:jwt_part, '.') - 1)}}
+  {{#let payload base64_decode(:jwt_part)}}
+  {{#let uid cast(json_extract(:payload, '$.uid') as integer)}}
+  {{#let expiry cast(json_extract(:payload, '$.exp') as integer)}}
+  {{#let jwt_valid (:expiry > cast(strftime('%s','now') as integer))}}
+  {{#let sess_username username from users where id=:uid}}
 
-  {{#if uid}}
+  {{#if uid and jwt_valid}}
     <h1>Hello {{sess_username}}</h1>
     <p><a href="/basic_auth_sessionless/logout">Logout</a></p>
   {{#else}}

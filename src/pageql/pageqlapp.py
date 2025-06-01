@@ -613,6 +613,10 @@ class PageQLApp:
                     "base64_encode", 1,
                     lambda blob: base64.b64encode(blob).decode("utf-8") if blob is not None else None,
                 )
+                self.conn.create_function(
+                    "base64_decode", 1,
+                    lambda txt: base64.b64decode(txt).decode("utf-8") if txt is not None else None,
+                )
             except Exception as e:
                 self._log(f"Warning: could not register base64_encode: {e}")
         except Exception as e:

@@ -318,6 +318,10 @@ def db_execute_dot(db, exp, params):
 
 def evalone(db, exp, params, reactive=False, tables=None, expr=None):
     exp = exp.strip()
+    if exp.upper() == "NULL":
+        if reactive:
+            return DerivedSignal(lambda: None, [])
+        return None
     dialect = getattr(tables, "dialect", "sqlite") if tables is not None else "sqlite"
     if re.match("^:?[a-zA-z._][a-zA-z._0-9]*$", exp):
         original = exp[1:] if exp.startswith(":") else exp

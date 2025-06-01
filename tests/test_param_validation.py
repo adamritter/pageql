@@ -34,8 +34,19 @@ def test_missing_param_error():
     assert "available parameters" in msg
 
 
+
 def test_param_nested_name():
     r = PageQL(":memory:")
     r.load_module("m", "{{#param cookies.session optional}}{{cookies__session}}")
     result = r.render("/m", {"cookies": {"session": "abc"}}, reactive=False)
     assert result.body == "abc"
+
+def test_missing_param_error_reactive():
+    r = PageQL(":memory:")
+    r.load_module("m", "{{:c + 0}}")
+    with pytest.raises(ValueError) as exc:
+        r.render("/m", reactive=True)
+    msg = str(exc.value).lower()
+    assert "missing parameter(s) c" in msg
+    assert "available parameters" in msg
+

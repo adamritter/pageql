@@ -347,6 +347,15 @@ def evalone(db, exp, params, reactive=False, tables=None, expr=None):
         if tables is None:
             tables = Tables(db, dialect)
         dep_names = [name.replace('.', '__') for name in get_dependencies(sql)]
+
+        missing = [n for n in dep_names if n not in params]
+        if missing:
+            avail = ', '.join(sorted(params.keys()))
+            raise ValueError(
+                f"Missing parameter(s) {', '.join(m.replace('__', '.') for m in missing)} "
+                f"for SQL expression `{exp}`. Available parameters: {avail}"
+            )
+
         for name in dep_names:
             val = params.get(name)
             if val is not None and not isinstance(val, Signal):

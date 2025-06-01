@@ -126,3 +126,30 @@ def test_base64_encode_function_is_registered(tmp_path):
     result = app.conn.execute("select base64_encode(?)", (b'abcd',)).fetchone()[0]
     assert result == base64.b64encode(b'abcd').decode()
 
+
+def test_before_hook_handles_bytes(tmp_path):
+    template = Path(tmp_path) / "before.pageql"
+    template.write_text(
+        '<img src="data:image/jpeg;base64,{{base64_encode(:image)}}"/>'
+    )
+
+    async def run_test():
+        server, task, port = await run_server_in_task(str(tmp_path))
+        app = server.config.app
+
+        @app.before("/before")
+        async def before_hook(params):
+            params["image"] = b"abcd"
+            return params
+
+        status, _headers, body = await _http_get(
+            f"http://127.0.0.1:{port}/before"
+        )
+        server.should_exit = True
+        await task
+        return status, body
+
+    status, body = asyncio.run(run_test())
+    assert status == 200
+    assert base64.b64encode(b"abcd").decode() in body.decode()
+

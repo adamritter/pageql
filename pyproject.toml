@@ -21,6 +21,7 @@ dependencies = [
     "uvicorn",
     "watchfiles",
     "sqlglot",
+    "joserfc",
 ]
 
 [project.optional-dependencies]

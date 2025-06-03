@@ -2,10 +2,10 @@
 
 import asyncio
 import re
-from urllib.parse import urlparse
-from typing import Dict, List, Tuple
+from urllib.parse import urlparse, parse_qs
+from typing import Dict, List, Tuple, Callable, Awaitable
 
-__all__ = ["_http_get", "_parse_multipart_data", "_read_chunked_body", "_parse_cookies"]
+__all__ = ["_http_get", "_parse_multipart_data", "_read_chunked_body", "_parse_cookies", "_parse_form_data"]
 
 
 async def _read_chunked_body(reader: asyncio.StreamReader) -> bytes:
@@ -65,6 +65,45 @@ def _parse_multipart_data(body: bytes, boundary: str) -> Dict[str, object]:
         else:
             result[name] = content.decode("utf-8")
     return result
+
+
+async def _parse_form_data(
+    headers: Dict[str, str],
+    receive: Callable[[], Awaitable[Dict[str, object]]],
+    params: Dict[str, object],
+    log_func: Callable[[str], None] | None = None,
+) -> None:
+    """Read and parse form data from an ASGI request."""
+
+    content_length = int(headers.get("content-length", 0))
+    if content_length == 0:
+        return
+
+    content_type = headers.get("content-type", "")
+    message = await receive()
+    post_body = message.get("body", b"")
+    while message.get("more_body"):
+        message = await receive()
+        post_body += message.get("body", b"")
+
+    if "application/x-www-form-urlencoded" in content_type:
+        post_body = post_body.decode("utf-8")
+        post_params = parse_qs(post_body, keep_blank_values=True)
+        if log_func:
+            log_func(f"post_params: {post_params}")
+        for key, value in post_params.items():
+            params[key] = value[0] if len(value) == 1 else value
+    elif "multipart/form-data" in content_type:
+        m = re.search("boundary=([^;]+)", content_type)
+        boundary = m.group(1).strip('"') if m else ""
+        files_and_params = _parse_multipart_data(post_body, boundary)
+        if log_func:
+            log_func(f"multipart_params: {files_and_params}")
+        for key, value in files_and_params.items():
+            params[key] = value
+    else:
+        if log_func:
+            log_func(f"Warning: Unsupported Content-Type: {content_type}")
 
 
 async def _http_get(url: str) -> Tuple[int, List[Tuple[bytes, bytes]], bytes]:

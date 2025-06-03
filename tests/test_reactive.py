@@ -71,7 +71,8 @@ from pageql.reactive import (
     get_dependencies,
     ReadOnly,
 )
-from pageql.pageql import RenderContext, Tables, evalone
+from pageql.pageql import RenderContext, Tables
+from pageql.database import evalone
 
 
 def _db():

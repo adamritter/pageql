@@ -107,6 +107,8 @@ def test_from_reactive_uses_parse(monkeypatch):
         return original(expr, tables, params, **kwargs)
 
     monkeypatch.setattr(rsql, "parse_reactive", wrapper)
+    import pageql.database as pdb
+    monkeypatch.setattr(pdb, "parse_reactive", wrapper)
     import pageql.pageql as pql
     monkeypatch.setattr(pql, "parse_reactive", wrapper)
 
@@ -140,6 +142,8 @@ def test_from_reactive_caches_queries(monkeypatch):
         return original(expr, tables, params, **kwargs)
 
     monkeypatch.setattr(rsql, "parse_reactive", wrapper)
+    import pageql.database as pdb
+    monkeypatch.setattr(pdb, "parse_reactive", wrapper)
     import pageql.pageql as pql
     monkeypatch.setattr(pql, "parse_reactive", wrapper)
 
@@ -168,6 +172,8 @@ def test_randomblob_expression_not_cached(monkeypatch):
         return original(expr, tables, params, **kwargs)
 
     monkeypatch.setattr(rsql, "parse_reactive", wrapper)
+    import pageql.database as pdb
+    monkeypatch.setattr(pdb, "parse_reactive", wrapper)
     import pageql.pageql as pql
     monkeypatch.setattr(pql, "parse_reactive", wrapper)
 
@@ -193,6 +199,8 @@ def test_from_reactive_reparses_after_cleanup(monkeypatch):
         return original(expr, tables, params, **kwargs)
 
     monkeypatch.setattr(rsql, "parse_reactive", wrapper)
+    import pageql.database as pdb
+    monkeypatch.setattr(pdb, "parse_reactive", wrapper)
     import pageql.pageql as pql
     monkeypatch.setattr(pql, "parse_reactive", wrapper)
 

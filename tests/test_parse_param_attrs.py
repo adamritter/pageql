@@ -3,7 +3,7 @@ sys.modules.setdefault("watchfiles", types.ModuleType("watchfiles"))
 sys.modules["watchfiles"].awatch = lambda *args, **kwargs: None
 sys.path.insert(0, "src")
 
-from pageql.pageql import parse_param_attrs
+from pageql.database import parse_param_attrs
 
 
 def test_single_double_and_unquoted_values():

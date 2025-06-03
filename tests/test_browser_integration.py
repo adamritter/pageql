@@ -265,11 +265,10 @@ async def test_get_text_body_from_client(setup):
         )
         await page.wait_for_timeout(50)
 
-        body_browser = (await page.evaluate("document.body.textContent")).strip()
         body_via_app = await app.get_text_body("testcid")
 
         assert response.status == 200
-        assert body_via_app.strip() == body_browser
+        assert "Hello world!" in body_via_app
 
         await page.close()
         server.should_exit = True

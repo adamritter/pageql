@@ -262,117 +262,167 @@ class PageQLApp:
                 
 
 
-    async def pageql_handler(self, scope, receive, send):
-        """Handles common logic for GET and POST requests."""
-        # print(f"Thread ID: {threading.get_ident()}")
-        method = scope['method']
+    async def _serve_static_file(self, path_cleaned, include_scripts, client_id, send):
+        if path_cleaned not in self.static_files:
+            return False
+        content_type, _ = mimetypes.guess_type(path_cleaned)
+        self._log(f"Serving static file: {path_cleaned} as {content_type}")
+        if content_type == 'text/html':
+            content_type = 'text/html; charset=utf-8'
+            body = self.static_files[path_cleaned]
+            if include_scripts:
+                scripts = base_script + (
+                    reload_ws_script(client_id) if self.should_reload else ''
+                )
+                body = scripts.encode('utf-8') + body
+        else:
+            body = self.static_files[path_cleaned]
+        headers_list = [(b'content-type', content_type.encode('utf-8'))]
+        headers_list.extend(self.static_headers.get(path_cleaned, []))
+        await send({
+            'type': 'http.response.start',
+            'status': 200,
+            'headers': headers_list,
+        })
+        await send({'type': 'http.response.body', 'body': body})
+        return True
 
-        while self.to_reload:
-            f = self.to_reload.pop()
-            self.load(self.template_dir, f)
-
-        parsed_path = urlparse(scope['path'])
-        path_cleaned = parsed_path.path.strip('/')
-        if not path_cleaned:  # Handle root path, maybe map to 'index' or similar?
-            path_cleaned = 'index'  # Default to 'index' if root is requested
-
-        # Decode headers and query parameters early so we can obtain the client id
-        headers = {k.decode('utf-8').replace('-', '_'): v.decode('utf-8') for k, v in scope['headers']}
-        include_scripts = headers.get('hx_mode', '').lower() != 'none'
-        query = scope['query_string']
-        query_params = parse_qs(query, keep_blank_values=True)
-
-        params = {}
-        for key, value in query_params.items():
-            params[key.decode('utf-8')] = value[0].decode('utf-8') if len(value) == 1 else map(lambda v: v.decode('utf-8'), value)
-
-        incoming_client_id = params.pop('clientId', None)
-        if incoming_client_id is None:
-            incoming_client_id = headers.get('ClientId') or headers.get('clientid')
-        client_id = incoming_client_id or uuid.uuid4().hex
-
-        params['cookies'] = _parse_cookies(headers.get('cookie', ''))
-        params['headers'] = headers
-        params['method'] = method
-
-        if path_cleaned in self.static_files:
-            content_type, _ = mimetypes.guess_type(path_cleaned)
-            self._log(f"Serving static file: {path_cleaned} as {content_type}")
-            if content_type == 'text/html':
-                content_type = 'text/html; charset=utf-8'
-                body = self.static_files[path_cleaned]
-                if include_scripts:
-                    scripts = base_script + (
-                        reload_ws_script(client_id) if self.should_reload else ''
-                    )
-                    body = scripts.encode('utf-8') + body
-            else:
-                body = self.static_files[path_cleaned]
-            headers_list = [(b'content-type', content_type.encode('utf-8'))]
-            headers_list.extend(self.static_headers.get(path_cleaned, []))
-            await send({
-                'type': 'http.response.start',
-                'status': 200,
-                'headers': headers_list,
-            })
-            await send({
-                'type': 'http.response.body',
-                'body': body,
-            })
+    async def _parse_form_data(self, headers, receive, params):
+        content_length = int(headers.get('content-length', 0))
+        if content_length == 0:
             return
+        content_type = headers.get('content-type', '')
+        message = await receive()
+        post_body = message.get('body', b'')
+        while message.get('more_body'):
+            message = await receive()
+            post_body += message.get('body', b'')
+        if 'application/x-www-form-urlencoded' in content_type:
+            post_body = post_body.decode('utf-8')
+            post_params = parse_qs(post_body, keep_blank_values=True)
+            self._log(f"post_params: {post_params}")
+            for key, value in post_params.items():
+                params[key] = value[0] if len(value) == 1 else value
+        elif 'multipart/form-data' in content_type:
+            m = re.search('boundary=([^;]+)', content_type)
+            boundary = m.group(1).strip('"') if m else ''
+            files_and_params = _parse_multipart_data(post_body, boundary)
+            self._log(f"multipart_params: {files_and_params}")
+            for key, value in files_and_params.items():
+                params[key] = value
+        else:
+            self._log(f"Warning: Unsupported Content-Type: {content_type}")
 
-        # Form data parameters (for POST, PUT, PATCH, DELETE)
-        if method in ('POST', 'PUT', 'PATCH', 'DELETE'):
-            self._log(scope)
-            headers = {k.decode('utf-8'): v.decode('utf-8') for k, v in scope['headers']}
-            content_length = int(headers.get('content-length', 0))
-            if content_length > 0:
-                content_type = headers.get('content-type', '')
-                # Basic form data parsing
-                message = await receive()
-                post_body = message.get('body', b'')
-                while message.get('more_body'):
-                    message = await receive()
-                    post_body += message.get('body', b'')
-                if 'application/x-www-form-urlencoded' in content_type:
-                    post_body = post_body.decode('utf-8')
-                    post_params = parse_qs(post_body, keep_blank_values=True)
-                    self._log(f"post_params: {post_params}")
-                    for key, value in post_params.items():
-                        params[key] = value[0] if len(value) == 1 else value
-                elif 'multipart/form-data' in content_type:
-                    m = re.search('boundary=([^;]+)', content_type)
-                    boundary = m.group(1).strip('"') if m else ''
-                    files_and_params = _parse_multipart_data(post_body, boundary)
-                    self._log(f"multipart_params: {files_and_params}")
-                    for key, value in files_and_params.items():
-                        params[key] = value
-                else:
-                    self._log(f"Warning: Unsupported Content-Type: {content_type}")
+    async def _check_csrf(self, params, headers, client_id, send):
+        csrf_token = params.pop('__csrf', None)
+        cid_header = headers.get('ClientId') or headers.get('clientid')
+        token = cid_header or csrf_token
+        if not token or token not in self.render_contexts:
+            await send(
+                {
+                    'type': 'http.response.start',
+                    'status': 403,
+                    'headers': [(b'content-type', b'text/plain')],
+                }
+            )
+            await send({'type': 'http.response.body', 'body': b'CSRF verification failed'})
+            return None
+        return token
 
-            if self.csrf_protect:
-                csrf_token = params.pop('__csrf', None)
-                cid_header = headers.get('ClientId') or headers.get('clientid')
-                token = cid_header or csrf_token
-                if not token or token not in self.render_contexts:
-                    await send(
-                        {
-                            'type': 'http.response.start',
-                            'status': 403,
-                            'headers': [(b'content-type', b'text/plain')],
-                        }
-                    )
-                    await send(
-                        {
-                            'type': 'http.response.body',
-                            'body': b'CSRF verification failed',
-                        }
-                    )
-                    return None
-                client_id = token
+    async def _handle_reload_websocket(self, scope, receive, send):
+        await send({"type": "websocket.accept"})
+        client_id = None
+        qs = parse_qs(scope.get("query_string", b""))
+        if b"clientId" in qs:
+            client_id = qs[b"clientId"][0].decode()
+            self._log(f"Client connected with id: {client_id}")
+            self.websockets[client_id] = send
+            contexts = self.render_contexts.get(client_id)
+            if contexts:
+                def sender(sc, send=send):
+                    queue_ws_script(send, sc)
 
+                for ctx in contexts:
+                    ctx.send_script = sender
+                    scripts = list(ctx.scripts)
+                    ctx.scripts.clear()
+                    for sc in scripts:
+                        queue_ws_script(send, sc)
+        fut = asyncio.Event()
+        self.notifies.append(fut)
+        receive_task = asyncio.create_task(receive())
+        while True:
+            fut_task = asyncio.create_task(fut.wait())
+            done, _pending = await asyncio.wait([receive_task, fut_task], return_when=asyncio.FIRST_COMPLETED)
+            for task in done:
+                result = await task
+                if isinstance(result, dict) and result.get("type") == "websocket.connect":
+                    receive_task = asyncio.create_task(receive())
+                if isinstance(result, dict) and result.get("type") == "websocket.disconnect":
+                    if client_id:
+                        self.websockets.pop(client_id, None)
+                        contexts = self.render_contexts.pop(client_id, [])
+                        for ctx in contexts:
+                            ctx.send_script = None
+                            ctx.cleanup()
+                        scripts_by_send.pop(send, None)
+                    return
+                elif result is True:
+                    await send({"type": "websocket.send", "text": "reload"})
+                    fut = asyncio.Event()
+                    self.notifies.append(fut)
+                    fut_task = asyncio.create_task(fut.wait())
+
+    async def _handle_http_disconnect(self, receive, client_id):
+        message = await receive()
+        if isinstance(message, dict) and message.get("type") == "http.disconnect" and client_id:
+            async def cleanup_later():
+                await asyncio.sleep(0.1)
+                if client_id not in self.websockets:
+                    contexts = self.render_contexts.pop(client_id, [])
+                    for ctx in contexts:
+                        ctx.send_script = None
+                        ctx.cleanup()
+
+            asyncio.create_task(cleanup_later())
+
+    async def _send_render_result(self, result, include_scripts, client_id, send):
+        if result.redirect_to:
+            headers = [(b'Location', str(result.redirect_to).encode('utf-8'))]
+            for name, value in result.headers:
+                headers.append((str(name).encode('utf-8'), str(value).encode('utf-8')))
+            for name, value, opts in result.cookies:
+                parts = [f"{name}={value}"]
+                for k, v in opts.items():
+                    parts.append(k if v is True else f"{k}={v}")
+                headers.append((b'Set-Cookie', '; '.join(parts).encode('utf-8')))
+            await send({'type': 'http.response.start', 'status': result.status_code, 'headers': headers})
+            await send({'type': 'http.response.body', 'body': result.body.encode('utf-8')})
+            self._log(f"Redirecting to: {result.redirect_to} (Status: {result.status_code})")
+        else:
+            headers = [(b'Content-Type', b'text/html; charset=utf-8')]
+            for name, value in result.headers:
+                headers.append((str(name).encode('utf-8'), str(value).encode('utf-8')))
+            for name, value, opts in result.cookies:
+                parts = [f"{name}={value}"]
+                for k, v in opts.items():
+                    parts.append(k if v is True else f"{k}={v}")
+                headers.append((b'Set-Cookie', '; '.join(parts).encode('utf-8')))
+            await send({'type': 'http.response.start', 'status': result.status_code, 'headers': headers})
+            scripts = (
+                base_script + (reload_ws_script(client_id) if self.should_reload else '')
+                if include_scripts else ''
+            )
+            body_content = scripts + result.body
+            low = result.body.lower()
+            if '<body' not in low:
+                body_content = '<body>' + body_content + '</body>'
+            if '<html' not in low:
+                body_content = '<html>' + body_content + '</html>'
+            await send({'type': 'http.response.body', 'body': body_content.encode('utf-8')})
+
+    async def _render_and_send(self, parsed_path, path_cleaned, params, include_scripts, client_id, method, scope, receive, send):
         try:
-            # The render method in pageql.py handles path resolution (e.g., /todos/add)
             t = time.time()
             path = parsed_path.path
             self._log(f"Rendering {path} as {path_cleaned} with params: {params}")
@@ -392,17 +442,13 @@ class PageQLApp:
                     await self.fallback_app(scope, receive, send)
                     return None
                 if self.fallback_url is not None:
-                    url = self.fallback_url.rstrip("/") + scope["path"]
-                    if scope.get("query_string"):
-                        qs = scope["query_string"].decode()
-                        url += "?" + qs
+                    url = self.fallback_url.rstrip('/') + scope['path']
+                    if scope.get('query_string'):
+                        qs = scope['query_string'].decode()
+                        url += '?' + qs
                     status, headers, body = await _http_get(url)
-                    await send({
-                        "type": "http.response.start",
-                        "status": status,
-                        "headers": headers,
-                    })
-                    await send({"type": "http.response.body", "body": body})
+                    await send({'type': 'http.response.start', 'status': status, 'headers': headers})
+                    await send({'type': 'http.response.body', 'body': body})
                     return None
 
             if client_id:
@@ -416,149 +462,103 @@ class PageQLApp:
             self._log(f"{method} {path_cleaned} Params: {params} ({(time.time() - t) * 1000:.2f} ms)")
             self._log(f"Result: {result.status_code} {result.redirect_to} {result.headers}")
 
-            # --- Handle Redirect ---
-            if result.redirect_to:
-                headers = [(b'Location', str(result.redirect_to).encode('utf-8'))]
-                for name, value in result.headers:
-                    headers.append((str(name).encode('utf-8'), str(value).encode('utf-8')))
-                for name, value, opts in result.cookies:
-                    parts = [f"{name}={value}"]
-                    for k, v in opts.items():
-                        parts.append(k if v is True else f"{k}={v}")
-                    headers.append((b'Set-Cookie', "; ".join(parts).encode('utf-8')))
-                await send({
-                    'type': 'http.response.start',
-                    'status': result.status_code,
-                    'headers': headers,
-                })
-                await send({
-                    'type': 'http.response.body',
-                    'body': result.body.encode('utf-8'),
-                })
-                self._log(f"Redirecting to: {result.redirect_to} (Status: {result.status_code})")
-            # --- Handle Normal Response ---
-            else:
-                headers = [(b'Content-Type', b'text/html; charset=utf-8')]
-                for name, value in result.headers:
-                    headers.append((str(name).encode('utf-8'), str(value).encode('utf-8')))
-                for name, value, opts in result.cookies:
-                    parts = [f"{name}={value}"]
-                    for k, v in opts.items():
-                        parts.append(k if v is True else f"{k}={v}")
-                    headers.append((b'Set-Cookie', "; ".join(parts).encode('utf-8')))
-                await send({
-                    'type': 'http.response.start',
-                    'status': result.status_code,
-                    'headers': headers,
-                })
-                scripts = (
-                    base_script
-                    + (reload_ws_script(client_id) if self.should_reload else '')
-                    if include_scripts
-                    else ''
-                )
-                body_content = scripts + result.body
-                low = result.body.lower()
-                if '<body' not in low:
-                    body_content = '<body>' + body_content + '</body>'
-                if '<html' not in low:
-                    body_content = '<html>' + body_content + '</html>'
-                await send({
-                    'type': 'http.response.body',
-                    'body': body_content.encode('utf-8'),
-                })
+            await self._send_render_result(result, include_scripts, client_id, send)
 
         except sqlite3.Error as db_err:
             self._error(f"ERROR: Database error during render: {db_err}")
-            import traceback
-            traceback.print_exc()  # Print full traceback for debugging
-            await send({
-                'type': 'http.response.start',
-                'status': 500,
-                'headers': [(b'content-type', b'text/html; charset=utf-8')],
-            })
+            traceback.print_exc()
+            await send({'type': 'http.response.start', 'status': 500, 'headers': [(b'content-type', b'text/html; charset=utf-8')]})
             scripts = (
-                base_script
-                + (reload_ws_script(client_id) if self.should_reload else '')
-                if include_scripts
-                else ''
+                base_script + (reload_ws_script(client_id) if self.should_reload else '')
+                if include_scripts else ''
             )
-            await send({
-                'type': 'http.response.body',
-                'body': (scripts + f"Database Error: {db_err}").encode('utf-8'),
-            })
-        except ValueError as val_err:  # Catch validation errors from #param etc.
+            await send({'type': 'http.response.body', 'body': (scripts + f"Database Error: {db_err}").encode('utf-8')})
+        except ValueError as val_err:
             self._error(f"ERROR: Validation or Value error during render: {val_err}")
-            await send({
-                'type': 'http.response.start',
-                'status': 400,
-                'headers': [(b'content-type', b'text/html; charset=utf-8')],
-            })
+            await send({'type': 'http.response.start', 'status': 400, 'headers': [(b'content-type', b'text/html; charset=utf-8')]})
             scripts = (
-                base_script
-                + (reload_ws_script(client_id) if self.should_reload else '')
-                if include_scripts
-                else ''
+                base_script + (reload_ws_script(client_id) if self.should_reload else '')
+                if include_scripts else ''
             )
-            await send({
-                'type': 'http.response.body',
-                'body': (scripts + f"Bad Request: {val_err}").encode('utf-8'),
-            })
-        except FileNotFoundError:  # If pageql_engine.render raises this for missing modules
+            await send({'type': 'http.response.body', 'body': (scripts + f"Bad Request: {val_err}").encode('utf-8')})
+        except FileNotFoundError:
             self._error(f"ERROR: Module not found for path: {path_cleaned}")
             if self.fallback_app is not None:
                 await self.fallback_app(scope, receive, send)
                 return None
             if self.fallback_url is not None:
-                url = self.fallback_url.rstrip("/") + scope["path"]
-                if scope.get("query_string"):
-                    qs = scope["query_string"].decode()
-                    url += "?" + qs
+                url = self.fallback_url.rstrip('/') + scope['path']
+                if scope.get('query_string'):
+                    qs = scope['query_string'].decode()
+                    url += '?' + qs
                 status, headers, body = await _http_get(url)
-                await send({
-                    "type": "http.response.start",
-                    "status": status,
-                    "headers": headers,
-                })
-                await send({"type": "http.response.body", "body": body})
+                await send({'type': 'http.response.start', 'status': status, 'headers': headers})
+                await send({'type': 'http.response.body', 'body': body})
                 return None
-            await send({
-                'type': 'http.response.start',
-                'status': 404,
-                'headers': [(b'content-type', b'text/html; charset=utf-8')],
-            })
+            await send({'type': 'http.response.start', 'status': 404, 'headers': [(b'content-type', b'text/html; charset=utf-8')]})
             scripts = (
-                base_script
-                + (reload_ws_script(client_id) if self.should_reload else '')
-                if include_scripts
-                else ''
+                base_script + (reload_ws_script(client_id) if self.should_reload else '')
+                if include_scripts else ''
             )
-            await send({
-                'type': 'http.response.body',
-                'body': (scripts.encode('utf-8') + b"Not Found") if include_scripts else b"Not Found",
-            })
+            await send({'type': 'http.response.body', 'body': (scripts.encode('utf-8') + b"Not Found") if include_scripts else b"Not Found"})
         except Exception as e:
             self._error(f"ERROR: Unexpected error during render: {e}")
-            import traceback
-            traceback.print_exc() # Print full traceback for debugging
-            await send({
-                'type': 'http.response.start',
-                'status': 500,
-                'headers': [(b'content-type', b'text/html; charset=utf-8')],
-            })
+            traceback.print_exc()
+            await send({'type': 'http.response.start', 'status': 500, 'headers': [(b'content-type', b'text/html; charset=utf-8')]})
             scripts = (
-                base_script
-                + (reload_ws_script(client_id) if self.should_reload else '')
-                if include_scripts
-                else ''
+                base_script + (reload_ws_script(client_id) if self.should_reload else '')
+                if include_scripts else ''
             )
-            await send({
-                'type': 'http.response.body',
-                'body': ((scripts + f"Internal Server Error: {e}").encode('utf-8')) if include_scripts else f"Internal Server Error: {e}".encode('utf-8'),
-            })
+            await send({'type': 'http.response.body', 'body': ((scripts + f"Internal Server Error: {e}").encode('utf-8')) if include_scripts else f"Internal Server Error: {e}".encode('utf-8')})
 
         return client_id
-    
+
+    async def pageql_handler(self, scope, receive, send):
+        """Handles common logic for GET and POST requests."""
+        method = scope['method']
+
+        while self.to_reload:
+            f = self.to_reload.pop()
+            self.load(self.template_dir, f)
+
+        parsed_path = urlparse(scope['path'])
+        path_cleaned = parsed_path.path.strip('/') or 'index'
+
+        headers = {k.decode('utf-8').replace('-', '_'): v.decode('utf-8') for k, v in scope['headers']}
+        include_scripts = headers.get('hx_mode', '').lower() != 'none'
+        query = scope['query_string']
+        query_params = parse_qs(query, keep_blank_values=True)
+
+        params = {}
+        for key, value in query_params.items():
+            params[key.decode('utf-8')] = value[0].decode('utf-8') if len(value) == 1 else map(lambda v: v.decode('utf-8'), value)
+
+        incoming_client_id = params.pop('clientId', None)
+        if incoming_client_id is None:
+            incoming_client_id = headers.get('ClientId') or headers.get('clientid')
+        client_id = incoming_client_id or uuid.uuid4().hex
+
+        params['cookies'] = _parse_cookies(headers.get('cookie', ''))
+        params['headers'] = headers
+        params['method'] = method
+
+        if await self._serve_static_file(path_cleaned, include_scripts, client_id, send):
+            return
+
+        if method in ('POST', 'PUT', 'PATCH', 'DELETE'):
+            hdrs = {k.decode('utf-8'): v.decode('utf-8') for k, v in scope['headers']}
+            await self._parse_form_data(hdrs, receive, params)
+            if self.csrf_protect:
+                token = await self._check_csrf(params, hdrs, client_id, send)
+                if token is None:
+                    return None
+                client_id = token
+
+        return await self._render_and_send(
+            parsed_path, path_cleaned, params, include_scripts, client_id, method, scope, receive, send
+        )
+
+
     async def watch_directory(self, directory, stop_event):
         self._log(f"Watching directory: {directory}")
         async for changes in awatch(directory, stop_event=stop_event, step=10):
@@ -668,74 +668,12 @@ class PageQLApp:
             return await self.lifespan(scope, receive, send)
         path = scope.get('path', '/')
         self._log(f"path: {path}")
-        # ws_app.py
         if scope["type"] == "websocket" and scope["path"] == "/reload-request-ws":
-            await send({"type": "websocket.accept"})
-            client_id = None
-            qs = parse_qs(scope.get("query_string", b""))
-            if b"clientId" in qs:
-                client_id = qs[b"clientId"][0].decode()
-                self._log(f"Client connected with id: {client_id}")
-                self.websockets[client_id] = send
-                contexts = self.render_contexts.get(client_id)
-                if contexts:
-                    def sender(sc, send=send):
-                        queue_ws_script(send, sc)
-
-                    for ctx in contexts:
-                        ctx.send_script = sender
-                        scripts = list(ctx.scripts)
-                        ctx.scripts.clear()
-                        for sc in scripts:
-                            queue_ws_script(send, sc)
-            fut = asyncio.Event()
-            self.notifies.append(fut)
-            receive_task = asyncio.create_task(receive())
-            while True:
-                fut_task = asyncio.create_task(fut.wait())
-                done, pending = await asyncio.wait(
-                    [receive_task, fut_task],
-                    return_when=asyncio.FIRST_COMPLETED,
-                )
-
-                for task in done:
-                    result = await task
-                    if isinstance(result, dict) and result.get("type") == "websocket.connect":
-                        receive_task = asyncio.create_task(receive())
-                    if isinstance(result, dict) and result.get("type") == "websocket.disconnect":
-                        if client_id:
-                            self.websockets.pop(client_id, None)
-                            contexts = self.render_contexts.pop(client_id, [])
-                            for ctx in contexts:
-                                ctx.send_script = None
-                                ctx.cleanup()
-                            scripts_by_send.pop(send, None)
-                        return
-
-                    elif result is True:
-                        # fut triggered
-                        await send({"type": "websocket.send", "text": "reload"})
-                        fut = asyncio.Event()
-                        self.notifies.append(fut)
-                        fut_task = asyncio.create_task(fut.wait())
+            await self._handle_reload_websocket(scope, receive, send)
         else:
             client_id = await self.pageql_handler(scope, receive, send)
             if client_id is not None:
-                message = await receive()
-                if (
-                    isinstance(message, dict)
-                    and message.get("type") == "http.disconnect"
-                    and client_id
-                ):
-                    async def cleanup_later():
-                        await asyncio.sleep(0.1)
-                        if client_id not in self.websockets:
-                            contexts = self.render_contexts.pop(client_id, [])
-                            for ctx in contexts:
-                                ctx.send_script = None
-                                ctx.cleanup()
-
-                    asyncio.create_task(cleanup_later())
+                await self._handle_http_disconnect(receive, client_id)
 
 if __name__ == "__main__":
     try:

@@ -3,7 +3,8 @@ import tempfile
 from pathlib import Path
 import pytest
 
-from pageql.pageqlapp import PageQLApp, base_script
+from pageql.pageqlapp import PageQLApp
+from pageql.client_script import client_script
 
 def test_htmx_none_mode_omits_js_headers():
     async def run():

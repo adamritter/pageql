@@ -9,6 +9,7 @@ import json
 from urllib.parse import urlparse, parse_qs
 from watchfiles import awatch
 import uuid
+import traceback
 from collections import defaultdict
 from typing import Callable, Awaitable, Dict, List, Optional
 
@@ -31,9 +32,17 @@ async def _flush_ws_scripts() -> None:
     current = scripts_by_send
     scripts_by_send = defaultdict(list)
     _idle_task = None
+    async def _send_safe(send, text):
+        try:
+            await send({"type": "websocket.send", "text": text})
+        except Exception:
+            print(f"Failed to send websocket script: {text!r}")
+            traceback.print_exc()
+
     await asyncio.gather(
-        *(send({"type": "websocket.send", "text": ";".join(scripts)})
-          for send, scripts in current.items() if scripts)
+        *(_send_safe(send, ";".join(scripts))
+          for send, scripts in current.items() if scripts),
+        return_exceptions=True,
     )
 
 def queue_ws_script(send: Callable[[dict], Awaitable[None]], script: str) -> None:

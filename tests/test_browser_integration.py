@@ -20,12 +20,13 @@ from pageql.pageqlapp import PageQLApp
 from playwright_helpers import _load_page_async
 
 pytest.importorskip("playwright.async_api")
+from playwright.async_api import async_playwright
 
 @pytest.fixture(scope="module")
 async def browser():
-    from playwright.async_api import async_playwright
     playwright = await async_playwright().start()
     browser = await playwright.chromium.launch(headless=True)
+    print("launched")
 
     yield browser  # ← your tests can now use this browser
 
@@ -202,7 +203,6 @@ async def test_todos_add_partial_in_separate_page(browser):
         Path(tmpdir, "todos.pageql").write_text(src.read_text(), encoding="utf-8")
 
         async def after(page, port, app: PageQLApp):
-            await page.wait_for_timeout(30)
             page2 = await page.context.browser.new_page()
             await page2.request.post(
                 f"http://127.0.0.1:{port}/todos/add",
@@ -211,7 +211,6 @@ async def test_todos_add_partial_in_separate_page(browser):
             )
             await page2.close()
             await page.goto(f"http://127.0.0.1:{port}/todos")
-            await page.wait_for_timeout(30)
 
         result = await _load_page_async(tmpdir, "todos", after, reload=True, browser=browser)
         if result is None:

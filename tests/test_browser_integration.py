@@ -135,7 +135,7 @@ async def test_reactive_count_insert_via_execute(browser):
             app.pageql_engine.tables.executeone(
                 "INSERT INTO nums(value) VALUES (1)", {}
             )
-            await page.wait_for_timeout(30)
+            await page.wait_for_timeout(10)
 
         result = await _load_page_async(tmpdir, "count_after", after, reload=True, browser=browser)
         _, body_text = result
@@ -162,6 +162,7 @@ async def test_reactive_count_delete_via_execute(browser):
                 "DELETE FROM nums WHERE value = 1",
                 {},
             )
+            await page.wait_for_timeout(10)
 
         result = await _load_page_async(tmpdir, "count_after_delete", after, reload=True, browser=browser)
         _, body_text = result

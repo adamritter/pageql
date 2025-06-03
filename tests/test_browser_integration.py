@@ -249,3 +249,29 @@ async def test_todos_add_partial_in_separate_page(setup):
         server.should_exit = True
         await task
 
+
+@pytest.mark.filterwarnings("ignore:.*:DeprecationWarning")
+async def test_get_text_body_from_client(setup):
+    """Server should retrieve body text via WebSocket from the client."""
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        Path(tmpdir, "hello.pageql").write_text("Hello world!", encoding="utf-8")
+
+        server, task, port, app = await start_server(tmpdir)
+
+        page = await setup.new_page()
+        response = await page.goto(
+            f"http://127.0.0.1:{port}/hello?clientId=testcid"
+        )
+        await page.wait_for_timeout(50)
+
+        body_browser = (await page.evaluate("document.body.textContent")).strip()
+        body_via_app = await app.get_text_body("testcid")
+
+        assert response.status == 200
+        assert body_via_app.strip() == body_browser
+
+        await page.close()
+        server.should_exit = True
+        await task
+

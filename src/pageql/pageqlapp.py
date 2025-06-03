@@ -183,7 +183,7 @@ class PageQLApp:
         self.static_files = {}
         self.static_headers = {}
         self.before_hooks = {}
-        self.render_contexts = {}
+        self.render_contexts = defaultdict(list)
         self.websockets = {}
         self.template_dir = template_dir
         self.quiet = quiet
@@ -406,7 +406,7 @@ class PageQLApp:
                     return None
 
             if client_id:
-                self.render_contexts[client_id] = result.context
+                self.render_contexts[client_id].append(result.context)
                 ws = self.websockets.get(client_id)
                 if ws:
                     def sender(sc, send=ws):
@@ -677,16 +677,17 @@ class PageQLApp:
                 client_id = qs[b"clientId"][0].decode()
                 self._log(f"Client connected with id: {client_id}")
                 self.websockets[client_id] = send
-                ctx = self.render_contexts.get(client_id)
-                if ctx:
+                contexts = self.render_contexts.get(client_id)
+                if contexts:
                     def sender(sc, send=send):
                         queue_ws_script(send, sc)
 
-                    ctx.send_script = sender
-                    scripts = list(ctx.scripts)
-                    ctx.scripts.clear()
-                    for sc in scripts:
-                        queue_ws_script(send, sc)
+                    for ctx in contexts:
+                        ctx.send_script = sender
+                        scripts = list(ctx.scripts)
+                        ctx.scripts.clear()
+                        for sc in scripts:
+                            queue_ws_script(send, sc)
             fut = asyncio.Event()
             self.notifies.append(fut)
             receive_task = asyncio.create_task(receive())
@@ -705,9 +706,9 @@ class PageQLApp:
                         print("websocket.disconnect, client_id:", client_id)
                         if client_id:
                             self.websockets.pop(client_id, None)
-                            ctx = self.render_contexts.pop(client_id, None)
-                            print("ctx for disconnect client_id:", client_id, ctx)
-                            if ctx:
+                            contexts = self.render_contexts.pop(client_id, [])
+                            print("ctx for disconnect client_id:", client_id, contexts)
+                            for ctx in contexts:
                                 ctx.send_script = None
                                 ctx.cleanup()
                             scripts_by_send.pop(send, None)
@@ -731,8 +732,9 @@ class PageQLApp:
                     async def cleanup_later():
                         await asyncio.sleep(0.1)
                         if client_id not in self.websockets:
-                            ctx = self.render_contexts.pop(client_id, None)
-                            if ctx:
+                            contexts = self.render_contexts.pop(client_id, [])
+                            for ctx in contexts:
+                                ctx.send_script = None
                                 ctx.cleanup()
 
                     asyncio.create_task(cleanup_later())

@@ -3,8 +3,6 @@ from pathlib import Path
 import types
 import tempfile
 import http.client
-import http.server
-import threading
 import pageql.pageqlapp
 from pageql.http_utils import _http_get
 import asyncio
@@ -81,39 +79,36 @@ def test_fallback_app_handles_unknown_route():
 
 def test_fallback_url_handles_unknown_route():
     with tempfile.TemporaryDirectory() as tmpdir:
-        class Handler(http.server.BaseHTTPRequestHandler):
-            def do_GET(self):
-                self.send_response(200)
-                self.send_header("content-type", "text/plain")
-                self.end_headers()
-                self.wfile.write(b"fallback")
+        async def start_fallback_server():
+            async def handler(reader, writer):
+                await reader.readline()  # request line
+                while await reader.readline() != b"\r\n":
+                    pass
+                writer.write(
+                    b"HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 8\r\n\r\nfallback"
+                )
+                await writer.drain()
+                writer.close()
+                await writer.wait_closed()
 
-            def log_message(self, *args):
-                pass
-
-        httpd = http.server.HTTPServer(("127.0.0.1", 0), Handler)
-        fb_port = httpd.server_address[1]
-        thread = threading.Thread(target=httpd.serve_forever)
-        thread.daemon = True
-        thread.start()
+            server = await asyncio.start_server(handler, "127.0.0.1", 0)
+            port = server.sockets[0].getsockname()[1]
+            return server, port
 
         async def run_test():
+            fb_server, fb_port = await start_fallback_server()
             server, task, port = await run_server_in_task(tmpdir)
             server.config.app.fallback_url = f"http://127.0.0.1:{fb_port}"
 
-            async def make_request():
-                status, _headers, body = await _http_get(
-                    f"http://127.0.0.1:{port}/missing"
-                )
-                return status, body.decode()
-
-            status_body = await make_request()
+            status, _headers, body = await _http_get(
+                f"http://127.0.0.1:{port}/missing"
+            )
 
             server.should_exit = True
             await task
-            httpd.shutdown()
-            thread.join()
-            return status_body
+            fb_server.close()
+            await fb_server.wait_closed()
+            return status, body.decode()
 
         status, body = asyncio.run(run_test())
 

@@ -3,7 +3,6 @@ import argparse
 import os, time
 import sqlite3
 import mimetypes
-import re
 import base64
 import json
 from urllib.parse import urlparse, parse_qs
@@ -17,9 +16,9 @@ from typing import Callable, Awaitable, Dict, List, Optional
 from .pageql import PageQL
 from .http_utils import (
     _http_get,
-    _parse_multipart_data,
     _read_chunked_body,
     _parse_cookies,
+    _parse_form_data,
 )
 from .jws_utils import jws_serialize_compact, jws_deserialize_compact
 
@@ -287,31 +286,6 @@ class PageQLApp:
         await send({'type': 'http.response.body', 'body': body})
         return True
 
-    async def _parse_form_data(self, headers, receive, params):
-        content_length = int(headers.get('content-length', 0))
-        if content_length == 0:
-            return
-        content_type = headers.get('content-type', '')
-        message = await receive()
-        post_body = message.get('body', b'')
-        while message.get('more_body'):
-            message = await receive()
-            post_body += message.get('body', b'')
-        if 'application/x-www-form-urlencoded' in content_type:
-            post_body = post_body.decode('utf-8')
-            post_params = parse_qs(post_body, keep_blank_values=True)
-            self._log(f"post_params: {post_params}")
-            for key, value in post_params.items():
-                params[key] = value[0] if len(value) == 1 else value
-        elif 'multipart/form-data' in content_type:
-            m = re.search('boundary=([^;]+)', content_type)
-            boundary = m.group(1).strip('"') if m else ''
-            files_and_params = _parse_multipart_data(post_body, boundary)
-            self._log(f"multipart_params: {files_and_params}")
-            for key, value in files_and_params.items():
-                params[key] = value
-        else:
-            self._log(f"Warning: Unsupported Content-Type: {content_type}")
 
     async def _check_csrf(self, params, headers, client_id, send):
         csrf_token = params.pop('__csrf', None)
@@ -547,7 +521,7 @@ class PageQLApp:
 
         if method in ('POST', 'PUT', 'PATCH', 'DELETE'):
             hdrs = {k.decode('utf-8'): v.decode('utf-8') for k, v in scope['headers']}
-            await self._parse_form_data(hdrs, receive, params)
+            await _parse_form_data(hdrs, receive, params, self._log)
             if self.csrf_protect:
                 token = await self._check_csrf(params, hdrs, client_id, send)
                 if token is None:

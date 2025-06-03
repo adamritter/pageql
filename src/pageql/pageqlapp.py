@@ -57,8 +57,8 @@ def queue_ws_script(send: Callable[[dict], Awaitable[None]], script: str) -> Non
         _idle_task = asyncio.create_task(_flush_ws_scripts())
 
 # Base client script used for reactive updates.
-base_script = """
-<script src=\"/htmx.min.js\"></script>
+_BASE_SCRIPT_TEMPLATE = """
+<script src="/htmx.min.js"></script>
 <script>
   htmx.config.defaultSwapStyle = 'none';
   window.pageqlMarkers={};
@@ -72,67 +72,65 @@ base_script = """
   function pupdatetag(i,c){var t=window.pageqlMarkers[i];var d=document.createElement('template');d.innerHTML=c;var n=d.content.firstChild;if(!n)return;for(var j=t.attributes.length-1;j>=0;j--){var a=t.attributes[j].name;if(!n.hasAttribute(a))t.removeAttribute(a);}for(var j=0;j<n.attributes.length;j++){var at=n.attributes[j];t.setAttribute(at.name,at.value);}if(document.currentScript)document.currentScript.remove();}
   document.currentScript.remove()
 </script>
-"""
-
-# Additional script that connects the live-reload websocket.
-def reload_ws_script(client_id: str) -> str:
-    return f"""
 <script>
-  (function() {{
+  (function() {
     const host = window.location.hostname;
     const port = window.location.port;
     const clientId = "{client_id}";
-    function setup() {{
-      document.body.addEventListener('htmx:configRequest', (evt) => {{
+    function setup() {
+      document.body.addEventListener('htmx:configRequest', (evt) => {
         evt.detail.headers['ClientId'] = clientId;
-      }});
-      const ws_url = `ws://${{host}}:${{port}}/reload-request-ws?clientId=${{clientId}}`;
+      });
+      const ws_url = `ws://${host}:${port}/reload-request-ws?clientId=${clientId}`;
 
-      function forceReload() {{
+      function forceReload() {
         const socket = new WebSocket(ws_url);
-        socket.onopen = () => {{
+        socket.onopen = () => {
           window.location.reload();
-        }};
-        socket.onerror = () => {{
+        };
+        socket.onerror = () => {
           setTimeout(forceReload, 100);
-        }};
-      }}
+        };
+      }
 
       const socket = new WebSocket(ws_url);
-      socket.onopen = () => {{
+      socket.onopen = () => {
         console.log("WebSocket opened with id", clientId);
-      }};
+      };
 
-      socket.onmessage = (event) => {{
-        if (event.data == "reload") {{
+      socket.onmessage = (event) => {
+        if (event.data == "reload") {
           window.location.reload();
-        }} else {{
-          try {{
+        } else {
+          try {
             eval(event.data);
-          }} catch (e) {{
+          } catch (e) {
             console.error("Failed to eval script", event.data, e);
-          }}
-        }}
-      }};
+          }
+        }
+      };
 
-      socket.onclose = () => {{
+      socket.onclose = () => {
         setTimeout(forceReload, 100);
-      }};
+      };
 
-      socket.onerror = () => {{
+      socket.onerror = () => {
         setTimeout(forceReload, 100);
-      }};
-    }}
-    if (document.body) {{
+      };
+    }
+    if (document.body) {
       setup();
-    }} else {{
+    } else {
       window.addEventListener('DOMContentLoaded', setup);
-    }}
+    }
     document.currentScript.remove();
 
-  }})();
+  })();
 </script>
 """
+
+def base_script(client_id: str) -> str:
+    return _BASE_SCRIPT_TEMPLATE.replace("{client_id}", client_id)
 
 
 
@@ -270,10 +268,7 @@ class PageQLApp:
             content_type = 'text/html; charset=utf-8'
             body = self.static_files[path_cleaned]
             if include_scripts:
-                scripts = base_script + (
-                    reload_ws_script(client_id) if self.should_reload else ''
-                )
-                body = scripts.encode('utf-8') + body
+                body = base_script(client_id).encode('utf-8') + body
         else:
             body = self.static_files[path_cleaned]
         headers_list = [(b'content-type', content_type.encode('utf-8'))]
@@ -382,10 +377,7 @@ class PageQLApp:
                     parts.append(k if v is True else f"{k}={v}")
                 headers.append((b'Set-Cookie', '; '.join(parts).encode('utf-8')))
             await send({'type': 'http.response.start', 'status': result.status_code, 'headers': headers})
-            scripts = (
-                base_script + (reload_ws_script(client_id) if self.should_reload else '')
-                if include_scripts else ''
-            )
+            scripts = base_script(client_id) if include_scripts else ''
             body_content = scripts + result.body
             low = result.body.lower()
             if '<body' not in low:
@@ -441,18 +433,12 @@ class PageQLApp:
             self._error(f"ERROR: Database error during render: {db_err}")
             traceback.print_exc()
             await send({'type': 'http.response.start', 'status': 500, 'headers': [(b'content-type', b'text/html; charset=utf-8')]})
-            scripts = (
-                base_script + (reload_ws_script(client_id) if self.should_reload else '')
-                if include_scripts else ''
-            )
+            scripts = base_script(client_id) if include_scripts else ''
             await send({'type': 'http.response.body', 'body': (scripts + f"Database Error: {db_err}").encode('utf-8')})
         except ValueError as val_err:
             self._error(f"ERROR: Validation or Value error during render: {val_err}")
             await send({'type': 'http.response.start', 'status': 400, 'headers': [(b'content-type', b'text/html; charset=utf-8')]})
-            scripts = (
-                base_script + (reload_ws_script(client_id) if self.should_reload else '')
-                if include_scripts else ''
-            )
+            scripts = base_script(client_id) if include_scripts else ''
             await send({'type': 'http.response.body', 'body': (scripts + f"Bad Request: {val_err}").encode('utf-8')})
         except FileNotFoundError:
             self._error(f"ERROR: Module not found for path: {path_cleaned}")
@@ -469,19 +455,13 @@ class PageQLApp:
                 await send({'type': 'http.response.body', 'body': body})
                 return None
             await send({'type': 'http.response.start', 'status': 404, 'headers': [(b'content-type', b'text/html; charset=utf-8')]})
-            scripts = (
-                base_script + (reload_ws_script(client_id) if self.should_reload else '')
-                if include_scripts else ''
-            )
+            scripts = base_script(client_id) if include_scripts else ''
             await send({'type': 'http.response.body', 'body': (scripts.encode('utf-8') + b"Not Found") if include_scripts else b"Not Found"})
         except Exception as e:
             self._error(f"ERROR: Unexpected error during render: {e}")
             traceback.print_exc()
             await send({'type': 'http.response.start', 'status': 500, 'headers': [(b'content-type', b'text/html; charset=utf-8')]})
-            scripts = (
-                base_script + (reload_ws_script(client_id) if self.should_reload else '')
-                if include_scripts else ''
-            )
+            scripts = base_script(client_id) if include_scripts else ''
             await send({'type': 'http.response.body', 'body': ((scripts + f"Internal Server Error: {e}").encode('utf-8')) if include_scripts else f"Internal Server Error: {e}".encode('utf-8')})
 
         return client_id

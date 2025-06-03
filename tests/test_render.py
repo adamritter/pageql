@@ -656,18 +656,21 @@ def test_reactive_text_updates_with_table_count():
 
 def test_pupdatetag_in_base_script():
     from pageql.pageqlapp import base_script
-    assert 'function pupdatetag' in base_script
-    assert 'function pupdatenode' not in base_script
+    script = base_script("cid")
+    assert 'function pupdatetag' in script
+    assert 'function pupdatenode' not in script
 
 def test_pupdate_reregisters_htmx():
     from pageql.pageqlapp import base_script
-    assert 'htmx.process' in base_script
+    script = base_script("cid")
+    assert 'htmx.process' in script
 
 def test_pinsert_reregisters_htmx():
     from pageql.pageqlapp import base_script
-    idx = base_script.find('function pinsert')
+    script = base_script("cid")
+    idx = script.find('function pinsert')
     assert idx != -1
-    assert base_script.find('htmx.process', idx) != -1
+    assert script.find('htmx.process', idx) != -1
 
 
 def test_pinsert_escapes_script_tag():

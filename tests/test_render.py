@@ -681,6 +681,13 @@ def test_pinsert_reregisters_htmx():
     assert script.find('htmx.process', idx) != -1
 
 
+def test_client_script_get_body_function():
+    from pageql.client_script import client_script
+    script = client_script("cid")
+    assert 'getBodyTextContent' in script
+    assert 'get body text content' in script
+
+
 def test_pinsert_escapes_script_tag():
     r = PageQL(":memory:")
     r.db.execute("CREATE TABLE todos(id INTEGER PRIMARY KEY, completed INTEGER)")

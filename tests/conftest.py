@@ -9,3 +9,10 @@ async def _awatch_stub(*args, **kwargs):
         yield None
 
 sys.modules["watchfiles"].awatch = _awatch_stub
+
+import pytest
+
+
+@pytest.fixture(scope="module")
+def anyio_backend():
+    return "asyncio"

@@ -45,7 +45,13 @@ async def _flush_ws_scripts() -> None:
         return_exceptions=True,
     )
 
+BATCH_WS_SCRIPTS = False
+
 def queue_ws_script(send: Callable[[dict], Awaitable[None]], script: str) -> None:
+    if not BATCH_WS_SCRIPTS:
+        asyncio.create_task(send({"type": "websocket.send", "text": script}))
+        return
+
     global _idle_task
     scripts_by_send[send].append(script)
     if _idle_task is None or _idle_task.done():
@@ -696,9 +702,11 @@ class PageQLApp:
                     if isinstance(result, dict) and result.get("type") == "websocket.connect":
                         receive_task = asyncio.create_task(receive())
                     if isinstance(result, dict) and result.get("type") == "websocket.disconnect":
+                        print("websocket.disconnect, client_id:", client_id)
                         if client_id:
                             self.websockets.pop(client_id, None)
                             ctx = self.render_contexts.pop(client_id, None)
+                            print("ctx for disconnect client_id:", client_id, ctx)
                             if ctx:
                                 ctx.send_script = None
                                 ctx.cleanup()

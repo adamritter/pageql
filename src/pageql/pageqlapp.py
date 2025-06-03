@@ -698,10 +698,11 @@ class PageQLApp:
                     if isinstance(result, dict) and result.get("type") == "websocket.disconnect":
                         if client_id:
                             self.websockets.pop(client_id, None)
-                            ctx = self.render_contexts.get(client_id)
+                            ctx = self.render_contexts.pop(client_id, None)
                             if ctx:
                                 ctx.send_script = None
                                 ctx.cleanup()
+                            scripts_by_send.pop(send, None)
                         return
 
                     elif result is True:

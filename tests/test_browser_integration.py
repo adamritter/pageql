@@ -19,9 +19,10 @@ sys.modules["watchfiles"].awatch = _awatch_stub
 from pageql.pageqlapp import PageQLApp
 from playwright_helpers import _load_page_async
 
+pytest.importorskip("playwright.async_api")
+
 @pytest.fixture(scope="module")
 async def browser():
-    pytest.importorskip("playwright.async_api")
     from playwright.async_api import async_playwright
     playwright = await async_playwright().start()
     browser = await playwright.chromium.launch(headless=True)
@@ -33,7 +34,6 @@ async def browser():
 
 @pytest.mark.filterwarnings("ignore:.*:DeprecationWarning")
 async def test_hello_world_in_browser(browser):
-    pytest.importorskip("playwright.async_api")
 
     with tempfile.TemporaryDirectory() as tmpdir:
         Path(tmpdir, "hello.pageql").write_text("Hello world!", encoding="utf-8")
@@ -48,7 +48,6 @@ async def test_hello_world_in_browser(browser):
 @pytest.mark.filterwarnings("ignore:.*:DeprecationWarning")
 async def test_set_variable_in_browser(browser):
     """Ensure directives work when rendered through the ASGI app."""
-    pytest.importorskip("playwright.async_api")
 
     with tempfile.TemporaryDirectory() as tmpdir:
         Path(tmpdir, "greet.pageql").write_text("{{#let :a = 'world'}}Hello {{a}}", encoding="utf-8")
@@ -63,7 +62,6 @@ async def test_set_variable_in_browser(browser):
 @pytest.mark.filterwarnings("ignore:.*:DeprecationWarning")
 async def test_reactive_set_variable_in_browser(browser):
     """Ensure reactive mode updates are sent to the browser."""
-    pytest.importorskip("playwright.async_api")
     if (
         importlib.util.find_spec("websockets") is None
         and importlib.util.find_spec("wsproto") is None
@@ -90,7 +88,6 @@ async def test_reactive_set_variable_in_browser(browser):
 @pytest.mark.filterwarnings("ignore:.*:DeprecationWarning")
 async def test_reactive_count_insert_in_browser(browser):
     """Count updates should be delivered to the browser when rows are inserted."""
-    pytest.importorskip("playwright.async_api")
     if (
         importlib.util.find_spec("websockets") is None
         and importlib.util.find_spec("wsproto") is None
@@ -118,7 +115,6 @@ async def test_reactive_count_insert_in_browser(browser):
 @pytest.mark.filterwarnings("ignore:.*:DeprecationWarning")
 async def test_reactive_count_insert_via_execute(browser):
     """Count updates should propagate when inserting after initial load."""
-    pytest.importorskip("playwright.async_api")
     if (
         importlib.util.find_spec("websockets") is None
         and importlib.util.find_spec("wsproto") is None
@@ -149,7 +145,6 @@ async def test_reactive_count_insert_via_execute(browser):
 @pytest.mark.filterwarnings("ignore:.*:DeprecationWarning")
 async def test_reactive_count_delete_via_execute(browser):
     """Count should decrement when a row is deleted via executeone."""
-    pytest.importorskip("playwright.async_api")
 
     with tempfile.TemporaryDirectory() as tmpdir:
         Path(tmpdir, "count_after_delete.pageql").write_text(
@@ -176,7 +171,6 @@ async def test_reactive_count_delete_via_execute(browser):
 @pytest.mark.filterwarnings("ignore:.*:DeprecationWarning")
 async def test_insert_via_execute_after_click(browser):
     """Inserting via ``executeone`` should display the added text reactively."""
-    pytest.importorskip("playwright.async_api")
 
     with tempfile.TemporaryDirectory() as tmpdir:
         Path(tmpdir, "msgs.pageql").write_text(
@@ -202,7 +196,6 @@ async def test_insert_via_execute_after_click(browser):
 @pytest.mark.filterwarnings("ignore:.*:DeprecationWarning")
 async def test_todos_add_partial_in_separate_page(browser):
     """Render todos then invoke the add partial from a second page."""
-    pytest.importorskip("playwright.async_api")
 
     with tempfile.TemporaryDirectory() as tmpdir:
         src = Path(__file__).resolve().parent.parent / "website" / "todos.pageql"

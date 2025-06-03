@@ -107,6 +107,7 @@ class PageQLApp:
         self.before_hooks = {}
         self.render_contexts = defaultdict(list)
         self.websockets = {}
+        self._body_waiters = {}
         self.template_dir = template_dir
         self.quiet = quiet
         self.fallback_app = fallback_app
@@ -251,6 +252,14 @@ class PageQLApp:
                 result = await task
                 if isinstance(result, dict) and result.get("type") == "websocket.connect":
                     receive_task = asyncio.create_task(receive())
+                    continue
+                if isinstance(result, dict) and result.get("type") == "websocket.receive":
+                    if client_id and client_id in self._body_waiters:
+                        fut_waiter = self._body_waiters.pop(client_id)
+                        if not fut_waiter.done():
+                            fut_waiter.set_result(result.get("text", ""))
+                    receive_task = asyncio.create_task(receive())
+                    continue
                 if isinstance(result, dict) and result.get("type") == "websocket.disconnect":
                     if client_id:
                         self.websockets.pop(client_id, None)
@@ -278,6 +287,20 @@ class PageQLApp:
                         ctx.cleanup()
 
             asyncio.create_task(cleanup_later())
+
+    async def get_text_body(self, client_id: str) -> Optional[str]:
+        """Request the body text content from a connected client via WebSocket."""
+        ws = self.websockets.get(client_id)
+        if ws is None:
+            return None
+        fut = asyncio.get_event_loop().create_future()
+        self._body_waiters[client_id] = fut
+        await ws({"type": "websocket.send", "text": "get body text content"})
+        try:
+            body = await fut
+        finally:
+            self._body_waiters.pop(client_id, None)
+        return body
 
     async def _send_render_result(self, result, include_scripts, client_id, send):
         if result.redirect_to:

@@ -210,7 +210,6 @@ class RenderContext:
 
     def __init__(self):
         self.next_id = 0
-        self.initialized = False
         self.listeners = []
         self.out = []
         self.scripts: list[str] = []
@@ -219,10 +218,6 @@ class RenderContext:
         self.reactiveelement = None
         self.headers: list[tuple[str, str]] = []
         self.cookies: list[tuple[str, str, dict]] = []
-
-    def ensure_init(self):
-        if not self.initialized:
-            self.initialized = True
 
     def marker_id(self) -> int:
         mid = self.next_id
@@ -699,14 +694,12 @@ class PageQL:
             if signal:
                 ctx.reactiveelement.append(signal)
         elif reactive and signal is not None:
-            ctx.ensure_init()
             mid = ctx.marker_id()
             ctx.append_script(f"pstart({mid})", out)
             out.append(value)
             ctx.append_script(f"pend({mid})", out)
 
             def listener(v=None, *, sig=signal, mid=mid, ctx=ctx):
-                ctx.ensure_init()
                 ctx.append_script(
                     f"pset({mid},{json.dumps(html.escape(str(sig.value)))})",
                     out,
@@ -733,7 +726,6 @@ class PageQL:
                     if signal:
                         ctx.reactiveelement.append(signal)
                 elif reactive:
-                    ctx.ensure_init()
                     mid = ctx.marker_id()
                     ctx.append_script(f"pstart({mid})", out)
                     out.append(value)
@@ -741,7 +733,6 @@ class PageQL:
                     if signal:
 
                         def listener(v=None, *, sig=signal, mid=mid, ctx=ctx):
-                            ctx.ensure_init()
                             ctx.append_script(
                                 f"pset({mid},{json.dumps(html.escape(str(sig.value)))})",
                                 out,
@@ -771,14 +762,12 @@ class PageQL:
             if signal:
                 ctx.reactiveelement.append(signal)
         elif reactive and signal is not None:
-            ctx.ensure_init()
             mid = ctx.marker_id()
             ctx.append_script(f"pstart({mid})", out)
             out.append(value)
             ctx.append_script(f"pend({mid})", out)
 
             def listener(v=None, *, sig=signal, mid=mid, ctx=ctx):
-                ctx.ensure_init()
                 ctx.append_script(
                     f"pset({mid},{json.dumps(str(sig.value))})",
                     out,
@@ -984,12 +973,10 @@ class PageQL:
         ctx.reactiveelement = prev
         out.extend(buf)
         if reactive and ctx and signals:
-            ctx.ensure_init()
             mid = ctx.marker_id()
             ctx.append_script(f"pprevioustag({mid})", out)
 
             def listener(_=None, *, mid=mid, ctx=ctx):
-                ctx.ensure_init()
                 new_buf = []
                 cur = ctx.reactiveelement
                 ctx.reactiveelement = []
@@ -1064,7 +1051,6 @@ class PageQL:
                         reactive = self.process_nodes(bodies[idx], params, path, includes, http_verb, reactive, ctx, out)
                 else:
                     mid = ctx.marker_id()
-                    ctx.ensure_init()
                     ctx.append_script(f"pstart({mid})", out)
 
                     if idx is not None:
@@ -1073,7 +1059,6 @@ class PageQL:
                     ctx.append_script(f"pend({mid})", out)
 
                     def listener(_=None, *, mid=mid, ctx=ctx):
-                        ctx.ensure_init()
                         new_idx = pick_index()
                         buf = []
                         if new_idx is not None:
@@ -1169,7 +1154,6 @@ class PageQL:
         rows = cursor.fetchall()
         mid = None
         if ctx and reactive:
-            ctx.ensure_init()
             mid = ctx.marker_id()
             ctx.append_script(f"pstart({mid})")
         saved_params = params.copy()
@@ -1197,7 +1181,6 @@ class PageQL:
             row_content = ''.join(row_buffer).strip()
             if ctx and reactive:
                 row_id = f"{mid}_{base64.b64encode(hashlib.sha256(repr(tuple(row)).encode()).digest())[:8].decode()}"
-                ctx.ensure_init()
                 ctx.append_script(f"pstart('{row_id}')")
                 ctx.out.append(row_content)
                 ctx.append_script(f"pend('{row_id}')")
@@ -1407,7 +1390,6 @@ class PageQL:
                 own_ctx = ctx is None
                 if own_ctx:
                     ctx = RenderContext()
-                    ctx.ensure_init()
                 includes = {None: module_name}  # Dictionary to track imported modules
                 module_body, partials = self._modules[module_name]
                 

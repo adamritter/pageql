@@ -311,17 +311,16 @@ class PageQLApp:
             client_id = qs[b"clientId"][0].decode()
             self._log(f"Client connected with id: {client_id}")
             self.websockets[client_id] = send
-            contexts = self.render_contexts.get(client_id)
-            if contexts:
-                def sender(sc, send=send):
-                    queue_ws_script(send, sc)
 
-                for ctx in contexts:
-                    ctx.send_script = sender
-                    scripts = list(ctx.scripts)
-                    ctx.scripts.clear()
-                    for sc in scripts:
-                        queue_ws_script(send, sc)
+            def sender(sc, send=send):
+                queue_ws_script(send, sc)
+
+            for ctx in self.render_contexts.get(client_id, []):
+                ctx.send_script = sender
+                scripts = list(ctx.scripts)
+                ctx.scripts.clear()
+                for sc in scripts:
+                    queue_ws_script(send, sc)
         fut = asyncio.Event()
         self.notifies.append(fut)
         receive_task = asyncio.create_task(receive())

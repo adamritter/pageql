@@ -1,5 +1,4 @@
 import asyncio
-import argparse
 import os, time
 import sqlite3
 import mimetypes
@@ -554,39 +553,3 @@ class PageQLApp:
             if client_id is not None:
                 await self._handle_http_disconnect(receive, client_id)
 
-if __name__ == "__main__":
-    try:
-        import uvicorn
-    except ImportError:
-        print("Error: uvicorn is not installed. Please install it with 'pip install uvicorn'.")
-        exit(1)
-
-    parser = argparse.ArgumentParser(description="Run the PageQL development server.")
-    parser.add_argument('--db', required=True, help="Path to the SQLite database file or a database URL.")
-    parser.add_argument('--dir', required=True, help="Path to the directory containing .pageql template files.")
-    parser.add_argument('--host', default='127.0.0.1', help="Host interface to bind the server.")
-    parser.add_argument('--port', type=int, default=8000, help="Port number to run the server on.")
-    parser.add_argument('--create', action='store_true', help="Create the database file and directory if it doesn't exist.")
-    parser.add_argument('--no-reload', action='store_true', help="Do not reload and refresh the templates on file changes.")
-    parser.add_argument('--no-csrf', action='store_true', help="Disable CSRF protection.")
-
-    args = parser.parse_args()
-    if args.create:
-        os.makedirs(args.dir, exist_ok=True)
-    app = PageQLApp(
-        args.db,
-        args.dir,
-        create_db=args.create,
-        should_reload=not args.no_reload,
-        csrf_protect=not args.no_csrf,
-    )
-
-    config = uvicorn.Config(app, host=args.host, port=args.port)
-    server = uvicorn.Server(config)
-
-    print(f"\nPageQL server running on http://{args.host}:{args.port}")
-    print(f"Using database: {args.db}")
-    print(f"Serving templates from: {args.dir}")
-    print("Press Ctrl+C to stop.")
-
-    asyncio.run(server.serve())

@@ -65,13 +65,17 @@ async def _load_page_async(
 
     body: Optional[str]
     if client_id:
-        body = await app.get_text_body(client_id)
-        if body is None:
-            body = (await pg.evaluate("document.body.textContent")).strip()
-        else:
-            body = body.strip()
+        # ``after`` may navigate again, creating a new WebSocket with a new id
+        ids = [client_id]
+        ids.extend(cid for cid in app.websockets.keys() if cid != client_id)
+        body = None
+        for cid in ids:
+            body = await app.get_text_body(cid)
+            if body is not None:
+                body = body.strip()
+                break
     else:
-        body = (await pg.evaluate("document.body.textContent")).strip()
+        body = None
 
     status = response.status if response is not None else None
     return status, body

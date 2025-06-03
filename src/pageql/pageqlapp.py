@@ -703,11 +703,9 @@ class PageQLApp:
                     if isinstance(result, dict) and result.get("type") == "websocket.connect":
                         receive_task = asyncio.create_task(receive())
                     if isinstance(result, dict) and result.get("type") == "websocket.disconnect":
-                        print("websocket.disconnect, client_id:", client_id)
                         if client_id:
                             self.websockets.pop(client_id, None)
                             contexts = self.render_contexts.pop(client_id, [])
-                            print("ctx for disconnect client_id:", client_id, contexts)
                             for ctx in contexts:
                                 ctx.send_script = None
                                 ctx.cleanup()

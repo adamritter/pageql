@@ -33,6 +33,10 @@ async def run_server_in_task(
     port = server.servers[0].sockets[0].getsockname()[1]
     return server, task, port
 
+def strip_not_none(text: Optional[str]) -> str:
+    if text is None:
+        return None
+    return text.strip()
 
 async def _load_page_async(
     port: int,
@@ -61,8 +65,6 @@ async def _load_page_async(
         else:
             after(pg, port, app)
 
-    await pg.wait_for_timeout(30)
-
     body: Optional[str]
     if client_id:
         # ``after`` may navigate again, creating a new WebSocket with a new id
@@ -78,4 +80,6 @@ async def _load_page_async(
         body = None
 
     status = response.status if response is not None else None
-    return status, body
+    body = strip_not_none(await app.get_text_body(client_id))
+
+    return status, body, client_id

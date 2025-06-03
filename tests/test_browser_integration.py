@@ -47,7 +47,7 @@ async def test_hello_world_in_browser(setup):
 
         server, task, port, app = await start_server(tmpdir)
         result = await _load_page_async(port, "hello", app, browser=setup)
-        status, body_text = result
+        status, body_text, client_id = result
 
         assert status == 200
         assert "Hello world!" in body_text
@@ -64,7 +64,7 @@ async def test_set_variable_in_browser(setup):
 
         server, task, port, app = await start_server(tmpdir)
         result = await _load_page_async(port, "greet", app, browser=setup)
-        status, body_text = result
+        status, body_text, client_id = result
 
         assert status == 200
         assert "Hello world" in body_text
@@ -94,7 +94,7 @@ async def test_reactive_set_variable_in_browser(setup):
 
         server, task, port, app = await start_server(tmpdir)
         body_text = await _load_page_async(port, "react", app, browser=setup)
-        _, text = body_text
+        _, text, client_id = body_text
 
         assert text == "hello world"
         server.should_exit = True
@@ -124,7 +124,7 @@ async def test_reactive_count_insert_in_browser(setup):
         result = await _load_page_async(port, "count", app, browser=setup)
         if result is None:
             pytest.skip("Chromium not available for Playwright")
-        _, body_text = result
+        _, body_text, client_id = result
 
         assert body_text == "1"
         server.should_exit = True
@@ -153,11 +153,11 @@ async def test_reactive_count_insert_via_execute(setup):
             app.pageql_engine.tables.executeone(
                 "INSERT INTO nums(value) VALUES (1)", {}
             )
-            await page.wait_for_timeout(10)
 
         server, task, port, app = await start_server(tmpdir, reload=True)
         result = await _load_page_async(port, "count_after", app, after, browser=setup)
-        _, body_text = result
+        _, body_text, client_id = result
+        body_text = (await app.get_text_body(client_id)).strip()
 
         assert body_text == "1"
         server.should_exit = True
@@ -183,11 +183,10 @@ async def test_reactive_count_delete_via_execute(setup):
                 "DELETE FROM nums WHERE value = 1",
                 {},
             )
-            await page.wait_for_timeout(10)
 
         server, task, port, app = await start_server(tmpdir, reload=True)
         result = await _load_page_async(port, "count_after_delete", app, after, browser=setup)
-        _, body_text = result
+        _, body_text, client_id = result
 
         assert body_text == "0"
         server.should_exit = True
@@ -209,11 +208,10 @@ async def test_insert_via_execute_after_click(setup):
             app.pageql_engine.tables.executeone(
                 "INSERT INTO msgs(text) VALUES (:text)", {"text": "hello"}
             )
-            await page.wait_for_timeout(10)
 
         server, task, port, app = await start_server(tmpdir, reload=True)
         result = await _load_page_async(port, "msgs", app, after, browser=setup)
-        _, body_text = result
+        _, body_text, client_id = result
 
         assert "hello" in body_text
         server.should_exit = True
@@ -223,6 +221,7 @@ async def test_insert_via_execute_after_click(setup):
 @pytest.mark.filterwarnings("ignore:.*:DeprecationWarning")
 async def test_todos_add_partial_in_separate_page(setup):
     """Render todos then invoke the add partial from a second page."""
+    new_body = None
 
     with tempfile.TemporaryDirectory() as tmpdir:
         src = Path(__file__).resolve().parent.parent / "website" / "todos.pageql"
@@ -236,16 +235,17 @@ async def test_todos_add_partial_in_separate_page(setup):
                 headers={"Content-Type": "application/x-www-form-urlencoded"},
             )
             await page2.close()
-            await page.goto(f"http://127.0.0.1:{port}/todos")
+            nonlocal new_body
+            new_body = await page.goto(f"http://127.0.0.1:{port}/todos")
 
         server, task, port, app = await start_server(tmpdir, reload=True)
         result = await _load_page_async(port, "todos", app, after, browser=setup)
         if result is None:
             pytest.skip("Chromium not available for Playwright")
-        status, body_text = result
+        status, body_text, client_id = result
 
         assert status == 200
-        assert "hello" in body_text
+        assert "hello" in (await new_body.text()).strip()
         server.should_exit = True
         await task
 
@@ -263,7 +263,6 @@ async def test_get_text_body_from_client(setup):
         response = await page.goto(
             f"http://127.0.0.1:{port}/hello?clientId=testcid"
         )
-        await page.wait_for_timeout(50)
 
         body_via_app = await app.get_text_body("testcid")
 

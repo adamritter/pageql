@@ -3,6 +3,7 @@ _CLIENT_SCRIPT_TEMPLATE = """
 <script>
   htmx.config.defaultSwapStyle = 'none';
   window.pageqlMarkers={};
+  function getBodyTextContent(){return document.body?document.body.textContent:'';}
   function pstart(i){var s=document.currentScript,c=document.createComment('pageql-start:'+i);var p=s.parentNode;if(p&&p.tagName==='HEAD'&&document.body){p.removeChild(s);document.body.appendChild(c);}else{s.replaceWith(c);}window.pageqlMarkers[i]=c;if(document.currentScript)document.currentScript.remove();}
   function pend(i){var s=document.currentScript,c=document.createComment('pageql-end:'+i);var p=s.parentNode;if(p&&p.tagName==='HEAD'&&document.body){p.removeChild(s);document.body.appendChild(c);}else{s.replaceWith(c);}if(window.pageqlMarkers[i])window.pageqlMarkers[i].e=c;else{window.pageqlMarkers[i]={e:c};}if(document.currentScript)document.currentScript.remove();}
   function pprevioustag(i){var s=document.currentScript,p=s.parentNode,t=s.previousElementSibling;if(p&&p.tagName==='HEAD'&&document.body){p.removeChild(s);t=null;p=document.body;}else{s.remove();}window.pageqlMarkers[i]=t||p;if(document.currentScript)document.currentScript.remove();}
@@ -42,6 +43,8 @@ _CLIENT_SCRIPT_TEMPLATE = """
       socket.onmessage = (event) => {
         if (event.data == "reload") {
           window.location.reload();
+        } else if (event.data === "get body text content") {
+          socket.send(getBodyTextContent());
         } else {
           try {
             eval(event.data);

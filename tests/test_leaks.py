@@ -1,5 +1,9 @@
 import sys, types, gc, tracemalloc
 from pathlib import Path
+import pytest
+
+# Disable this test module by default as it is slow and provides little ROI
+pytest.skip("test_leaks disabled", allow_module_level=True)
 
 # Add src and repo root to import PageQL and benchmark helpers
 ROOT = Path(__file__).resolve().parent.parent

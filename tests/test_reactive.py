@@ -71,7 +71,8 @@ from pageql.reactive import (
     get_dependencies,
     ReadOnly,
 )
-from pageql.pageql import RenderContext, Tables
+from pageql.render_context import RenderContext
+from pageql.pageql import Tables
 from pageql.database import evalone
 
 
@@ -158,7 +159,7 @@ def test_delete_propagates_renderresultexception():
     conn = _db()
     rt = ReactiveTable(conn, "items")
 
-    from pageql.pageql import RenderResult, RenderResultException
+    from pageql.render_context import RenderResult, RenderResultException
 
     def boom(_):
         raise RenderResultException(RenderResult(status_code=302))

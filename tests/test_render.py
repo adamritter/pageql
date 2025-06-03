@@ -7,7 +7,8 @@ import types
 sys.modules.setdefault("watchfiles", types.ModuleType("watchfiles"))
 sys.modules["watchfiles"].awatch = lambda *args, **kwargs: None
 
-from pageql.pageql import PageQL, RenderContext
+from pageql.pageql import PageQL
+from pageql.render_context import RenderContext
 from pageql.reactive import DerivedSignal
 
 

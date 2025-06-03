@@ -8,7 +8,8 @@ import os
 import sys
 import uvicorn
 
-from .pageql import PageQL, RenderContext
+from .pageql import PageQL
+from .render_context import RenderContext
 from .pageqlapp import PageQLApp
 
 

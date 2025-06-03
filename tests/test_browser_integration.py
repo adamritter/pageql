@@ -248,3 +248,37 @@ async def test_todos_add_partial_in_separate_page(setup):
         assert "hello" in body_text
         server.should_exit = True
         await task
+
+@pytest.mark.filterwarnings("ignore:.*:DeprecationWarning")
+async def test_ws_cleanup_on_page_close(setup, capsys):
+    """Closing a reactive page should clean up its listeners."""
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        src = Path(__file__).resolve().parent.parent / "website" / "todos.pageql"
+        Path(tmpdir, "todos.pageql").write_text(src.read_text(), encoding="utf-8")
+
+        server, task, port, app = await start_server(tmpdir, reload=True)
+
+        # First visit opens a websocket
+        page1 = await setup.new_page()
+        await page1.goto(f"http://127.0.0.1:{port}/todos")
+        await page1.wait_for_timeout(10)
+        await page1.close()
+
+        # Reopen and modify data after the original websocket is closed
+        page2 = await setup.new_page()
+        await page2.goto(f"http://127.0.0.1:{port}/todos")
+        await page2.request.post(
+            f"http://127.0.0.1:{port}/todos/toggle_all",
+            data="",
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+        )
+        await page2.wait_for_timeout(10)
+        await page2.close()
+
+        server.should_exit = True
+        await task
+
+        out_err = capsys.readouterr()
+        assert "Failed to send websocket script" in out_err.out + out_err.err
+

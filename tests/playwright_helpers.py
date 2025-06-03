@@ -34,15 +34,13 @@ async def run_server_in_task(
 
 
 async def _load_page_async(
-    tmpdir: str,
+    port: int,
     page: str,
+    app: PageQLApp,
     after: Optional[Callable[["async_playwright.Page", int, PageQLApp], None]] = None,
-    reload: bool = False,
-    browser = None,
+    browser=None,
 ) -> Optional[Tuple[int, str]]:
 
-    server, task, port = await run_server_in_task(tmpdir, reload)
-    app: PageQLApp = server.config.app
     pg = await browser.new_page()
     response = await pg.goto(f"http://127.0.0.1:{port}/{page}")
     if after is not None:
@@ -50,8 +48,7 @@ async def _load_page_async(
             await after(pg, port, app)
         else:
             after(pg, port, app)
+    await pg.wait_for_timeout(30)
     body = (await pg.evaluate("document.body.textContent")).strip()
     status = response.status if response is not None else None
-    server.should_exit = True
-    await task
     return status, body

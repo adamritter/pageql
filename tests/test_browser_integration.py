@@ -17,13 +17,13 @@ async def _awatch_stub(*args, **kwargs):
 sys.modules["watchfiles"].awatch = _awatch_stub
 
 from pageql.pageqlapp import PageQLApp
-from playwright_helpers import _load_page_async
+from playwright_helpers import _load_page_async, run_server_in_task
 
 pytest.importorskip("playwright.async_api")
 from playwright.async_api import async_playwright
 
 @pytest.fixture(scope="module")
-async def browser():
+async def setup():
     playwright = await async_playwright().start()
     browser = await playwright.chromium.launch(headless=True)
     print("launched")
@@ -33,35 +33,47 @@ async def browser():
     await browser.close()
     await playwright.stop()
 
+
+async def start_server(tmpdir: str, reload: bool = False):
+    server, task, port = await run_server_in_task(tmpdir, reload)
+    app: PageQLApp = server.config.app
+    return server, task, port, app
+
 @pytest.mark.filterwarnings("ignore:.*:DeprecationWarning")
-async def test_hello_world_in_browser(browser):
+async def test_hello_world_in_browser(setup):
 
     with tempfile.TemporaryDirectory() as tmpdir:
         Path(tmpdir, "hello.pageql").write_text("Hello world!", encoding="utf-8")
 
-        result = await _load_page_async(tmpdir, "hello", browser=browser)
+        server, task, port, app = await start_server(tmpdir)
+        result = await _load_page_async(port, "hello", app, browser=setup)
         status, body_text = result
 
         assert status == 200
         assert "Hello world!" in body_text
+        server.should_exit = True
+        await task
 
 
 @pytest.mark.filterwarnings("ignore:.*:DeprecationWarning")
-async def test_set_variable_in_browser(browser):
+async def test_set_variable_in_browser(setup):
     """Ensure directives work when rendered through the ASGI app."""
 
     with tempfile.TemporaryDirectory() as tmpdir:
         Path(tmpdir, "greet.pageql").write_text("{{#let :a = 'world'}}Hello {{a}}", encoding="utf-8")
 
-        result = await _load_page_async(tmpdir, "greet", browser=browser)
+        server, task, port, app = await start_server(tmpdir)
+        result = await _load_page_async(port, "greet", app, browser=setup)
         status, body_text = result
 
         assert status == 200
         assert "Hello world" in body_text
+        server.should_exit = True
+        await task
 
 
 @pytest.mark.filterwarnings("ignore:.*:DeprecationWarning")
-async def test_reactive_set_variable_in_browser(browser):
+async def test_reactive_set_variable_in_browser(setup):
     """Ensure reactive mode updates are sent to the browser."""
     if (
         importlib.util.find_spec("websockets") is None
@@ -80,14 +92,17 @@ async def test_reactive_set_variable_in_browser(browser):
             encoding="utf-8",
         )
 
-        body_text = await _load_page_async(tmpdir, "react", browser=browser)
+        server, task, port, app = await start_server(tmpdir)
+        body_text = await _load_page_async(port, "react", app, browser=setup)
         _, text = body_text
 
         assert text == "hello world"
+        server.should_exit = True
+        await task
 
 
 @pytest.mark.filterwarnings("ignore:.*:DeprecationWarning")
-async def test_reactive_count_insert_in_browser(browser):
+async def test_reactive_count_insert_in_browser(setup):
     """Count updates should be delivered to the browser when rows are inserted."""
     if (
         importlib.util.find_spec("websockets") is None
@@ -105,16 +120,19 @@ async def test_reactive_count_insert_in_browser(browser):
             encoding="utf-8",
         )
 
-        result = await _load_page_async(tmpdir, "count", browser=browser)
+        server, task, port, app = await start_server(tmpdir)
+        result = await _load_page_async(port, "count", app, browser=setup)
         if result is None:
             pytest.skip("Chromium not available for Playwright")
         _, body_text = result
 
         assert body_text == "1"
+        server.should_exit = True
+        await task
 
 
 @pytest.mark.filterwarnings("ignore:.*:DeprecationWarning")
-async def test_reactive_count_insert_via_execute(browser):
+async def test_reactive_count_insert_via_execute(setup):
     """Count updates should propagate when inserting after initial load."""
     if (
         importlib.util.find_spec("websockets") is None
@@ -137,14 +155,17 @@ async def test_reactive_count_insert_via_execute(browser):
             )
             await page.wait_for_timeout(10)
 
-        result = await _load_page_async(tmpdir, "count_after", after, reload=True, browser=browser)
+        server, task, port, app = await start_server(tmpdir, reload=True)
+        result = await _load_page_async(port, "count_after", app, after, browser=setup)
         _, body_text = result
 
         assert body_text == "1"
+        server.should_exit = True
+        await task
 
 
 @pytest.mark.filterwarnings("ignore:.*:DeprecationWarning")
-async def test_reactive_count_delete_via_execute(browser):
+async def test_reactive_count_delete_via_execute(setup):
     """Count should decrement when a row is deleted via executeone."""
 
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -164,13 +185,16 @@ async def test_reactive_count_delete_via_execute(browser):
             )
             await page.wait_for_timeout(10)
 
-        result = await _load_page_async(tmpdir, "count_after_delete", after, reload=True, browser=browser)
+        server, task, port, app = await start_server(tmpdir, reload=True)
+        result = await _load_page_async(port, "count_after_delete", app, after, browser=setup)
         _, body_text = result
 
         assert body_text == "0"
+        server.should_exit = True
+        await task
 
 @pytest.mark.filterwarnings("ignore:.*:DeprecationWarning")
-async def test_insert_via_execute_after_click(browser):
+async def test_insert_via_execute_after_click(setup):
     """Inserting via ``executeone`` should display the added text reactively."""
 
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -187,14 +211,17 @@ async def test_insert_via_execute_after_click(browser):
             )
             await page.wait_for_timeout(10)
 
-        result = await _load_page_async(tmpdir, "msgs", after, reload=True, browser=browser)
+        server, task, port, app = await start_server(tmpdir, reload=True)
+        result = await _load_page_async(port, "msgs", app, after, browser=setup)
         _, body_text = result
 
         assert "hello" in body_text
+        server.should_exit = True
+        await task
 
 
 @pytest.mark.filterwarnings("ignore:.*:DeprecationWarning")
-async def test_todos_add_partial_in_separate_page(browser):
+async def test_todos_add_partial_in_separate_page(setup):
     """Render todos then invoke the add partial from a second page."""
 
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -211,10 +238,13 @@ async def test_todos_add_partial_in_separate_page(browser):
             await page2.close()
             await page.goto(f"http://127.0.0.1:{port}/todos")
 
-        result = await _load_page_async(tmpdir, "todos", after, reload=True, browser=browser)
+        server, task, port, app = await start_server(tmpdir, reload=True)
+        result = await _load_page_async(port, "todos", app, after, browser=setup)
         if result is None:
             pytest.skip("Chromium not available for Playwright")
         status, body_text = result
 
         assert status == 200
         assert "hello" in body_text
+        server.should_exit = True
+        await task

@@ -6,7 +6,7 @@ PageQL is **reactive-first**: rendered HTML automatically updates when the under
 
 Usage: ```pageql <database> templates [--create] [--test]```
 
-Install: pip install pageql
+Install: pip install pageql  # uvicorn[standard] is installed automatically
 
 ## Benchmarking
 

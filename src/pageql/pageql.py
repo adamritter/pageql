@@ -668,8 +668,589 @@ class PageQL:
         if result.status_code == 404:
             raise ValueError(f"handle_render: Partial or import '{partial_name_str}' not found with http verb {http_verb}, render_path: {render_path}, partial_names: {partial_names}")
         
+
         # Clean up the output to match expected format
         return result.body.rstrip()
+
+    # ------------------------------------------------------------------
+    # Individual node processing helpers
+    # ------------------------------------------------------------------
+
+    def _process_text_node(self, node_content, params, path, includes,
+                            http_verb, reactive, ctx, out):
+        out.append(node_content)
+        return reactive
+
+    def _process_render_expression_node(self, node_content, params, path,
+                                         includes, http_verb, reactive, ctx,
+                                         out):
+        result = evalone(self.db, node_content, params, reactive, self.tables)
+        if isinstance(result, ReadOnly):
+            signal = None
+            result = result.value
+        elif isinstance(result, Signal):
+            signal = result
+            result = result.value
+        else:
+            signal = None
+        value = html.escape(str(result))
+        if ctx.reactiveelement is not None:
+            out.append(value)
+            if signal:
+                ctx.reactiveelement.append(signal)
+        elif reactive and signal is not None:
+            ctx.ensure_init()
+            mid = ctx.marker_id()
+            ctx.append_script(f"pstart({mid})", out)
+            out.append(value)
+            ctx.append_script(f"pend({mid})", out)
+
+            def listener(v=None, *, sig=signal, mid=mid, ctx=ctx):
+                ctx.ensure_init()
+                ctx.append_script(
+                    f"pset({mid},{json.dumps(html.escape(str(sig.value)))})",
+                    out,
+                )
+
+            ctx.add_listener(signal, listener)
+        else:
+            out.append(value)
+        return reactive
+
+    def _process_render_param_node(self, node_content, params, path, includes,
+                                   http_verb, reactive, ctx, out):
+        try:
+            val = params[node_content]
+            if isinstance(val, ReadOnly):
+                out.append(html.escape(str(val.value)))
+            else:
+                signal = val if isinstance(val, Signal) else None
+                if isinstance(val, Signal):
+                    val = val.value
+                value = html.escape(str(val))
+                if ctx.reactiveelement is not None:
+                    out.append(value)
+                    if signal:
+                        ctx.reactiveelement.append(signal)
+                elif reactive:
+                    ctx.ensure_init()
+                    mid = ctx.marker_id()
+                    ctx.append_script(f"pstart({mid})", out)
+                    out.append(value)
+                    ctx.append_script(f"pend({mid})", out)
+                    if signal:
+
+                        def listener(v=None, *, sig=signal, mid=mid, ctx=ctx):
+                            ctx.ensure_init()
+                            ctx.append_script(
+                                f"pset({mid},{json.dumps(html.escape(str(sig.value)))})",
+                                out,
+                            )
+
+                        ctx.add_listener(signal, listener)
+                else:
+                    out.append(value)
+        except KeyError:
+            raise ValueError(f"Parameter `{node_content}` not found in params `{params}`")
+        return reactive
+
+    def _process_render_raw_node(self, node_content, params, path, includes,
+                                 http_verb, reactive, ctx, out):
+        result = evalone(self.db, node_content, params, reactive, self.tables)
+        if isinstance(result, ReadOnly):
+            signal = None
+            result = result.value
+        elif isinstance(result, Signal):
+            signal = result
+            result = result.value
+        else:
+            signal = None
+        value = str(result)
+        if ctx.reactiveelement is not None:
+            out.append(value)
+            if signal:
+                ctx.reactiveelement.append(signal)
+        elif reactive and signal is not None:
+            ctx.ensure_init()
+            mid = ctx.marker_id()
+            ctx.append_script(f"pstart({mid})", out)
+            out.append(value)
+            ctx.append_script(f"pend({mid})", out)
+
+            def listener(v=None, *, sig=signal, mid=mid, ctx=ctx):
+                ctx.ensure_init()
+                ctx.append_script(
+                    f"pset({mid},{json.dumps(str(sig.value))})",
+                    out,
+                )
+
+            ctx.add_listener(signal, listener)
+        else:
+            out.append(value)
+        return reactive
+
+    def _process_param_directive(self, node_content, params, path, includes,
+                                 http_verb, reactive, ctx, out):
+        param_name, param_value = self.handle_param(node_content, params)
+        params[param_name] = param_value
+        return reactive
+
+    def _process_let_directive(self, node_content, params, path, includes,
+                               http_verb, reactive, ctx, out):
+        var, sql, expr = node_content
+        if var[0] == ':':
+            var = var[1:]
+        var = var.replace('.', '__')
+        if var in params:
+            raise ValueError(f"Parameter '{var}' is already set")
+        if isinstance(params.get(var), ReadOnly):
+            raise ValueError(f"Parameter '{var}' is read only")
+        if reactive:
+            value = evalone(self.db, sql, params, True, self.tables, expr)
+            existing = params.get(var)
+            if isinstance(existing, Signal):
+                if isinstance(value, Signal):
+
+                    def update(v=None, *, src=value, dst=existing):
+                        dst.set_value(src.value)
+
+                    value.listeners.append(update)
+                    existing.set_value(value.value)
+                else:
+                    existing.set_value(value)
+                signal = existing
+            else:
+                signal = value if isinstance(value, Signal) else DerivedSignal(lambda v=value: v, [])
+                params[var] = signal
+            ctx.add_dependency(signal)
+        else:
+            params[var] = evalone(self.db, sql, params, False, self.tables, expr)
+        return reactive
+
+    def _process_render_directive(self, node_content, params, path, includes,
+                                  http_verb, reactive, ctx, out):
+        rendered_content = self.handle_render(
+            node_content,
+            path,
+            params,
+            includes,
+            None,
+            reactive,
+            ctx,
+        )
+        ctx.out.append(rendered_content)
+        return reactive
+
+    def _process_reactive_directive(self, node_content, params, path, includes,
+                                    http_verb, reactive, ctx, out):
+        mode = node_content.strip().lower()
+        if mode == 'on':
+            reactive = True
+        elif mode == 'off':
+            reactive = False
+        else:
+            raise ValueError(f"Unknown reactive mode '{node_content}'")
+        params['reactive'] = reactive
+        return reactive
+
+    def _process_redirect_directive(self, node_content, params, path, includes,
+                                    http_verb, reactive, ctx, out):
+        url = evalone(self.db, node_content, params, reactive, self.tables)
+        raise RenderResultException(
+            RenderResult(
+                status_code=302,
+                headers=[('Location', url), *ctx.headers],
+                cookies=ctx.cookies,
+            )
+        )
+
+    def _process_error_directive(self, node_content, params, path, includes,
+                                 http_verb, reactive, ctx, out):
+        msg = evalone(self.db, node_content, params, reactive, self.tables)
+        raise ValueError(str(msg))
+
+    def _process_statuscode_directive(self, node_content, params, path, includes,
+                                      http_verb, reactive, ctx, out):
+        code = evalone(self.db, node_content, params, reactive, self.tables)
+        raise RenderResultException(
+            RenderResult(
+                status_code=code,
+                headers=ctx.headers,
+                cookies=ctx.cookies,
+                body="".join(ctx.out),
+            )
+        )
+
+    def _process_header_directive(self, node_content, params, path, includes,
+                                  http_verb, reactive, ctx, out):
+        name, value_expr = parsefirstword(node_content)
+        if value_expr is None:
+            raise ValueError("#header requires a name and expression")
+        value = evalone(self.db, value_expr, params, reactive, self.tables)
+        if isinstance(value, Signal):
+            value = value.value
+        value = str(value)
+        ctx.headers.append((name, value))
+        return reactive
+
+    def _process_cookie_directive(self, node_content, params, path, includes,
+                                  http_verb, reactive, ctx, out):
+        name, rest = parsefirstword(node_content)
+        if rest is None:
+            raise ValueError("#cookie requires a name and expression")
+        m = re.match(r'("[^\"]*"|\'[^\']*\'|\S+)(?:\s+(.*))?$', rest)
+        if not m:
+            raise ValueError("Invalid #cookie syntax")
+        expr = m.group(1)
+        attr_str = m.group(2) or ''
+        value = evalone(self.db, expr, params, reactive, self.tables)
+        if isinstance(value, Signal):
+            value = value.value
+        value = str(value)
+        attrs = parse_param_attrs(attr_str)
+        ctx.cookies.append((name, value, attrs))
+        return reactive
+
+    def _process_update_directive(self, node_content, params, path, includes,
+                                  http_verb, reactive, ctx, out, node_type):
+        try:
+            self.tables.executeone(node_type[1:] + " " + node_content, params)
+        except sqlite3.Error as e:
+            raise ValueError(
+                f"Error executing {node_type[1:]} {node_content} with params {params}: {e}"
+            )
+        return reactive
+
+    def _process_schema_directive(self, node_content, params, path, includes,
+                                  http_verb, reactive, ctx, out, node_type):
+        try:
+            db_execute_dot(self.db, node_type[1:] + " " + node_content, params)
+        except sqlite3.Error as e:
+            raise ValueError(
+                f"Error executing {node_type[1:]} {node_content} with params {params}: {e}"
+            )
+        return reactive
+
+    def _process_import_directive(self, node_content, params, path, includes,
+                                  http_verb, reactive, ctx, out):
+        parts = node_content.split()
+        if not parts:
+            raise ValueError("Empty import statement")
+
+        module_path = parts[0]
+        alias = parts[2] if len(parts) > 2 and parts[1] == 'as' else module_path
+
+        if module_path not in self._modules:
+            raise ValueError(
+                f"Module '{module_path}' not found, modules: " + str(self._modules.keys())
+            )
+
+        includes[alias] = module_path
+        return reactive
+
+    def _process_log_directive(self, node_content, params, path, includes,
+                               http_verb, reactive, ctx, out):
+        print(
+            "Logging: " + str(evalone(self.db, node_content, params, reactive, self.tables))
+        )
+        return reactive
+
+    def _process_dump_directive(self, node_content, params, path, includes,
+                                http_verb, reactive, ctx, out):
+        cursor = db_execute_dot(self.db, "select * from " + node_content, params)
+        t = time.time()
+        rows_all = cursor.fetchall()
+        end_time = time.time()
+        ctx.out.append("<table>")
+        for col in cursor.description:
+            ctx.out.append("<th>" + col[0] + "</th>")
+        ctx.out.append("</tr>")
+        for row in rows_all:
+            ctx.out.append("<tr>")
+            for cell in row:
+                ctx.out.append("<td>" + str(cell) + "</td>")
+            ctx.out.append("</tr>")
+        ctx.out.append("</table>")
+        ctx.out.append(f"<p>Dumping {node_content} took {(end_time - t)*1000:.2f} ms</p>")
+        return reactive
+
+    def _process_reactiveelement_directive(self, node, params, path, includes,
+                                           http_verb, reactive, ctx, out):
+        prev = ctx.reactiveelement
+        ctx.reactiveelement = []
+        buf = []
+        self.process_nodes(node[1], params, path, includes, http_verb, reactive, ctx, out=buf)
+        signals = ctx.reactiveelement
+        ctx.reactiveelement = prev
+        out.extend(buf)
+        if reactive and ctx and signals:
+            ctx.ensure_init()
+            mid = ctx.marker_id()
+            ctx.append_script(f"pprevioustag({mid})", out)
+
+            def listener(_=None, *, mid=mid, ctx=ctx):
+                ctx.ensure_init()
+                new_buf = []
+                cur = ctx.reactiveelement
+                ctx.reactiveelement = []
+                self.process_nodes(node[1], params, path, includes, http_verb, True, ctx, out=new_buf)
+                ctx.reactiveelement = cur
+                html_content = "".join(new_buf).strip()
+                tag = ''
+                if html_content.startswith('<'):
+                    m = re.match(r'<([A-Za-z0-9_-]+)', html_content)
+                    if m:
+                        tag = m.group(1)
+                void_elements = {
+                    'area','base','br','col','embed','hr','img','input','link','meta','param','source','track','wbr'
+                }
+                if (
+                    tag
+                    and tag.lower() not in void_elements
+                    and not re.search(r'/\s*>$', html_content)
+                    and not html_content.endswith(f'</{tag}>')
+                ):
+                    html_content += f"</{tag}>"
+                ctx.append_script(
+                    f"pupdatetag({mid},{json.dumps(html_content)})",
+                    out,
+                )
+
+            for sig in signals:
+                ctx.add_listener(sig, listener)
+        return reactive
+
+    def _process_if_directive(self, node, params, path, includes,
+                              http_verb, reactive, ctx, out):
+        if reactive and ctx:
+            cond_exprs = []
+            bodies = []
+            j = 1
+            while j < len(node):
+                if j + 1 < len(node):
+                    cond_exprs.append(node[j])
+                    bodies.append(node[j + 1])
+                    j += 2
+                else:
+                    cond_exprs.append(None)
+                    bodies.append(node[j])
+                    j += 1
+
+            cond_vals = [
+                evalone(self.db, ce[0], params, True, self.tables, ce[1]) if ce is not None else True
+                for ce in cond_exprs
+            ]
+            signals = [
+                v for v in cond_vals
+                if isinstance(v, Signal) and not isinstance(v, ReadOnly)
+            ]
+
+            def pick_index():
+                for idx, val in enumerate(cond_vals):
+                    cur = val.value if isinstance(val, Signal) else val
+                    if cur:
+                        return idx
+                return None
+
+            if ctx.reactiveelement is not None:
+                idx = pick_index()
+                if idx is not None:
+                    reactive = self.process_nodes(bodies[idx], params, path, includes, http_verb, True, ctx, out)
+                ctx.reactiveelement.extend(signals)
+            else:
+                idx = pick_index()
+                if not signals:
+                    if idx is not None:
+                        reactive = self.process_nodes(bodies[idx], params, path, includes, http_verb, reactive, ctx, out)
+                else:
+                    mid = ctx.marker_id()
+                    ctx.ensure_init()
+                    ctx.append_script(f"pstart({mid})", out)
+
+                    if idx is not None:
+                        reactive = self.process_nodes(bodies[idx], params, path, includes, http_verb, reactive, ctx, out)
+
+                    ctx.append_script(f"pend({mid})", out)
+
+                    def listener(_=None, *, mid=mid, ctx=ctx):
+                        ctx.ensure_init()
+                        new_idx = pick_index()
+                        buf = []
+                        if new_idx is not None:
+                            self.process_nodes(bodies[new_idx], params, path, includes, http_verb, True, ctx, out=buf)
+                        html_content = "".join(buf).strip()
+                        ctx.append_script(
+                            f"pset({mid},{json.dumps(html_content)})",
+                            out,
+                        )
+
+                    for sig in signals:
+                        ctx.add_listener(sig, listener)
+        else:
+            i = 1
+            while i < len(node):
+                if i + 1 < len(node):
+                    expr = node[i]
+                    if not evalone(self.db, expr[0], params, reactive, self.tables, expr[1]):
+                        i += 2
+                        continue
+                    i += 1
+                reactive = self.process_nodes(node[i], params, path, includes, http_verb, reactive, ctx, out)
+                i += 1
+        return reactive
+
+    def _process_ifdef_directive(self, node, params, path, includes,
+                                 http_verb, reactive, ctx, out):
+        param_name = node[1].strip()
+        then_body = node[2]
+        else_body = node[3] if len(node) > 3 else None
+
+        if param_name.startswith(':'):
+            param_name = param_name[1:]
+        param_name = param_name.replace('.', '__')
+
+        body = then_body if param_name in params else else_body
+        if body:
+            reactive = self.process_nodes(body, params, path, includes, http_verb, reactive, ctx, out)
+        return reactive
+
+    def _process_ifndef_directive(self, node, params, path, includes,
+                                  http_verb, reactive, ctx, out):
+        param_name = node[1].strip()
+        then_body = node[2]
+        else_body = node[3] if len(node) > 3 else None
+
+        if param_name.startswith(':'):
+            param_name = param_name[1:]
+        param_name = param_name.replace('.', '__')
+
+        body = then_body if param_name not in params else else_body
+        if body:
+            reactive = self.process_nodes(body, params, path, includes, http_verb, reactive, ctx, out)
+        return reactive
+
+    def _process_from_directive(self, node, params, path, includes,
+                                http_verb, reactive, ctx, out):
+        query, expr = node[1]
+        if len(node) == 4:
+            _, _, deps, body = node
+        else:
+            body = node[2]
+
+        if reactive:
+            sql = "SELECT * FROM " + query
+            sql = re.sub(r':([A-Za-z0-9_]+(?:\.[A-Za-z0-9_]+)+)',
+                         lambda m: ':' + m.group(1).replace('.', '__'),
+                         sql)
+            converted_params = {
+                k: (v.value if isinstance(v, Signal) else v)
+                for k, v in params.items()
+            }
+            expr_copy = expr.copy()
+            _replace_placeholders(expr_copy, converted_params, self.dialect)
+            cache_key = expr_copy.sql(dialect=self.dialect)
+            cache_allowed = "randomblob" not in cache_key.lower()
+            comp = self._from_cache.get(cache_key) if cache_allowed else None
+            if comp is None or not comp.listeners:
+                comp = parse_reactive(expr, self.tables, params)
+                if cache_allowed:
+                    self._from_cache[cache_key] = comp
+            try:
+                cursor = self.db.execute(comp.sql, converted_params)
+            except sqlite3.Error as e:
+                raise ValueError(
+                    f"Error executing SQL `{comp.sql}` with params {converted_params}: {e}"
+                )
+            col_names = comp.columns if not isinstance(comp.columns, str) else [comp.columns]
+        else:
+            cursor = db_execute_dot(self.db, "select * from " + query, params)
+            col_names = [col[0] for col in cursor.description]
+
+        rows = cursor.fetchall()
+        mid = None
+        if ctx and reactive:
+            ctx.ensure_init()
+            mid = ctx.marker_id()
+            ctx.append_script(f"pstart({mid})")
+        saved_params = params.copy()
+        extra_cache_key = ""
+        if ctx and reactive:
+            dep_set = deps if len(node) == 4 else set()
+            extra_params = sorted(d for d in dep_set if d not in col_names)
+            if extra_params:
+                extra_cache_values = {}
+                for k in extra_params:
+                    v = saved_params.get(k)
+                    if isinstance(v, ReadOnly):
+                        v = v.value
+                    if isinstance(v, Signal):
+                        v = v.value
+                    extra_cache_values[k] = v
+                extra_cache_key = json.dumps(extra_cache_values, sort_keys=True)
+        for row in rows:
+            row_params = params.copy()
+            for i, col_name in enumerate(col_names):
+                row_params[col_name] = ReadOnly(row[i])
+
+            row_buffer = []
+            self.process_nodes(body, row_params, path, includes, http_verb, reactive, ctx, out=row_buffer)
+            row_content = ''.join(row_buffer).strip()
+            if ctx and reactive:
+                row_id = f"{mid}_{base64.b64encode(hashlib.sha256(repr(tuple(row)).encode()).digest())[:8].decode()}"
+                ctx.ensure_init()
+                ctx.append_script(f"pstart('{row_id}')")
+                ctx.out.append(row_content)
+                ctx.append_script(f"pend('{row_id}')")
+            else:
+                ctx.out.append(row_content)
+            ctx.out.append('\n')
+
+        if ctx and reactive:
+            ctx.append_script(f"pend({mid})")
+
+            def on_event(ev, *, mid=mid, ctx=ctx,
+                           body=body, col_names=col_names, path=path,
+                           includes=includes, http_verb=http_verb,
+                           saved_params=saved_params,
+                           extra_cache_key=extra_cache_key):
+                if ev[0] == 2:
+                    row_id = f"{mid}_{base64.b64encode(hashlib.sha256(repr(tuple(ev[1])).encode()).digest())[:8].decode()}"
+                    ctx.append_script(f"pdelete('{row_id}')")
+                elif ev[0] == 1:
+                    row_id = f"{mid}_{base64.b64encode(hashlib.sha256(repr(tuple(ev[1])).encode()).digest())[:8].decode()}"
+                    cache_key = (id(comp), 1, extra_cache_key, tuple(ev[1]))
+                    row_content = _ONEVENT_CACHE.get(cache_key)
+                    if row_content is None:
+                        row_params = saved_params.copy()
+                        for i, col_name in enumerate(col_names):
+                            row_params[col_name] = ReadOnly(ev[1][i])
+                        row_buf = []
+                        self.process_nodes(body, row_params, path, includes, http_verb, True, ctx, out=row_buf)
+                        row_content = ''.join(row_buf).strip()
+                        _ONEVENT_CACHE[cache_key] = row_content
+                    ctx.append_script(f"pinsert('{row_id}',{json.dumps(row_content)})")
+                elif ev[0] == 3:
+                    old_id = f"{mid}_{base64.b64encode(hashlib.sha256(repr(tuple(ev[1])).encode()).digest())[:8].decode()}"
+                    new_id = f"{mid}_{base64.b64encode(hashlib.sha256(repr(tuple(ev[2])).encode()).digest())[:8].decode()}"
+                    cache_key = (id(comp), 3, extra_cache_key, tuple(ev[2]))
+                    row_content = _ONEVENT_CACHE.get(cache_key)
+                    if row_content is None:
+                        row_params = saved_params.copy()
+                        for i, col_name in enumerate(col_names):
+                            row_params[col_name] = ReadOnly(ev[2][i])
+                        row_buf = []
+                        #print("processing node for update", body)
+                        self.process_nodes(body, row_params, path, includes, http_verb, True, ctx, out=row_buf)
+                        row_content = ''.join(row_buf).strip()
+                        _ONEVENT_CACHE[cache_key] = row_content
+                    ctx.append_script(f"pupdate('{old_id}','{new_id}',{json.dumps(row_content)})")
+
+            ctx.add_listener(comp, on_event)
+
+        params.clear()
+        params.update(saved_params)
+        return reactive
+
 
     def process_node(self, node, params, path, includes, http_verb=None, reactive=False, ctx=None, out=None):
         """
@@ -690,519 +1271,63 @@ class PageQL:
 
         if isinstance(node, tuple):
             node_type, node_content = node
-
             if node_type == 'text':
-                out.append(node_content)
+                return self._process_text_node(node_content, params, path, includes, http_verb, reactive, ctx, out)
             elif node_type == 'render_expression':
-                result = evalone(self.db, node_content, params, reactive, self.tables)
-                if isinstance(result, ReadOnly):
-                    signal = None
-                    result = result.value
-                elif isinstance(result, Signal):
-                    signal = result
-                    result = result.value
-                else:
-                    signal = None
-                value = html.escape(str(result))
-                if ctx.reactiveelement is not None:
-                    out.append(value)
-                    if signal:
-                        ctx.reactiveelement.append(signal)
-                elif reactive and signal is not None:
-                    ctx.ensure_init()
-                    mid = ctx.marker_id()
-                    ctx.append_script(f"pstart({mid})", out)
-                    out.append(value)
-                    ctx.append_script(f"pend({mid})", out)
-                    def listener(v=None, *, sig=signal, mid=mid, ctx=ctx):
-                        ctx.ensure_init()
-                        ctx.append_script(
-                            f"pset({mid},{json.dumps(html.escape(str(sig.value)))})",
-                            out,
-                        )
-                    ctx.add_listener(signal, listener)
-                else:
-                    out.append(value)
+                return self._process_render_expression_node(node_content, params, path, includes, http_verb, reactive, ctx, out)
             elif node_type == 'render_param':
-                try:
-                    val = params[node_content]
-                    if isinstance(val, ReadOnly):
-                        out.append(html.escape(str(val.value)))
-                    else:
-                        signal = val if isinstance(val, Signal) else None
-                        if isinstance(val, Signal):
-                            val = val.value
-                        value = html.escape(str(val))
-                        if ctx.reactiveelement is not None:
-                            out.append(value)
-                            if signal:
-                                ctx.reactiveelement.append(signal)
-                        elif reactive:
-                            ctx.ensure_init()
-                            mid = ctx.marker_id()
-                            ctx.append_script(f"pstart({mid})", out)
-                            out.append(value)
-                            ctx.append_script(f"pend({mid})", out)
-                            if signal:
-                                def listener(v=None, *, sig=signal, mid=mid, ctx=ctx):
-                                    ctx.ensure_init()
-                                    ctx.append_script(f"pset({mid},{json.dumps(html.escape(str(sig.value)))})", out)
-                                ctx.add_listener(signal, listener)
-                        else:
-                            out.append(value)
-                except KeyError:
-                    raise ValueError(f"Parameter `{node_content}` not found in params `{params}`")
+                return self._process_render_param_node(node_content, params, path, includes, http_verb, reactive, ctx, out)
             elif node_type == 'render_raw':
-                result = evalone(self.db, node_content, params, reactive, self.tables)
-                if isinstance(result, ReadOnly):
-                    signal = None
-                    result = result.value
-                elif isinstance(result, Signal):
-                    signal = result
-                    result = result.value
-                else:
-                    signal = None
-                value = str(result)
-                if ctx.reactiveelement is not None:
-                    out.append(value)
-                    if signal:
-                        ctx.reactiveelement.append(signal)
-                elif reactive and signal is not None:
-                    ctx.ensure_init()
-                    mid = ctx.marker_id()
-                    ctx.append_script(f"pstart({mid})", out)
-                    out.append(value)
-                    ctx.append_script(f"pend({mid})", out)
-                    def listener(v=None, *, sig=signal, mid=mid, ctx=ctx):
-                        ctx.ensure_init()
-                        ctx.append_script(
-                            f"pset({mid},{json.dumps(str(sig.value))})",
-                            out,
-                        )
-                    ctx.add_listener(signal, listener)
-                else:
-                    out.append(value)
+                return self._process_render_raw_node(node_content, params, path, includes, http_verb, reactive, ctx, out)
             elif node_type == '#param':
-                param_name, param_value = self.handle_param(node_content, params)
-                params[param_name] = param_value
+                return self._process_param_directive(node_content, params, path, includes, http_verb, reactive, ctx, out)
             elif node_type == '#let':
-                var, sql, expr = node_content
-                if var[0] == ':':
-                    var = var[1:]
-                var = var.replace('.', '__')
-                if var in params:
-                    raise ValueError(f"Parameter '{var}' is already set")
-                if isinstance(params.get(var), ReadOnly):
-                    raise ValueError(f"Parameter '{var}' is read only")
-                if reactive:
-                    value = evalone(self.db, sql, params, True, self.tables, expr)
-                    existing = params.get(var)
-                    if isinstance(existing, Signal):
-                        if isinstance(value, Signal):
-                            def update(v=None, *, src=value, dst=existing):
-                                dst.set_value(src.value)
-                            value.listeners.append(update)
-                            existing.set_value(value.value)
-                        else:
-                            existing.set_value(value)
-                        signal = existing
-                    else:
-                        signal = value if isinstance(value, Signal) else DerivedSignal(lambda v=value: v, [])
-                        params[var] = signal
-                    # Track dependency so cleanup detaches it after rendering
-                    ctx.add_dependency(signal)
-                else:
-                    params[var] = evalone(self.db, sql, params, False, self.tables, expr)
+                return self._process_let_directive(node_content, params, path, includes, http_verb, reactive, ctx, out)
             elif node_type == '#render':
-                rendered_content = self.handle_render(
-                    node_content,
-                    path,
-                    params,
-                    includes,
-                    None,
-                    reactive,
-                    ctx,
-                )
-                ctx.out.append(rendered_content)
+                return self._process_render_directive(node_content, params, path, includes, http_verb, reactive, ctx, out)
             elif node_type == '#reactive':
-                mode = node_content.strip().lower()
-                if mode == 'on':
-                    reactive = True
-                elif mode == 'off':
-                    reactive = False
-                else:
-                    raise ValueError(f"Unknown reactive mode '{node_content}'")
-                params['reactive'] = reactive
+                return self._process_reactive_directive(node_content, params, path, includes, http_verb, reactive, ctx, out)
             elif node_type == '#redirect':
-                url = evalone(self.db, node_content, params, reactive, self.tables)
-                raise RenderResultException(
-                    RenderResult(
-                        status_code=302,
-                        headers=[('Location', url), *ctx.headers],
-                        cookies=ctx.cookies,
-                    )
-                )
+                return self._process_redirect_directive(node_content, params, path, includes, http_verb, reactive, ctx, out)
             elif node_type == '#error':
-                msg = evalone(self.db, node_content, params, reactive, self.tables)
-                raise ValueError(str(msg))
+                return self._process_error_directive(node_content, params, path, includes, http_verb, reactive, ctx, out)
             elif node_type == '#statuscode':
-                code = evalone(self.db, node_content, params, reactive, self.tables)
-                raise RenderResultException(
-                    RenderResult(
-                        status_code=code,
-                        headers=ctx.headers,
-                        cookies=ctx.cookies,
-                        body="".join(ctx.out),
-                    )
-                )
+                return self._process_statuscode_directive(node_content, params, path, includes, http_verb, reactive, ctx, out)
             elif node_type == '#header':
-                name, value_expr = parsefirstword(node_content)
-                if value_expr is None:
-                    raise ValueError("#header requires a name and expression")
-                value = evalone(self.db, value_expr, params, reactive, self.tables)
-                if isinstance(value, Signal):
-                    value = value.value
-                value = str(value)
-                ctx.headers.append((name, value))
+                return self._process_header_directive(node_content, params, path, includes, http_verb, reactive, ctx, out)
             elif node_type == '#cookie':
-                name, rest = parsefirstword(node_content)
-                if rest is None:
-                    raise ValueError("#cookie requires a name and expression")
-                m = re.match(r'("[^"]*"|\'[^\']*\'|\S+)(?:\s+(.*))?$', rest)
-                if not m:
-                    raise ValueError("Invalid #cookie syntax")
-                expr = m.group(1)
-                attr_str = m.group(2) or ''
-                value = evalone(self.db, expr, params, reactive, self.tables)
-                if isinstance(value, Signal):
-                    value = value.value
-                value = str(value)
-                attrs = parse_param_attrs(attr_str)
-                ctx.cookies.append((name, value, attrs))
-            elif node_type in ("#update", "#insert", "#delete"):
-                try:
-                    # Use the reactive table helpers for data modifications so
-                    # listeners get notified even outside reactive mode.
-                    self.tables.executeone(node_type[1:] + " " + node_content, params)
-                except sqlite3.Error as e:
-                    raise ValueError(
-                        f"Error executing {node_type[1:]} {node_content} with params {params}: {e}"
-                    )
-            elif node_type in ("#create", "#merge"):
-                try:
-                    db_execute_dot(self.db, node_type[1:] + " " + node_content, params)
-                except sqlite3.Error as e:
-                    raise ValueError(
-                        f"Error executing {node_type[1:]} {node_content} with params {params}: {e}"
-                    )
+                return self._process_cookie_directive(node_content, params, path, includes, http_verb, reactive, ctx, out)
+            elif node_type in ('#update', '#insert', '#delete'):
+                return self._process_update_directive(node_content, params, path, includes, http_verb, reactive, ctx, out, node_type)
+            elif node_type in ('#create', '#merge'):
+                return self._process_schema_directive(node_content, params, path, includes, http_verb, reactive, ctx, out, node_type)
             elif node_type == '#import':
-                parts = node_content.split()
-                if not parts:
-                    raise ValueError("Empty import statement")
-                    
-                module_path = parts[0]
-                alias = parts[2] if len(parts) > 2 and parts[1] == 'as' else module_path
-                
-                if module_path not in self._modules:
-                    raise ValueError(f"Module '{module_path}' not found, modules: " + str(self._modules.keys()))
-                
-                includes[alias] = module_path
+                return self._process_import_directive(node_content, params, path, includes, http_verb, reactive, ctx, out)
             elif node_type == '#log':
-                print(
-                    "Logging: " + str(evalone(self.db, node_content, params, reactive, self.tables))
-                )
+                return self._process_log_directive(node_content, params, path, includes, http_verb, reactive, ctx, out)
             elif node_type == '#dump':
-                # fetchall the table and dump it
-                cursor = db_execute_dot(self.db, "select * from " + node_content, params)
-                t = time.time()
-                rows_all = cursor.fetchall()
-                end_time = time.time()
-                ctx.out.append("<table>")
-                for col in cursor.description:
-                    ctx.out.append("<th>" + col[0] + "</th>")
-                ctx.out.append("</tr>")
-                for row in rows_all:
-                    ctx.out.append("<tr>")
-                    for cell in row:
-                        ctx.out.append("<td>" + str(cell) + "</td>")
-                    ctx.out.append("</tr>")
-                ctx.out.append("</table>")
-                ctx.out.append(f"<p>Dumping {node_content} took {(end_time - t)*1000:.2f} ms</p>")
+                return self._process_dump_directive(node_content, params, path, includes, http_verb, reactive, ctx, out)
             else:
                 if not node_type.startswith('/'):
                     raise ValueError(format_unknown_directive(node_type))
-
-            return reactive
+                return reactive
         elif isinstance(node, list):
             directive = node[0]
             if directive == '#reactiveelement':
-                prev = ctx.reactiveelement
-                ctx.reactiveelement = []
-                buf = []
-                self.process_nodes(node[1], params, path, includes, http_verb, reactive, ctx, out=buf)
-                signals = ctx.reactiveelement
-                ctx.reactiveelement = prev
-                out.extend(buf)
-                if reactive and ctx and signals:
-                    ctx.ensure_init()
-                    mid = ctx.marker_id()
-                    ctx.append_script(f"pprevioustag({mid})", out)
-
-                    def listener(_=None, *, mid=mid, ctx=ctx):
-                        ctx.ensure_init()
-                        new_buf = []
-                        cur = ctx.reactiveelement
-                        ctx.reactiveelement = []
-                        self.process_nodes(node[1], params, path, includes, http_verb, True, ctx, out=new_buf)
-                        ctx.reactiveelement = cur
-                        html_content = "".join(new_buf).strip()
-                        tag = ''
-                        if html_content.startswith('<'):
-                            m = re.match(r'<([A-Za-z0-9_-]+)', html_content)
-                            if m:
-                                tag = m.group(1)
-                        void_elements = {
-                            'area','base','br','col','embed','hr','img','input',
-                            'link','meta','param','source','track','wbr'
-                        }
-                        if (
-                            tag
-                            and tag.lower() not in void_elements
-                            and not re.search(r'/\s*>$', html_content)
-                            and not html_content.endswith(f'</{tag}>')
-                        ):
-                            html_content += f"</{tag}>"
-                        ctx.append_script(
-                            f"pupdatetag({mid},{json.dumps(html_content)})",
-                            out,
-                        )
-
-                    for sig in signals:
-                        ctx.add_listener(sig, listener)
-                return reactive
-            if directive == '#if':
-                if reactive and ctx:
-                    cond_exprs = []
-                    bodies = []
-                    j = 1
-                    while j < len(node):
-                        if j + 1 < len(node):
-                            cond_exprs.append(node[j])
-                            bodies.append(node[j + 1])
-                            j += 2
-                        else:
-                            cond_exprs.append(None)
-                            bodies.append(node[j])
-                            j += 1
-
-                    cond_vals = [
-                        evalone(self.db, ce[0], params, True, self.tables, ce[1]) if ce is not None else True
-                        for ce in cond_exprs
-                    ]
-                    signals = [
-                        v for v in cond_vals
-                        if isinstance(v, Signal) and not isinstance(v, ReadOnly)
-                    ]
-
-                    def pick_index():
-                        for idx, val in enumerate(cond_vals):
-                            cur = val.value if isinstance(val, Signal) else val
-                            if cur:
-                                return idx
-                        return None
-
-                    if ctx.reactiveelement is not None:
-                        idx = pick_index()
-                        if idx is not None:
-                            reactive = self.process_nodes(bodies[idx], params, path, includes, http_verb, True, ctx, out)
-                        ctx.reactiveelement.extend(signals)
-                    else:
-                        idx = pick_index()
-                        if not signals:
-                            if idx is not None:
-                                reactive = self.process_nodes(bodies[idx], params, path, includes, http_verb, reactive, ctx, out)
-                        else:
-                            mid = ctx.marker_id()
-                            ctx.ensure_init()
-                            ctx.append_script(f"pstart({mid})", out)
-
-                            if idx is not None:
-                                reactive = self.process_nodes(bodies[idx], params, path, includes, http_verb, reactive, ctx, out)
-
-                            ctx.append_script(f"pend({mid})", out)
-
-                            def listener(_=None, *, mid=mid, ctx=ctx):
-                                ctx.ensure_init()
-                                new_idx = pick_index()
-                                buf = []
-                                if new_idx is not None:
-                                    self.process_nodes(bodies[new_idx], params, path, includes, http_verb, True, ctx, out=buf)
-                                html_content = "".join(buf).strip()
-                                ctx.append_script(
-                                    f"pset({mid},{json.dumps(html_content)})",
-                                    out,
-                                )
-
-                            for sig in signals:
-                                ctx.add_listener(sig, listener)
-                else:
-                    i = 1
-                    while i < len(node):
-                        if i + 1 < len(node):
-                            expr = node[i]
-                            if not evalone(self.db, expr[0], params, reactive, self.tables, expr[1]):
-                                i += 2
-                                continue
-                            i += 1
-                        reactive = self.process_nodes(node[i], params, path, includes, http_verb, reactive, ctx, out)
-                        i += 1
+                return self._process_reactiveelement_directive(node, params, path, includes, http_verb, reactive, ctx, out)
+            elif directive == '#if':
+                return self._process_if_directive(node, params, path, includes, http_verb, reactive, ctx, out)
             elif directive == '#ifdef':
-                param_name = node[1].strip()
-                then_body = node[2]
-                else_body = node[3] if len(node) > 3 else None
-                
-                if param_name.startswith(':'):
-                    param_name = param_name[1:]
-                param_name = param_name.replace('.', '__')
-                
-                body = then_body if param_name in params else else_body
-                if body:
-                    reactive = self.process_nodes(body, params, path, includes, http_verb, reactive, ctx, out)
+                return self._process_ifdef_directive(node, params, path, includes, http_verb, reactive, ctx, out)
             elif directive == '#ifndef':
-                param_name = node[1].strip()
-                then_body = node[2]
-                else_body = node[3] if len(node) > 3 else None
-                
-                if param_name.startswith(':'):
-                    param_name = param_name[1:]
-                param_name = param_name.replace('.', '__')
-                
-                body = then_body if param_name not in params else else_body
-                if body:
-                    reactive = self.process_nodes(body, params, path, includes, http_verb, reactive, ctx, out)
+                return self._process_ifndef_directive(node, params, path, includes, http_verb, reactive, ctx, out)
             elif directive == '#from':
-                query, expr = node[1]
-                if len(node) == 4:
-                    _, _, deps, body = node
-                else:
-                    body = node[2]
-
-                if reactive:
-                    sql = "SELECT * FROM " + query
-                    sql = re.sub(r':([A-Za-z0-9_]+(?:\.[A-Za-z0-9_]+)+)',
-                                 lambda m: ':' + m.group(1).replace('.', '__'),
-                                 sql)
-                    converted_params = {
-                        k: (v.value if isinstance(v, Signal) else v)
-                        for k, v in params.items()
-                    }
-                    expr_copy = expr.copy()
-                    _replace_placeholders(expr_copy, converted_params, self.dialect)
-                    cache_key = expr_copy.sql(dialect=self.dialect)
-                    cache_allowed = "randomblob" not in cache_key.lower()
-                    comp = self._from_cache.get(cache_key) if cache_allowed else None
-                    if comp is None or not comp.listeners:
-                        comp = parse_reactive(expr, self.tables, params)
-                        if cache_allowed:
-                            self._from_cache[cache_key] = comp
-                    try:
-                        cursor = self.db.execute(comp.sql, converted_params)
-                    except sqlite3.Error as e:
-                        raise ValueError(
-                            f"Error executing SQL `{comp.sql}` with params {converted_params}: {e}"
-                        )
-                    col_names = comp.columns if not isinstance(comp.columns, str) else [comp.columns]
-                else:
-                    cursor = db_execute_dot(self.db, "select * from " + query, params)
-                    col_names = [col[0] for col in cursor.description]
-
-                rows = cursor.fetchall()
-                mid = None
-                if ctx and reactive:
-                    ctx.ensure_init()
-                    mid = ctx.marker_id()
-                    ctx.append_script(f"pstart({mid})")
-                saved_params = params.copy()
-                extra_cache_key = ""
-                if ctx and reactive:
-                    dep_set = deps if len(node) == 4 else set()
-                    extra_params = sorted(d for d in dep_set if d not in col_names)
-                    if extra_params:
-                        extra_cache_values = {}
-                        for k in extra_params:
-                            v = saved_params.get(k)
-                            if isinstance(v, ReadOnly):
-                                v = v.value
-                            if isinstance(v, Signal):
-                                v = v.value
-                            extra_cache_values[k] = v
-                        extra_cache_key = json.dumps(extra_cache_values, sort_keys=True)
-                for row in rows:
-                    row_params = params.copy()
-                    for i, col_name in enumerate(col_names):
-                        row_params[col_name] = ReadOnly(row[i])
-
-                    row_buffer = []
-                    self.process_nodes(body, row_params, path, includes, http_verb, reactive, ctx, out=row_buffer)
-                    row_content = ''.join(row_buffer).strip()
-                    if ctx and reactive:
-                        row_id = f"{mid}_{base64.b64encode(hashlib.sha256(repr(tuple(row)).encode()).digest())[:8].decode()}"
-                        ctx.ensure_init()
-                        ctx.append_script(f"pstart('{row_id}')")
-                        ctx.out.append(row_content)
-                        ctx.append_script(f"pend('{row_id}')")
-                    else:
-                        ctx.out.append(row_content)
-                    ctx.out.append('\n')
-
-                if ctx and reactive:
-                    ctx.append_script(f"pend({mid})")
-                    def on_event(ev, *, mid=mid, ctx=ctx,
-                                   body=body, col_names=col_names, path=path,
-                                   includes=includes, http_verb=http_verb,
-                                   saved_params=saved_params,
-                                   extra_cache_key=extra_cache_key):
-                        if ev[0] == 2:
-                            row_id = f"{mid}_{base64.b64encode(hashlib.sha256(repr(tuple(ev[1])).encode()).digest())[:8].decode()}"
-                            ctx.append_script(f"pdelete('{row_id}')")
-                        elif ev[0] == 1:
-                            row_id = f"{mid}_{base64.b64encode(hashlib.sha256(repr(tuple(ev[1])).encode()).digest())[:8].decode()}"
-                            cache_key = (id(comp), 1, extra_cache_key, tuple(ev[1]))
-                            row_content = _ONEVENT_CACHE.get(cache_key)
-                            if row_content is None:
-                                row_params = saved_params.copy()
-                                for i, col_name in enumerate(col_names):
-                                    row_params[col_name] = ReadOnly(ev[1][i])
-                                row_buf = []
-                                self.process_nodes(body, row_params, path, includes, http_verb, True, ctx, out=row_buf)
-                                row_content = ''.join(row_buf).strip()
-                                _ONEVENT_CACHE[cache_key] = row_content
-                            ctx.append_script(f"pinsert('{row_id}',{json.dumps(row_content)})")
-                        elif ev[0] == 3:
-                            old_id = f"{mid}_{base64.b64encode(hashlib.sha256(repr(tuple(ev[1])).encode()).digest())[:8].decode()}"
-                            new_id = f"{mid}_{base64.b64encode(hashlib.sha256(repr(tuple(ev[2])).encode()).digest())[:8].decode()}"
-                            cache_key = (id(comp), 3, extra_cache_key, tuple(ev[2]))
-                            row_content = _ONEVENT_CACHE.get(cache_key)
-                            if row_content is None:
-                                row_params = saved_params.copy()
-                                for i, col_name in enumerate(col_names):
-                                    row_params[col_name] = ReadOnly(ev[2][i])
-                                row_buf = []
-                                #print("processing node for update", body)
-                                self.process_nodes(body, row_params, path, includes, http_verb, True, ctx, out=row_buf)
-                                row_content = ''.join(row_buf).strip()
-                                _ONEVENT_CACHE[cache_key] = row_content
-                            ctx.append_script(f"pupdate('{old_id}','{new_id}',{json.dumps(row_content)})")
-                    ctx.add_listener(comp, on_event)
-
-                params.clear()
-                params.update(saved_params)
+                return self._process_from_directive(node, params, path, includes, http_verb, reactive, ctx, out)
             else:
                 if not directive.startswith('/'):
                     raise ValueError(format_unknown_directive(directive))
-            return reactive
-
-            return reactive
+                return reactive
+        return reactive
 
     def process_nodes(self, nodes, params, path, includes, http_verb=None, reactive=False, ctx=None, out=None):
         """

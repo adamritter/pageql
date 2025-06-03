@@ -3,7 +3,8 @@ PageQL: A template language for embedding SQL inside HTML directly
 """
 
 # Import the main classes from the PageQL modules
-from .pageql import PageQL, RenderResult
+from .pageql import PageQL
+from .render_context import RenderResult
 from .reactive import ReadOnly
 from .pageqlapp import PageQLApp
 from .reactive_sql import parse_reactive

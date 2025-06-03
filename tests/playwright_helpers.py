@@ -1,4 +1,5 @@
 import asyncio
+import re
 from pathlib import Path
 from typing import Callable, Optional, Tuple
 
@@ -43,12 +44,34 @@ async def _load_page_async(
 
     pg = await browser.new_page()
     response = await pg.goto(f"http://127.0.0.1:{port}/{page}")
+
+    client_id = None
+    if response is not None:
+        try:
+            html = await response.text()
+            m = re.search(r"clientId\s*=\s*\"([^\"]+)\"", html)
+            if m:
+                client_id = m.group(1)
+        except Exception:
+            pass
+
     if after is not None:
         if asyncio.iscoroutinefunction(after):
             await after(pg, port, app)
         else:
             after(pg, port, app)
+
     await pg.wait_for_timeout(30)
-    body = (await pg.evaluate("document.body.textContent")).strip()
+
+    body: Optional[str]
+    if client_id:
+        body = await app.get_text_body(client_id)
+        if body is None:
+            body = (await pg.evaluate("document.body.textContent")).strip()
+        else:
+            body = body.strip()
+    else:
+        body = (await pg.evaluate("document.body.textContent")).strip()
+
     status = response.status if response is not None else None
     return status, body

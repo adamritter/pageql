@@ -220,6 +220,7 @@ class PageQLApp:
                     'headers': [(b'content-type', b'text/plain')],
                 }
             )
+            self._log(f"CSRF verification failed for client_id: {client_id}, token: {token}, render_contexts: {self.render_contexts.keys()}")
             await send({'type': 'http.response.body', 'body': b'CSRF verification failed'})
             return None
         return token

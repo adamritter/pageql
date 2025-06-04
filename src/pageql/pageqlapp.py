@@ -576,6 +576,7 @@ class PageQLApp:
         if scope["type"] == "websocket" and scope["path"] == "/reload-request-ws":
             await self._handle_reload_websocket(scope, receive, send)
         else:
+            print(f"scope: {scope}, calling http_disconnect")
             client_id = await self.pageql_handler(scope, receive, send)
             if client_id is not None:
                 await self._handle_http_disconnect(receive, client_id)

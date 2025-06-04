@@ -342,7 +342,7 @@ class PageQLApp:
         try:
             t = time.time()
             path = parsed_path.path
-            self._log(f"Rendering {path} as {path_cleaned} with params: {params}")
+            self._log(f"Rendering {path} with client_id {client_id} as {path_cleaned} with params: {params}")
             if path in self.before_hooks:
                 self._log(f"Before hook for {path}")
                 await self.before_hooks[path](params)

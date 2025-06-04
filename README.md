@@ -73,6 +73,7 @@ pageql -path/to/your/database.sqlite ./templates
 *   `--fallback-url <url>`: (Optional) Forward unknown routes to this base URL.
 *   `--no-csrf`: (Optional) Disable CSRF protection. Useful for local testing but not recommended in production.
 *   `--test`: (Optional) Run template tests and exit instead of serving.
+*   `--http-disconnect-cleanup-timeout <seconds>`: (Optional) Delay before cleaning up HTTP disconnect contexts.
 *   PageQL automatically configures new SQLite databases with write-ahead logging
     and an increased cache for better concurrency.
 *   When a PostgreSQL or MySQL URL is provided, `--create` is ignored and the

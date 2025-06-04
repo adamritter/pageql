@@ -96,6 +96,7 @@ class PageQLApp:
         fallback_app=None,
         fallback_url: Optional[str] = None,
         csrf_protect: bool = True,
+        http_disconnect_cleanup_timeout: float = 0.1,
     ):
         self.stop_event = None
         self.notifies = []
@@ -113,6 +114,7 @@ class PageQLApp:
         self.fallback_app = fallback_app
         self.fallback_url = fallback_url
         self.csrf_protect = csrf_protect
+        self.http_disconnect_cleanup_timeout = http_disconnect_cleanup_timeout
         self.load_builtin_static()
         self.prepare_server(db_path, template_dir, create_db)
 
@@ -282,7 +284,7 @@ class PageQLApp:
         if isinstance(message, dict) and message.get("type") == "http.disconnect" and client_id:
             print(f"http.disconnect: {client_id} render_contexts: {self.render_contexts.keys()}, message: {message}, cleaning up later")
             async def cleanup_later():
-                await asyncio.sleep(0.1)
+                await asyncio.sleep(self.http_disconnect_cleanup_timeout)
                 if client_id not in self.websockets:
                     print(f"cleanup_later: {client_id} not in websockets, removing client_id from render_contexts")
                     contexts = self.render_contexts.pop(client_id, [])

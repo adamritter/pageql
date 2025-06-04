@@ -265,6 +265,7 @@ class PageQLApp:
                     if client_id:
                         self.websockets.pop(client_id, None)
                         contexts = self.render_contexts.pop(client_id, [])
+                        print(f"websocket.disconnect: {client_id} render_contexts: {self.render_contexts.keys()}")
                         for ctx in contexts:
                             ctx.send_script = None
                             ctx.cleanup()
@@ -282,6 +283,7 @@ class PageQLApp:
             async def cleanup_later():
                 await asyncio.sleep(0.1)
                 if client_id not in self.websockets:
+                    print(f"cleanup_later: {client_id} not in websockets, removing client_id from render_contexts")
                     contexts = self.render_contexts.pop(client_id, [])
                     for ctx in contexts:
                         ctx.send_script = None

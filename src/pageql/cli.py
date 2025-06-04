@@ -61,6 +61,7 @@ def main():
     parser.add_argument('--fallback-url', help="Forward unknown routes to this base URL")
     parser.add_argument('--no-csrf', action='store_true', help="Disable CSRF protection")
     parser.add_argument('--test', action='store_true', help="Run tests instead of serving")
+    parser.add_argument('--log-level', default='info', help="Log level")
 
     # If no arguments were provided (only the script name), print help and exit.
     if len(sys.argv) == 1:
@@ -91,8 +92,10 @@ def main():
         print(f"Serving templates from: {args.templates_dir}")
         print("Press Ctrl+C to stop.")
 
-    log_level = "error" if args.quiet else "info"
-    uvicorn.run(app, host=args.host, port=args.port, log_level=log_level)
+    if args.quiet:
+        args.log_level = "error"
+
+    uvicorn.run(app, host=args.host, port=args.port, log_level=args.log_level)
 
 if __name__ == "__main__":
     main() 

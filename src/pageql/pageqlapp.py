@@ -280,7 +280,7 @@ class PageQLApp:
     async def _handle_http_disconnect(self, receive, client_id):
         message = await receive()
         if isinstance(message, dict) and message.get("type") == "http.disconnect" and client_id:
-            print(f"http.disconnect: {client_id} render_contexts: {self.render_contexts.keys()}, cleaning up later")
+            print(f"http.disconnect: {client_id} render_contexts: {self.render_contexts.keys()}, message: {message}, cleaning up later")
             async def cleanup_later():
                 await asyncio.sleep(0.1)
                 if client_id not in self.websockets:

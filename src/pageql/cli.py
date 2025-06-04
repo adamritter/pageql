@@ -61,6 +61,13 @@ def main():
     parser.add_argument('--fallback-url', help="Forward unknown routes to this base URL")
     parser.add_argument('--no-csrf', action='store_true', help="Disable CSRF protection")
     parser.add_argument('--test', action='store_true', help="Run tests instead of serving")
+    parser.add_argument(
+        '--http-disconnect-cleanup-timeout',
+        type=float,
+        default=0.1,
+        metavar='SECONDS',
+        help='Delay before cleaning up HTTP disconnects.',
+    )
     parser.add_argument('--log-level', default='info', help="Log level")
 
     # If no arguments were provided (only the script name), print help and exit.
@@ -83,6 +90,7 @@ def main():
         "quiet": args.quiet,
         "fallback_url": args.fallback_url,
         "csrf_protect": not args.no_csrf,
+        "http_disconnect_cleanup_timeout": args.http_disconnect_cleanup_timeout,
     }
     app = PageQLApp(args.db_file, args.templates_dir, **kwargs)
 

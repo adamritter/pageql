@@ -273,7 +273,9 @@ class PageQLApp:
                     if client_id:
                         self.websockets.pop(client_id, None)
                         contexts = self.render_contexts.pop(client_id, [])
-                        print(f"websocket.disconnect: {client_id} render_contexts: {self.render_contexts.keys()}")
+                        self._debug(
+                            f"websocket.disconnect: {client_id} render_contexts: {self.render_contexts.keys()}"
+                        )
                         for ctx in contexts:
                             ctx.send_script = None
                             ctx.cleanup()

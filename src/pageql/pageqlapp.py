@@ -93,6 +93,7 @@ class PageQLApp:
         should_reload=True,
         reactive=True,
         quiet=False,
+        log_level: str = "info",
         fallback_app=None,
         fallback_url: Optional[str] = None,
         csrf_protect: bool = True,
@@ -111,6 +112,7 @@ class PageQLApp:
         self._body_waiters = {}
         self.template_dir = template_dir
         self.quiet = quiet
+        self.log_level = log_level
         self.fallback_app = fallback_app
         self.fallback_url = fallback_url
         self.csrf_protect = csrf_protect
@@ -120,6 +122,10 @@ class PageQLApp:
 
     def _log(self, msg):
         if not self.quiet:
+            print(msg)
+
+    def _debug(self, msg):
+        if not self.quiet and self.log_level == "debug":
             print(msg)
 
     def _error(self, msg):
@@ -282,11 +288,15 @@ class PageQLApp:
     async def _handle_http_disconnect(self, receive, client_id):
         message = await receive()
         if isinstance(message, dict) and message.get("type") == "http.disconnect" and client_id:
-            print(f"http.disconnect: {client_id} render_contexts: {self.render_contexts.keys()}, message: {message}, cleaning up later")
+            self._debug(
+                f"http.disconnect: {client_id} render_contexts: {list(self.render_contexts.keys())}, message: {message}, cleaning up later"
+            )
             async def cleanup_later():
                 await asyncio.sleep(self.http_disconnect_cleanup_timeout)
                 if client_id not in self.websockets:
-                    print(f"cleanup_later: {client_id} not in websockets, removing client_id from render_contexts")
+                    self._debug(
+                        f"cleanup_later: {client_id} not in websockets, removing client_id from render_contexts"
+                    )
                     contexts = self.render_contexts.pop(client_id, [])
                     for ctx in contexts:
                         ctx.send_script = None
@@ -578,7 +588,7 @@ class PageQLApp:
         if scope["type"] == "websocket" and scope["path"] == "/reload-request-ws":
             await self._handle_reload_websocket(scope, receive, send)
         else:
-            print(f"scope: {scope}, calling http_disconnect")
+            self._debug(f"scope: {scope}, calling http_disconnect")
             client_id = await self.pageql_handler(scope, receive, send)
             if client_id is not None:
                 await self._handle_http_disconnect(receive, client_id)

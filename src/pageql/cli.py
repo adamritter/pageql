@@ -84,6 +84,9 @@ def main():
     if args.db_file is None or args.templates_dir is None:
         parser.error("db_file and templates_dir are required")
 
+    if args.quiet:
+        args.log_level = "error"
+
     kwargs = {
         "create_db": args.create,
         "should_reload": not args.no_reload,
@@ -93,15 +96,13 @@ def main():
         "http_disconnect_cleanup_timeout": args.http_disconnect_cleanup_timeout,
     }
     app = PageQLApp(args.db_file, args.templates_dir, **kwargs)
+    app.log_level = args.log_level
 
     if not args.quiet:
         print(f"\nPageQL server running on http://{args.host}:{args.port}")
         print(f"Using database: {args.db_file}")
         print(f"Serving templates from: {args.templates_dir}")
         print("Press Ctrl+C to stop.")
-
-    if args.quiet:
-        args.log_level = "error"
 
     uvicorn.run(app, host=args.host, port=args.port, log_level=args.log_level)
 

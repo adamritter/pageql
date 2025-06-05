@@ -11,7 +11,7 @@ Classes:
 
 # Instructions for LLMs and devs: Keep the code short. Make changes minimal. Don't change even tests too much.
 
-import re, time, sys, json, hashlib, base64
+import re, time, sys, json, hashlib, base64, asyncio
 import doctest
 import sqlite3
 import os
@@ -522,6 +522,24 @@ class PageQL:
         ctx.cookies.append((name, value, attrs))
         return reactive
 
+    def _process_fetch_directive(self, node_content, params, path, includes,
+                                 http_verb, reactive, ctx, out):
+        if self.fetch_cb is None:
+            raise ValueError("fetch callback not set")
+        var, expr = node_content
+        if var.startswith(":"):
+            var = var[1:]
+        var = var.replace(".", "__")
+        url = evalone(self.db, expr, params, reactive, self.tables)
+        if isinstance(url, Signal):
+            url = url.value
+        data = self.fetch_cb(str(url))
+        if asyncio.iscoroutine(data):
+            data = asyncio.run(data)
+        for k, v in flatten_params(data).items():
+            params[f"{var}__{k}"] = v
+        return reactive
+
     def _process_update_directive(self, node_content, params, path, includes,
                                   http_verb, reactive, ctx, out, node_type):
         try:
@@ -902,6 +920,8 @@ class PageQL:
                 return self._process_header_directive(node_content, params, path, includes, http_verb, reactive, ctx, out)
             elif node_type == '#cookie':
                 return self._process_cookie_directive(node_content, params, path, includes, http_verb, reactive, ctx, out)
+            elif node_type == '#fetch':
+                return self._process_fetch_directive(node_content, params, path, includes, http_verb, reactive, ctx, out)
             elif node_type in ('#update', '#insert', '#delete'):
                 return self._process_update_directive(node_content, params, path, includes, http_verb, reactive, ctx, out, node_type)
             elif node_type in ('#create', '#merge'):

@@ -103,13 +103,15 @@ class PageQL:
         dialect: SQL dialect used by the connected database.
     """
 
-    def __init__(self, db_path):
+    def __init__(self, db_path, fetch_cb=None):
         """
         Initializes the PageQL engine instance.
 
         Args:
             db_path: Path to the SQLite database file or database URL.
+            fetch_cb: Optional HTTP fetch callback.
         """
+        self.fetch_cb = fetch_cb
         self._modules = {} # Store parsed node lists here later
         self._parse_errors = {} # Store errors here
         self.tests = {}

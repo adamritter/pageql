@@ -5,6 +5,7 @@ sys.path.insert(0, "src")
 
 from pageql.parser import tokenize, build_ast, ast_param_dependencies
 from pageql.pageql import PageQL
+import sqlite3
 import pytest
 
 
@@ -40,4 +41,20 @@ def test_fetch_directive_missing_cb_errors():
     r.load_module("m", "{{#fetch f from 'u'}}")
     with pytest.raises(ValueError):
         r.render("/m", reactive=False)
+
+
+def test_fetch_commits_before_call(tmp_path):
+    db_file = tmp_path / "db.sqlite"
+
+    def fetch(_url: str):
+        with sqlite3.connect(db_file) as c2:
+            return {"cnt": c2.execute("select count(*) from t").fetchone()[0]}
+
+    r = PageQL(str(db_file), fetch_cb=fetch)
+    r.load_module(
+        "m",
+        """{{#create table t(x int)}}{{#insert into t values (1)}}{{#fetch d from 'x'}}{{d__cnt}}""",
+    )
+    out = r.render("/m", reactive=False).body.strip()
+    assert out == "1"
 

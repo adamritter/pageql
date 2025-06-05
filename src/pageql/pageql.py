@@ -533,6 +533,9 @@ class PageQL:
         url = evalone(self.db, expr, params, reactive, self.tables)
         if isinstance(url, Signal):
             url = url.value
+        # Commit any pending database changes so the fetch callback sees
+        # a consistent view of the database before performing the HTTP request
+        self.db.commit()
         data = self.fetch_cb(str(url))
         if asyncio.iscoroutine(data):
             data = asyncio.run(data)

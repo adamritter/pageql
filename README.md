@@ -116,6 +116,8 @@ pageql -path/to/your/database.sqlite ./templates
     *   **Access:** The validated (and potentially defaulted) parameter value is made available as `:<name>`. Direct access via `:<name>` without this tag bypasses validation and defaults.
     *   Dots in `<name>` are converted to `__` when the parameter is looked up, so `#param cookies.session` binds the value of `cookies__session`.
 
+*   `#fetch <var> from <url_expression>`: Fetches an external URL using a callback provided to `PageQL` and exposes the result as `<var>.body` and `<var>.status_code`.
+
 **Flow Control:**
 
 *   `#if <expression>`: Conditional rendering based on an expression.

@@ -36,11 +36,35 @@ def test_fetch_directive_render():
     assert seen == ["http://x"]
 
 
-def test_fetch_directive_missing_cb_errors():
-    r = PageQL(":memory:")
-    r.load_module("m", "{{#fetch f from 'u'}}")
-    with pytest.raises(ValueError):
-        r.render("/m", reactive=False)
+def test_fetch_directive_defaults_to_http_get():
+    import http.server, threading
+
+    class Handler(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):
+            body = b"hi"
+            self.send_response(200)
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, *args):
+            pass
+
+    server = http.server.HTTPServer(("127.0.0.1", 0), Handler)
+    port = server.server_address[1]
+    t = threading.Thread(target=server.serve_forever)
+    t.start()
+    try:
+        r = PageQL(":memory:")
+        r.load_module(
+            "m",
+            "{{#fetch d from 'http://127.0.0.1:' || :port}}{{d__status}} {{d__body}}",
+        )
+        out = r.render("/m", {"port": port}, reactive=False).body.strip()
+        assert out == "200 hi"
+    finally:
+        server.shutdown()
+        t.join()
 
 
 def test_fetch_commits_before_call(tmp_path):

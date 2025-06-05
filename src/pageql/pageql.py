@@ -45,6 +45,7 @@ from pageql.database import (
     evalone,
 )
 from pageql.params import handle_param
+from pageql.http_utils import http_get_map
 import sqlglot
 
 
@@ -109,9 +110,10 @@ class PageQL:
 
         Args:
             db_path: Path to the SQLite database file or database URL.
-            fetch_cb: Optional HTTP fetch callback.
+            fetch_cb: Optional HTTP fetch callback. Defaults to an async
+                HTTP GET using :func:`pageql.http_utils.http_get_map`.
         """
-        self.fetch_cb = fetch_cb
+        self.fetch_cb = fetch_cb or http_get_map
         self._modules = {} # Store parsed node lists here later
         self._parse_errors = {} # Store errors here
         self.tests = {}

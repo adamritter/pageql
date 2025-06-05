@@ -97,7 +97,6 @@ class PageQLApp:
         fallback_url: Optional[str] = None,
         csrf_protect: bool = True,
         http_disconnect_cleanup_timeout: float = 0.1,
-        fetch_cb: Optional[Callable[[str], Awaitable[tuple[int, list[tuple[bytes, bytes]], bytes]]]] = None,
     ):
         self.stop_event = None
         self.notifies = []
@@ -116,7 +115,6 @@ class PageQLApp:
         self.fallback_url = fallback_url
         self.csrf_protect = csrf_protect
         self.http_disconnect_cleanup_timeout = http_disconnect_cleanup_timeout
-        self.fetch_cb = fetch_cb or _http_get
         self.load_builtin_static()
         self.prepare_server(db_path, template_dir, create_db)
 

@@ -5,7 +5,14 @@ import re
 from urllib.parse import urlparse, parse_qs
 from typing import Dict, List, Tuple, Callable, Awaitable
 
-__all__ = ["_http_get", "_parse_multipart_data", "_read_chunked_body", "_parse_cookies", "_parse_form_data"]
+__all__ = [
+    "_http_get",
+    "http_get_map",
+    "_parse_multipart_data",
+    "_read_chunked_body",
+    "_parse_cookies",
+    "_parse_form_data",
+]
 
 
 async def _read_chunked_body(reader: asyncio.StreamReader) -> bytes:
@@ -151,6 +158,16 @@ async def _http_get(url: str) -> Tuple[int, List[Tuple[bytes, bytes]], bytes]:
     writer.close()
     await writer.wait_closed()
     return status, headers, body
+
+
+async def http_get_map(url: str) -> Dict[str, object]:
+    """Return a mapping with ``status``, ``headers`` and decoded ``body``."""
+    status, headers, body = await _http_get(url)
+    try:
+        body = body.decode("utf-8")
+    except Exception:
+        pass
+    return {"status": status, "headers": headers, "body": body}
 
 
 def _parse_cookies(cookie_header: str) -> Dict[str, str]:

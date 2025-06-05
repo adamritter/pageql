@@ -77,6 +77,7 @@ DIRECTIVE_HELP: dict[str, str] = {
     "#header <name> <expr>": "add an HTTP response header",
     "#cookie <name> <expr> [opts]": "set an HTTP cookie",
     "#update <table> set <expr> where <cond>": "execute an SQL UPDATE",
+    "#fetch <var> from <url>": "fetch a remote URL into a variable",
 }
 
 def format_unknown_directive(directive: str) -> str:

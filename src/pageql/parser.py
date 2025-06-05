@@ -192,6 +192,17 @@ def _read_block(node_list, i, stop, partials, dialect, tests=None):
             body.append(("#let", (var, sql, expr)))
             continue
 
+        if ntype == "#fetch":
+            var, rest = parsefirstword(ncontent)
+            if rest is None:
+                raise SyntaxError("#fetch requires a variable and expression")
+            first, expr = parsefirstword(rest)
+            if first.lower() != "from" or expr is None:
+                raise SyntaxError("#fetch syntax is '<var> from <expr>'")
+            i += 1
+            body.append(("#fetch", (var, expr)))
+            continue
+
         # -------------------------------------------------------- #partial ...
         if ntype == "#partial":
             part_terms = {"/partial"}
@@ -409,6 +420,8 @@ def ast_param_dependencies(ast):
                 deps.update(get_dependencies(_convert_dot_sql(c[1])))
             elif t in {"#update", "#insert", "#delete", "#merge", "#create", "#redirect", "#statuscode", "#error"}:
                 deps.update(get_dependencies(_convert_dot_sql(c)))
+            elif t == "#fetch":
+                deps.update(get_dependencies(_convert_dot_sql(c[1])))
             elif t == "#header":
                 _, rest = parsefirstword(c)
                 if rest:

@@ -30,11 +30,21 @@ async def _read_chunked_body(reader: asyncio.StreamReader) -> bytes:
     return b"".join(chunks)
 
 
-async def fetch(host: str, port: int, path: str, *, return_body: bool = False):
+async def fetch(
+    host: str,
+    port: int,
+    path: str,
+    *,
+    return_body: bool = False,
+    headers: dict[str, str] | None = None,
+):
     reader, writer = await asyncio.open_connection(host, port)
+    headers = headers or {}
+    header_lines = "".join(f"{k}: {v}\r\n" for k, v in headers.items())
     request = (
         f"GET {path} HTTP/1.1\r\n"
         f"Host: {host}\r\n"
+        f"{header_lines}"
         "Connection: keep-alive\r\n"
         "\r\n"
     )
@@ -65,14 +75,25 @@ async def fetch(host: str, port: int, path: str, *, return_body: bool = False):
     return reader, writer, body
 
 
-async def post(host: str, port: int, path: str, data: str, *, return_body: bool = False):
+async def post(
+    host: str,
+    port: int,
+    path: str,
+    data: str,
+    *,
+    return_body: bool = False,
+    headers: dict[str, str] | None = None,
+):
     reader, writer = await asyncio.open_connection(host, port)
     body_bytes = data.encode()
+    headers = headers or {}
+    header_lines = "".join(f"{k}: {v}\r\n" for k, v in headers.items())
     request = (
         f"POST {path} HTTP/1.1\r\n"
         f"Host: {host}\r\n"
         "Content-Type: application/x-www-form-urlencoded\r\n"
         f"Content-Length: {len(body_bytes)}\r\n"
+        f"{header_lines}"
         "Connection: keep-alive\r\n"
         "\r\n"
     )
@@ -124,6 +145,7 @@ async def run_benchmark() -> None:
     connections = []
     websocket_connections = []
 
+    client_id = None
     reader, writer, body = await fetch("127.0.0.1", port, "/todos", return_body=True)
     connections.append((reader, writer))
 
@@ -161,7 +183,13 @@ async def run_benchmark() -> None:
     start = time.perf_counter()
     post_tasks = [
         asyncio.create_task(
-            post("127.0.0.1", port, "/todos/add", f"text=bench{i}")
+            post(
+                "127.0.0.1",
+                port,
+                "/todos/add",
+                f"text=bench{i}",
+                headers={"ClientId": client_id} if client_id else None,
+            )
         )
         for i in range(TODO_COUNT)
     ]

@@ -493,6 +493,8 @@
     <li>Deliberately break the SQL inside <code>clear_completed</code> (e.g., change the table name to <code>todoz</code>) and test again ➜ all rows survive; the error page shows the failed query, proving rollback.</li>
   </ol>
 
+  <p><em>Tip: Try with two tabs open. After you submit a form or toggle items, the other tab updates automatically without refresh. This works with no additional code because the queries in <code>todos.pageql</code> are reactive.</em></p>
+
   <!-- 5 -->
   <h2>5 Under the hood: request transaction timeline</h2>
 

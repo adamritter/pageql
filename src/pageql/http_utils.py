@@ -169,13 +169,13 @@ async def _http_get(
 
 
 async def fetch(url: str) -> Dict[str, object]:
-    """Return a mapping with ``status``, ``headers`` and decoded ``body``."""
+    """Return a mapping with ``status_code``, ``headers`` and decoded ``body``."""
     status, headers, body = await _http_get(url)
     try:
         body = body.decode("utf-8")
     except Exception:
         pass
-    return {"status": status, "headers": headers, "body": body}
+    return {"status_code": status, "headers": headers, "body": body}
 
 
 def fetch_sync(url: str) -> Dict[str, object]:
@@ -190,7 +190,7 @@ def fetch_sync(url: str) -> Dict[str, object]:
         body = body_bytes.decode("utf-8")
     except Exception:
         body = body_bytes
-    return {"status": status, "headers": headers, "body": body}
+    return {"status_code": status, "headers": headers, "body": body}
 
 
 def _parse_cookies(cookie_header: str) -> Dict[str, str]:

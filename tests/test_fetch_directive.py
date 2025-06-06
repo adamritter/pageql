@@ -64,7 +64,7 @@ def test_fetch_directive_defaults_to_http_get():
         r = PageQL(":memory:")
         r.load_module(
             "m",
-            "{{#fetch d from 'http://127.0.0.1:' || :port}}{{d__status}} {{d__body}}",
+            "{{#fetch d from 'http://127.0.0.1:' || :port}}{{d__status_code}} {{d__body}}",
         )
         out = r.render("/m", {"port": port}, reactive=False).body.strip()
         assert out == "200 hi"

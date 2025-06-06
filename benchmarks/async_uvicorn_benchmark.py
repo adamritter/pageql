@@ -37,31 +37,8 @@ async def run_benchmark() -> None:
     assert server.servers and server.servers[0].sockets
     port = server.servers[0].sockets[0].getsockname()[1]
 
-    async def post_todo(text: str, cid: str | None) -> tuple[asyncio.StreamReader, asyncio.StreamWriter]:
-        reader, writer = await asyncio.open_connection("127.0.0.1", port)
-        headers = {"ClientId": cid} if cid else {}
-        body_bytes = text.encode()
-        headers.setdefault("Content-Type", "application/x-www-form-urlencoded")
-        headers.setdefault("Content-Length", str(len(body_bytes)))
-        header_lines = "".join(f"{k}: {v}\r\n" for k, v in headers.items())
-        request = (
-            "POST /todos/add HTTP/1.1\r\n"
-            "Host: 127.0.0.1\r\n"
-            f"{header_lines}"
-            "Connection: keep-alive\r\n"
-            "\r\n"
-        )
-        writer.write(request.encode() + body_bytes)
-        await writer.drain()
-        await reader.readline()  # status line
-        while True:
-            line = await reader.readline()
-            if line == b"\r\n":
-                break
-        return reader, writer
 
     # warmup and extract client id
-    connections = []
     websocket_connections = []
 
     client_id = None
@@ -103,12 +80,22 @@ async def run_benchmark() -> None:
     # insert multiple todos concurrently and wait for websocket updates
     start = time.perf_counter()
     post_tasks = [
-        asyncio.create_task(post_todo(f"text=bench{i}", client_id))
+        asyncio.create_task(
+            _http_get(
+                f"http://127.0.0.1:{port}/todos/add",
+                method="POST",
+                headers={
+                    "ClientId": client_id,
+                    "Content-Type": "application/x-www-form-urlencoded",
+                }
+                if client_id
+                else {"Content-Type": "application/x-www-form-urlencoded"},
+                body=f"text=bench{i}".encode(),
+            )
+        )
         for i in range(TODO_COUNT)
     ]
-    results = await asyncio.gather(*post_tasks)
-    for r, w in results:
-        connections.append((r, w))
+    await asyncio.gather(*post_tasks)
 
     recvs = 0
     async def drain_ws(ws):
@@ -126,13 +113,6 @@ async def run_benchmark() -> None:
 
     server.should_exit = True
     await server_task
-
-    for r, w in connections:
-        w.close()
-        try:
-            await w.wait_closed()
-        except Exception:
-            pass
 
     for ws in websocket_connections:
         try:

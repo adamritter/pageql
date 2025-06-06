@@ -409,3 +409,11 @@ async def before_handler(params):
 ```
 
 The returned dictionary is merged into the template namespace.
+
+PageQLApp also exposes several helper SQLite functions automatically when it
+starts:
+
+* `base64_encode(blob)` - encode binary values as a Base64 string
+* `base64_decode(text)` - decode a Base64 string back into text
+* `jws_serialize_compact(payload)` - sign a payload using JSON Web Signature
+* `jws_deserialize_compact(token)` - extract the payload from a JWS token

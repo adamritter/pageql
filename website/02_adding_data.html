@@ -471,6 +471,8 @@
     <li>Add a blank item—notice how validation blocks it with an error page.</li>
   </ol>
 
+  <p>You can observe the incoming update messages in the browser’s network inspector under the <em>WS</em> tab.</p>
+
   <p><em>(Validation errors return a plain‑text stack trace in dev mode; there's no production mode yet.)</em></p>
 
   <h2>5 Recap</h2>
@@ -479,6 +481,7 @@
     <li><strong>Public partials = endpoints.</strong> They keep GET pages slim by moving mutations out.</li>
     <li><strong><code>#insert</code> is SQL, not magic.</strong> Every column and param is explicit and bound.</li>
     <li><strong>hx-post</strong> triggers AJAX submissions and the list updates automatically.</li>
+    <li>The dev server pushes changes over a <strong>WebSocket</strong>. Open the Network tab in your browser’s inspector and watch the <em>WS</em> frames appear.</li>
   </ul>
 
   <div style="display: flex; justify-content: space-between; align-items: center;">

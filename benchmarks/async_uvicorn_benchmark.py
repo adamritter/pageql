@@ -121,6 +121,45 @@ async def run_benchmark() -> None:
             pass
 
 
+async def run_fetch_only_benchmark() -> None:
+    """Start the server and fetch the todos page concurrently."""
+    templates_dir = Path(__file__).resolve().parents[1] / "website"
+    app = PageQLApp(
+        ":memory:",
+        str(templates_dir),
+        create_db=True,
+        should_reload=True,
+        quiet=True,
+    )
+    config = Config(app, host="127.0.0.1", port=0, log_level="warning")
+    server = Server(config)
+
+    server_task = asyncio.create_task(server.serve())
+    while not server.started:
+        await asyncio.sleep(0.05)
+    assert server.servers and server.servers[0].sockets
+    port = server.servers[0].sockets[0].getsockname()[1]
+
+    await _http_get(f"http://127.0.0.1:{port}/todos")
+
+    start = time.perf_counter()
+    tasks = [
+        asyncio.create_task(
+            _http_get(f"http://127.0.0.1:{port}/todos")
+        )
+        for _ in range(REQUEST_ITERATIONS)
+    ]
+    results = await asyncio.gather(*tasks)
+    elapsed = time.perf_counter() - start
+    print(f"Gather fetch {REQUEST_ITERATIONS/elapsed:.0f} QPS")
+
+    server.should_exit = True
+    await server_task
+
+    return results
+
+
 if __name__ == "__main__":
+    asyncio.run(run_fetch_only_benchmark())
     asyncio.run(run_benchmark())
 

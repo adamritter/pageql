@@ -65,7 +65,7 @@ To maintain focus and simplicity, several design choices have been made:
 PageQL is intended to be run via a command-line tool. The basic usage involves pointing the tool at a directory of `.pageql` files and specifying the SQLite database or a database URL to use.
 
 ```bash
-pageql -path/to/your/database.sqlite ./templates
+pageql path/to/your/database.sqlite ./templates
 ```
 
 *   `<database>`: (Required) Path to the SQLite database file or a PostgreSQL/MySQL connection URL.
@@ -77,6 +77,10 @@ pageql -path/to/your/database.sqlite ./templates
 *   `--test`: (Optional) Run template tests and exit instead of serving.
 *   `--http-disconnect-cleanup-timeout <seconds>`: (Optional) Delay before cleaning up HTTP disconnect contexts.
 *   `--profile`: (Optional) Profile the server using `cProfile` and print statistics when it stops.
+*   `--host <address>`: (Optional) Host interface to bind.
+*   `--no-reload`: (Optional) Disable template auto-reloading.
+*   `--create`: (Optional) Create SQLite DB if missing.
+*   `--log-level <level>`: (Optional) Set log verbosity.
 *   PageQL automatically configures new SQLite databases with write-ahead logging
     and an increased cache for better concurrency.
 *   When a PostgreSQL or MySQL URL is provided, `--create` is ignored and the

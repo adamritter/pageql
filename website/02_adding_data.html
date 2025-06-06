@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PageQL Tutorial – Adding Data (POST + redirectt)</title>
+  <title>PageQL Tutorial – Adding Data (live updates)</title>
 
   <!-- Google Font for pleasant typography -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -378,9 +378,9 @@
     </a>
   </div>
 
-  <h1>Adding Data <small>(POST + redirect)</small></h1>
+  <h1>Adding Data <small>(reactive)</small></h1>
 
-  <p><strong>Goal:</strong> Let visitors add new Todos through an HTML form. You'll meet <code>#partial public</code>, <code>#param</code>, <code>#insert</code>, and <code>#redirect</code>—the minimum write path.</p>
+  <p><strong>Goal:</strong> Let visitors add new Todos through an HTML form. You'll meet <code>#partial public</code>, <code>#param</code>, and <code>#insert</code>—the minimum write path. <code>hx-post</code> handles the submission.</p>
 
   <blockquote>
     <p><em>Estimated time: 15 minutes.</em></p>
@@ -391,30 +391,27 @@
   <h2>1 What we're building</h2>
   <ul>
     <li><strong>Before:</strong> <code>/todos</code> shows a read‑only list (Part 1).</li>
-    <li><strong>After:</strong> Typing in an input box creates a row in the <code>todos</code> table and the browser reloads the list.</li>
+    <li><strong>After:</strong> Typing in an input box creates a row in the <code>todos</code> table and it appears instantly.</li>
   </ul>
 
   <h2>2 Extend <em>templates/todos.pageql</em></h2>
   <p>Add the lines <strong>after the <code>&lt;h1&gt;...&lt;/h1&gt;</code></strong> and <strong>append a new public partial</strong> at the top of the file.</p>
 
   <pre class="code-block"><code class="language-diff"> <span class="comment">&lt;!-- Add the following lines after &lt;h1&gt;Todos&lt;/h1&gt; --&gt;</span>
-  &lt;<span class="keyword">form</span> <span class="attribute">method</span>=<span class="string">"POST"</span> <span class="attribute">action</span>=<span class="string">"/todos/add"</span>&gt;
-    &lt;<span class="keyword">input</span> <span class="attribute">name</span>=<span class="string">"text"</span> <span class="attribute">placeholder</span>=<span class="string">"What needs to be done?"</span> <span class="attribute">autofocus</span>&gt;
-  &lt;/<span class="keyword">form</span>&gt;</code>
-<div class="clean-code">&lt;form method="POST" action="/todos/add"&gt;
-  &lt;input name="text" placeholder="What needs to be done?" autofocus&gt;
-&lt;/form&gt;</div></pre>
+  &lt;<span class="keyword">input</span> <span class="attribute">name</span>=<span class="string">"text"</span> <span class="attribute">placeholder</span>=<span class="string">"What needs to be done?"</span> <span class="attribute">autofocus</span> <span class="attribute">autocomplete</span>=<span class="string">"off"</span>
+    <span class="attribute">hx-post</span>=<span class="string">"/todos/add"</span> <span class="attribute">hx-trigger</span>=<span class="string">"keyup[key=='Enter']"</span>
+    <span class="attribute">hx-on:htmx:after-on-load</span>=<span class="string">"this.value=''"</span>&gt;</code>
+<div class="clean-code">&lt;input name="text" placeholder="What needs to be done?" autofocus autocomplete="off"
+  hx-post="/todos/add" hx-trigger="keyup[key=='Enter']" hx-on:htmx:after-on-load="this.value=''"&gt;</div></pre>
 
   <pre class="code-block"><span class="comment">&lt;!-- Add this partial at the top of the file --&gt;</span>
 &#123;&#123;<span class="keyword">#partial</span> <span class="attribute">POST</span> <span class="function">add</span>&#125;&#125;
   &#123;&#123;<span class="keyword">#param</span> <span class="variable">text</span> <span class="attribute">required minlength</span>=1&#125;&#125;
   &#123;&#123;<span class="keyword">#insert</span> <span class="keyword">into</span> todos(text, completed) <span class="keyword">values</span> (:<span class="variable">text</span>, 0)&#125;&#125;
-  &#123;&#123;<span class="keyword">#redirect</span> <span class="string">'/todos'</span>&#125;&#125;
 &#123;&#123;/<span class="keyword">partial</span>&#125;&#125;</code>
 <div class="clean-code">&#123;&#123;#partial POST add&#125;&#125;
   &#123;&#123;#param text required minlength=1&#125;&#125;
   &#123;&#123;#insert into todos(text, completed) values (:text, 0)&#125;&#125;
-  &#123;&#123;#redirect '/todos'&#125;&#125;
 &#123;&#123;/partial&#125;&#125;</div></pre>
 
   <p>Save the file—your dev server is still running from Part 1 and reloads the page automatically.</p>
@@ -430,8 +427,8 @@
     </thead>
     <tbody>
       <tr>
-        <td><code>&lt;form … action="/todos/add"&gt;</code></td>
-        <td>Sends a <strong>POST</strong> request to the auto‑generated route of our public partial.</td>
+        <td><code>&lt;input hx-post="/todos/add" …&gt;</code></td>
+        <td>Sends an AJAX <strong>POST</strong> to the <code>add</code> partial when you press Enter.</td>
       </tr>
       <tr>
         <td><code><span class="keyword">#partial</span> <span class="attribute">public</span> <span class="function">add</span></code></td>
@@ -449,24 +446,19 @@
         <td><code><a href="https://www.sqlite.org/lang_insert.html" target="_blank" rel="noopener" style="color: var(--code-text);"><span class="keyword">#insert</span> <span class="keyword">into</span></a></code></td>
         <td>Executes <code><a href="https://www.sqlite.org/lang_insert.html" target="_blank" rel="noopener">INSERT INTO</a> todos …</code> safely with bound params.</td>
       </tr>
-      <tr>
-        <td><code><span class="keyword">#redirect</span> <span class="string">'/todos'</span></code></td>
-        <td>Finishes the request by returning <strong>302</strong> + <code>Location: /todos</code>, so the browser issues a GET and the list re‑renders.</td>
-      </tr>
     </tbody>
   </table>
 
   <h3>3.1 Request cycle in 3 steps</h3>
 
   <ol>
-    <li><strong>Browser:</strong> POST <code>/todos/add</code>  ⇢  body <code>{text="learn PageQL"}</code></li>
-    <li><strong>Server:</strong> partial <code>add</code> validates → inserts → responds <strong>302</strong> <code>Location: /todos</code></li>
-    <li><strong>Browser:</strong> automatically GETs <code>/todos</code> → template reruns, <code>#from</code> picks up the new row.</li>
+    <li><strong>Browser:</strong> hx-post <code>/todos/add</code> ⇢ body <code>{text="learn PageQL"}</code></li>
+    <li><strong>Server:</strong> partial <code>add</code> validates → inserts → list updates automatically.</li>
   </ol>
 
   <p>
     <div style="text-align: center; padding: 10px; font-family: monospace; font-size: 18px;">
-      POST /todos/add &nbsp;→&nbsp; 302 Redirect &nbsp;→&nbsp; GET /todos
+      POST /todos/add &nbsp;→&nbsp; UI updates automatically
     </div>
   </p>
 
@@ -475,7 +467,7 @@
   <ol>
     <li>Open <a href="http://localhost:8000/todos">http://localhost:8000/todos</a></li>
     <li>Type "Feed the cat" → <strong>Enter</strong>.</li>
-    <li>Page reloads showing your brand‑new item.</li>
+    <li>Your new item appears instantly without reloading.</li>
     <li>Add a blank item—notice how validation blocks it with an error page.</li>
   </ol>
 
@@ -486,7 +478,7 @@
   <ul>
     <li><strong>Public partials = endpoints.</strong> They keep GET pages slim by moving mutations out.</li>
     <li><strong><code>#insert</code> is SQL, not magic.</strong> Every column and param is explicit and bound.</li>
-    <li>The <strong>POST‑Redirect‑GET</strong> pattern prevents duplicate submissions on refresh.</li>
+    <li><strong>hx-post</strong> triggers AJAX submissions and the list updates automatically.</li>
   </ul>
 
   <div style="display: flex; justify-content: space-between; align-items: center;">

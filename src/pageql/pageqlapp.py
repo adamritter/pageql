@@ -359,7 +359,7 @@ class PageQLApp:
             if path in self.before_hooks:
                 self._log(f"Before hook for {path}")
                 await self.before_hooks[path](params)
-            result = self.pageql_engine.render(
+            result = await self.pageql_engine.render_async(
                 path_cleaned,
                 params,
                 None,

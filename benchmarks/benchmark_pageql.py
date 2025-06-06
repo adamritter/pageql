@@ -157,7 +157,6 @@ async def run_benchmarks_parallel(db_path: str) -> None:
         print(f"{k:20s}: {(v/ITERATIONS)*1000:.4f}ms")
 
 if __name__ == '__main__':
-    asyncio.run(run_benchmarks(':memory:'))
     with tempfile.TemporaryDirectory() as tmp:
         path = os.path.join(tmp, 'bench.db')
         asyncio.run(run_benchmarks(path))

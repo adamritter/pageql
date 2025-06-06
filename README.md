@@ -12,8 +12,7 @@ Install: pip install pageql  # uvicorn[standard] is installed automatically
 
 Basic performance tests can be executed using the standalone script in
 `benchmarks/benchmark_pageql.py`.  The script exercises 20 different
-rendering features of PageQL with both an in-memory SQLite database and
-a temporary file based database.
+rendering features of PageQL using a temporary file based SQLite database.
 
 Run it with the repository's `src` directory on the Python path so that the
 `pageql` package can be imported:

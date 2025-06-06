@@ -1103,6 +1103,27 @@ class PageQL:
         _ONEVENT_CACHE.clear()
         return result
 
+    async def render_async(
+        self,
+        path,
+        params={},
+        partial=None,
+        http_verb=None,
+        in_render_directive=False,
+        reactive=True,
+        ctx=None,
+    ):
+        """Asynchronous wrapper around :meth:`render`."""
+        return self.render(
+            path,
+            params,
+            partial,
+            http_verb,
+            in_render_directive,
+            reactive,
+            ctx,
+        )
+
 # Example of how to run the examples if this file is executed
 if __name__ == '__main__':
     # add current directory to sys.path

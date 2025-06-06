@@ -97,7 +97,7 @@ class PageQLApp:
         fallback_app=None,
         fallback_url: Optional[str] = None,
         csrf_protect: bool = True,
-        http_disconnect_cleanup_timeout: float = 0.1,
+        http_disconnect_cleanup_timeout: float = 10.0,
     ):
         self.stop_event = None
         self.notifies = []

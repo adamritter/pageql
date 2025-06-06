@@ -7,6 +7,7 @@ from pageql.parser import tokenize, build_ast, ast_param_dependencies
 from pageql.pageql import PageQL
 import sqlite3
 import pytest
+import asyncio
 
 
 def test_fetch_directive_parsed():
@@ -60,7 +61,13 @@ def test_fetch_directive_defaults_to_http_get():
             "m",
             "{{#fetch d from 'http://127.0.0.1:' || :port}}{{d__status}} {{d__body}}",
         )
-        out = r.render("/m", {"port": port}, reactive=False).body.strip()
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            out = r.render("/m", {"port": port}, reactive=False).body.strip()
+        finally:
+            asyncio.set_event_loop(None)
+            loop.close()
         assert out == "200 hi"
     finally:
         server.shutdown()
@@ -81,4 +88,14 @@ def test_fetch_commits_before_call(tmp_path):
     )
     out = r.render("/m", reactive=False).body.strip()
     assert out == "1"
+
+
+def test_fetch_requires_event_loop_for_async_cb():
+    async def fetch(_url: str):
+        return {"x": 1}
+
+    r = PageQL(":memory:", fetch_cb=fetch)
+    r.load_module("m", "{{#fetch d from 'x'}}{{d__x}}")
+    with pytest.raises(RuntimeError):
+        r.render("/m", reactive=False)
 

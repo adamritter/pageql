@@ -542,16 +542,12 @@ class PageQL:
         if asyncio.iscoroutine(data):
             try:
                 loop = asyncio.get_event_loop()
-            except RuntimeError:
-                loop = asyncio.new_event_loop()
-                try:
-                    asyncio.set_event_loop(loop)
-                    data = loop.run_until_complete(data)
-                finally:
-                    asyncio.set_event_loop(None)
-                    loop.close()
-            else:
-                data = loop.run_until_complete(data)
+            except RuntimeError as e:
+                data.close()
+                raise RuntimeError(
+                    "#fetch requires an active asyncio event loop"
+                ) from e
+            data = loop.run_until_complete(data)
         for k, v in flatten_params(data).items():
             params[f"{var}__{k}"] = v
         return reactive

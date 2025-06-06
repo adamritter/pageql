@@ -131,8 +131,52 @@ def run_benchmarks(db_path):
     for k, v in results.items():
         print(f"{k:20s}: {(v/ITERATIONS)*1000:.4f}ms")
 
+
+async def _run_scenario_parallel(name: str, db_path: str) -> float:
+    """Execute one benchmark scenario in parallel and return elapsed time."""
+
+    def _prepare_pql() -> PageQL:
+        pql = PageQL(db_path, fetch_cb=_fetch)
+        reset_items(pql.db)
+        for m, src in MODULES.items():
+            if m != 'other' and m != name:
+                continue
+            pql.load_module(m, src)
+        return pql
+
+    async def _call_once() -> None:
+        pql = _prepare_pql()
+        bench = bench_factory(name)
+        try:
+            await asyncio.to_thread(bench, pql)
+        finally:
+            pql.db.close()
+
+    tasks = [asyncio.create_task(_call_once()) for _ in range(ITERATIONS)]
+    start = time.perf_counter()
+    await asyncio.gather(*tasks)
+    return time.perf_counter() - start
+
+
+def run_benchmarks_parallel(db_path: str) -> None:
+    """Run all benchmarks in parallel for each scenario."""
+    global FETCH_PORT, SLOW_FETCH
+    loop, server, port, thread = _start_server()
+    FETCH_PORT = port
+    print(f"Running parallel benchmarks for {db_path} ...")
+    results = {}
+    for name, _ in SCENARIOS:
+        SLOW_FETCH = name == 's21_slow_fetch'
+        elapsed = asyncio.run(_run_scenario_parallel(name, db_path))
+        results[name] = elapsed
+    _stop_server(loop, server, thread)
+    for k, v in results.items():
+        print(f"{k:20s}: {(v/ITERATIONS)*1000:.4f}ms")
+
 if __name__ == '__main__':
     run_benchmarks(':memory:')
     with tempfile.TemporaryDirectory() as tmp:
         path = os.path.join(tmp, 'bench.db')
         run_benchmarks(path)
+    print("\nParallel version:\n")
+    run_benchmarks_parallel(':memory:')

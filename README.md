@@ -15,8 +15,11 @@ Basic performance tests can be executed using the standalone script in
 rendering features of PageQL with both an in-memory SQLite database and
 a temporary file based database.
 
+Run it with the repository's `src` directory on the Python path so that the
+`pageql` package can be imported:
+
 ```bash
-python benchmarks/benchmark_pageql.py
+PYTHONPATH=src python benchmarks/benchmark_pageql.py
 ```
 
 ## Core Philosophy

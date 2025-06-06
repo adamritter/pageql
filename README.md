@@ -391,3 +391,16 @@ Generally, you can use standard SQL expressions supported by your database, such
 </body>
 </html>
 ```
+
+## Integration & Extensibility
+
+PageQL applications can register hooks that run before or after a template is rendered. Use `@app.before('/path')` to modify parameters before rendering.
+
+```python
+@app.before('/path')
+async def before_handler(params):
+    params['title'] = 'Custom Title'
+    return params
+```
+
+The returned dictionary is merged into the template namespace.

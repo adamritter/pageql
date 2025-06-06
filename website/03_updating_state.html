@@ -426,20 +426,13 @@
   <h3>2.2 Toggle checkbox inside the list</h3>
   <pre class="code-block"><code class="language-diff">
 &lt;<span class="keyword">li</span> &#123;&#123;<span class="keyword">#if</span> completed&#125;&#125;<span class="attribute">class</span>=<span class="string">"completed"</span>&#123;&#123;/<span class="keyword">if</span>&#125;&#125;&gt;
-  &lt;<span class="keyword">form</span> <span class="attribute">method</span>=<span class="string">"POST"</span> <span class="attribute">action</span>=<span class="string">"/todos/{{id}}/toggle"</span> <span class="attribute">style</span>=<span class="string">"display:inline"</span>&gt;
-    &lt;<span class="keyword">input</span> <span class="attribute">class</span>=<span class="string">"toggle"</span> <span class="attribute">type</span>=<span class="string">"checkbox"</span>
-           &#123;&#123;<span class="keyword">#if</span> completed&#125;&#125;checked&#123;&#123;/<span class="keyword">if</span>&#125;&#125;
-           <span class="attribute">onchange</span>=<span class="string">"this.form.submit();"</span>&gt;
-  &lt;/<span class="keyword">form</span>&gt;
-  &lt;<span class="keyword">label</span> <span class="attribute">ondblclick</span>=<span class="string">"window.location='/todos?edit_id=&#123;&#123;id&#125;&#125;'"</span>&gt;&#123;&#123;text&#125;&#125;&lt;/<span class="keyword">label</span>&gt;
+&lt;<span class="keyword">input</span> <span class="attribute">hx-post</span>=<span class="string">"/todos/{{id}}/toggle"</span> <span class="attribute">class</span>=<span class="string">"toggle"</span> <span class="attribute">type</span>=<span class="string">"checkbox"</span>
+           &#123;&#123;<span class="keyword">#if</span> completed&#125;&#125;checked&#123;&#123;/<span class="keyword">if</span>&#125;&#125;&gt;
+  &lt;<span class="keyword">label</span> <span class="attribute">hx-get</span>=<span class="string">"/?edit_id=&#123;&#123;id&#125;&#125;"</span>&gt;&#123;&#123;text&#125;&#125;&lt;/<span class="keyword">label</span>&gt;
 &lt;/<span class="keyword">li</span>&gt;
 </code><div class="clean-code">&lt;li {{#if completed}}class="completed"{{/if}}&gt;
-  &lt;form method="POST" action="/todos/{{id}}/toggle" style="display:inline"&gt;
-    &lt;input type="hidden" name="id" value="{{id}}"&gt;
-    &lt;input class="toggle" type="checkbox" {{#if completed}}checked{{/if}}
-           onchange="this.form.submit();"&gt;
-  &lt;/form&gt;
-  &lt;label ondblclick="window.location='/todos?edit_id={{id}}'"&gt;{{text}}&lt;/label&gt;
+  &lt;input hx-post="/todos/{{id}}/toggle" class="toggle" type="checkbox" {{#if completed}}checked{{/if}}&gt;
+  &lt;label hx-get="/?edit_id={{id}}"&gt;{{text}}&lt;/label&gt;
 &lt;/li&gt;</div></pre>
 
   <p>This markup creates a list item for each todo with a checkbox for toggling completion status. Note how PageQL conditional syntax <code>#if completed</code> is used twice:</p>
@@ -448,13 +441,13 @@
     <li>To check the checkbox for completed todos</li>
   </ol>
   <p>In simple variable cases like <code>{{#if completed}}</code>, PageQL allows omitting the colon prefix. Inside the <code>#from</code> loop (not shown here), <code>completed</code>, <code>id</code>, and <code>text</code> become available as variables from the query results.</p>
-  <p>The <code>ondblclick</code> handler redirects to the same page with an <code>edit_id</code> parameter, triggering edit mode.</p>
+  <p>The <code>hx-get</code> attribute loads the same page with an <code>edit_id</code> parameter, triggering edit mode.</p>
 
   <h3>2.3 Edit mode (conditional)</h3>
   <pre class="code-block"><code class="language-diff">
 &#123;&#123;<span class="keyword">#if</span> :<span class="variable">edit_id</span> == :<span class="variable">id</span>&#125;&#125;
   &lt;<span class="keyword">li</span> <span class="attribute">class</span>=<span class="string">"editing"</span>&gt;
-    &lt;<span class="keyword">form</span> <span class="attribute">method</span>=<span class="string">"POST"</span> <span class="attribute">action</span>=<span class="string">"/todos/save"</span> <span class="attribute">style</span>=<span class="string">"margin:0"</span>&gt;
+    &lt;<span class="keyword">form</span> <span class="attribute">hx-post</span>=<span class="string">"/todos/save"</span> <span class="attribute">style</span>=<span class="string">"margin:0"</span>&gt;
       &lt;<span class="keyword">input</span> <span class="attribute">type</span>=<span class="string">"hidden"</span> <span class="attribute">name</span>=<span class="string">"id"</span> <span class="attribute">value</span>=<span class="string">"&#123;&#123;id&#125;&#125;"</span>&gt;
       &lt;<span class="keyword">input</span> <span class="attribute">class</span>=<span class="string">"edit"</span> <span class="attribute">name</span>=<span class="string">"text"</span> <span class="attribute">value</span>=<span class="string">"&#123;&#123;text&#125;&#125;"</span> <span class="attribute">autofocus</span>&gt;
     &lt;/<span class="keyword">form</span>&gt;
@@ -464,7 +457,7 @@
 &#123;&#123;/<span class="keyword">if</span>&#125;&#125;
 </code><div class="clean-code">{{#if :edit_id == :id}}
   &lt;li class="editing"&gt;
-    &lt;form method="POST" action="/todos/save" style="margin:0"&gt;
+    &lt;form hx-post="/todos/save" style="margin:0"&gt;
       &lt;input type="hidden" name="id" value="{{id}}"&gt;
       &lt;input class="edit" name="text" value="{{text}}" autofocus&gt;
     &lt;/form&gt;
@@ -481,10 +474,10 @@
 
   <h3>2.4 Toggle-all checkbox &amp; footer counts</h3>
   <pre class="code-block"><code class="language-diff">
-&lt;<span class="keyword">form</span> <span class="attribute">method</span>=<span class="string">"POST"</span> <span class="attribute">action</span>=<span class="string">"/todos/toggle_all"</span> <span class="attribute">id</span>=<span class="string">"toggle-all-form"</span> <span class="attribute">style</span>=<span class="string">"display:block"</span>&gt;
+&lt;<span class="keyword">form</span> <span class="attribute">hx-post</span>=<span class="string">"/todos/toggle_all"</span> <span class="attribute">id</span>=<span class="string">"toggle-all-form"</span> <span class="attribute">style</span>=<span class="string">"display:block"</span>&gt;
   &lt;<span class="keyword">input</span> <span class="attribute">id</span>=<span class="string">"toggle-all"</span> <span class="attribute">class</span>=<span class="string">"toggle-all"</span> <span class="attribute">type</span>=<span class="string">"checkbox"</span>
          &#123;&#123;<span class="keyword">#if</span> all_complete&#125;&#125;checked&#123;&#123;/<span class="keyword">if</span>&#125;&#125;
-         <span class="attribute">onchange</span>=<span class="string">"document.getElementById('toggle-all-form').submit();"</span>&gt;
+         &gt;
   &lt;<span class="keyword">label</span> <span class="attribute">for</span>=<span class="string">"toggle-all"</span>&gt;Mark all as complete&lt;/<span class="keyword">label</span>&gt;
 &lt;/<span class="keyword">form</span>&gt;
 
@@ -492,10 +485,9 @@
   &lt;<span class="keyword">strong</span>&gt;&#123;&#123;active_count&#125;&#125;&lt;/<span class="keyword">strong</span>&gt;
   item&#123;&#123;<span class="keyword">#if</span> :<span class="variable">active_count</span> != 1&#125;&#125;s&#123;&#123;/<span class="keyword">if</span>&#125;&#125; left
 &lt;/<span class="keyword">span</span>&gt;
-</code><div class="clean-code">&lt;form method="POST" action="/todos/toggle_all" id="toggle-all-form" style="display:block"&gt;
+</code><div class="clean-code">&lt;form hx-post="/todos/toggle_all" id="toggle-all-form" style="display:block"&gt;
   &lt;input id="toggle-all" class="toggle-all" type="checkbox"
-         {{#if all_complete}}checked{{/if}}
-         onchange="document.getElementById('toggle-all-form').submit();"&gt;
+         {{#if all_complete}}checked{{/if}}&gt;
   &lt;label for="toggle-all"&gt;Mark all as complete&lt;/label&gt;
 &lt;/form&gt;
 

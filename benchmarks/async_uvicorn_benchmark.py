@@ -7,6 +7,7 @@ from uvicorn.config import Config
 from uvicorn.server import Server
 
 from pageql.pageqlapp import PageQLApp
+from pageql.http_utils import _http_get, _read_chunked_body
 import websockets
 
 # number of HTTP requests to issue when measuring request/response throughput
@@ -14,20 +15,6 @@ REQUEST_ITERATIONS = 1000
 
 # number of todo items inserted and websocket messages drained
 TODO_COUNT = 30
-
-
-async def _read_chunked_body(reader: asyncio.StreamReader) -> bytes:
-    chunks = []
-    while True:
-        size_line = await reader.readline()
-        size = int(size_line.strip(), 16)
-        if size == 0:
-            await reader.readline()  # trailing CRLF after last chunk
-            break
-        chunk = await reader.readexactly(size)
-        chunks.append(chunk)
-        await reader.readline()  # CRLF after each chunk
-    return b"".join(chunks)
 
 
 async def fetch(
@@ -107,8 +94,8 @@ async def run_benchmark() -> None:
     websocket_connections = []
 
     client_id = None
-    reader, writer, body = await fetch("127.0.0.1", port, "/todos", return_body=True)
-    connections.append((reader, writer))
+    _status, _headers, body_bytes = await _http_get(f"http://127.0.0.1:{port}/todos")
+    body = body_bytes.decode()
 
     match = re.search(r"const clientId = \"([^\"]+)\"", body)
     if match:
@@ -125,8 +112,10 @@ async def run_benchmark() -> None:
 
     start = time.perf_counter()
     for _ in range(REQUEST_ITERATIONS):
-        reader, writer, body = await fetch("127.0.0.1", port, "/todos", return_body=True)
-        connections.append((reader, writer))
+        _status, _headers, body_bytes = await _http_get(
+            f"http://127.0.0.1:{port}/todos"
+        )
+        body = body_bytes.decode()
         match = re.search(r"const clientId = \"([^\"]+)\"", body)
         if match:
             cid = match.group(1)

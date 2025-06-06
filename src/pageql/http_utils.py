@@ -7,7 +7,7 @@ from typing import Dict, List, Tuple, Callable, Awaitable
 
 __all__ = [
     "_http_get",
-    "http_get_map",
+    "fetch",
     "_parse_multipart_data",
     "_read_chunked_body",
     "_parse_cookies",
@@ -160,7 +160,7 @@ async def _http_get(url: str) -> Tuple[int, List[Tuple[bytes, bytes]], bytes]:
     return status, headers, body
 
 
-async def http_get_map(url: str) -> Dict[str, object]:
+async def fetch(url: str) -> Dict[str, object]:
     """Return a mapping with ``status``, ``headers`` and decoded ``body``."""
     status, headers, body = await _http_get(url)
     try:

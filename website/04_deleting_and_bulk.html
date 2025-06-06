@@ -414,26 +414,15 @@
 
   <pre class="code-block"><code class="language-diff">
 &lt;<span class="keyword">li</span> &#123;&#123;<span class="keyword">#if</span> completed&#125;&#125;<span class="attribute">class</span>=<span class="string">"completed"</span>&#123;&#123;/<span class="keyword">if</span>&#125;&#125;&gt;
-  &lt;<span class="keyword">form</span> <span class="attribute">method</span>=<span class="string">"POST"</span> <span class="attribute">action</span>=<span class="string">"/todos/toggle"</span> <span class="attribute">style</span>=<span class="string">"display:inline"</span>&gt;
-    &lt;<span class="keyword">input</span> <span class="attribute">type</span>=<span class="string">"hidden"</span> <span class="attribute">name</span>=<span class="string">"id"</span> <span class="attribute">value</span>=<span class="string">"&#123;&#123;id&#125;&#125;"</span>&gt;
-    &lt;<span class="keyword">input</span> <span class="attribute">class</span>=<span class="string">"toggle"</span> <span class="attribute">type</span>=<span class="string">"checkbox"</span> &#123;&#123;<span class="keyword">#if</span> completed&#125;&#125;checked&#123;&#123;/<span class="keyword">if</span>&#125;&#125; <span class="attribute">onchange</span>=<span class="string">"this.form.submit();"</span>&gt;
-  &lt;/<span class="keyword">form</span>&gt;
-  &lt;<span class="keyword">label</span> <span class="attribute">ondblclick</span>=<span class="string">"window.location='/todos?edit_id=&#123;&#123;id&#125;&#125;'"</span>&gt;&#123;&#123;text&#125;&#125;&lt;/<span class="keyword">label</span>&gt;
-  &lt;<span class="keyword">form</span> <span class="attribute">method</span>=<span class="string">"POST"</span> <span class="attribute">action</span>=<span class="string">"/todos/delete"</span> <span class="attribute">style</span>=<span class="string">"display:inline"</span>&gt;
-    &lt;<span class="keyword">input</span> <span class="attribute">type</span>=<span class="string">"hidden"</span> <span class="attribute">name</span>=<span class="string">"id"</span> <span class="attribute">value</span>=<span class="string">"&#123;&#123;id&#125;&#125;"</span>&gt;
-    &lt;<span class="keyword">button</span> <span class="attribute">class</span>=<span class="string">"destroy"</span> <span class="attribute">style</span>=<span class="string">"cursor:pointer; background:none; border:none; color:#ac4a1a;"</span>&gt;✕&lt;/<span class="keyword">button</span>&gt;
+  &lt;input hx-post="/todos/{{id}}/toggle" class="toggle" type="checkbox" {{#if completed}}checked{{/if}}&gt;
+  &lt;label ondblclick="window.location=/todos?edit_id={{id}}"&gt;{{text}}&lt;/label&gt;
+  &lt;button hx-delete="/todos/{{id}}" class="destroy" style="cursor:pointer; background:none; border:none; color:#ac4a1a;"&gt;✕&lt;/button&gt;
   &lt;/<span class="keyword">form</span>&gt;
 &lt;/<span class="keyword">li</span>&gt;
 </code><div class="clean-code">&lt;li {{#if completed}}class="completed"{{/if}}&gt;
-  &lt;form method="POST" action="/todos/toggle" style="display:inline"&gt;
-    &lt;input type="hidden" name="id" value="{{id}}"&gt;
-    &lt;input class="toggle" type="checkbox" {{#if completed}}checked{{/if}} onchange="this.form.submit();"&gt;
-  &lt;/form&gt;
+  &lt;input hx-post="/todos/{{id}}/toggle" class="toggle" type="checkbox" {{#if completed}}checked{{/if}}&gt;
   &lt;label ondblclick="window.location='/todos?edit_id={{id}}'"&gt;{{text}}&lt;/label&gt;
-  &lt;form method="POST" action="/todos/delete" style="display:inline"&gt;
-    &lt;input type="hidden" name="id" value="{{id}}"&gt;
-    &lt;button class="destroy" style="cursor:pointer; background:none; border:none; color:#ac4a1a;"&gt;✕&lt;/button&gt;
-  &lt;/form&gt;
+  &lt;button hx-delete="/todos/{{id}}" class="destroy" style="cursor:pointer; background:none; border:none; color:#ac4a1a;"&gt;✕&lt;/button&gt;
 &lt;/li&gt;</div></pre>
 
   <p>(The <code>destroy</code> class is defined by TodoMVC CSS and draws an × icon.)</p>
@@ -444,14 +433,10 @@
 
   <pre class="code-block"><code class="language-diff">
 &#123;&#123;<span class="keyword">#if</span> :<span class="variable">completed_count</span> &gt; 0&#125;&#125;
-  &lt;<span class="keyword">form</span> <span class="attribute">method</span>=<span class="string">"POST"</span> <span class="attribute">action</span>=<span class="string">"/todos/clear_completed"</span> <span class="attribute">style</span>=<span class="string">"display:inline"</span>&gt;
-    &lt;<span class="keyword">button</span> <span class="attribute">class</span>=<span class="string">"clear-completed"</span>&gt;Clear completed&lt;/<span class="keyword">button</span>&gt;
-  &lt;/<span class="keyword">form</span>&gt;
+  &lt;<span class="keyword">button</span> <span class="attribute">class</span>=<span class="string">"clear-completed"</span> hx-post="/todos/clear_completed"&gt;Clear completed&lt;/<span class="keyword">button</span>&gt;
 &#123;&#123;/<span class="keyword">if</span>&#125;&#125;
 </code><div class="clean-code">{{#if :completed_count > 0}}
-  &lt;form method="POST" action="/todos/clear_completed" style="display:inline"&gt;
-    &lt;button class="clear-completed"&gt;Clear completed&lt;/button&gt;
-  &lt;/form&gt;
+  &lt;button class="clear-completed" hx-post="/todos/clear_completed"&gt;Clear completed&lt;/button&gt;
 {{/if}}</div></pre>
 
   <!-- 3 -->
@@ -463,32 +448,27 @@
 &#123;&#123;<span class="keyword">#partial</span> <span class="attribute">public</span> <span class="function">delete</span>&#125;&#125;
   &#123;&#123;<span class="keyword">#param</span> <span class="variable">id</span> <span class="attribute">required</span> <span class="attribute">type</span>=<span class="string">integer</span> <span class="attribute">min</span>=1&#125;&#125;
   &#123;&#123;<span class="keyword">#delete</span> <span class="keyword">from</span> todos <span class="keyword">WHERE</span> id = :<span class="variable">id</span>&#125;&#125;
-  &#123;&#123;<span class="keyword">#redirect</span> <span class="string">'/todos'</span>&#125;&#125;
 &#123;&#123;/<span class="keyword">partial</span>&#125;&#125;
 
 &#123;&#123;<span class="keyword">#partial</span> <span class="attribute">public</span> <span class="function">clear_completed</span>&#125;&#125;
   &#123;&#123;<span class="keyword">#delete</span> <span class="keyword">from</span> todos <span class="keyword">WHERE</span> completed = 1&#125;&#125;
-  &#123;&#123;<span class="keyword">#redirect</span> <span class="string">'/todos'</span>&#125;&#125;
 &#123;&#123;/<span class="keyword">partial</span>&#125;&#125;
 </code><div class="clean-code">{{#partial public delete}}
   {{#param id required type=integer min=1}}
   {{#delete from todos WHERE id = :id}}
-  {{#redirect '/todos'}}
 {{/partial}}
 
 {{#partial public clear_completed}}
   {{#delete from todos WHERE completed = 1}}
-  {{#redirect '/todos'}}
 {{/partial}}</div></pre>
 
-  <p><em>Notice:</em> there is <strong>no</strong> explicit <code>BEGIN</code>/<code>COMMIT</code>. If an error occurs before the <code>#redirect</code>, PageQL aborts the whole request and rolls back the delete.</p>
 
   <p>This highlights one of PageQL's key features - all data-modifying operations within a single request are automatically wrapped in a transaction. This ensures that your database remains in a consistent state even if an error occurs during processing.</p>
 
   <!-- 4 -->
   <h2>4 Try it out</h2>
   <ol>
-    <li>Complete a couple of todos, then click <strong>Clear completed</strong>—page reloads with only active items.</li>
+    <li>Complete a couple of todos, then click <strong>Clear completed</strong>—list updates automatically.</li>
     <li>Click the <strong>×</strong> next to a todo—item vanishes.</li>
     <li>Deliberately break the SQL inside <code>clear_completed</code> (e.g., change the table name to <code>todoz</code>) and test again ➜ all rows survive; the error page shows the failed query, proving rollback.</li>
   </ol>
@@ -500,7 +480,7 @@
 │  BEGIN TRANSACTION                │  (implicit)
 │  DELETE FROM todos WHERE …        │  ← #delete
 │  COMMIT                           │  (on success)
-└─ 302 Redirect /todos ─────────────┘</code></pre>
+└─ 200 OK ─────────────┘</code></pre>
 
   <p>Multiple <code>#insert</code>, <code>#update</code>, and <code>#delete</code> tags in one partial still share <strong>one</strong> transaction boundary—handy for complex wizard‑style forms.</p>
 

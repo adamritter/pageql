@@ -28,7 +28,10 @@ def _start_server():
         server_holder["server"] = server
         server_holder["port"] = server.sockets[0].getsockname()[1]
         ready.set()
-        await server.serve_forever()
+        try:
+            await server.serve_forever()
+        except asyncio.CancelledError:
+            pass
 
     thread = threading.Thread(target=lambda: loop.run_until_complete(runner()), daemon=True)
     thread.start()
@@ -36,9 +39,10 @@ def _start_server():
     return loop, server_holder["server"], server_holder["port"], thread
 
 def _stop_server(loop: asyncio.AbstractEventLoop, server: asyncio.base_events.Server, thread: threading.Thread) -> None:
+    """Cleanly stop the background HTTP server."""
     loop.call_soon_threadsafe(server.close)
-    loop.call_soon_threadsafe(loop.stop)
     thread.join()
+    loop.call_soon_threadsafe(loop.close)
 
 def _fetch(url: str) -> dict[str, object]:
     with urllib.request.urlopen(url) as resp:

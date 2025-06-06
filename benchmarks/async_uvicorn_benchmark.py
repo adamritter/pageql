@@ -37,6 +37,15 @@ async def run_benchmark() -> None:
     assert server.servers and server.servers[0].sockets
     port = server.servers[0].sockets[0].getsockname()[1]
 
+    # Wait until the server is responsive. Occasionally ``server.started`` is
+    # ``True`` before the socket is fully accepting connections.
+    while True:
+        try:
+            await _http_get(f"http://127.0.0.1:{port}/todos")
+            break
+        except ConnectionRefusedError:
+            await asyncio.sleep(0.05)
+
 
     # warmup and extract client id
     websocket_connections = []

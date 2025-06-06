@@ -121,7 +121,9 @@ async def run_benchmark() -> None:
             pass
 
 
-async def run_fetch_only_benchmark() -> None:
+async def run_fetch_only_benchmark(
+    http_disconnect_cleanup_timeout=None,
+) -> None:
     """Start the server and fetch the todos page concurrently."""
     templates_dir = Path(__file__).resolve().parents[1] / "website"
     app = PageQLApp(
@@ -130,6 +132,7 @@ async def run_fetch_only_benchmark() -> None:
         create_db=True,
         should_reload=True,
         quiet=True,
+        http_disconnect_cleanup_timeout=http_disconnect_cleanup_timeout,
     )
     config = Config(app, host="127.0.0.1", port=0, log_level="warning")
     server = Server(config)
@@ -169,6 +172,6 @@ async def run_fetch_only_benchmark() -> None:
 
 
 if __name__ == "__main__":
-    asyncio.run(run_fetch_only_benchmark())
+    asyncio.run(run_fetch_only_benchmark(http_disconnect_cleanup_timeout=None))
     asyncio.run(run_benchmark())
 

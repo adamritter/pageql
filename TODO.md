@@ -2,6 +2,7 @@
 
 - "Reactive" Aspect:
 UI updates are now implemented. The reactive query model updates the browser automatically whenever the underlying data changes.
+- PageQL defaults to `#reactive on`. Use `#reactive off` to disable live updates.
 
 Later:
 - Code completion (language server) / VS code pluigin

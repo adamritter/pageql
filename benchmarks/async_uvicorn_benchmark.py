@@ -123,6 +123,8 @@ async def run_benchmark() -> None:
 
 async def run_fetch_only_benchmark(
     http_disconnect_cleanup_timeout=None,
+    parallel=True,
+    iterations=REQUEST_ITERATIONS,
 ) -> None:
     """Start the server and fetch the todos page concurrently."""
     templates_dir = Path(__file__).resolve().parents[1] / "website"
@@ -155,15 +157,20 @@ async def run_fetch_only_benchmark(
     app.db.commit()
 
     start = time.perf_counter()
-    tasks = [
-        asyncio.create_task(
-            _http_get(f"http://127.0.0.1:{port}/todos")
-        )
-        for _ in range(REQUEST_ITERATIONS)
-    ]
-    results = await asyncio.gather(*tasks)
+    if parallel:
+        tasks = [
+            asyncio.create_task(
+                _http_get(f"http://127.0.0.1:{port}/todos")
+            )
+            for _ in range(iterations)
+        ]
+        results = await asyncio.gather(*tasks)
+    else:
+        results = []
+        for _ in range(iterations):
+            results.append(await _http_get(f"http://127.0.0.1:{port}/todos"))
     elapsed = time.perf_counter() - start
-    print(f"Gather fetch {REQUEST_ITERATIONS/elapsed:.0f} QPS")
+    print(f"Gather fetch {iterations/elapsed:.0f} QPS, iterations: {iterations}, http_disconnect_cleanup_timeout: {http_disconnect_cleanup_timeout}")
 
     server.should_exit = True
     await server_task
@@ -172,7 +179,7 @@ async def run_fetch_only_benchmark(
 
 
 if __name__ == "__main__":
-    asyncio.run(run_fetch_only_benchmark(http_disconnect_cleanup_timeout=0.05))
-    asyncio.run(run_fetch_only_benchmark(http_disconnect_cleanup_timeout=5))
+    asyncio.run(run_fetch_only_benchmark(http_disconnect_cleanup_timeout=0.05, parallel=False, iterations=10000))
+    asyncio.run(run_fetch_only_benchmark(http_disconnect_cleanup_timeout=10, parallel=False, iterations=10000))
     asyncio.run(run_benchmark())
 

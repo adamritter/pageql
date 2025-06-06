@@ -2,7 +2,6 @@ import os
 import time
 import tempfile
 import asyncio
-import threading
 import urllib.request
 from pageql.pageql import PageQL
 
@@ -22,31 +21,16 @@ async def _handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWri
     await writer.drain()
     writer.close()
 
-def _start_server():
-    loop = asyncio.new_event_loop()
-    ready = threading.Event()
-    server_holder = {}
+async def _start_server():
+    server = await asyncio.start_server(_handle_client, "127.0.0.1", 0)
+    port = server.sockets[0].getsockname()[1]
+    return server, port
 
-    async def runner():
-        server = await asyncio.start_server(_handle_client, "127.0.0.1", 0)
-        server_holder["server"] = server
-        server_holder["port"] = server.sockets[0].getsockname()[1]
-        ready.set()
-        try:
-            await server.serve_forever()
-        except asyncio.CancelledError:
-            pass
 
-    thread = threading.Thread(target=lambda: loop.run_until_complete(runner()), daemon=True)
-    thread.start()
-    ready.wait()
-    return loop, server_holder["server"], server_holder["port"], thread
-
-def _stop_server(loop: asyncio.AbstractEventLoop, server: asyncio.base_events.Server, thread: threading.Thread) -> None:
+async def _stop_server(server: asyncio.base_events.Server) -> None:
     """Cleanly stop the background HTTP server."""
-    loop.call_soon_threadsafe(server.close)
-    thread.join()
-    loop.call_soon_threadsafe(loop.close)
+    server.close()
+    await server.wait_closed()
 
 def _fetch(url: str) -> dict[str, object]:
     with urllib.request.urlopen(url) as resp:
@@ -107,9 +91,9 @@ def bench_factory(name):
 SCENARIOS = [(n, bench_factory(n)) for n in MODULES if n != 'other']
 
 
-def run_benchmarks(db_path):
+async def run_benchmarks(db_path):
     global FETCH_PORT, SLOW_FETCH
-    loop, server, port, thread = _start_server()
+    server, port = await _start_server()
     FETCH_PORT = port
     print(f"Running benchmarks for {db_path} ...")
     pql = PageQL(db_path, fetch_cb=_fetch)
@@ -127,7 +111,7 @@ def run_benchmarks(db_path):
             bench(pql)
         results[name] = time.perf_counter() - start
     pql.db.close()
-    _stop_server(loop, server, thread)
+    await _stop_server(server)
     for k, v in results.items():
         print(f"{k:20s}: {(v/ITERATIONS)*1000:.4f}ms")
 
@@ -148,7 +132,7 @@ async def _run_scenario_parallel(name: str, db_path: str) -> float:
         pql = _prepare_pql()
         bench = bench_factory(name)
         try:
-            await asyncio.to_thread(bench, pql)
+            bench(pql)
         finally:
             pql.db.close()
 
@@ -158,25 +142,25 @@ async def _run_scenario_parallel(name: str, db_path: str) -> float:
     return time.perf_counter() - start
 
 
-def run_benchmarks_parallel(db_path: str) -> None:
+async def run_benchmarks_parallel(db_path: str) -> None:
     """Run all benchmarks in parallel for each scenario."""
     global FETCH_PORT, SLOW_FETCH
-    loop, server, port, thread = _start_server()
+    server, port = await _start_server()
     FETCH_PORT = port
     print(f"Running parallel benchmarks for {db_path} ...")
     results = {}
     for name, _ in SCENARIOS:
         SLOW_FETCH = name == 's21_slow_fetch'
-        elapsed = asyncio.run(_run_scenario_parallel(name, db_path))
+        elapsed = await _run_scenario_parallel(name, db_path)
         results[name] = elapsed
-    _stop_server(loop, server, thread)
+    await _stop_server(server)
     for k, v in results.items():
         print(f"{k:20s}: {(v/ITERATIONS)*1000:.4f}ms")
 
 if __name__ == '__main__':
-    run_benchmarks(':memory:')
+    asyncio.run(run_benchmarks(':memory:'))
     with tempfile.TemporaryDirectory() as tmp:
         path = os.path.join(tmp, 'bench.db')
-        run_benchmarks(path)
+        asyncio.run(run_benchmarks(path))
     print("\nParallel version:\n")
-    run_benchmarks_parallel(':memory:')
+    asyncio.run(run_benchmarks_parallel(':memory:'))

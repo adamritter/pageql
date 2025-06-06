@@ -11,7 +11,7 @@ Classes:
 
 # Instructions for LLMs and devs: Keep the code short. Make changes minimal. Don't change even tests too much.
 
-import re, time, sys, json, hashlib, base64, asyncio
+import re, time, sys, json, hashlib, base64
 import doctest
 import sqlite3
 import os
@@ -45,7 +45,7 @@ from pageql.database import (
     evalone,
 )
 from pageql.params import handle_param
-from pageql.http_utils import fetch
+from pageql.http_utils import fetch_sync
 import sqlglot
 
 
@@ -104,16 +104,13 @@ class PageQL:
         dialect: SQL dialect used by the connected database.
     """
 
-    def __init__(self, db_path, fetch_cb=None):
+    def __init__(self, db_path):
         """
         Initializes the PageQL engine instance.
 
         Args:
             db_path: Path to the SQLite database file or database URL.
-            fetch_cb: Optional HTTP fetch callback. Defaults to an async
-                HTTP GET using :func:`pageql.http_utils.fetch`.
         """
-        self.fetch_cb = fetch_cb or fetch
         self._modules = {} # Store parsed node lists here later
         self._parse_errors = {} # Store errors here
         self.tests = {}
@@ -526,8 +523,6 @@ class PageQL:
 
     def _process_fetch_directive(self, node_content, params, path, includes,
                                  http_verb, reactive, ctx, out):
-        if self.fetch_cb is None:
-            raise ValueError("fetch callback not set")
         var, expr = node_content
         if var.startswith(":"):
             var = var[1:]
@@ -538,16 +533,7 @@ class PageQL:
         # Commit any pending database changes so the fetch callback sees
         # a consistent view of the database before performing the HTTP request
         self.db.commit()
-        data = self.fetch_cb(str(url))
-        if asyncio.iscoroutine(data):
-            try:
-                loop = asyncio.get_event_loop()
-            except RuntimeError as e:
-                data.close()
-                raise RuntimeError(
-                    "#fetch requires an active asyncio event loop"
-                ) from e
-            data = loop.run_until_complete(data)
+        data = fetch_sync(str(url))
         for k, v in flatten_params(data).items():
             params[f"{var}__{k}"] = v
         return reactive

@@ -69,7 +69,7 @@ def main():
     parser.add_argument(
         '--http-disconnect-cleanup-timeout',
         type=float,
-        default=0.1,
+        default=10.0,
         metavar='SECONDS',
         help='Delay before cleaning up HTTP disconnects.',
     )

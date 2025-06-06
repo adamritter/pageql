@@ -23,7 +23,7 @@ def test_cli_fallback_url(monkeypatch, tmp_path):
             fallback_app=None,
             fallback_url=None,
             csrf_protect=True,
-            http_disconnect_cleanup_timeout=0.1,
+            http_disconnect_cleanup_timeout=10.0,
         ):
             created["db"] = db_file
             created["tpl"] = templates_dir
@@ -71,7 +71,7 @@ def test_cli_http_disconnect_timeout(monkeypatch, tmp_path):
             fallback_app=None,
             fallback_url=None,
             csrf_protect=True,
-            http_disconnect_cleanup_timeout=0.1,
+            http_disconnect_cleanup_timeout=10.0,
         ):
             created["timeout"] = http_disconnect_cleanup_timeout
 

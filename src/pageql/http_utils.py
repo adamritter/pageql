@@ -113,8 +113,13 @@ async def _parse_form_data(
             log_func(f"Warning: Unsupported Content-Type: {content_type}")
 
 
-async def _http_get(url: str) -> Tuple[int, List[Tuple[bytes, bytes]], bytes]:
-    """Perform a minimal async HTTP GET request."""
+async def _http_get(
+    url: str,
+    method: str = "GET",
+    headers: Dict[str, str] | None = None,
+    body: bytes | None = None,
+) -> Tuple[int, List[Tuple[bytes, bytes]], bytes]:
+    """Perform a minimal async HTTP request."""
     parsed = urlparse(url)
     host = parsed.hostname or ""
     port = parsed.port or (443 if parsed.scheme == "https" else 80)
@@ -124,19 +129,21 @@ async def _http_get(url: str) -> Tuple[int, List[Tuple[bytes, bytes]], bytes]:
     reader, writer = await asyncio.open_connection(
         host, port, ssl=parsed.scheme == "https"
     )
-    request = (
-        f"GET {path} HTTP/1.1\r\n"
-        f"Host: {host}\r\n"
-        "Connection: close\r\n"
-        "\r\n"
-    )
-    writer.write(request.encode())
+    hdrs = {"Host": host, "Connection": "close"}
+    if headers:
+        hdrs.update(headers)
+    body_bytes = body or b""
+    if body_bytes and "Content-Length" not in hdrs:
+        hdrs["Content-Length"] = str(len(body_bytes))
+    header_lines = "".join(f"{k}: {v}\r\n" for k, v in hdrs.items())
+    request = f"{method} {path} HTTP/1.1\r\n{header_lines}\r\n"
+    writer.write(request.encode() + body_bytes)
     await writer.drain()
 
     status_line = await reader.readline()
     parts = status_line.decode().split()
     status = int(parts[1]) if len(parts) > 1 else 502
-    headers: List[Tuple[bytes, bytes]] = []
+    resp_headers: List[Tuple[bytes, bytes]] = []
     hdr_dict = {}
     while True:
         line = await reader.readline()
@@ -144,7 +151,7 @@ async def _http_get(url: str) -> Tuple[int, List[Tuple[bytes, bytes]], bytes]:
             break
         key, val = line.decode().split(":", 1)
         val = val.strip()
-        headers.append((key.lower().encode(), val.encode()))
+        resp_headers.append((key.lower().encode(), val.encode()))
         hdr_dict[key.lower()] = val
 
     if hdr_dict.get("transfer-encoding") == "chunked":
@@ -157,7 +164,7 @@ async def _http_get(url: str) -> Tuple[int, List[Tuple[bytes, bytes]], bytes]:
 
     writer.close()
     await writer.wait_closed()
-    return status, headers, body
+    return status, resp_headers, body
 
 
 async def http_get_map(url: str) -> Dict[str, object]:

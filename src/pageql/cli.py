@@ -62,6 +62,11 @@ def main():
     parser.add_argument('--no-csrf', action='store_true', help="Disable CSRF protection")
     parser.add_argument('--test', action='store_true', help="Run tests instead of serving")
     parser.add_argument(
+        '--profile',
+        action='store_true',
+        help='Profile the server and display stats when it stops.',
+    )
+    parser.add_argument(
         '--http-disconnect-cleanup-timeout',
         type=float,
         default=0.1,
@@ -104,7 +109,23 @@ def main():
         print(f"Serving templates from: {args.templates_dir}")
         print("Press Ctrl+C to stop.")
 
-    uvicorn.run(app, host=args.host, port=args.port, log_level=args.log_level)
+    if args.profile:
+        import profile
+        import pstats
+
+        profiler = profile.Profile()
+        try:
+            profiler.runcall(
+                uvicorn.run,
+                app,
+                host=args.host,
+                port=args.port,
+                log_level=args.log_level,
+            )
+        finally:
+            pstats.Stats(profiler).sort_stats("cumulative").print_stats(20)
+    else:
+        uvicorn.run(app, host=args.host, port=args.port, log_level=args.log_level)
 
 if __name__ == "__main__":
     main() 

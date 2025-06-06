@@ -89,3 +89,57 @@ def test_cli_http_disconnect_timeout(monkeypatch, tmp_path):
     cli.main()
     assert created["timeout"] == 0.5
 
+
+def test_cli_profile(monkeypatch, tmp_path):
+    events = {}
+
+    class DummyApp:
+        def __init__(
+            self,
+            db_file,
+            templates_dir,
+            create_db=False,
+            should_reload=True,
+            quiet=False,
+            fallback_app=None,
+            fallback_url=None,
+            csrf_protect=True,
+            http_disconnect_cleanup_timeout=0.1,
+        ):
+            pass
+
+    def dummy_run(*args, **kwargs):
+        events["run"] = True
+
+    class DummyProfile:
+        def runcall(self, func, *a, **kw):
+            events["runcall"] = True
+            func(*a, **kw)
+
+    class DummyStats:
+        def __init__(self, prof):
+            pass
+
+        def sort_stats(self, key):
+            events["sort"] = key
+            return self
+
+        def print_stats(self, limit):
+            events["limit"] = limit
+
+    monkeypatch.setattr(cli, "PageQLApp", DummyApp)
+    monkeypatch.setattr(cli.uvicorn, "run", dummy_run)
+
+    import types
+    monkeypatch.setitem(sys.modules, "profile", types.SimpleNamespace(Profile=lambda: DummyProfile()))
+    monkeypatch.setitem(sys.modules, "pstats", types.SimpleNamespace(Stats=lambda prof: DummyStats(prof)))
+
+    argv = ["pageql", "db", str(tmp_path), "--profile"]
+    monkeypatch.setattr(sys, "argv", argv)
+    cli.main()
+
+    assert events["run"] is True
+    assert events["runcall"] is True
+    assert events["sort"] == "cumulative"
+    assert events["limit"] == 20
+

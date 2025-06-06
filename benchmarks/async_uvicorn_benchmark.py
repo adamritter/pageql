@@ -142,6 +142,15 @@ async def run_fetch_only_benchmark() -> None:
 
     await _http_get(f"http://127.0.0.1:{port}/todos")
 
+    # Insert some sample todos before timing the page fetches
+    app.db = app.conn
+    for i in range(10):
+        app.db.execute(
+            "INSERT INTO todos (text, completed) VALUES (?, 0)",
+            (f"Todo {i}",),
+        )
+    app.db.commit()
+
     start = time.perf_counter()
     tasks = [
         asyncio.create_task(

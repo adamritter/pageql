@@ -92,10 +92,11 @@ pageql -path/to/your/database.sqlite ./templates
 
 * (Note: All database modification tags (`#insert`, `#update`, `#delete`) executed within a single request lifecycle are typically treated as a single atomic transaction. Processing stops on the first error, and prior modifications within the same request are rolled back.)*
 *   `#from <table> [WHERE ...] [ORDER BY ...]`: Executes a `SELECT` query against a table (or potentially a view) and iterates over the results. Supports binding parameters (e.g., `:limit`).
-*   `#view <name> from <table> [WHERE ...]`: Creates a reusable SQL view definition. Supports binding parameters (e.g., `:halfusers`).
+*  [NOT IMPLEMENTED]  `#view <name> from <table> [WHERE ...]`: Creates a reusable SQL view definition. Supports binding parameters (e.g., `:halfusers`).
 *   `#insert into <table> [(col1, col2, ...)] values (val1, val2, ...)`: Executes an `INSERT` SQL command. The column list is optional if values are provided for all columns in order. Values (`val1`, `val2`, etc.) can be literals or bound parameters (e.g., `:form_field_name`).
 *   `#update <table> set col1=val1, col2=val2, ... [WHERE ...]`: Executes an `UPDATE` SQL command. Values (`val1`, `val2`, etc.) can be literals or bound parameters.
 *   `#delete from <table> [WHERE ...]`: Executes a `DELETE` SQL command. Supports binding parameters in the `WHERE` clause.
+*   `#merge <sql>`: Executes an SQL `MERGE` statement.
 
 **Partials/Modules:**
 
@@ -169,7 +170,7 @@ The engine distinguishes between binding these variables *into* SQL queries and 
 
 **1. SQL Parameter Binding (`:param_name`)**
 
-*   **Purpose:** To safely include dynamic values within SQL statements (`WHERE` clauses, `VALUES` lists, `SET` assignments in `#from`, `#insert`, `#update`, `#delete`, `#view`, `#let ... from`).
+*   **Purpose:** To safely include dynamic values within SQL statements (`WHERE` clauses, `VALUES` lists, `SET` assignments in `#from`, `#insert`, `#update`, `#delete`, `#merge`, `#let ... from`).
 *   **Syntax:** Use a colon prefix followed by the parameter name (e.g., `:user_id`, `:search_term`, `:text`, `:id`, `:active_count`).
 *   **Security:** **This is the ONLY safe way to include dynamic data in SQL queries.** It prevents SQL injection vulnerabilities by ensuring the database driver handles the value correctly, rather than simply concatenating strings. The colon prefix is **mandatory** in these SQL contexts.
 *   **`#from` Scope:** Within a `#from` loop, each selected column is directly accessible as a parameter using the colon prefix (e.g., `{{ :column_name }}`).
@@ -198,7 +199,7 @@ Expressions are primarily used in:
 
 *   **`#if <expression>` / `#elif <expression>`:** To conditionally render blocks of content. The expression should evaluate to a boolean-like value (in SQLite, 0 is false, non-zero is true). If the expression is more complex than a single variable name, it **must** use the colon prefix for variables (e.g., `#if :count > 10`).
 *   **`#let :<variable> = <expression> [from ...]`:** To compute a value to assign to a variable. Variables used within the `<expression>` **must** use the colon prefix (e.g., `#let :total_price = :quantity * :unit_price`).
-*   **`WHERE <expression>` clauses:** Within database query tags (`#from`, `#update`, `#delete`, `#view`, `#let ... from`) to filter data. Variables **must** use the colon prefix (e.g., `WHERE user_id = :id`).
+*   **`WHERE <expression>` clauses:** Within database query tags (`#from`, `#update`, `#delete`, `#merge`, `#let ... from`) to filter data. Variables **must** use the colon prefix (e.g., `WHERE user_id = :id`).
 *   **Value clauses:** In `#insert` (`values (...)`), `#update` (`set col = ...`), `#cookie`, `#header`, `#redirect`. Variables **must** use the colon prefix.
 
 **Allowed Expressions:**

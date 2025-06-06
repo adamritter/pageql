@@ -7,7 +7,6 @@ from pageql.parser import tokenize, build_ast, ast_param_dependencies
 from pageql.pageql import PageQL
 import sqlite3
 import pytest
-import asyncio
 
 
 def test_fetch_directive_parsed():
@@ -30,9 +29,15 @@ def test_fetch_directive_render():
         seen.append(url)
         return {"a": "1", "b": "2"}
 
-    r = PageQL(":memory:", fetch_cb=fetch)
-    r.load_module("m", "{{#fetch data from 'http://x'}}{{data__a}} {{data__b}}")
-    out = r.render("/m", reactive=False).body
+    from pageql import pageql as pql_mod
+    old_fetch = pql_mod.fetch_sync
+    pql_mod.fetch_sync = fetch
+    try:
+        r = PageQL(":memory:")
+        r.load_module("m", "{{#fetch data from 'http://x'}}{{data__a}} {{data__b}}")
+        out = r.render("/m", reactive=False).body
+    finally:
+        pql_mod.fetch_sync = old_fetch
     assert out.strip() == "1 2"
     assert seen == ["http://x"]
 
@@ -61,13 +66,7 @@ def test_fetch_directive_defaults_to_http_get():
             "m",
             "{{#fetch d from 'http://127.0.0.1:' || :port}}{{d__status}} {{d__body}}",
         )
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        try:
-            out = r.render("/m", {"port": port}, reactive=False).body.strip()
-        finally:
-            asyncio.set_event_loop(None)
-            loop.close()
+        out = r.render("/m", {"port": port}, reactive=False).body.strip()
         assert out == "200 hi"
     finally:
         server.shutdown()
@@ -81,21 +80,19 @@ def test_fetch_commits_before_call(tmp_path):
         with sqlite3.connect(db_file) as c2:
             return {"cnt": c2.execute("select count(*) from t").fetchone()[0]}
 
-    r = PageQL(str(db_file), fetch_cb=fetch)
-    r.load_module(
-        "m",
-        """{{#create table t(x int)}}{{#insert into t values (1)}}{{#fetch d from 'x'}}{{d__cnt}}""",
-    )
-    out = r.render("/m", reactive=False).body.strip()
+    from pageql import pageql as pql_mod
+    old_fetch = pql_mod.fetch_sync
+    pql_mod.fetch_sync = fetch
+    try:
+        r = PageQL(str(db_file))
+        r.load_module(
+            "m",
+            """{{#create table t(x int)}}{{#insert into t values (1)}}{{#fetch d from 'x'}}{{d__cnt}}""",
+        )
+        out = r.render("/m", reactive=False).body.strip()
+    finally:
+        pql_mod.fetch_sync = old_fetch
     assert out == "1"
 
 
-def test_fetch_requires_event_loop_for_async_cb():
-    async def fetch(_url: str):
-        return {"x": 1}
-
-    r = PageQL(":memory:", fetch_cb=fetch)
-    r.load_module("m", "{{#fetch d from 'x'}}{{d__x}}")
-    with pytest.raises(RuntimeError):
-        r.render("/m", reactive=False)
 

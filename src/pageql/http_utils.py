@@ -8,6 +8,7 @@ from typing import Dict, List, Tuple, Callable, Awaitable
 __all__ = [
     "_http_get",
     "fetch",
+    "fetch_sync",
     "_parse_multipart_data",
     "_read_chunked_body",
     "_parse_cookies",
@@ -174,6 +175,21 @@ async def fetch(url: str) -> Dict[str, object]:
         body = body.decode("utf-8")
     except Exception:
         pass
+    return {"status": status, "headers": headers, "body": body}
+
+
+def fetch_sync(url: str) -> Dict[str, object]:
+    """Synchronous variant of :func:`fetch` using ``urllib``."""
+    from urllib.request import urlopen
+
+    with urlopen(url) as resp:
+        status = resp.status
+        headers = [(k.lower().encode(), v.encode()) for k, v in resp.getheaders()]
+        body_bytes = resp.read()
+    try:
+        body = body_bytes.decode("utf-8")
+    except Exception:
+        body = body_bytes
     return {"status": status, "headers": headers, "body": body}
 
 

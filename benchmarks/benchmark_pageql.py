@@ -2,7 +2,6 @@ import os
 import time
 import tempfile
 import asyncio
-import urllib.request
 from pageql.pageql import PageQL
 
 ITERATIONS = 100
@@ -31,10 +30,6 @@ async def _stop_server(server: asyncio.base_events.Server) -> None:
     """Cleanly stop the background HTTP server."""
     server.close()
     await server.wait_closed()
-
-def _fetch(url: str) -> dict[str, object]:
-    with urllib.request.urlopen(url) as resp:
-        return {"body": resp.read().decode(), "status": resp.getcode()}
 
 # helper to reset sample table
 
@@ -96,7 +91,7 @@ async def run_benchmarks(db_path):
     server, port = await _start_server()
     FETCH_PORT = port
     print(f"Running benchmarks for {db_path} ...")
-    pql = PageQL(db_path, fetch_cb=_fetch)
+    pql = PageQL(db_path)
     results = {}
     for name, _ in SCENARIOS:
         reset_items(pql.db)
@@ -120,7 +115,7 @@ async def _run_scenario_parallel(name: str, db_path: str) -> float:
     """Execute one benchmark scenario in parallel and return elapsed time."""
 
     def _prepare_pql() -> PageQL:
-        pql = PageQL(db_path, fetch_cb=_fetch)
+        pql = PageQL(db_path)
         reset_items(pql.db)
         for m, src in MODULES.items():
             if m != 'other' and m != name:

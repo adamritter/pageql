@@ -11,7 +11,7 @@ Classes:
 
 # Instructions for LLMs and devs: Keep the code short. Make changes minimal. Don't change even tests too much.
 
-import re, time, sys, json, hashlib, base64
+import re, time, sys, json, hashlib, base64, asyncio
 import doctest
 import sqlite3
 import os
@@ -272,7 +272,7 @@ class PageQL:
                     raise Exception(f"Warning: Empty value expression for key `{key}` in #render args")
 
         # Perform the recursive render call with the potentially modified parameters
-        result = self.render(
+        result = self._render_impl(
             render_path,
             render_params,
             partial_names,
@@ -975,6 +975,29 @@ class PageQL:
 
     def render(self, path, params={}, partial=None, http_verb=None,
                in_render_directive=False, reactive=True, ctx=None):
+        """Synchronous wrapper around :meth:`render_async`."""
+        return asyncio.run(
+            self.render_async(
+                path,
+                params,
+                partial,
+                http_verb,
+                in_render_directive,
+                reactive,
+                ctx,
+            )
+        )
+
+    def _render_impl(
+        self,
+        path,
+        params={},
+        partial=None,
+        http_verb=None,
+        in_render_directive=False,
+        reactive=True,
+        ctx=None,
+    ):
         """
         Renders a module using its parsed AST.
 
@@ -1113,8 +1136,8 @@ class PageQL:
         reactive=True,
         ctx=None,
     ):
-        """Asynchronous wrapper around :meth:`render`."""
-        return self.render(
+        """Asynchronously render a module."""
+        return self._render_impl(
             path,
             params,
             partial,

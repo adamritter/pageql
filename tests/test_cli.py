@@ -131,7 +131,7 @@ def test_cli_profile(monkeypatch, tmp_path):
     monkeypatch.setattr(cli.uvicorn, "run", dummy_run)
 
     import types
-    monkeypatch.setitem(sys.modules, "profile", types.SimpleNamespace(Profile=lambda: DummyProfile()))
+    monkeypatch.setitem(sys.modules, "cProfile", types.SimpleNamespace(Profile=lambda: DummyProfile()))
     monkeypatch.setitem(sys.modules, "pstats", types.SimpleNamespace(Stats=lambda prof: DummyStats(prof)))
 
     argv = ["pageql", "db", str(tmp_path), "--profile"]

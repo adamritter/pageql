@@ -110,10 +110,10 @@ def main():
         print("Press Ctrl+C to stop.")
 
     if args.profile:
-        import profile
+        import cProfile
         import pstats
 
-        profiler = profile.Profile()
+        profiler = cProfile.Profile()
         try:
             profiler.runcall(
                 uvicorn.run,

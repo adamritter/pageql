@@ -76,7 +76,7 @@ pageql -path/to/your/database.sqlite ./templates
 *   `--no-csrf`: (Optional) Disable CSRF protection. Useful for local testing but not recommended in production.
 *   `--test`: (Optional) Run template tests and exit instead of serving.
 *   `--http-disconnect-cleanup-timeout <seconds>`: (Optional) Delay before cleaning up HTTP disconnect contexts.
-*   `--profile`: (Optional) Profile the server and print statistics when it stops.
+*   `--profile`: (Optional) Profile the server using `cProfile` and print statistics when it stops.
 *   PageQL automatically configures new SQLite databases with write-ahead logging
     and an increased cache for better concurrency.
 *   When a PostgreSQL or MySQL URL is provided, `--create` is ignored and the

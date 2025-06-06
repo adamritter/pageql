@@ -35,20 +35,27 @@ async def fetch(
     port: int,
     path: str,
     *,
+    method: str = "GET",
+    data: str | None = None,
     return_body: bool = False,
     headers: dict[str, str] | None = None,
 ):
     reader, writer = await asyncio.open_connection(host, port)
     headers = headers or {}
     header_lines = "".join(f"{k}: {v}\r\n" for k, v in headers.items())
+    body_bytes = data.encode() if data is not None else b""
+    if method != "GET" and data is not None:
+        headers.setdefault("Content-Type", "application/x-www-form-urlencoded")
+        headers.setdefault("Content-Length", str(len(body_bytes)))
+        header_lines = "".join(f"{k}: {v}\r\n" for k, v in headers.items())
     request = (
-        f"GET {path} HTTP/1.1\r\n"
+        f"{method} {path} HTTP/1.1\r\n"
         f"Host: {host}\r\n"
         f"{header_lines}"
         "Connection: keep-alive\r\n"
         "\r\n"
     )
-    writer.write(request.encode())
+    writer.write(request.encode() + body_bytes)
     await writer.drain()
 
     # parse status line and headers
@@ -75,52 +82,6 @@ async def fetch(
     return reader, writer, body
 
 
-async def post(
-    host: str,
-    port: int,
-    path: str,
-    data: str,
-    *,
-    return_body: bool = False,
-    headers: dict[str, str] | None = None,
-):
-    reader, writer = await asyncio.open_connection(host, port)
-    body_bytes = data.encode()
-    headers = headers or {}
-    header_lines = "".join(f"{k}: {v}\r\n" for k, v in headers.items())
-    request = (
-        f"POST {path} HTTP/1.1\r\n"
-        f"Host: {host}\r\n"
-        "Content-Type: application/x-www-form-urlencoded\r\n"
-        f"Content-Length: {len(body_bytes)}\r\n"
-        f"{header_lines}"
-        "Connection: keep-alive\r\n"
-        "\r\n"
-    )
-    writer.write(request.encode() + body_bytes)
-    await writer.drain()
-
-    await reader.readline()  # status line
-    headers = {}
-    while True:
-        line = await reader.readline()
-        if line == b"\r\n":
-            break
-        key, val = line.decode().split(":", 1)
-        headers[key.strip().lower()] = val.strip()
-
-    body = None
-    if return_body:
-        if headers.get("transfer-encoding") == "chunked":
-            body_bytes = await _read_chunked_body(reader)
-        elif "content-length" in headers:
-            length = int(headers["content-length"])
-            body_bytes = await reader.readexactly(length)
-        else:
-            body_bytes = await reader.read()  # fallback
-        body = body_bytes.decode()
-
-    return reader, writer, body
 
 
 async def run_benchmark() -> None:
@@ -183,11 +144,12 @@ async def run_benchmark() -> None:
     start = time.perf_counter()
     post_tasks = [
         asyncio.create_task(
-            post(
+            fetch(
                 "127.0.0.1",
                 port,
                 "/todos/add",
-                f"text=bench{i}",
+                method="POST",
+                data=f"text=bench{i}",
                 headers={"ClientId": client_id} if client_id else None,
             )
         )

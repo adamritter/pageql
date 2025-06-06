@@ -124,10 +124,6 @@ class PageQLApp:
         if not self.quiet:
             print(msg)
 
-    def _debug(self, msg):
-        if not self.quiet and self.log_level == "debug":
-            print(msg)
-
     def _error(self, msg):
         print(msg)
 
@@ -273,9 +269,10 @@ class PageQLApp:
                     if client_id:
                         self.websockets.pop(client_id, None)
                         contexts = self.render_contexts.pop(client_id, [])
-                        self._debug(
-                            f"websocket.disconnect: {client_id} render_contexts: {self.render_contexts.keys()}"
-                        )
+                        if self.log_level == "debug":
+                            print(
+                                f"websocket.disconnect: {client_id} render_contexts: {self.render_contexts.keys()}"
+                            )
                         for ctx in contexts:
                             ctx.send_script = None
                             ctx.cleanup()
@@ -290,15 +287,17 @@ class PageQLApp:
     async def _handle_http_disconnect(self, receive, client_id):
         message = await receive()
         if isinstance(message, dict) and message.get("type") == "http.disconnect" and client_id:
-            self._debug(
-                f"http.disconnect: {client_id} render_contexts: {list(self.render_contexts.keys())}, message: {message}, cleaning up later"
-            )
+            if self.log_level == "debug":
+                print(
+                    f"http.disconnect: {client_id} render_contexts: {list(self.render_contexts.keys())}, message: {message}, cleaning up later"
+                )
             async def cleanup_later():
                 await asyncio.sleep(self.http_disconnect_cleanup_timeout)
                 if client_id not in self.websockets:
-                    self._debug(
-                        f"cleanup_later: {client_id} not in websockets, removing client_id from render_contexts"
-                    )
+                    if self.log_level == "debug":
+                        print(
+                            f"cleanup_later: {client_id} not in websockets, removing client_id from render_contexts"
+                        )
                     contexts = self.render_contexts.pop(client_id, [])
                     for ctx in contexts:
                         ctx.send_script = None
@@ -590,7 +589,8 @@ class PageQLApp:
         if scope["type"] == "websocket" and scope["path"] == "/reload-request-ws":
             await self._handle_reload_websocket(scope, receive, send)
         else:
-            self._debug(f"scope: {scope}, calling http_disconnect")
+            if self.log_level == "debug":
+                print(f"scope: {scope}, calling http_disconnect")
             client_id = await self.pageql_handler(scope, receive, send)
             if client_id is not None:
                 await self._handle_http_disconnect(receive, client_id)

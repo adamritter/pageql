@@ -83,7 +83,11 @@ def bench_factory(name):
         return pql.render('/' + name, params)
     return bench
 
-SCENARIOS = [(n, bench_factory(n)) for n in MODULES if n != 'other']
+SCENARIOS = [
+    (n, bench_factory(n))
+    for n in MODULES
+    if n not in ('other', 's13_fetch', 's21_slow_fetch')
+]
 
 
 async def run_benchmarks(db_path):

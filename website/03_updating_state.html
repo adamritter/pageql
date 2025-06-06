@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PageQL Tutorial – Updating State (toggle &amp; edit)</title>
+  <title>PageQL Tutorial – Updating State (reactive toggle &amp; edit)</title>
 
   <!-- Google Font for pleasant typography -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -383,7 +383,7 @@
     </a>
   </div>
 
-  <h1>Updating State <small>(toggle &amp; edit)</small></h1>
+  <h1>Updating State <small>(reactive toggle &amp; edit)</small></h1>
 
   <p><strong>Goal:</strong> Let users flip a Todo between <em>active</em> and <em>completed</em> and edit its text. You'll meet
     <code>#update</code>, <code>#let</code>, stronger <code>#param</code> validation and conditional <code>#if</code>.</p>
@@ -577,22 +577,21 @@
     </tbody>
   </table>
 
-  <h3>3.1 Request cycle (toggle example)</h3>
+  <h3>3.1 Request cycle in 2 steps</h3>
   <ol>
-    <li><strong>Browser:</strong> POST <code>/todos/toggle</code></li>
-    <li><strong>Server:</strong> <code>toggle</code> partial updates row → 302 Redirect to <code>/todos</code></li>
-    <li><strong>Browser:</strong> GET <code>/todos</code> → counts &amp; list refresh.</li>
+    <li><strong>Browser:</strong> hx-post <code>/todos/toggle</code></li>
+    <li><strong>Server:</strong> <code>toggle</code> partial updates row → list updates automatically.</li>
   </ol>
 
   <p style="text-align:center;font-family:monospace;font-size:18px;padding:10px">
-    POST / todos/toggle → 302 → GET / todos
+    POST /todos/toggle → UI updates automatically
   </p>
 
   <!-- 4 -->
   <h2>4 Try it out</h2>
   <ol>
     <li>Open <a href="http://localhost:8000/todos">http://localhost:8000/todos</a>.</li>
-    <li>Click a checkbox—row turns grey and page reloads.</li>
+    <li>Click a checkbox—row turns grey instantly without reloading.</li>
     <li>Double-click a label, edit text, hit <strong>Enter</strong>.</li>
     <li>Use the header checkbox to toggle all items on/off.</li>
   </ol>

@@ -11,7 +11,7 @@ Classes:
 
 # Instructions for LLMs and devs: Keep the code short. Make changes minimal. Don't change even tests too much.
 
-import re, time, sys, json, hashlib, base64, asyncio, threading
+import re, time, sys, json, hashlib, base64
 import doctest
 import sqlite3
 import os
@@ -44,31 +44,12 @@ from pageql.database import (
     db_execute_dot,
     evalone,
 )
+
 from pageql.params import handle_param
 from pageql.http_utils import fetch_sync
 import sqlglot
 
 
-def _run_sync(coro):
-    try:
-        asyncio.get_running_loop()
-    except RuntimeError:
-        return asyncio.run(coro)
-    result = []
-    exc = []
-
-    def runner():
-        try:
-            result.append(asyncio.run(coro))
-        except Exception as e:
-            exc.append(e)
-
-    t = threading.Thread(target=runner)
-    t.start()
-    t.join()
-    if exc:
-        raise exc[0]
-    return result[0]
 
 
 
@@ -294,8 +275,7 @@ class PageQL:
                     raise Exception(f"Warning: Empty value expression for key `{key}` in #render args")
 
         # Perform the recursive render call with the potentially modified parameters
-        result = _run_sync(
-            self._render_impl(
+        result = self.render(
             render_path,
             render_params,
             partial_names,
@@ -303,7 +283,6 @@ class PageQL:
             in_render_directive=True,
             reactive=reactive,
             ctx=ctx,
-        )
         )
         if result.status_code == 404:
             raise ValueError(f"handle_render: Partial or import '{partial_name_str}' not found with http verb {http_verb}, render_path: {render_path}, partial_names: {partial_names}")
@@ -997,31 +976,28 @@ class PageQL:
             reactive = self.process_node(node, params, path, includes, http_verb, reactive, ctx, out)
         return reactive
 
-    async def process_nodes_async(self, nodes, params, path, includes, http_verb=None, reactive=False, ctx=None, out=None):
-        """Asynchronous version of :meth:`process_nodes`."""
-        if out is None:
-            out = ctx.out
-
-        for node in nodes:
-            reactive = self.process_node(node, params, path, includes, http_verb, reactive, ctx, out)
-        return reactive
-
-    def render(self, path, params={}, partial=None, http_verb=None,
-               in_render_directive=False, reactive=True, ctx=None):
-        """Synchronous wrapper around :meth:`render_async`."""
-        return _run_sync(
-            self.render_async(
-                path,
-                params,
-                partial,
-                http_verb,
-                in_render_directive,
-                reactive,
-                ctx,
-            )
+    def render(
+        self,
+        path,
+        params={},
+        partial=None,
+        http_verb=None,
+        in_render_directive=False,
+        reactive=True,
+        ctx=None,
+    ):
+        """Render a module synchronously."""
+        return self._render_impl(
+            path,
+            params,
+            partial,
+            http_verb,
+            in_render_directive,
+            reactive,
+            ctx,
         )
 
-    async def _render_impl(
+    def _render_impl(
         self,
         path,
         params={},
@@ -1116,7 +1092,7 @@ class PageQL:
                     http_key_public = (partial_name, "PUBLIC")
                     if http_key in partials or http_key_public in partials:
                         body = partials[http_key][0] if http_key in partials else partials[http_key_public][0]
-                        reactive = await self.process_nodes_async(body, params, path, includes, http_verb, reactive, ctx)
+                        reactive = self.process_nodes(body, params, path, includes, http_verb, reactive, ctx)
                     elif (':', None) in partials or (':', 'PUBLIC') in partials or (':', http_verb) in partials:
                         value = partials[(':', http_verb)] if (':', http_verb) in partials else partials[(':', None)] if (':', None) in partials else partials[(':', 'PUBLIC')]
                         if in_render_directive:
@@ -1126,12 +1102,12 @@ class PageQL:
                             params[value[0][1:]] = partial[0]
                         partials = value[2]
                         partial = partial[1:]
-                        reactive = await self.process_nodes_async(value[1], params, path, includes, http_verb, reactive, ctx)
+                        reactive = self.process_nodes(value[1], params, path, includes, http_verb, reactive, ctx)
                     else:
                         raise ValueError(f"render: Partial '{partial_name}' with http verb '{http_verb}' not found in module '{module_name}'")
                 else:
                     # Render the entire module
-                    reactive = await self.process_nodes_async(module_body, params, path, includes, http_verb, reactive, ctx)
+                    reactive = self.process_nodes(module_body, params, path, includes, http_verb, reactive, ctx)
 
                 result.body = "".join(ctx.out)
                 ctx.clear_output()
@@ -1158,27 +1134,6 @@ class PageQL:
         self.db.commit()
         _ONEVENT_CACHE.clear()
         return result
-
-    async def render_async(
-        self,
-        path,
-        params={},
-        partial=None,
-        http_verb=None,
-        in_render_directive=False,
-        reactive=True,
-        ctx=None,
-    ):
-        """Asynchronously render a module."""
-        return await self._render_impl(
-            path,
-            params,
-            partial,
-            http_verb,
-            in_render_directive,
-            reactive,
-            ctx,
-        )
 
 # Example of how to run the examples if this file is executed
 if __name__ == '__main__':

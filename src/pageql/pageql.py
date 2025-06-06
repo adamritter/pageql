@@ -540,7 +540,18 @@ class PageQL:
         self.db.commit()
         data = self.fetch_cb(str(url))
         if asyncio.iscoroutine(data):
-            data = asyncio.run(data)
+            try:
+                loop = asyncio.get_event_loop()
+            except RuntimeError:
+                loop = asyncio.new_event_loop()
+                try:
+                    asyncio.set_event_loop(loop)
+                    data = loop.run_until_complete(data)
+                finally:
+                    asyncio.set_event_loop(None)
+                    loop.close()
+            else:
+                data = loop.run_until_complete(data)
         for k, v in flatten_params(data).items():
             params[f"{var}__{k}"] = v
         return reactive

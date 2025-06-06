@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PageQL Tutorial – Enhancing Interactivity with HTMX</title>
+  <title>PageQL Tutorial – Enhancing Interactivity with HTMX (reactive)</title>
 
   <!-- Google Font for pleasant typography -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -387,9 +387,9 @@
     </a>
   </div>
 
-  <h1>Enhancing Interactivity with HTMX <small>without repeating yourself</small></h1>
+  <h1>Enhancing Interactivity with HTMX <small>(reactive)</small></h1>
 
-  <p><strong>Goal:</strong> So far every change (add, edit, toggle) sends the browser on a full round-trip: POST → 302 → GET. That is fine, but a modern UI can feel snappier. Instead of pulling in a heavy front-end framework we'll sprinkle one tiny script—HTMX—that turns our existing PageQL endpoints into AJAX fragment providers.</p>
+  <p><strong>Goal:</strong> Our Todo app already updates instantly via <code>hx-*</code> actions. Here we'll keep that snappy feel while removing duplicate HTML. We'll refactor the view and edit blocks into partials and let HTMX fetch small fragments on demand.</p>
 
   <p>We still want:</p>
   <ul>
@@ -419,51 +419,39 @@
 
   <p>Before we touch HTMX attributes, move the two &lt;li&gt; variants into local partials. Add them near the bottom of the same file:</p>
 
-  <pre class="code-block"><code class="language-html">
-&#123;&#123;<span class="keyword">#partial</span> <span class="variable">row_view</span>&#125;&#125;
-  &lt;<span class="keyword">li</span> &#123;&#123;<span class="keyword">#if</span> <span class="variable">completed</span>&#125;&#125;<span class="attribute">class</span>=<span class="string">"completed"</span>&#123;&#123;/<span class="keyword">if</span>&#125;&#125;&gt;
-    &lt;<span class="keyword">form</span> <span class="attribute">method</span>=<span class="string">"POST"</span> <span class="attribute">action</span>=<span class="string">"/todos/toggle"</span> <span class="attribute">style</span>=<span class="string">"display:inline"</span>&gt;
-      &lt;<span class="keyword">input</span> <span class="attribute">type</span>=<span class="string">"hidden"</span> <span class="attribute">name</span>=<span class="string">"id"</span> <span class="attribute">value</span>=<span class="string">"&#123;&#123;id&#125;&#125;"</span>&gt;
-      &lt;<span class="keyword">input</span> <span class="attribute">class</span>=<span class="string">"toggle"</span> <span class="attribute">type</span>=<span class="string">"checkbox"</span> &#123;&#123;<span class="keyword">#if</span> <span class="variable">completed</span>&#125;&#125;<span class="attribute">checked</span>&#123;&#123;/<span class="keyword">if</span>&#125;&#125; <span class="attribute">onchange</span>=<span class="string">"this.form.submit();"</span>&gt;
-    &lt;/<span class="keyword">form</span>&gt;
-    &lt;<span class="keyword">label</span> <span class="attribute">ondblclick</span>=<span class="string">"window.location='/todos?edit_id=&#123;&#123;id&#125;&#125;'"</span>&gt;&#123;&#123;<span class="variable">text</span>&#125;&#125;&lt;/<span class="keyword">label</span>&gt;
-    &lt;<span class="keyword">form</span> <span class="attribute">method</span>=<span class="string">"POST"</span> <span class="attribute">action</span>=<span class="string">"/todos/delete"</span> <span class="attribute">style</span>=<span class="string">"display:inline"</span>&gt;
-      &lt;<span class="keyword">input</span> <span class="attribute">type</span>=<span class="string">"hidden"</span> <span class="attribute">name</span>=<span class="string">"id"</span> <span class="attribute">value</span>=<span class="string">"&#123;&#123;id&#125;&#125;"</span>&gt;
-      &lt;<span class="keyword">button</span> <span class="attribute">class</span>=<span class="string">"destroy"</span> <span class="attribute">style</span>=<span class="string">"cursor:pointer; background:none; border:none; color:#ac4a1a;"</span>&gt;✕&lt;/<span class="keyword">button</span>&gt;
-    &lt;/<span class="keyword">form</span>&gt;
-  &lt;/<span class="keyword">li</span>&gt;
-&#123;&#123;/<span class="keyword">partial</span>&#125;&#125;
+<pre class="code-block"><code class="language-html">
+{{#partial row_view}}
+  <li {{#if completed}}class="completed"{{/if}}>
+    <input hx-post="/todos/{{id}}/toggle" class="toggle" type="checkbox" {{#if completed}}checked{{/if}}>
+    <label hx-get="/todos/edit_form?id={{id}}">{{text}}</label>
+    <button hx-delete="/todos/{{id}}" class="destroy" style="cursor:pointer; background:none; border:none; color:#ac4a1a;">✕</button>
+  </li>
+{{/partial}}
 
-&#123;&#123;<span class="keyword">#partial</span> <span class="variable">row_edit</span>&#125;&#125;
-  &lt;<span class="keyword">li</span> <span class="attribute">class</span>=<span class="string">"editing"</span>&gt;
-    &lt;<span class="keyword">form</span> <span class="attribute">method</span>=<span class="string">"POST"</span> <span class="attribute">action</span>=<span class="string">"/todos/save"</span> <span class="attribute">style</span>=<span class="string">"margin:0"</span>&gt;
-      &lt;<span class="keyword">input</span> <span class="attribute">type</span>=<span class="string">"hidden"</span> <span class="attribute">name</span>=<span class="string">"id"</span> <span class="attribute">value</span>=<span class="string">"&#123;&#123;id&#125;&#125;"</span>&gt;
-      &lt;<span class="keyword">input</span> <span class="attribute">class</span>=<span class="string">"edit"</span> <span class="attribute">name</span>=<span class="string">"text"</span> <span class="attribute">value</span>=<span class="string">"&#123;&#123;text&#125;&#125;"</span> <span class="attribute">autofocus</span>&gt;
-    &lt;/<span class="keyword">form</span>&gt;
-  &lt;/<span class="keyword">li</span>&gt;
-&#123;&#123;/<span class="keyword">partial</span>&#125;&#125;
-</code><div class="clean-code">&#123;&#123;#partial row_view&#125;&#125;
-    &lt;li &#123;&#123;#if completed&#125;&#125;class="completed"&#123;&#123;/if&#125;&#125;&gt;
-      &lt;form method="POST" action="/todos/toggle" style="display:inline"&gt;
-        &lt;input type="hidden" name="id" value="&#123;&#123;id&#125;&#125;"&gt;
-        &lt;input class="toggle" type="checkbox" &#123;&#123;#if completed&#125;&#125;checked&#123;&#123;/if&#125;&#125; onchange="this.form.submit();"&gt;
-      &lt;/form&gt;
-      &lt;label ondblclick="window.location='/todos?edit_id=&#123;&#123;id&#125;&#125;'"&gt;&#123;&#123;text&#125;&#125;&lt;/label&gt;
-      &lt;form method="POST" action="/todos/delete" style="display:inline"&gt;
-        &lt;input type="hidden" name="id" value="&#123;&#123;id&#125;&#125;"&gt;
-        &lt;button class="destroy" style="cursor:pointer; background:none; border:none; color:#ac4a1a;"&gt;✕&lt;/button&gt;
-      &lt;/form&gt;
-    &lt;/li&gt;
-  &#123;&#123;/partial&#125;&#125;
-  
-  &#123;&#123;#partial row_edit&#125;&#125;
-    &lt;li class="editing"&gt;
-      &lt;form method="POST" action="/todos/save" style="margin:0"&gt;
-        &lt;input type="hidden" name="id" value="&#123;&#123;id&#125;&#125;"&gt;
-        &lt;input class="edit" name="text" value="&#123;&#123;text&#125;&#125;" autofocus&gt;
-      &lt;/form&gt;
-    &lt;/li&gt;
-  &#123;&#123;/partial&#125;&#125;</div></pre>
+{{#partial row_edit}}
+  <li class="editing">
+    <form hx-post="/todos/save" hx-target="this" hx-swap="outerHTML" style="margin:0">
+      <input type="hidden" name="id" value="{{id}}">
+      <input class="edit" name="text" value="{{text}}" autofocus>
+    </form>
+  </li>
+{{/partial}}
+</code><div class="clean-code">{{#partial row_view}}
+  <li {{#if completed}}class="completed"{{/if}}>
+    <input hx-post="/todos/{{id}}/toggle" class="toggle" type="checkbox" {{#if completed}}checked{{/if}}>
+    <label hx-get="/todos/edit_form?id={{id}}">{{text}}</label>
+    <button hx-delete="/todos/{{id}}" class="destroy" style="cursor:pointer; background:none; border:none; color:#ac4a1a;">✕</button>
+  </li>
+{{/partial}}
+
+{{#partial row_edit}}
+  <li class="editing">
+    <form hx-post="/todos/save" hx-target="this" hx-swap="outerHTML" style="margin:0">
+      <input type="hidden" name="id" value="{{id}}">
+      <input class="edit" name="text" value="{{text}}" autofocus>
+    </form>
+  </li>
+{{/partial}}</div></pre>
 
   <p>Now update the original #from loop to render those partials instead of hard-coding &lt;li&gt; markup:</p>
 

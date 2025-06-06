@@ -997,6 +997,15 @@ class PageQL:
             reactive = self.process_node(node, params, path, includes, http_verb, reactive, ctx, out)
         return reactive
 
+    async def process_nodes_async(self, nodes, params, path, includes, http_verb=None, reactive=False, ctx=None, out=None):
+        """Asynchronous version of :meth:`process_nodes`."""
+        if out is None:
+            out = ctx.out
+
+        for node in nodes:
+            reactive = self.process_node(node, params, path, includes, http_verb, reactive, ctx, out)
+        return reactive
+
     def render(self, path, params={}, partial=None, http_verb=None,
                in_render_directive=False, reactive=True, ctx=None):
         """Synchronous wrapper around :meth:`render_async`."""
@@ -1107,7 +1116,7 @@ class PageQL:
                     http_key_public = (partial_name, "PUBLIC")
                     if http_key in partials or http_key_public in partials:
                         body = partials[http_key][0] if http_key in partials else partials[http_key_public][0]
-                        reactive = self.process_nodes(body, params, path, includes, http_verb, reactive, ctx)
+                        reactive = await self.process_nodes_async(body, params, path, includes, http_verb, reactive, ctx)
                     elif (':', None) in partials or (':', 'PUBLIC') in partials or (':', http_verb) in partials:
                         value = partials[(':', http_verb)] if (':', http_verb) in partials else partials[(':', None)] if (':', None) in partials else partials[(':', 'PUBLIC')]
                         if in_render_directive:
@@ -1117,12 +1126,12 @@ class PageQL:
                             params[value[0][1:]] = partial[0]
                         partials = value[2]
                         partial = partial[1:]
-                        reactive = self.process_nodes(value[1], params, path, includes, http_verb, reactive, ctx)
+                        reactive = await self.process_nodes_async(value[1], params, path, includes, http_verb, reactive, ctx)
                     else:
                         raise ValueError(f"render: Partial '{partial_name}' with http verb '{http_verb}' not found in module '{module_name}'")
                 else:
                     # Render the entire module
-                    reactive = self.process_nodes(module_body, params, path, includes, http_verb, reactive, ctx)
+                    reactive = await self.process_nodes_async(module_body, params, path, includes, http_verb, reactive, ctx)
 
                 result.body = "".join(ctx.out)
                 ctx.clear_output()

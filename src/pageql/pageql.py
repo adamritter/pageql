@@ -11,7 +11,7 @@ Classes:
 
 # Instructions for LLMs and devs: Keep the code short. Make changes minimal. Don't change even tests too much.
 
-import re, time, sys, json, hashlib, base64, asyncio
+import re, time, sys, json, hashlib, base64, asyncio, threading
 import doctest
 import sqlite3
 import os
@@ -47,6 +47,28 @@ from pageql.database import (
 from pageql.params import handle_param
 from pageql.http_utils import fetch_sync
 import sqlglot
+
+
+def _run_sync(coro):
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        return asyncio.run(coro)
+    result = []
+    exc = []
+
+    def runner():
+        try:
+            result.append(asyncio.run(coro))
+        except Exception as e:
+            exc.append(e)
+
+    t = threading.Thread(target=runner)
+    t.start()
+    t.join()
+    if exc:
+        raise exc[0]
+    return result[0]
 
 
 
@@ -272,7 +294,8 @@ class PageQL:
                     raise Exception(f"Warning: Empty value expression for key `{key}` in #render args")
 
         # Perform the recursive render call with the potentially modified parameters
-        result = self._render_impl(
+        result = _run_sync(
+            self._render_impl(
             render_path,
             render_params,
             partial_names,
@@ -280,6 +303,7 @@ class PageQL:
             in_render_directive=True,
             reactive=reactive,
             ctx=ctx,
+        )
         )
         if result.status_code == 404:
             raise ValueError(f"handle_render: Partial or import '{partial_name_str}' not found with http verb {http_verb}, render_path: {render_path}, partial_names: {partial_names}")
@@ -976,7 +1000,7 @@ class PageQL:
     def render(self, path, params={}, partial=None, http_verb=None,
                in_render_directive=False, reactive=True, ctx=None):
         """Synchronous wrapper around :meth:`render_async`."""
-        return asyncio.run(
+        return _run_sync(
             self.render_async(
                 path,
                 params,
@@ -988,7 +1012,7 @@ class PageQL:
             )
         )
 
-    def _render_impl(
+    async def _render_impl(
         self,
         path,
         params={},
@@ -1137,7 +1161,7 @@ class PageQL:
         ctx=None,
     ):
         """Asynchronously render a module."""
-        return self._render_impl(
+        return await self._render_impl(
             path,
             params,
             partial,

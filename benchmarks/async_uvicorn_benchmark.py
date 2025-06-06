@@ -7,7 +7,7 @@ from uvicorn.config import Config
 from uvicorn.server import Server
 
 from pageql.pageqlapp import PageQLApp
-from pageql.http_utils import _http_get, _read_chunked_body
+from pageql.http_utils import _http_get
 import websockets
 
 # number of HTTP requests to issue when measuring request/response throughput
@@ -15,58 +15,6 @@ REQUEST_ITERATIONS = 1000
 
 # number of todo items inserted and websocket messages drained
 TODO_COUNT = 30
-
-
-async def fetch(
-    host: str,
-    port: int,
-    path: str,
-    *,
-    method: str = "GET",
-    data: str | None = None,
-    return_body: bool = False,
-    headers: dict[str, str] | None = None,
-):
-    reader, writer = await asyncio.open_connection(host, port)
-    headers = headers or {}
-    header_lines = "".join(f"{k}: {v}\r\n" for k, v in headers.items())
-    body_bytes = data.encode() if data is not None else b""
-    if method != "GET" and data is not None:
-        headers.setdefault("Content-Type", "application/x-www-form-urlencoded")
-        headers.setdefault("Content-Length", str(len(body_bytes)))
-        header_lines = "".join(f"{k}: {v}\r\n" for k, v in headers.items())
-    request = (
-        f"{method} {path} HTTP/1.1\r\n"
-        f"Host: {host}\r\n"
-        f"{header_lines}"
-        "Connection: keep-alive\r\n"
-        "\r\n"
-    )
-    writer.write(request.encode() + body_bytes)
-    await writer.drain()
-
-    # parse status line and headers
-    await reader.readline()  # status line
-    headers = {}
-    while True:
-        line = await reader.readline()
-        if line == b"\r\n":
-            break
-        key, val = line.decode().split(":", 1)
-        headers[key.strip().lower()] = val.strip()
-
-    body = None
-    if return_body:
-        if headers.get("transfer-encoding") == "chunked":
-            body_bytes = await _read_chunked_body(reader)
-        elif "content-length" in headers:
-            length = int(headers["content-length"])
-            body_bytes = await reader.readexactly(length)
-        else:
-            body_bytes = await reader.read()  # fallback
-        body = body_bytes.decode()
-
-    return reader, writer, body
 
 
 
@@ -88,6 +36,29 @@ async def run_benchmark() -> None:
         await asyncio.sleep(0.05)
     assert server.servers and server.servers[0].sockets
     port = server.servers[0].sockets[0].getsockname()[1]
+
+    async def post_todo(text: str, cid: str | None) -> tuple[asyncio.StreamReader, asyncio.StreamWriter]:
+        reader, writer = await asyncio.open_connection("127.0.0.1", port)
+        headers = {"ClientId": cid} if cid else {}
+        body_bytes = text.encode()
+        headers.setdefault("Content-Type", "application/x-www-form-urlencoded")
+        headers.setdefault("Content-Length", str(len(body_bytes)))
+        header_lines = "".join(f"{k}: {v}\r\n" for k, v in headers.items())
+        request = (
+            "POST /todos/add HTTP/1.1\r\n"
+            "Host: 127.0.0.1\r\n"
+            f"{header_lines}"
+            "Connection: keep-alive\r\n"
+            "\r\n"
+        )
+        writer.write(request.encode() + body_bytes)
+        await writer.drain()
+        await reader.readline()  # status line
+        while True:
+            line = await reader.readline()
+            if line == b"\r\n":
+                break
+        return reader, writer
 
     # warmup and extract client id
     connections = []
@@ -132,20 +103,11 @@ async def run_benchmark() -> None:
     # insert multiple todos concurrently and wait for websocket updates
     start = time.perf_counter()
     post_tasks = [
-        asyncio.create_task(
-            fetch(
-                "127.0.0.1",
-                port,
-                "/todos/add",
-                method="POST",
-                data=f"text=bench{i}",
-                headers={"ClientId": client_id} if client_id else None,
-            )
-        )
+        asyncio.create_task(post_todo(f"text=bench{i}", client_id))
         for i in range(TODO_COUNT)
     ]
     results = await asyncio.gather(*post_tasks)
-    for r, w, _ in results:
+    for r, w in results:
         connections.append((r, w))
 
     recvs = 0

@@ -161,5 +161,4 @@ if __name__ == '__main__':
     with tempfile.TemporaryDirectory() as tmp:
         path = os.path.join(tmp, 'bench.db')
         asyncio.run(run_benchmarks(path))
-    print("\nParallel version:\n")
-    asyncio.run(run_benchmarks_parallel(':memory:'))
+

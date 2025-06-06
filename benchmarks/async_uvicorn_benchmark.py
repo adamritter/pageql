@@ -172,6 +172,7 @@ async def run_fetch_only_benchmark(
 
 
 if __name__ == "__main__":
-    asyncio.run(run_fetch_only_benchmark(http_disconnect_cleanup_timeout=None))
+    asyncio.run(run_fetch_only_benchmark(http_disconnect_cleanup_timeout=0.05))
+    asyncio.run(run_fetch_only_benchmark(http_disconnect_cleanup_timeout=5))
     asyncio.run(run_benchmark())
 

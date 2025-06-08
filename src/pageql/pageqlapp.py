@@ -13,6 +13,7 @@ from typing import Callable, Awaitable, Dict, List, Optional
 
 # Assuming pageql.py is in the same directory or Python path
 from .pageql import PageQL
+from . import pageql as pql_mod
 from .http_utils import (
     _http_get,
     _read_chunked_body,
@@ -55,6 +56,19 @@ def queue_ws_script(send: Callable[[dict], Awaitable[None]], script: str) -> Non
     scripts_by_send[send].append(script)
     if _idle_task is None or _idle_task.done():
         _idle_task = asyncio.create_task(_flush_ws_scripts())
+
+
+def run_tasks() -> None:
+    """Execute tasks queued in ``pageql.tasks``."""
+    local_tasks = pql_mod.tasks
+    pql_mod.tasks = []
+
+    async def run_task(coro):
+        await coro
+        run_tasks()
+
+    for t in local_tasks:
+        asyncio.create_task(run_task(t))
 
 
 

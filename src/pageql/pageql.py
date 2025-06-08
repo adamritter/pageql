@@ -54,6 +54,7 @@ import sqlglot
 
 
 _ONEVENT_CACHE: dict[tuple[int, int, str, tuple], str] = {}
+tasks: list = []
 
 # Short descriptions for valid PageQL directives. Each entry includes a
 # minimal syntax reminder to make the help output more useful.

@@ -526,7 +526,11 @@ class PageQL:
 
     def _process_fetch_directive(self, node_content, params, path, includes,
                                  http_verb, reactive, ctx, out):
-        var, expr = node_content
+        if len(node_content) == 3:
+            var, expr, is_async = node_content
+        else:
+            var, expr = node_content
+            is_async = False
         if var.startswith(":"):
             var = var[1:]
         var = var.replace(".", "__")
@@ -536,6 +540,8 @@ class PageQL:
         # Commit any pending database changes so the fetch callback sees
         # a consistent view of the database before performing the HTTP request
         self.db.commit()
+        if is_async:
+            raise ValueError("async fetch requires async render")
         data = fetch_sync(str(url))
         for k, v in flatten_params(data).items():
             params[f"{var}__{k}"] = v

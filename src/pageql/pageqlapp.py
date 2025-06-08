@@ -380,6 +380,7 @@ class PageQLApp:
                 method,
                 reactive=self.reactive_default,
             )
+            run_tasks()
 
             if result.status_code == 404:
                 if self.fallback_app is not None:

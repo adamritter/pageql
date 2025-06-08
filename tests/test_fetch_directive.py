@@ -12,13 +12,13 @@ import pytest
 def test_fetch_directive_parsed():
     tokens = tokenize("{{#fetch file from 'http://ex'}}")
     body, _ = build_ast(tokens, dialect="sqlite")
-    assert body == [("#fetch", ("file", "'http://ex'"))]
+    assert body == [("#fetch", ("file", "'http://ex'", False))]
 
 
 def test_fetch_async_directive_parsed():
     tokens = tokenize("{{#fetch async file from 'http://ex'}}")
     body, _ = build_ast(tokens, dialect="sqlite")
-    assert body == [("#fetch", ("file", "'http://ex'"))]
+    assert body == [("#fetch", ("file", "'http://ex'", True))]
 
 
 def test_fetch_directive_dependencies():

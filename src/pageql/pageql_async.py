@@ -704,7 +704,10 @@ class PageQLAsync(PageQL):
         ctx,
         out,
     ):
-        var, expr = node_content
+        if len(node_content) == 3:
+            var, expr, _is_async = node_content
+        else:
+            var, expr = node_content
         if var.startswith(":"):
             var = var[1:]
         var = var.replace(".", "__")

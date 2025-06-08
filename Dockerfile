@@ -5,12 +5,13 @@ WORKDIR /app
 # Copy required files and install PageQL
 COPY pyproject.toml README.md ./
 COPY src ./src
+COPY website ./website
 RUN pip install .
 
 EXPOSE 8000
 
 # Mount database and templates at runtime
-VOLUME ["/data", "/templates"]
+VOLUME ["/data", "/app/website"]
 
 ENTRYPOINT ["pageql"]
-CMD ["/data/data.db", "/templates", "--create", "--host", "0.0.0.0"]
+CMD ["/data/data.db", "/app/website", "--create", "--host", "0.0.0.0"]

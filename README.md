@@ -92,17 +92,18 @@ pageql path/to/your/database.sqlite ./templates
 
 A simple `Dockerfile` is included for running PageQL in a containerized
 environment.  The image installs the package and by default serves templates
-from the `/templates` volume using a SQLite database stored under `/data`.
+from the `/app/website` directory (you can mount a volume there) using a SQLite
+database stored under `/data`.
 
 ```bash
 docker build -t pageql .
 docker run -p 8000:8000 \
-    -v $(pwd)/templates:/templates \
+    -v $(pwd)/website:/app/website \
     -v $(pwd)/data:/data \
     pageql
 ```
 
-The container runs `pageql /data/data.db /templates --create --host 0.0.0.0` so
+The container runs `pageql /data/data.db /app/website --create --host 0.0.0.0` so
 a new database is created automatically on first use and the server is
 reachable from outside the container.
 

@@ -102,8 +102,9 @@ docker run -p 8000:8000 \
     pageql
 ```
 
-The container runs `pageql /data/data.db /templates --create` so a new database
-is created automatically on first use.
+The container runs `pageql /data/data.db /templates --create --host 0.0.0.0` so
+a new database is created automatically on first use and the server is
+reachable from outside the container.
 
 *(Note: Actual command name and argument flags are subject to change.)*
 

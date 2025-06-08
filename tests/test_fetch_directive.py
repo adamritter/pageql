@@ -15,8 +15,21 @@ def test_fetch_directive_parsed():
     assert body == [("#fetch", ("file", "'http://ex'"))]
 
 
+def test_fetch_async_directive_parsed():
+    tokens = tokenize("{{#fetch async file from 'http://ex'}}")
+    body, _ = build_ast(tokens, dialect="sqlite")
+    assert body == [("#fetch", ("file", "'http://ex'"))]
+
+
 def test_fetch_directive_dependencies():
     tokens = tokenize("{{#fetch dst from :url}}")
+    ast = build_ast(tokens, dialect="sqlite")
+    deps = ast_param_dependencies(ast)
+    assert deps == {"url"}
+
+
+def test_fetch_async_directive_dependencies():
+    tokens = tokenize("{{#fetch async dst from :url}}")
     ast = build_ast(tokens, dialect="sqlite")
     deps = ast_param_dependencies(ast)
     assert deps == {"url"}

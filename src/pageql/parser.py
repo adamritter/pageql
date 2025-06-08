@@ -193,12 +193,18 @@ def _read_block(node_list, i, stop, partials, dialect, tests=None):
             continue
 
         if ntype == "#fetch":
-            var, rest = parsefirstword(ncontent)
+            first, rest = parsefirstword(ncontent)
+            if first.lower() == "async":
+                if rest is None:
+                    raise SyntaxError("#fetch requires a variable and expression")
+                var, rest = parsefirstword(rest)
+            else:
+                var = first
             if rest is None:
                 raise SyntaxError("#fetch requires a variable and expression")
-            first, expr = parsefirstword(rest)
-            if first.lower() != "from" or expr is None:
-                raise SyntaxError("#fetch syntax is '<var> from <expr>'")
+            kw, expr = parsefirstword(rest)
+            if kw.lower() != "from" or expr is None:
+                raise SyntaxError("#fetch syntax is '[async] <var> from <expr>'")
             i += 1
             body.append(("#fetch", (var, expr)))
             continue

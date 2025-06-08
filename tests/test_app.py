@@ -148,3 +148,18 @@ def test_before_hook_handles_bytes(tmp_path):
     assert status == 200
     assert base64.b64encode(b"abcd").decode() in body.decode()
 
+
+def test_index_html_served_when_pageql_missing(tmp_path):
+    index_html = Path(tmp_path) / "index.html"
+    index_html.write_text("<h1>Home</h1>", encoding="utf-8")
+
+    async def run_test():
+        server, task, port = await run_server_in_task(str(tmp_path))
+        status, _headers, body_bytes = await _http_get(f"http://127.0.0.1:{port}/")
+        server.should_exit = True
+        await task
+        return status, body_bytes.decode()
+
+    status, body = asyncio.run(run_test())
+    assert status == 200
+    assert "<h1>Home</h1>" in body

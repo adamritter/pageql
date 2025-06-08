@@ -460,6 +460,14 @@ class PageQLApp:
         params['headers'] = headers
         params['method'] = method
 
+        if (
+            path_cleaned == 'index'
+            and 'index' not in self.pageql_engine._modules
+            and 'index.html' in self.static_files
+        ):
+            await self._serve_static_file('index.html', include_scripts, client_id, send)
+            return
+
         if await self._serve_static_file(path_cleaned, include_scripts, client_id, send):
             return
 

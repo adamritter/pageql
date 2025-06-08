@@ -88,6 +88,23 @@ pageql path/to/your/database.sqlite ./templates
 *   Although `postgres://` and `mysql://` URLs work, remote connections add read
     latency that can degrade performance of reactive queries.
 
+## Docker
+
+A simple `Dockerfile` is included for running PageQL in a containerized
+environment.  The image installs the package and by default serves templates
+from the `/templates` volume using a SQLite database stored under `/data`.
+
+```bash
+docker build -t pageql .
+docker run -p 8000:8000 \
+    -v $(pwd)/templates:/templates \
+    -v $(pwd)/data:/data \
+    pageql
+```
+
+The container runs `pageql /data/data.db /templates --create` so a new database
+is created automatically on first use.
+
 *(Note: Actual command name and argument flags are subject to change.)*
 
 ## Proposed Tag Syntax

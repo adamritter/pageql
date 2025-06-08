@@ -1,9 +1,9 @@
-# fly.toml app configuration file generated for pageql on 2025-06-08T15:19:36Z
+# fly.toml app configuration file generated for pageql-arf8eq on 2025-06-08T16:15:11Z
 #
 # See https://fly.io/docs/reference/configuration/ for information about how to use this file.
 #
 
-app = 'pageql'
+app = 'pageql-arf8eq'
 primary_region = 'otp'
 
 [build]

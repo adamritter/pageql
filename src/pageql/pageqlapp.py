@@ -593,6 +593,16 @@ class PageQLApp:
         if scope['type'] == 'lifespan':
             return await self.lifespan(scope, receive, send)
         path = scope.get('path', '/')
+        if scope['type'] == 'http' and path == '/healthz':
+            await send(
+                {
+                    'type': 'http.response.start',
+                    'status': 200,
+                    'headers': [(b'content-type', b'text/plain')],
+                }
+            )
+            await send({'type': 'http.response.body', 'body': b'OK'})
+            return
         self._log(f"path: {path}")
         if scope["type"] == "websocket" and scope["path"] == "/reload-request-ws":
             await self._handle_reload_websocket(scope, receive, send)

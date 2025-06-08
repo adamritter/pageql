@@ -12,8 +12,8 @@ from collections import defaultdict
 from typing import Callable, Awaitable, Dict, List, Optional
 
 # Assuming pageql.py is in the same directory or Python path
+from . import pageql
 from .pageql import PageQL
-from . import pageql as pql_mod
 from .http_utils import (
     _http_get,
     _read_chunked_body,
@@ -60,8 +60,8 @@ def queue_ws_script(send: Callable[[dict], Awaitable[None]], script: str) -> Non
 
 def run_tasks() -> None:
     """Execute tasks queued in ``pageql.tasks``."""
-    local_tasks = pql_mod.tasks
-    pql_mod.tasks = []
+    local_tasks = pageql.tasks.copy()
+    pageql.tasks.clear()
 
     async def run_task(coro):
         await coro

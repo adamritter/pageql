@@ -46,7 +46,7 @@ from pageql.database import (
 )
 
 from pageql.params import handle_param
-from pageql.http_utils import fetch_sync
+from pageql.http_utils import fetch_sync, fetch
 import sqlglot
 
 
@@ -542,10 +542,24 @@ class PageQL:
         # a consistent view of the database before performing the HTTP request
         self.db.commit()
         if is_async:
-            raise ValueError("async fetch requires async render")
-        data = fetch_sync(str(url))
-        for k, v in flatten_params(data).items():
-            params[f"{var}__{k}"] = v
+            body_sig = Signal(None)
+            status_sig = Signal(None)
+            headers_sig = Signal(None)
+            params[f"{var}__body"] = body_sig
+            params[f"{var}__status_code"] = status_sig
+            params[f"{var}__headers"] = headers_sig
+
+            async def do_fetch(url=url, b=body_sig, s=status_sig, h=headers_sig):
+                data = await fetch(str(url))
+                b.set_value(data.get("body"))
+                s.set_value(data.get("status_code"))
+                h.set_value(data.get("headers"))
+
+            tasks.append(do_fetch())
+        else:
+            data = fetch_sync(str(url))
+            for k, v in flatten_params(data).items():
+                params[f"{var}__{k}"] = v
         return reactive
 
     def _process_update_directive(self, node_content, params, path, includes,

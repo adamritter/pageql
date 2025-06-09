@@ -1,6 +1,6 @@
 """Async wrappers for PageQL rendering methods."""
 
-from .pageql import PageQL, _ONEVENT_CACHE, format_unknown_directive
+from .pageql import PageQL, _ONEVENT_CACHE, format_unknown_directive, tasks
 from .render_context import RenderContext, RenderResult, RenderResultException
 from .parser import parsefirstword
 from .database import evalone, flatten_params, db_execute_dot
@@ -705,9 +705,10 @@ class PageQLAsync(PageQL):
         out,
     ):
         if len(node_content) == 3:
-            var, expr, _is_async = node_content
+            var, expr, is_async = node_content
         else:
             var, expr = node_content
+            is_async = False
         if var.startswith(":"):
             var = var[1:]
         var = var.replace(".", "__")
@@ -715,9 +716,25 @@ class PageQLAsync(PageQL):
         if isinstance(url, Signal):
             url = url.value
         self.db.commit()
-        data = await fetch(str(url))
-        for k, v in flatten_params(data).items():
-            params[f"{var}__{k}"] = v
+        if is_async:
+            body_sig = Signal(None)
+            status_sig = Signal(None)
+            headers_sig = Signal(None)
+            params[f"{var}__body"] = body_sig
+            params[f"{var}__status_code"] = status_sig
+            params[f"{var}__headers"] = headers_sig
+
+            async def do_fetch(url=url, b=body_sig, s=status_sig, h=headers_sig):
+                data = await fetch(str(url))
+                b.set_value(data.get("body"))
+                s.set_value(data.get("status_code"))
+                h.set_value(data.get("headers"))
+
+            tasks.append(do_fetch())
+        else:
+            data = await fetch(str(url))
+            for k, v in flatten_params(data).items():
+                params[f"{var}__{k}"] = v
         return reactive
 
     async def render_async(

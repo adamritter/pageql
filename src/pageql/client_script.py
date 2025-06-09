@@ -1,4 +1,4 @@
-_CLIENT_SCRIPT_TEMPLATE = """
+_CLIENT_SCRIPT_TEMPLATE = """<!doctype html>
 <script src="/htmx.min.js"></script>
 <script>
   htmx.config.defaultSwapStyle = 'none';

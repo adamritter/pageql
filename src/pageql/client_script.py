@@ -23,7 +23,8 @@ _CLIENT_SCRIPT_TEMPLATE = """
       document.body.addEventListener('htmx:configRequest', (evt) => {
         evt.detail.headers['ClientId'] = clientId;
       });
-      const ws_url = `ws://${host}:${port}/reload-request-ws?clientId=${clientId}`;
+      const proto = window.location.protocol === 'https:' ? 'wss' : 'ws';
+      const ws_url = `${proto}://${host}:${port}/reload-request-ws?clientId=${clientId}`;
 
       function forceReload() {
         const socket = new WebSocket(ws_url);

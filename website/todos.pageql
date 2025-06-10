@@ -68,12 +68,6 @@
       color: #be5028;
       text-decoration: none;
     }
-    .two-columns {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 2rem;
-      align-items: start;
-    }
     .code-column {
       overflow-x: auto;
     }
@@ -82,8 +76,7 @@
 <body>
   <div class="back-link"><a href="/">&larr; PageQL</a></div>
   <h1>TODOMVC</h1>
-  <div class="two-columns">
-    <div>
+  <div>
       {{#if :total_count < 20}}
       <input name="text" placeholder="What needs to be done?" maxlength="100" autofocus autocomplete="off"
         hx-post="/todos/add" hx-trigger="keyup[key=='Enter']" hx-on:htmx:after-on-load="this.value=''">
@@ -235,6 +228,5 @@
 <span style="color: #f8f8f2">&lt;/</span><span style="color: #ff4689">html</span><span style="color: #f8f8f2">&gt;</span>
 </pre></div>
     </div>
-  </div>
 </body>
 </html>

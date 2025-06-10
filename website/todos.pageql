@@ -124,46 +124,46 @@
 </div>
 </div>
   <h2 style="margin-top: 2rem;">Source code</h2>
-  <div class="code-column">
-<div class="highlight" style="background: #f8f8f8"><pre style="line-height: 125%;"><span></span>&#123;&#123;#partial post add&#125;&#125;
-  &#123;&#123;#insert into todos(text) values (:text)&#125;&#125;
-&#123;&#123;/partial&#125;&#125;
+    <div class="code-column">
+<div class="highlight" style="background: #f8f8f8"><pre style="line-height: 125%;"><span></span>&#123;&#123;<span class="keyword">#partial</span> <span class="attribute">post</span> <span class="function">add</span>&#125;&#125;
+  &#123;&#123;<span class="keyword">#insert</span> <span class="keyword">into</span> todos(text) <span class="keyword">values</span> (:<span class="variable">text</span>)&#125;&#125;
+&#123;&#123;/<span class="keyword">partial</span>&#125;&#125;
 
-&#123;&#123;#partial post :id/toggle&#125;&#125;
-  &#123;&#123;#update todos set completed = 1 - completed WHERE id = :id&#125;&#125;
-&#123;&#123;/partial&#125;&#125;
+&#123;&#123;<span class="keyword">#partial</span> <span class="attribute">post</span> :id/toggle&#125;&#125;
+  &#123;&#123;<span class="keyword">#update</span> todos <span class="keyword">set</span> completed = 1 - completed <span class="keyword">WHERE</span> id = :id&#125;&#125;
+&#123;&#123;/<span class="keyword">partial</span>&#125;&#125;
 
-&#123;&#123;#partial patch :id&#125;&#125;
-  &#123;&#123;#update todos set text = :text WHERE id = :id&#125;&#125;
-&#123;&#123;/partial&#125;&#125;
+&#123;&#123;<span class="keyword">#partial</span> <span class="keyword">patch</span> :id&#125;&#125;
+  &#123;&#123;<span class="keyword">#update</span> todos <span class="keyword">set</span> text = :text <span class="keyword">WHERE</span> id = :id&#125;&#125;
+&#123;&#123;/<span class="keyword">partial</span>&#125;&#125;
 
-&#123;&#123;#partial post toggle_all&#125;&#125;
-  &#123;&#123;#let active_count = COUNT(*) from todos WHERE completed = 0&#125;&#125;
-  &#123;&#123;#update todos set completed =  IIF(:active_count = 0, 0, 1)&#125;&#125;
-&#123;&#123;/partial&#125;&#125;
+&#123;&#123;<span class="keyword">#partial</span> <span class="attribute">post</span> toggle_all&#125;&#125;
+  &#123;&#123;<span class="keyword">#let</span> active_count = <span class="keyword">COUNT</span>(*) <span class="keyword">from</span> todos <span class="keyword">WHERE</span> completed = 0&#125;&#125;
+  &#123;&#123;<span class="keyword">#update</span> todos <span class="keyword">set</span> completed =  IIF(:active_count = 0, 0, 1)&#125;&#125;
+&#123;&#123;/<span class="keyword">partial</span>&#125;&#125;
 
-&#123;&#123;#partial delete :id&#125;&#125;
-  &#123;&#123;#delete from todos WHERE id = :id&#125;&#125;
-&#123;&#123;/partial&#125;&#125;
+&#123;&#123;<span class="keyword">#partial</span> <span class="keyword">delete</span> :id&#125;&#125;
+  &#123;&#123;<span class="keyword">#delete</span> <span class="keyword">from</span> todos <span class="keyword">WHERE</span> id = :id&#125;&#125;
+&#123;&#123;/<span class="keyword">partial</span>&#125;&#125;
 
-&#123;&#123;#partial post clear_completed&#125;&#125;
-  &#123;&#123;#delete from todos WHERE completed = 1&#125;&#125;
-&#123;&#123;/partial&#125;&#125;
+&#123;&#123;<span class="keyword">#partial</span> <span class="attribute">post</span> clear_completed&#125;&#125;
+  &#123;&#123;<span class="keyword">#delete</span> <span class="keyword">from</span> todos <span class="keyword">WHERE</span> completed = 1&#125;&#125;
+&#123;&#123;/<span class="keyword">partial</span>&#125;&#125;
 
-&#123;&#123;#param edit_id optional&#125;&#125;
-&#123;&#123;#param filter default=&#39;all&#39; pattern=&quot;^(all|active|completed)$&quot;&#125;&#125;
+&#123;&#123;<span class="keyword">#param</span> <span class="variable">edit_id</span> <span class="attribute">optional</span>&#125;&#125;
+&#123;&#123;<span class="keyword">#param</span> <span class="variable">filter</span> <span class="attribute">default</span>=&#39;all&#39; <span class="attribute">pattern</span>=&quot;^(all|active|completed)$&quot;&#125;&#125;
 
-&#123;&#123;!-- Ensure the table exists (harmless if already created) --&#125;&#125;
-&#123;&#123;#create table if not exists todos (
+&#123;&#123;<span class="comment">!-- Ensure the table exists (harmless if already created) --</span>&#125;&#125;
+&#123;&#123;<span class="keyword">#create</span> <span class="keyword">table</span> <span class="keyword">if</span> <span class="keyword">not</span> <span class="keyword">exists</span> todos (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     text TEXT NOT NULL,
     completed INTEGER DEFAULT 0 CHECK(completed IN (0,1))
 )&#125;&#125;
 
-&#123;&#123;#let active_count    = COUNT(*) from todos WHERE completed = 0&#125;&#125;
-&#123;&#123;#let completed_count = COUNT(*) from todos WHERE completed = 1&#125;&#125;
-&#123;&#123;#let total_count     = COUNT(*) from todos&#125;&#125;
-&#123;&#123;#let all_complete    = (:active_count == 0 AND :total_count &gt; 0)&#125;&#125;
+&#123;&#123;<span class="keyword">#let</span> active_count    = <span class="keyword">COUNT</span>(*) <span class="keyword">from</span> todos <span class="keyword">WHERE</span> completed = 0&#125;&#125;
+&#123;&#123;<span class="keyword">#let</span> completed_count = <span class="keyword">COUNT</span>(*) <span class="keyword">from</span> todos <span class="keyword">WHERE</span> completed = 1&#125;&#125;
+&#123;&#123;<span class="keyword">#let</span> total_count     = <span class="keyword">COUNT</span>(*) <span class="keyword">from</span> todos&#125;&#125;
+&#123;&#123;<span class="keyword">#let</span> all_complete    = (:active_count == 0 <span class="keyword">AND</span> :total_count &gt; 0)&#125;&#125;
 
 
 <span style="color: #959077">&lt;!doctype html&gt;</span>

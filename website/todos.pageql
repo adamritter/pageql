@@ -1,5 +1,8 @@
 {{#partial post add}}
-  {{#insert into todos(text) values (:text)}}
+  {{#let current_total = COUNT(*) from todos}}
+  {{#if :current_total < 200}}
+    {{#insert into todos(text) values (:text)}}
+  {{/if}}
 {{/partial}}
 
 {{#partial post :id/toggle}}
@@ -59,8 +62,10 @@
 <body>
   <div class="back-link"><a href="/">&larr; PageQL</a></div>
   <h1>Todos</h1>
+  {{#if :total_count < 200}}
   <input name="text" placeholder="What needs to be done?" autofocus autocomplete="off"
     hx-post="/todos/add" hx-trigger="keyup[key=='Enter']" hx-on:htmx:after-on-load="this.value=''">
+  {{/if}}
   <ul>
 {{#from todos
   WHERE (:filter == 'all')

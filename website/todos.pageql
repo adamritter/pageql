@@ -48,7 +48,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>Todos</title>
+  <title>TODOMVC</title>
   <style>
     body { font-family: Arial, sans-serif; margin: 2rem; }
     ul { list-style: none; padding: 0; }
@@ -72,7 +72,7 @@
 </head>
 <body>
   <div class="back-link"><a href="/">&larr; PageQL</a></div>
-  <h1>Todos</h1>
+  <h1>TODOMVC</h1>
   {{#if :total_count < 20}}
   <input name="text" placeholder="What needs to be done?" maxlength="100" autofocus autocomplete="off"
     hx-post="/todos/add" hx-trigger="keyup[key=='Enter']" hx-on:htmx:after-on-load="this.value=''">

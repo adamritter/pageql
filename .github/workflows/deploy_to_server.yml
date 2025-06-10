@@ -1,0 +1,16 @@
+name: deploy_to_server
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Prepare SSH key
+        run: |
+          echo "${{ secrets.RESTRICTED_SCRIPT_KEY }}" > restricted_key
+          chmod 600 restricted_key
+      - name: SSH to server
+        run: ssh -i restricted_key -o StrictHostKeyChecking=no root@pageql.cloud true

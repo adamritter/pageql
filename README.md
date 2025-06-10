@@ -427,7 +427,7 @@ async def before_handler(params):
     return params
 ```
 
-The returned dictionary is merged into the template namespace.
+The returned dictionary is merged into the template namespace. 
 
 PageQLApp also exposes several helper SQLite functions automatically when it
 starts:

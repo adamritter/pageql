@@ -1,0 +1,93 @@
+{{#partial post add}}
+  {{#insert into todos(text) values (:text)}}
+{{/partial}}
+
+{{#partial post :id/toggle}}
+  {{#update todos set completed = 1 - completed WHERE id = :id}}
+{{/partial}}
+
+{{#partial patch :id}}
+  {{#update todos set text = :text WHERE id = :id}}
+{{/partial}}
+
+{{#partial post toggle_all}}
+  {{#let active_count = COUNT(*) from todos WHERE completed = 0}}
+  {{#update todos set completed =  IIF(:active_count = 0, 0, 1)}}
+{{/partial}}
+
+{{#partial delete :id}}
+  {{#delete from todos WHERE id = :id}}
+{{/partial}}
+
+{{#partial post clear_completed}}
+  {{#delete from todos WHERE completed = 1}}
+{{/partial}}
+
+{{#param edit_id optional}}
+{{#param filter default='all' pattern="^(all|active|completed)$"}}
+
+{{!-- Ensure the table exists (harmless if already created) --}}
+{{#create table if not exists todos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    text TEXT NOT NULL,
+    completed INTEGER DEFAULT 0 CHECK(completed IN (0,1))
+)}}
+
+{{#let active_count    = COUNT(*) from todos WHERE completed = 0}}
+{{#let completed_count = COUNT(*) from todos WHERE completed = 1}}
+{{#let total_count     = COUNT(*) from todos}}
+{{#let all_complete    = (:active_count == 0 AND :total_count > 0)}}
+
+
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Todos</title>
+</head>
+<body>
+  <h1>Todos</h1>
+  <input name="text" placeholder="What needs to be done?" autofocus autocomplete="off"
+    hx-post="/todos/add" hx-trigger="keyup[key=='Enter']" hx-on:htmx:after-on-load="this.value=''">
+  <ul>
+{{#from todos
+  WHERE (:filter == 'all')
+        OR (:filter == 'active'    AND completed = 0)
+        OR (:filter == 'completed' AND completed = 1)
+  ORDER BY id}}
+    <li {{#if completed}}class="completed"{{/if}}>
+        <input hx-post="/todos/{{id}}/toggle" class="toggle" type="checkbox" {{#if completed}}checked{{/if}}>
+        <label
+          contenteditable="false"
+          onclick="this.contentEditable=true;this.focus();"
+          onblur="this.contentEditable=false;"
+          onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}"
+          hx-patch="/todos/{{id}}"
+          hx-trigger="blur"
+          hx-vals='js:{text: event.target.innerText}'
+          hx-swap="none"
+        >{{text}}</label>
+        <button hx-delete="/todos/{{id}}" class="destroy" style="cursor:pointer; background:none; border:none; color:#ac4a1a;">✕</button>
+    </li>
+{{/from}}
+  </ul>
+
+  <input id="toggle-all" class="toggle-all" type="checkbox" {{#if all_complete}}checked{{/if}} hx-post="/todos/toggle_all">
+  <label for="toggle-all">Mark all as complete</label>
+
+<span class="todo-count">
+  <strong>{{active_count}}</strong>
+  item{{#if :active_count != 1}}s{{/if}} left
+</span>
+
+
+{{#if :completed_count > 0}}
+  <button class="clear-completed" hx-post="/todos/clear_completed">Clear completed</button>
+{{/if}}
+<div class="filters">
+  <a {{#if :filter == 'all'}}class="selected"{{/if}} href="/todos?filter=all">All</a> |
+  <a {{#if :filter == 'active'}}class="selected"{{/if}} href="/todos?filter=active">Active</a> |
+  <a {{#if :filter == 'completed'}}class="selected"{{/if}} href="/todos?filter=completed">Completed</a>
+</div>
+</body>
+</html>

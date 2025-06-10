@@ -52,8 +52,17 @@
     .filters { margin-top: 1rem; }
     .filters a { text-decoration: none; margin: 0 0.5rem; }
     .filters a.selected { font-weight: bold; }
-    .back-link { margin-bottom: 1rem; }
-    .back-link a { color: #be5028; text-decoration: none; font-weight: bold; }
+    .back-link {
+      margin-bottom: 2rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid #ccc;
+      font-size: 1.8rem;
+      font-weight: bold;
+    }
+    .back-link a {
+      color: #be5028;
+      text-decoration: none;
+    }
   </style>
 </head>
 <body>

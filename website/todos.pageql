@@ -52,9 +52,12 @@
     .filters { margin-top: 1rem; }
     .filters a { text-decoration: none; margin: 0 0.5rem; }
     .filters a.selected { font-weight: bold; }
+    .back-link { margin-bottom: 1rem; }
+    .back-link a { color: #be5028; text-decoration: none; font-weight: bold; }
   </style>
 </head>
 <body>
+  <div class="back-link"><a href="/">&larr; PageQL</a></div>
   <h1>Todos</h1>
   <input name="text" placeholder="What needs to be done?" autofocus autocomplete="off"
     hx-post="/todos/add" hx-trigger="keyup[key=='Enter']" hx-on:htmx:after-on-load="this.value=''">

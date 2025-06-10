@@ -48,117 +48,30 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Todos</title>
-
-  <!-- Google Font for pleasant typography -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
-
   <style>
-    :root {
-      --bg-gradient-start: #1a2233;
-      --bg-gradient-end:   #2d3748;
-      --card-bg:  #2a2e3a;
-      --text:     #e2e2e2;
-      --text-muted: #b0b8c4;
-      --primary:  #be5028;
-      --border-subtle: #3a4259;
-    }
-    * { box-sizing: border-box; font-family: 'Inter', sans-serif; }
-    body {
-      margin: 0;
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: linear-gradient(135deg, var(--bg-gradient-start), var(--bg-gradient-end));
-      padding: 2rem;
-      color: var(--text);
-    }
-    article {
-      background: var(--card-bg);
-      max-width: 780px;
-      width: 100%;
-      border-radius: 12px;
-      padding: 3rem 3.5rem;
-      box-shadow: 0 12px 30px rgba(0,0,0,0.3);
-      border: 1px solid var(--border-subtle);
-    }
-    .github-banner {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 10px;
-      margin-bottom: 2rem;
-      padding-bottom: 1.5rem;
-      border-bottom: 1px solid var(--border-subtle);
-    }
-    .github-banner a.github-link {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      color: white;
-      font-weight: 600;
-      text-decoration: none;
-      padding: 8px 14px;
-      background: rgba(0,0,0,0.2);
-      border-radius: 6px;
-      border: 1px solid var(--border-subtle);
-      transition: all 0.2s;
-    }
-    .github-banner a.github-link:hover {
-      background: rgba(0,0,0,0.3);
-      transform: translateY(-2px);
-    }
-    .github-banner svg {
-      width: 20px;
-      height: 20px;
-      fill: white;
-    }
-    .github-banner .logo {
-      font-size: 1.8rem;
-      font-weight: 700;
-      color: #4a7dbd;
-      margin-right: auto;
-    }
-    .github-banner .logo a {
-      color: var(--primary);
-      border-bottom: none;
-    }
-    h1 {
-      margin-top: 0;
-      font-size: 2.4rem;
-      color: var(--primary);
-      display: flex;
-      flex-direction: column;
-      gap: 0.5rem;
-      line-height: 1.2;
-    }
-    h2 {
-      margin-top: 2.2rem;
-      font-size: 1.5rem;
-      border-bottom: 1px solid var(--border-subtle);
-      padding-bottom: 0.5rem;
-    }
+    body { font-family: Arial, sans-serif; margin: 2rem; }
     ul { list-style: none; padding: 0; }
     li { margin-bottom: 0.5rem; }
     li.completed label { text-decoration: line-through; color: #777; }
     .filters { margin-top: 1rem; }
     .filters a { text-decoration: none; margin: 0 0.5rem; }
     .filters a.selected { font-weight: bold; }
+    .back-link {
+      margin-bottom: 2rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid #ccc;
+      font-size: 1.8rem;
+      font-weight: bold;
+    }
+    .back-link a {
+      color: #be5028;
+      text-decoration: none;
+    }
   </style>
 </head>
 <body>
-<article>
-  <div class="github-banner">
-    <div class="logo"><a href="/index.html">PageQL</a> TODOMVC</div>
-    <a class="github-link" href="https://github.com/adamritter/pageql" target="_blank" rel="noopener noreferrer">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">
-        <path d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"></path>
-      </svg>
-    </a>
-  </div>
+  <div class="back-link"><a href="/">&larr; PageQL</a></div>
   <h1>Todos</h1>
   {{#if :total_count < 20}}
   <input name="text" placeholder="What needs to be done?" maxlength="100" autofocus autocomplete="off"
@@ -205,6 +118,5 @@
   <a {{#if :filter == 'active'}}class="selected"{{/if}} href="/todos?filter=active">Active</a> |
   <a {{#if :filter == 'completed'}}class="selected"{{/if}} href="/todos?filter=completed">Completed</a>
 </div>
-</article>
 </body>
 </html>

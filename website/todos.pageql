@@ -1,4 +1,5 @@
 {{#partial post add}}
+  {{#param text maxlength=200}}
   {{#let current_total = COUNT(*) from todos}}
   {{#if :current_total < 200}}
     {{#insert into todos(text) values (:text)}}
@@ -10,6 +11,7 @@
 {{/partial}}
 
 {{#partial patch :id}}
+  {{#param text maxlength=200}}
   {{#update todos set text = :text WHERE id = :id}}
 {{/partial}}
 
@@ -63,7 +65,7 @@
   <div class="back-link"><a href="/">&larr; PageQL</a></div>
   <h1>Todos</h1>
   {{#if :total_count < 200}}
-  <input name="text" placeholder="What needs to be done?" autofocus autocomplete="off"
+  <input name="text" placeholder="What needs to be done?" maxlength="200" autofocus autocomplete="off"
     hx-post="/todos/add" hx-trigger="keyup[key=='Enter']" hx-on:htmx:after-on-load="this.value=''">
   {{/if}}
   <ul>
@@ -79,9 +81,10 @@
           onclick="this.contentEditable=true;this.focus();"
           onblur="this.contentEditable=false;"
           onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}"
+          oninput="if(this.innerText.length>200){this.innerText=this.innerText.slice(0,200);}"
           hx-patch="/todos/{{id}}"
           hx-trigger="blur"
-          hx-vals='js:{text: event.target.innerText}'
+          hx-vals='js:{text: event.target.innerText.slice(0, 200)}'
           hx-swap="none"
         >{{text}}</label>
         <button hx-delete="/todos/{{id}}" class="destroy" style="cursor:pointer; background:none; border:none; color:#ac4a1a;">✕</button>

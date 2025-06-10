@@ -51,6 +51,7 @@
   <title>Todos</title>
   <style>
     body { font-family: Arial, sans-serif; margin: 2rem; }
+    .two-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; align-items: flex-start; }
     ul { list-style: none; padding: 0; }
     li { margin-bottom: 0.5rem; }
     li.completed label { text-decoration: line-through; color: #777; }
@@ -68,16 +69,20 @@
       color: #be5028;
       text-decoration: none;
     }
+    pre { background:#1c2333; color:#e8ecf5; padding:1rem; overflow-x:auto; border-radius:6px; border:1px solid #333; }
+    code { font-family: Menlo, Consolas, monospace; }
   </style>
 </head>
 <body>
-  <div class="back-link"><a href="/">&larr; PageQL</a></div>
-  <h1>Todos</h1>
-  {{#if :total_count < 20}}
-  <input name="text" placeholder="What needs to be done?" maxlength="100" autofocus autocomplete="off"
-    hx-post="/todos/add" hx-trigger="keyup[key=='Enter']" hx-on:htmx:after-on-load="this.value=''">
-  {{/if}}
-  <ul>
+  <div class="two-columns">
+  <div class="demo">
+    <div class="back-link"><a href="/">&larr; PageQL</a></div>
+    <h1>Todos</h1>
+    {{#if :total_count < 20}}
+    <input name="text" placeholder="What needs to be done?" maxlength="100" autofocus autocomplete="off"
+      hx-post="/todos/add" hx-trigger="keyup[key=='Enter']" hx-on:htmx:after-on-load="this.value=''">
+    {{/if}}
+    <ul>
 {{#from todos
   WHERE (:filter == 'all')
         OR (:filter == 'active'    AND completed = 0)
@@ -117,6 +122,114 @@
   <a {{#if :filter == 'all'}}class="selected"{{/if}} href="/todos?filter=all">All</a> |
   <a {{#if :filter == 'active'}}class="selected"{{/if}} href="/todos?filter=active">Active</a> |
   <a {{#if :filter == 'completed'}}class="selected"{{/if}} href="/todos?filter=completed">Completed</a>
-</div>
+  </div>
+  </div>
+
+&#123;&#123;#partial post add&#125;&#125;
+  &#123;&#123;#insert into todos(text) values (:text)&#125;&#125;
+&#123;&#123;/partial&#125;&#125;
+
+&#123;&#123;#partial post :id/toggle&#125;&#125;
+  &#123;&#123;#update todos set completed = 1 - completed WHERE id = :id&#125;&#125;
+&#123;&#123;/partial&#125;&#125;
+
+&#123;&#123;#partial patch :id&#125;&#125;
+  &#123;&#123;#update todos set text = :text WHERE id = :id&#125;&#125;
+&#123;&#123;/partial&#125;&#125;
+
+&#123;&#123;#partial post toggle_all&#125;&#125;
+  &#123;&#123;#let active_count = COUNT(*) from todos WHERE completed = 0&#125;&#125;
+  &#123;&#123;#update todos set completed =  IIF(:active_count = 0, 0, 1)&#125;&#125;
+&#123;&#123;/partial&#125;&#125;
+
+&#123;&#123;#partial delete :id&#125;&#125;
+  &#123;&#123;#delete from todos WHERE id = :id&#125;&#125;
+&#123;&#123;/partial&#125;&#125;
+
+&#123;&#123;#partial post clear_completed&#125;&#125;
+  &#123;&#123;#delete from todos WHERE completed = 1&#125;&#125;
+&#123;&#123;/partial&#125;&#125;
+
+&#123;&#123;#param edit_id optional&#125;&#125;
+&#123;&#123;#param filter default=&#x27;all&#x27; pattern=&quot;^(all|active|completed)$&quot;&#125;&#125;
+
+&#123;&#123;!-- Ensure the table exists (harmless if already created) --&#125;&#125;
+&#123;&#123;#create table if not exists todos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    text TEXT NOT NULL,
+    completed INTEGER DEFAULT 0 CHECK(completed IN (0,1))
+)&#125;&#125;
+
+&#123;&#123;#let active_count    = COUNT(*) from todos WHERE completed = 0&#125;&#125;
+&#123;&#123;#let completed_count = COUNT(*) from todos WHERE completed = 1&#125;&#125;
+&#123;&#123;#let total_count     = COUNT(*) from todos&#125;&#125;
+&#123;&#123;#let all_complete    = (:active_count == 0 AND :total_count &gt; 0)&#125;&#125;
+
+
+&lt;!doctype html&gt;
+&lt;html lang=&quot;en&quot;&gt;
+&lt;head&gt;
+  &lt;meta charset=&quot;utf-8&quot;&gt;
+  &lt;title&gt;Todos&lt;/title&gt;
+  &lt;style&gt;
+    body { font-family: Arial, sans-serif; margin: 2rem; }
+    ul { list-style: none; padding: 0; }
+    li { margin-bottom: 0.5rem; }
+    li.completed label { text-decoration: line-through; color: #777; }
+    .filters { margin-top: 1rem; }
+    .filters a { text-decoration: none; margin: 0 0.5rem; }
+    .filters a.selected { font-weight: bold; }
+  &lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+  &lt;h1&gt;Todos&lt;/h1&gt;
+  &lt;input name=&quot;text&quot; placeholder=&quot;What needs to be done?&quot; autofocus autocomplete=&quot;off&quot;
+    hx-post=&quot;/todos/add&quot; hx-trigger=&quot;keyup[key==&#x27;Enter&#x27;]&quot; hx-on:htmx:after-on-load=&quot;this.value=&#x27;&#x27;&quot;&gt;
+  &lt;ul&gt;
+&#123;&#123;#from todos
+  WHERE (:filter == &#x27;all&#x27;)
+        OR (:filter == &#x27;active&#x27;    AND completed = 0)
+        OR (:filter == &#x27;completed&#x27; AND completed = 1)
+  ORDER BY id&#125;&#125;
+    &lt;li &#123;&#123;#if completed&#125;&#125;class=&quot;completed&quot;&#123;&#123;/if&#125;&#125;&gt;
+        &lt;input hx-post=&quot;/todos/&#123;&#123;id&#125;&#125;/toggle&quot; class=&quot;toggle&quot; type=&quot;checkbox&quot; &#123;&#123;#if completed&#125;&#125;checked&#123;&#123;/if&#125;&#125;&gt;
+        &lt;label
+          contenteditable=&quot;false&quot;
+          onclick=&quot;this.contentEditable=true;this.focus();&quot;
+          onblur=&quot;this.contentEditable=false;&quot;
+          onkeydown=&quot;if(event.key===&#x27;Enter&#x27;){event.preventDefault();this.blur();}&quot;
+          hx-patch=&quot;/todos/&#123;&#123;id&#125;&#125;&quot;
+          hx-trigger=&quot;blur&quot;
+          hx-vals=&#x27;js:{text: event.target.innerText}&#x27;
+          hx-swap=&quot;none&quot;
+        &gt;&#123;&#123;text&#125;&#125;&lt;/label&gt;
+        &lt;button hx-delete=&quot;/todos/&#123;&#123;id&#125;&#125;&quot; class=&quot;destroy&quot; style=&quot;cursor:pointer; background:none; border:none; color:#ac4a1a;&quot;&gt;✕&lt;/button&gt;
+    &lt;/li&gt;
+&#123;&#123;/from&#125;&#125;
+  &lt;/ul&gt;
+
+  &lt;input id=&quot;toggle-all&quot; class=&quot;toggle-all&quot; type=&quot;checkbox&quot; &#123;&#123;#if all_complete&#125;&#125;checked&#123;&#123;/if&#125;&#125; hx-post=&quot;/todos/toggle_all&quot;&gt;
+  &lt;label for=&quot;toggle-all&quot;&gt;Mark all as complete&lt;/label&gt;
+
+&lt;span class=&quot;todo-count&quot;&gt;
+  &lt;strong&gt;&#123;&#123;active_count&#125;&#125;&lt;/strong&gt;
+  item&#123;&#123;#if :active_count != 1&#125;&#125;s&#123;&#123;/if&#125;&#125; left
+&lt;/span&gt;
+
+
+&#123;&#123;#if :completed_count &gt; 0&#125;&#125;
+  &lt;button class=&quot;clear-completed&quot; hx-post=&quot;/todos/clear_completed&quot;&gt;Clear completed&lt;/button&gt;
+&#123;&#123;/if&#125;&#125;
+&lt;div class=&quot;filters&quot;&gt;
+  &lt;a &#123;&#123;#if :filter == &#x27;all&#x27;&#125;&#125;class=&quot;selected&quot;&#123;&#123;/if&#125;&#125; href=&quot;/todos?filter=all&quot;&gt;All&lt;/a&gt; |
+  &lt;a &#123;&#123;#if :filter == &#x27;active&#x27;&#125;&#125;class=&quot;selected&quot;&#123;&#123;/if&#125;&#125; href=&quot;/todos?filter=active&quot;&gt;Active&lt;/a&gt; |
+  &lt;a &#123;&#123;#if :filter == &#x27;completed&#x27;&#125;&#125;class=&quot;selected&quot;&#123;&#123;/if&#125;&#125; href=&quot;/todos?filter=completed&quot;&gt;Completed&lt;/a&gt;
+&lt;/div&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+  </div>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/github-dark.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+  <script>hljs.highlightAll();</script>
 </body>
 </html>

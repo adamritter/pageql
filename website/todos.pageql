@@ -122,7 +122,8 @@
   <a {{#if :filter == 'active'}}class="selected"{{/if}} href="/todos?filter=active">Active</a> |
   <a {{#if :filter == 'completed'}}class="selected"{{/if}} href="/todos?filter=completed">Completed</a>
 </div>
-    </div>
+</div>
+  <h2 style="margin-top: 2rem;">Source code</h2>
     <div class="code-column">
 <div class="highlight" style="background: #f8f8f8"><pre style="line-height: 125%;"><span></span>&#123;&#123;<span class="keyword">#partial</span> <span class="attribute">post</span> <span class="function">add</span>&#125;&#125;
   &#123;&#123;<span class="keyword">#insert</span> <span class="keyword">into</span> todos(text) <span class="keyword">values</span> (:<span class="variable">text</span>)&#125;&#125;

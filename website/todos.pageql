@@ -122,8 +122,9 @@
   <a {{#if :filter == 'active'}}class="selected"{{/if}} href="/todos?filter=active">Active</a> |
   <a {{#if :filter == 'completed'}}class="selected"{{/if}} href="/todos?filter=completed">Completed</a>
 </div>
-    </div>
-    <div class="code-column">
+</div>
+  <h2 style="margin-top: 2rem;">Source code</h2>
+  <div class="code-column">
 <div class="highlight" style="background: #f8f8f8"><pre style="line-height: 125%;"><span></span>&#123;&#123;#partial post add&#125;&#125;
   &#123;&#123;#insert into todos(text) values (:text)&#125;&#125;
 &#123;&#123;/partial&#125;&#125;

@@ -134,6 +134,13 @@
 </div>
 </div>
   <h2 style="color:rgb(50, 56, 86); margin-top: 2rem; margin-bottom: 0.5rem;">Source code</h2>
+<div style="position: relative;">
+  <button onclick="copySourceCode(this)" style="position: absolute; top: 8px; right: 8px; z-index: 10; background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3); border-radius: 4px; padding: 8px; cursor: pointer; color: #d4d4d4; transition: all 0.2s;">
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+    </svg>
+  </button>
 <div class="code-column">
 <div class="highlight" style="background:rgb(24, 28, 29); border-radius: 8px; padding: 1rem; overflow-x: auto;"><pre style="line-height: 125%; color: #d4d4d4; margin: 0;"><span></span>&#123;&#123;<span style="color: #569cd6; font-weight: bold;">#partial</span> <span style="color: #dcdcaa;">post</span> <span style="color: #4ec9b0;">add</span>&#125;&#125;
   &#123;&#123;<span style="color: #c586c0; font-weight: bold;">#param</span> <span style="color: #9cdcfe;">text</span> <span style="color: #dcdcaa;">maxlength</span>=<span style="color: #ce9178;">100</span>&#125;&#125;
@@ -214,10 +221,21 @@
 <span style="color: #d4d4d4;">    .</span><span style="color: #4ec9b0;">code-column</span><span style="color: #d4d4d4;"> {</span>
 <span style="color: #d4d4d4;">      </span><span style="color: #9cdcfe;">overflow-x</span><span style="color: #d4d4d4;">: </span><span style="color: #ce9178;">auto</span><span style="color: #d4d4d4;">;</span>
 <span style="color: #d4d4d4;">    }</span>
+    
+    <span style="color: #6a9955; font-style: italic;">/* Mobile styles */</span>
+    <span style="color: #569cd6;">@media</span> <span style="color: #d4d4d4;">(</span><span style="color: #9cdcfe;">max-width</span><span style="color: #d4d4d4;">: </span><span style="color: #b5cea8;">768</span><span style="color: #9cdcfe;">px</span><span style="color: #d4d4d4;">) {</span>
+<span style="color: #d4d4d4;">      </span><span style="color: #d7ba7d;">body</span><span style="color: #d4d4d4;"> { </span>
+<span style="color: #d4d4d4;">        </span><span style="color: #9cdcfe;">margin</span><span style="color: #d4d4d4;">: </span><span style="color: #b5cea8;">0</span><span style="color: #d4d4d4;">; </span>
+<span style="color: #d4d4d4;">        </span><span style="color: #9cdcfe;">padding</span><span style="color: #d4d4d4;">: </span><span style="color: #b5cea8;">0</span><span style="color: #d4d4d4;">;</span>
+<span style="color: #d4d4d4;">      }</span>
+<span style="color: #d4d4d4;">      .</span><span style="color: #4ec9b0;">back-link</span><span style="color: #d4d4d4;"> {</span>
+<span style="color: #d4d4d4;">        </span><span style="color: #9cdcfe;">margin-bottom</span><span style="color: #d4d4d4;">: </span><span style="color: #b5cea8;">1</span><span style="color: #9cdcfe;">rem</span><span style="color: #d4d4d4;">;</span>
+<span style="color: #d4d4d4;">      }</span>
+<span style="color: #d4d4d4;">    }</span>
   <span style="color: #808080;">&lt;/</span><span style="color: #569cd6; font-weight: bold;">style</span><span style="color: #808080;">&gt;</span>
 <span style="color: #808080;">&lt;/</span><span style="color: #569cd6; font-weight: bold;">head</span><span style="color: #808080;">&gt;</span>
 <span style="color: #808080;">&lt;</span><span style="color: #569cd6; font-weight: bold;">body</span><span style="color: #808080;">&gt;</span>
-  <span style="color: #808080;">&lt;</span><span style="color: #569cd6; font-weight: bold;">div</span> <span style="color: #92c5f8;">class</span><span style="color: #808080;">=</span><span style="color: #ce9178;">"back-link"</span><span style="color: #808080;">&gt;&lt;</span><span style="color: #569cd6; font-weight: bold;">a</span> <span style="color: #92c5f8;">href</span><span style="color: #808080;">=</span><span style="color: #ce9178;">"/"</span><span style="color: #808080;">&gt;</span>&amp;larr; PageQL<span style="color: #808080;">&lt;/</span><span style="color: #569cd6; font-weight: bold;">a</span><span style="color: #808080;">&gt;&lt;/</span><span style="color: #569cd6; font-weight: bold;">div</span><span style="color: #808080;">&gt;</span>
+  <span style="color: #808080;">&lt;</span><span style="color: #569cd6; font-weight: bold;">div</span> <span style="color: #92c5f8;">class</span><span style="color: #808080;">=</span><span style="color: #ce9178;">"back-link"</span><span style="color: #808080;">&gt;&lt;</span><span style="color: #569cd6; font-weight: bold;">a</span> <span style="color: #92c5f8;">href</span><span style="color: #808080;">=</span><span style="color: #ce9178;">"/"</span><span style="color: #808080;">&gt;</span>&amp;larr; PageQL<span style="color: #808080;">&lt;/</span><span style="color: #569cd6; font-weight: bold;">a</span><span style="color: #808080;">&gt;</span> <span style="color: #808080;">&lt;</span><span style="color: #569cd6; font-weight: bold;">span</span> <span style="color: #92c5f8;">style</span><span style="color: #808080;">=</span><span style="color: #ce9178;">"font-size: 1.8rem; font-weight: bold; color:rgb(40, 170, 190);"</span><span style="color: #808080;">&gt;</span>TODOMVC<span style="color: #808080;">&lt;/</span><span style="color: #569cd6; font-weight: bold;">span</span><span style="color: #808080;">&gt;&lt;/</span><span style="color: #569cd6; font-weight: bold;">div</span><span style="color: #808080;">&gt;</span>
   <span style="color: #808080;">&lt;</span><span style="color: #569cd6; font-weight: bold;">h1</span><span style="color: #808080;">&gt;</span>TODOMVC<span style="color: #808080;">&lt;/</span><span style="color: #569cd6; font-weight: bold;">h1</span><span style="color: #808080;">&gt;</span>
   <span style="color: #808080;">&lt;</span><span style="color: #569cd6; font-weight: bold;">div</span><span style="color: #808080;">&gt;</span>
       &#123;&#123;<span style="color: #c586c0; font-weight: bold;">#if</span> <span style="color: #9cdcfe;">:total_count</span> &lt; <span style="color: #ce9178;">20</span>&#125;&#125;
@@ -273,5 +291,48 @@
 <span style="color: #808080;">&lt;/</span><span style="color: #569cd6; font-weight: bold;">html</span><span style="color: #808080;">&gt;</span>
 </pre></div>
     </div>
+</div>
+
+  <script>
+    function copySourceCode(button) {
+      const codeBlock = button.parentElement.querySelector('pre');
+      const textToCopy = codeBlock.textContent;
+      
+      navigator.clipboard.writeText(textToCopy).then(() => {
+        const originalHTML = button.innerHTML;
+        button.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"></path></svg>';
+        button.style.background = 'rgba(56, 161, 105, 0.5)';
+        
+        setTimeout(() => {
+          button.innerHTML = originalHTML;
+          button.style.background = 'rgba(255,255,255,0.15)';
+        }, 2000);
+      });
+    }
+
+    function makeCodeClickable() {
+      const codeBlock = document.querySelector('.highlight pre');
+      if (codeBlock) {
+        codeBlock.style.cursor = 'pointer';
+        codeBlock.addEventListener('click', () => {
+          const text = codeBlock.textContent;
+          navigator.clipboard.writeText(text).then(() => {
+            const copyButton = document.querySelector('button[onclick*="copySourceCode"]');
+            const originalHTML = copyButton.innerHTML;
+            copyButton.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"></path></svg>';
+            copyButton.style.background = 'rgba(56, 161, 105, 0.5)';
+            
+            setTimeout(() => {
+              copyButton.innerHTML = originalHTML;
+              copyButton.style.background = 'rgba(255,255,255,0.15)';
+            }, 2000);
+          });
+        });
+      }
+    }
+
+    // Initialize when DOM is loaded
+    document.addEventListener('DOMContentLoaded', makeCodeClickable);
+  </script>
 </body>
 </html>

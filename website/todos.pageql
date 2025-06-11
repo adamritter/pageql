@@ -70,6 +70,17 @@
     .code-column {
       overflow-x: auto;
     }
+    
+    /* Mobile styles */
+    @media (max-width: 768px) {
+      body { 
+        margin: 0; 
+        padding: 0;
+      }
+      .back-link {
+        margin-bottom: 1rem;
+      }
+    }
   </style>
 </head>
 <body>

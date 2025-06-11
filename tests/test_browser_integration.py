@@ -273,3 +273,23 @@ async def test_get_text_body_from_client(setup):
         server.should_exit = True
         await task
 
+
+@pytest.mark.filterwarnings("ignore:.*:DeprecationWarning")
+async def test_fetch_async_directive_in_browser(setup):
+    """Async fetch should update the page once the HTTP request completes."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        Path(tmpdir, "data.pageql").write_text("hello", encoding="utf-8")
+        Path(tmpdir, "fetch.pageql").write_text(
+            "{{#fetch async d from 'http://127.0.0.1:' || :port || '/data'}}{{d__body}}",
+            encoding="utf-8",
+        )
+
+        server, task, port, app = await start_server(tmpdir)
+        result = await _load_page_async(port, f"fetch?port={port}", app, browser=setup)
+        status, body_text, client_id = result
+
+        assert status == 200
+        assert "hello" in body_text
+        server.should_exit = True
+        await task
+

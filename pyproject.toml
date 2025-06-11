@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "pageql"
-version = "0.1.6"
+version = "0.2.0"
 description = "A template language for embedding SQL inside HTML directly"
 readme = "README.md"
 authors = [

@@ -10,6 +10,7 @@ from .reactive import ReadOnly
 from .pageqlapp import PageQLApp
 from .reactive_sql import parse_reactive
 from .jws_utils import jws_serialize_compact, jws_deserialize_compact
+from .github_auth import build_authorization_url, fetch_github_user
 # Define the version
 __version__ = "0.1.0"
 
@@ -21,6 +22,8 @@ __all__ = [
     "ReadOnly",
     "PageQLApp",
     "parse_reactive",
+    "build_authorization_url",
+    "fetch_github_user",
     "jws_serialize_compact",
     "jws_deserialize_compact",
 ]

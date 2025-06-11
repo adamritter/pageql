@@ -28,7 +28,6 @@
   {{#delete from todos WHERE completed = 1}}
 {{/partial}}
 
-{{#param edit_id optional}}
 {{#param filter default='all' pattern="^(all|active|completed)$"}}
 
 {{!-- Ensure the table exists (harmless if already created) --}}
@@ -74,36 +73,36 @@
   </style>
 </head>
 <body>
-  <div class="back-link"><a href="/">&larr; PageQL</a></div>
-  <h1>TODOMVC</h1>
+  <div class="back-link"><a href="/">&larr; PageQL</a> <span style="font-size: 1.8rem; font-weight: bold; color:rgb(40, 170, 190);">TODOMVC</span></div>
   <div>
       {{#if :total_count < 20}}
       <input name="text" placeholder="What needs to be done?" maxlength="100" autofocus autocomplete="off"
         hx-post="/todos/add" hx-trigger="keyup[key=='Enter']" hx-on:htmx:after-on-load="this.value=''">
       {{/if}}
       <ul>
-{{#from todos
-  WHERE (:filter == 'all')
-        OR (:filter == 'active'    AND completed = 0)
-        OR (:filter == 'completed' AND completed = 1)
-  ORDER BY id}}
-    <li {{#if completed}}class="completed"{{/if}}>
-        <input hx-post="/todos/{{id}}/toggle" class="toggle" type="checkbox" {{#if completed}}checked{{/if}}>
-        <label
-          contenteditable="false"
-          onclick="this.contentEditable=true;this.focus();"
-          onblur="this.contentEditable=false;"
-          onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}"
-          oninput="if(this.innerText.length>100){this.innerText=this.innerText.slice(0,100);}"
-          hx-patch="/todos/{{id}}"
-          hx-trigger="blur"
-          hx-vals='js:{text: event.target.innerText.slice(0, 100)}'
-          hx-swap="none"
-        >{{text}}</label>
-        <button hx-delete="/todos/{{id}}" class="destroy" style="cursor:pointer; background:none; border:none; color:#ac4a1a;">✕</button>
-    </li>
-{{/from}}
-  </ul>
+        {{#from todos
+          WHERE (:filter == 'all')
+                OR (:filter == 'active'    AND completed = 0)
+                OR (:filter == 'completed' AND completed = 1)
+          ORDER BY id}}
+            <li {{#if completed}}class="completed"{{/if}}>
+                <input hx-post="/todos/{{id}}/toggle" class="toggle" type="checkbox" {{#if completed}}checked{{/if}}>
+                <label
+                  contenteditable="false"
+                  onclick="this.contentEditable=true;this.focus();"
+                  onblur="this.contentEditable=false;"
+                  onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}"
+                  oninput="if(this.innerText.length>100){this.innerText=this.innerText.slice(0,100);}"
+                  hx-patch="/todos/{{id}}"
+                  hx-trigger="blur"
+                  hx-vals='js:{text: event.target.innerText.slice(0, 100)}'
+                  hx-swap="none"
+                >{{text}}</label>
+
+                <button hx-delete="/todos/{{id}}" class="destroy" style="cursor:pointer; background:none; border:none; color:#ac4a1a;">✕</button>
+            </li>
+        {{/from}}
+      </ul>
 
   <input id="toggle-all" class="toggle-all" type="checkbox" {{#if all_complete}}checked{{/if}} hx-post="/todos/toggle_all">
   <label for="toggle-all">Mark all as complete</label>
@@ -125,108 +124,142 @@
 </div>
   <h2 style="margin-top: 2rem;">Source code</h2>
     <div class="code-column">
-<div class="highlight" style="background: #f8f8f8"><pre style="line-height: 125%;"><span></span>&#123;&#123;<span class="keyword">#partial</span> <span class="attribute">post</span> <span class="function">add</span>&#125;&#125;
-  &#123;&#123;<span class="keyword">#insert</span> <span class="keyword">into</span> todos(text) <span class="keyword">values</span> (:<span class="variable">text</span>)&#125;&#125;
-&#123;&#123;/<span class="keyword">partial</span>&#125;&#125;
+<div class="highlight" style="background: #1e1e1e; border-radius: 8px; padding: 1rem; overflow-x: auto;"><pre style="line-height: 125%; color: #d4d4d4; margin: 0;"><span></span>&#123;&#123;<span style="color: #569cd6; font-weight: bold;">#partial</span> <span style="color: #dcdcaa;">post</span> <span style="color: #4ec9b0;">add</span>&#125;&#125;
+  &#123;&#123;<span style="color: #c586c0; font-weight: bold;">#param</span> <span style="color: #9cdcfe;">text</span> <span style="color: #dcdcaa;">maxlength</span>=<span style="color: #ce9178;">100</span>&#125;&#125;
+  &#123;&#123;<span style="color: #569cd6; font-weight: bold;">#let</span> <span style="color: #9cdcfe;">current_total</span> = <span style="color: #4fc1ff; font-weight: bold;">COUNT</span>(*) <span style="color: #c586c0; font-weight: bold;">from</span> todos&#125;&#125;
+  &#123;&#123;<span style="color: #c586c0; font-weight: bold;">#if</span> <span style="color: #9cdcfe;">:current_total</span> &lt; <span style="color: #ce9178;">20</span>&#125;&#125;
+    &#123;&#123;<span style="color: #569cd6; font-weight: bold;">#insert</span> <span style="color: #c586c0; font-weight: bold;">into</span> todos(text) <span style="color: #c586c0; font-weight: bold;">values</span> (<span style="color: #9cdcfe;">:text</span>)&#125;&#125;
+  &#123;&#123;<span style="color: #c586c0; font-weight: bold;">/if</span>&#125;&#125;
+&#123;&#123;<span style="color: #569cd6; font-weight: bold;">/partial</span>&#125;&#125;
 
-&#123;&#123;<span class="keyword">#partial</span> <span class="attribute">post</span> :id/toggle&#125;&#125;
-  &#123;&#123;<span class="keyword">#update</span> todos <span class="keyword">set</span> completed = 1 - completed <span class="keyword">WHERE</span> id = :id&#125;&#125;
-&#123;&#123;/<span class="keyword">partial</span>&#125;&#125;
 
-&#123;&#123;<span class="keyword">#partial</span> <span class="keyword">patch</span> :id&#125;&#125;
-  &#123;&#123;<span class="keyword">#update</span> todos <span class="keyword">set</span> text = :text <span class="keyword">WHERE</span> id = :id&#125;&#125;
-&#123;&#123;/<span class="keyword">partial</span>&#125;&#125;
+&#123;&#123;<span style="color: #569cd6; font-weight: bold;">#partial</span> <span style="color: #dcdcaa;">post</span> <span style="color: #9cdcfe;">:id</span>/<span style="color: #4ec9b0;">toggle</span>&#125;&#125;
+  &#123;&#123;<span style="color: #569cd6; font-weight: bold;">#update</span> todos <span style="color: #c586c0; font-weight: bold;">set</span> completed = <span style="color: #ce9178;">1</span> - completed <span style="color: #c586c0; font-weight: bold;">WHERE</span> id = <span style="color: #9cdcfe;">:id</span>&#125;&#125;
+&#123;&#123;<span style="color: #569cd6; font-weight: bold;">/partial</span>&#125;&#125;
 
-&#123;&#123;<span class="keyword">#partial</span> <span class="attribute">post</span> toggle_all&#125;&#125;
-  &#123;&#123;<span class="keyword">#let</span> active_count = <span class="keyword">COUNT</span>(*) <span class="keyword">from</span> todos <span class="keyword">WHERE</span> completed = 0&#125;&#125;
-  &#123;&#123;<span class="keyword">#update</span> todos <span class="keyword">set</span> completed =  IIF(:active_count = 0, 0, 1)&#125;&#125;
-&#123;&#123;/<span class="keyword">partial</span>&#125;&#125;
 
-&#123;&#123;<span class="keyword">#partial</span> <span class="keyword">delete</span> :id&#125;&#125;
-  &#123;&#123;<span class="keyword">#delete</span> <span class="keyword">from</span> todos <span class="keyword">WHERE</span> id = :id&#125;&#125;
-&#123;&#123;/<span class="keyword">partial</span>&#125;&#125;
+&#123;&#123;<span style="color: #569cd6; font-weight: bold;">#partial</span> <span style="color: #dcdcaa;">patch</span> <span style="color: #9cdcfe;">:id</span>&#125;&#125;
+  &#123;&#123;<span style="color: #c586c0; font-weight: bold;">#param</span> <span style="color: #9cdcfe;">text</span> <span style="color: #dcdcaa;">maxlength</span>=<span style="color: #ce9178;">100</span>&#125;&#125;
+  &#123;&#123;<span style="color: #569cd6; font-weight: bold;">#update</span> todos <span style="color: #c586c0; font-weight: bold;">set</span> text = <span style="color: #9cdcfe;">:text</span> <span style="color: #c586c0; font-weight: bold;">WHERE</span> id = <span style="color: #9cdcfe;">:id</span>&#125;&#125;
+&#123;&#123;<span style="color: #569cd6; font-weight: bold;">/partial</span>&#125;&#125;
 
-&#123;&#123;<span class="keyword">#partial</span> <span class="attribute">post</span> clear_completed&#125;&#125;
-  &#123;&#123;<span class="keyword">#delete</span> <span class="keyword">from</span> todos <span class="keyword">WHERE</span> completed = 1&#125;&#125;
-&#123;&#123;/<span class="keyword">partial</span>&#125;&#125;
 
-&#123;&#123;<span class="keyword">#param</span> <span class="variable">edit_id</span> <span class="attribute">optional</span>&#125;&#125;
-&#123;&#123;<span class="keyword">#param</span> <span class="variable">filter</span> <span class="attribute">default</span>=&#39;all&#39; <span class="attribute">pattern</span>=&quot;^(all|active|completed)$&quot;&#125;&#125;
+&#123;&#123;<span style="color: #569cd6; font-weight: bold;">#partial</span> <span style="color: #dcdcaa;">post</span> <span style="color: #4ec9b0;">toggle_all</span>&#125;&#125;
+  &#123;&#123;<span style="color: #569cd6; font-weight: bold;">#let</span> <span style="color: #9cdcfe;">active_count</span> = <span style="color: #4fc1ff; font-weight: bold;">COUNT</span>(*) <span style="color: #c586c0; font-weight: bold;">from</span> todos <span style="color: #c586c0; font-weight: bold;">WHERE</span> completed = <span style="color: #ce9178;">0</span>&#125;&#125;
+  &#123;&#123;<span style="color: #569cd6; font-weight: bold;">#update</span> todos <span style="color: #c586c0; font-weight: bold;">set</span> completed = <span style="color: #4fc1ff; font-weight: bold;">IIF</span>(<span style="color: #9cdcfe;">:active_count</span> = <span style="color: #ce9178;">0</span>, <span style="color: #ce9178;">0</span>, <span style="color: #ce9178;">1</span>)&#125;&#125;
+&#123;&#123;<span style="color: #569cd6; font-weight: bold;">/partial</span>&#125;&#125;
 
-&#123;&#123;<span class="comment">!-- Ensure the table exists (harmless if already created) --</span>&#125;&#125;
-&#123;&#123;<span class="keyword">#create</span> <span class="keyword">table</span> <span class="keyword">if</span> <span class="keyword">not</span> <span class="keyword">exists</span> todos (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    text TEXT NOT NULL,
-    completed INTEGER DEFAULT 0 CHECK(completed IN (0,1))
+
+&#123;&#123;<span style="color: #569cd6; font-weight: bold;">#partial</span> <span style="color: #dcdcaa;">delete</span> <span style="color: #9cdcfe;">:id</span>&#125;&#125;
+  &#123;&#123;<span style="color: #569cd6; font-weight: bold;">#delete</span> <span style="color: #c586c0; font-weight: bold;">from</span> todos <span style="color: #c586c0; font-weight: bold;">WHERE</span> id = <span style="color: #9cdcfe;">:id</span>&#125;&#125;
+&#123;&#123;<span style="color: #569cd6; font-weight: bold;">/partial</span>&#125;&#125;
+
+
+&#123;&#123;<span style="color: #569cd6; font-weight: bold;">#partial</span> <span style="color: #dcdcaa;">post</span> <span style="color: #4ec9b0;">clear_completed</span>&#125;&#125;
+  &#123;&#123;<span style="color: #569cd6; font-weight: bold;">#delete</span> <span style="color: #c586c0; font-weight: bold;">from</span> todos <span style="color: #c586c0; font-weight: bold;">WHERE</span> completed = <span style="color: #ce9178;">1</span>&#125;&#125;
+&#123;&#123;<span style="color: #569cd6; font-weight: bold;">/partial</span>&#125;&#125;
+
+
+&#123;&#123;<span style="color: #c586c0; font-weight: bold;">#param</span> <span style="color: #9cdcfe;">filter</span> <span style="color: #dcdcaa;">default</span>=<span style="color: #ce9178;">'all'</span> <span style="color: #dcdcaa;">pattern</span>=<span style="color: #ce9178;">"^(all|active|completed)$"</span>&#125;&#125;
+
+&#123;&#123;<span style="color: #6a9955; font-style: italic;">!-- Ensure the table exists (harmless if already created) --</span>&#125;&#125;
+&#123;&#123;<span style="color: #569cd6; font-weight: bold;">#create</span> <span style="color: #c586c0; font-weight: bold;">table</span> <span style="color: #c586c0; font-weight: bold;">if</span> <span style="color: #c586c0; font-weight: bold;">not</span> <span style="color: #c586c0; font-weight: bold;">exists</span> todos (
+    id <span style="color: #4fc1ff; font-weight: bold;">INTEGER</span> <span style="color: #c586c0; font-weight: bold;">PRIMARY</span> <span style="color: #c586c0; font-weight: bold;">KEY</span> <span style="color: #c586c0; font-weight: bold;">AUTOINCREMENT</span>,
+    text <span style="color: #4fc1ff; font-weight: bold;">TEXT</span> <span style="color: #c586c0; font-weight: bold;">NOT</span> <span style="color: #c586c0; font-weight: bold;">NULL</span>,
+    completed <span style="color: #4fc1ff; font-weight: bold;">INTEGER</span> <span style="color: #c586c0; font-weight: bold;">DEFAULT</span> <span style="color: #ce9178;">0</span> <span style="color: #c586c0; font-weight: bold;">CHECK</span>(completed <span style="color: #c586c0; font-weight: bold;">IN</span> (<span style="color: #ce9178;">0</span>,<span style="color: #ce9178;">1</span>))
 )&#125;&#125;
 
-&#123;&#123;<span class="keyword">#let</span> active_count    = <span class="keyword">COUNT</span>(*) <span class="keyword">from</span> todos <span class="keyword">WHERE</span> completed = 0&#125;&#125;
-&#123;&#123;<span class="keyword">#let</span> completed_count = <span class="keyword">COUNT</span>(*) <span class="keyword">from</span> todos <span class="keyword">WHERE</span> completed = 1&#125;&#125;
-&#123;&#123;<span class="keyword">#let</span> total_count     = <span class="keyword">COUNT</span>(*) <span class="keyword">from</span> todos&#125;&#125;
-&#123;&#123;<span class="keyword">#let</span> all_complete    = (:active_count == 0 <span class="keyword">AND</span> :total_count &gt; 0)&#125;&#125;
+
+&#123;&#123;<span style="color: #569cd6; font-weight: bold;">#let</span> <span style="color: #9cdcfe;">active_count</span>    = <span style="color: #4fc1ff; font-weight: bold;">COUNT</span>(*) <span style="color: #c586c0; font-weight: bold;">from</span> todos <span style="color: #c586c0; font-weight: bold;">WHERE</span> completed = <span style="color: #ce9178;">0</span>&#125;&#125;
+&#123;&#123;<span style="color: #569cd6; font-weight: bold;">#let</span> <span style="color: #9cdcfe;">completed_count</span> = <span style="color: #4fc1ff; font-weight: bold;">COUNT</span>(*) <span style="color: #c586c0; font-weight: bold;">from</span> todos <span style="color: #c586c0; font-weight: bold;">WHERE</span> completed = <span style="color: #ce9178;">1</span>&#125;&#125;
+&#123;&#123;<span style="color: #569cd6; font-weight: bold;">#let</span> <span style="color: #9cdcfe;">total_count</span>     = <span style="color: #4fc1ff; font-weight: bold;">COUNT</span>(*) <span style="color: #c586c0; font-weight: bold;">from</span> todos&#125;&#125;
+&#123;&#123;<span style="color: #569cd6; font-weight: bold;">#let</span> <span style="color: #9cdcfe;">all_complete</span>    = (<span style="color: #9cdcfe;">:active_count</span> == <span style="color: #ce9178;">0</span> <span style="color: #c586c0; font-weight: bold;">AND</span> <span style="color: #9cdcfe;">:total_count</span> &gt; <span style="color: #ce9178;">0</span>)&#125;&#125;
 
 
-<span style="color: #959077">&lt;!doctype html&gt;</span>
-<span style="color: #f8f8f2">&lt;</span><span style="color: #ff4689">html</span> <span style="color: #a6e22e">lang</span><span style="color: #ff4689">=</span><span style="color: #e6db74">&quot;en&quot;</span><span style="color: #f8f8f2">&gt;</span>
-<span style="color: #f8f8f2">&lt;</span><span style="color: #ff4689">head</span><span style="color: #f8f8f2">&gt;</span>
-  <span style="color: #f8f8f2">&lt;</span><span style="color: #ff4689">meta</span> <span style="color: #a6e22e">charset</span><span style="color: #ff4689">=</span><span style="color: #e6db74">&quot;utf-8&quot;</span><span style="color: #f8f8f2">&gt;</span>
-  <span style="color: #f8f8f2">&lt;</span><span style="color: #ff4689">title</span><span style="color: #f8f8f2">&gt;</span>Todos<span style="color: #f8f8f2">&lt;/</span><span style="color: #ff4689">title</span><span style="color: #f8f8f2">&gt;</span>
-  <span style="color: #f8f8f2">&lt;</span><span style="color: #ff4689">style</span><span style="color: #f8f8f2">&gt;</span>
-<span style="color: #f8f8f2">    </span><span style="color: #ff4689">body</span><span style="color: #f8f8f2"> { </span><span style="color: #66d9ef">font-family</span><span style="color: #f8f8f2">: Arial, </span><span style="color: #66d9ef">sans-serif</span><span style="color: #f8f8f2">; </span><span style="color: #66d9ef">margin</span><span style="color: #f8f8f2">: </span><span style="color: #ae81ff">2</span><span style="color: #66d9ef">rem</span><span style="color: #f8f8f2">; }</span>
-<span style="color: #f8f8f2">    </span><span style="color: #ff4689">ul</span><span style="color: #f8f8f2"> { </span><span style="color: #66d9ef">list-style</span><span style="color: #f8f8f2">: </span><span style="color: #66d9ef">none</span><span style="color: #f8f8f2">; </span><span style="color: #66d9ef">padding</span><span style="color: #f8f8f2">: </span><span style="color: #ae81ff">0</span><span style="color: #f8f8f2">; }</span>
-<span style="color: #f8f8f2">    </span><span style="color: #ff4689">li</span><span style="color: #f8f8f2"> { </span><span style="color: #66d9ef">margin-bottom</span><span style="color: #f8f8f2">: </span><span style="color: #ae81ff">0.5</span><span style="color: #66d9ef">rem</span><span style="color: #f8f8f2">; }</span>
-<span style="color: #f8f8f2">    </span><span style="color: #ff4689">li</span><span style="color: #f8f8f2">.</span><span style="color: #a6e22e">completed</span><span style="color: #f8f8f2"> </span><span style="color: #ff4689">label</span><span style="color: #f8f8f2"> { </span><span style="color: #66d9ef">text-decoration</span><span style="color: #f8f8f2">: </span><span style="color: #66d9ef">line-through</span><span style="color: #f8f8f2">; </span><span style="color: #66d9ef">color</span><span style="color: #f8f8f2">: </span><span style="color: #ae81ff">#777</span><span style="color: #f8f8f2">; }</span>
-<span style="color: #f8f8f2">    .</span><span style="color: #a6e22e">filters</span><span style="color: #f8f8f2"> { </span><span style="color: #66d9ef">margin-top</span><span style="color: #f8f8f2">: </span><span style="color: #ae81ff">1</span><span style="color: #66d9ef">rem</span><span style="color: #f8f8f2">; }</span>
-<span style="color: #f8f8f2">    .</span><span style="color: #a6e22e">filters</span><span style="color: #f8f8f2"> </span><span style="color: #ff4689">a</span><span style="color: #f8f8f2"> { </span><span style="color: #66d9ef">text-decoration</span><span style="color: #f8f8f2">: </span><span style="color: #66d9ef">none</span><span style="color: #f8f8f2">; </span><span style="color: #66d9ef">margin</span><span style="color: #f8f8f2">: </span><span style="color: #ae81ff">0</span><span style="color: #f8f8f2"> </span><span style="color: #ae81ff">0.5</span><span style="color: #66d9ef">rem</span><span style="color: #f8f8f2">; }</span>
-<span style="color: #f8f8f2">    .</span><span style="color: #a6e22e">filters</span><span style="color: #f8f8f2"> </span><span style="color: #ff4689">a</span><span style="color: #f8f8f2">.</span><span style="color: #a6e22e">selected</span><span style="color: #f8f8f2"> { </span><span style="color: #66d9ef">font-weight</span><span style="color: #f8f8f2">: </span><span style="color: #66d9ef">bold</span><span style="color: #f8f8f2">; }</span>
-<span style="color: #f8f8f2">  &lt;/</span><span style="color: #ff4689">style</span><span style="color: #f8f8f2">&gt;</span>
-<span style="color: #f8f8f2">&lt;/</span><span style="color: #ff4689">head</span><span style="color: #f8f8f2">&gt;</span>
-<span style="color: #f8f8f2">&lt;</span><span style="color: #ff4689">body</span><span style="color: #f8f8f2">&gt;</span>
-  <span style="color: #f8f8f2">&lt;</span><span style="color: #ff4689">h1</span><span style="color: #f8f8f2">&gt;</span>Todos<span style="color: #f8f8f2">&lt;/</span><span style="color: #ff4689">h1</span><span style="color: #f8f8f2">&gt;</span>
-  <span style="color: #f8f8f2">&lt;</span><span style="color: #ff4689">input</span> <span style="color: #a6e22e">name</span><span style="color: #ff4689">=</span><span style="color: #e6db74">&quot;text&quot;</span> <span style="color: #a6e22e">placeholder</span><span style="color: #ff4689">=</span><span style="color: #e6db74">&quot;What needs to be done?&quot;</span> <span style="color: #a6e22e">autofocus</span> <span style="color: #a6e22e">autocomplete</span><span style="color: #ff4689">=</span><span style="color: #e6db74">&quot;off&quot;</span>
-    <span style="color: #a6e22e">hx-post</span><span style="color: #ff4689">=</span><span style="color: #e6db74">&quot;/todos/add&quot;</span> <span style="color: #a6e22e">hx-trigger</span><span style="color: #ff4689">=</span><span style="color: #e6db74">&quot;keyup[key==&#39;Enter&#39;]&quot;</span> <span style="color: #a6e22e">hx-on:htmx:after-on-load</span><span style="color: #ff4689">=</span><span style="color: #e6db74">&quot;this.value=&#39;&#39;&quot;</span><span style="color: #f8f8f2">&gt;</span>
-  <span style="color: #f8f8f2">&lt;</span><span style="color: #ff4689">ul</span><span style="color: #f8f8f2">&gt;</span>
-&#123;&#123;#from todos
-  WHERE (:filter == &#39;all&#39;)
-        OR (:filter == &#39;active&#39;    AND completed = 0)
-        OR (:filter == &#39;completed&#39; AND completed = 1)
-  ORDER BY id&#125;&#125;
-    <span style="color: #f8f8f2">&lt;</span><span style="color: #ff4689">li</span> <span style="color: #ed007e; background-color: #1e0010">&#123;&#123;#</span><span style="color: #a6e22e">if</span> <span style="color: #a6e22e">completed</span><span style="color: #ed007e; background-color: #1e0010">&#125;&#125;</span><span style="color: #a6e22e">class</span><span style="color: #ff4689">=</span><span style="color: #e6db74">&quot;completed&quot;</span><span style="color: #ed007e; background-color: #1e0010">&#123;&#123;/</span><span style="color: #a6e22e">if</span><span style="color: #ed007e; background-color: #1e0010">&#125;&#125;</span><span style="color: #f8f8f2">&gt;</span>
-        <span style="color: #f8f8f2">&lt;</span><span style="color: #ff4689">input</span> <span style="color: #a6e22e">hx-post</span><span style="color: #ff4689">=</span><span style="color: #e6db74">&quot;/todos/&#123;&#123;id&#125;&#125;/toggle&quot;</span> <span style="color: #a6e22e">class</span><span style="color: #ff4689">=</span><span style="color: #e6db74">&quot;toggle&quot;</span> <span style="color: #a6e22e">type</span><span style="color: #ff4689">=</span><span style="color: #e6db74">&quot;checkbox&quot;</span> <span style="color: #ed007e; background-color: #1e0010">&#123;&#123;#</span><span style="color: #a6e22e">if</span> <span style="color: #a6e22e">completed</span><span style="color: #ed007e; background-color: #1e0010">&#125;&#125;</span><span style="color: #a6e22e">checked</span><span style="color: #ed007e; background-color: #1e0010">&#123;&#123;/</span><span style="color: #a6e22e">if</span><span style="color: #ed007e; background-color: #1e0010">&#125;&#125;</span><span style="color: #f8f8f2">&gt;</span>
-        <span style="color: #f8f8f2">&lt;</span><span style="color: #ff4689">label</span>
-          <span style="color: #a6e22e">contenteditable</span><span style="color: #ff4689">=</span><span style="color: #e6db74">&quot;false&quot;</span>
-          <span style="color: #a6e22e">onclick</span><span style="color: #ff4689">=</span><span style="color: #e6db74">&quot;this.contentEditable=true;this.focus();&quot;</span>
-          <span style="color: #a6e22e">onblur</span><span style="color: #ff4689">=</span><span style="color: #e6db74">&quot;this.contentEditable=false;&quot;</span>
-          <span style="color: #a6e22e">onkeydown</span><span style="color: #ff4689">=</span><span style="color: #e6db74">&quot;if(event.key===&#39;Enter&#39;){event.preventDefault();this.blur();}&quot;</span>
-          <span style="color: #a6e22e">hx-patch</span><span style="color: #ff4689">=</span><span style="color: #e6db74">&quot;/todos/&#123;&#123;id&#125;&#125;&quot;</span>
-          <span style="color: #a6e22e">hx-trigger</span><span style="color: #ff4689">=</span><span style="color: #e6db74">&quot;blur&quot;</span>
-          <span style="color: #a6e22e">hx-vals</span><span style="color: #ff4689">=</span><span style="color: #e6db74">&#39;js:{text: event.target.innerText}&#39;</span>
-          <span style="color: #a6e22e">hx-swap</span><span style="color: #ff4689">=</span><span style="color: #e6db74">&quot;none&quot;</span>
-        <span style="color: #f8f8f2">&gt;</span>&#123;&#123;text&#125;&#125;<span style="color: #f8f8f2">&lt;/</span><span style="color: #ff4689">label</span><span style="color: #f8f8f2">&gt;</span>
-        <span style="color: #f8f8f2">&lt;</span><span style="color: #ff4689">button</span> <span style="color: #a6e22e">hx-delete</span><span style="color: #ff4689">=</span><span style="color: #e6db74">&quot;/todos/&#123;&#123;id&#125;&#125;&quot;</span> <span style="color: #a6e22e">class</span><span style="color: #ff4689">=</span><span style="color: #e6db74">&quot;destroy&quot;</span> <span style="color: #a6e22e">style</span><span style="color: #ff4689">=</span><span style="color: #e6db74">&quot;cursor:pointer; background:none; border:none; color:#ac4a1a;&quot;</span><span style="color: #f8f8f2">&gt;</span>✕<span style="color: #f8f8f2">&lt;/</span><span style="color: #ff4689">button</span><span style="color: #f8f8f2">&gt;</span>
-    <span style="color: #f8f8f2">&lt;/</span><span style="color: #ff4689">li</span><span style="color: #f8f8f2">&gt;</span>
-&#123;&#123;/from&#125;&#125;
-  <span style="color: #f8f8f2">&lt;/</span><span style="color: #ff4689">ul</span><span style="color: #f8f8f2">&gt;</span>
+<span style="color: #808080; font-style: italic;">&lt;!doctype html&gt;</span>
+<span style="color: #808080;">&lt;</span><span style="color: #569cd6; font-weight: bold;">html</span> <span style="color: #92c5f8;">lang</span><span style="color: #808080;">=</span><span style="color: #ce9178;">"en"</span><span style="color: #808080;">&gt;</span>
+<span style="color: #808080;">&lt;</span><span style="color: #569cd6; font-weight: bold;">head</span><span style="color: #808080;">&gt;</span>
+  <span style="color: #808080;">&lt;</span><span style="color: #569cd6; font-weight: bold;">meta</span> <span style="color: #92c5f8;">charset</span><span style="color: #808080;">=</span><span style="color: #ce9178;">"utf-8"</span><span style="color: #808080;">&gt;</span>
+  <span style="color: #808080;">&lt;</span><span style="color: #569cd6; font-weight: bold;">title</span><span style="color: #808080;">&gt;</span>TODOMVC<span style="color: #808080;">&lt;/</span><span style="color: #569cd6; font-weight: bold;">title</span><span style="color: #808080;">&gt;</span>
+  <span style="color: #808080;">&lt;</span><span style="color: #569cd6; font-weight: bold;">style</span><span style="color: #808080;">&gt;</span>
+<span style="color: #d4d4d4;">    </span><span style="color: #d7ba7d;">body</span><span style="color: #d4d4d4;"> { </span><span style="color: #9cdcfe;">font-family</span><span style="color: #d4d4d4;">: Arial, </span><span style="color: #ce9178;">sans-serif</span><span style="color: #d4d4d4;">; </span><span style="color: #9cdcfe;">margin</span><span style="color: #d4d4d4;">: </span><span style="color: #b5cea8;">2</span><span style="color: #9cdcfe;">rem</span><span style="color: #d4d4d4;">; }</span>
+<span style="color: #d4d4d4;">    </span><span style="color: #d7ba7d;">ul</span><span style="color: #d4d4d4;"> { </span><span style="color: #9cdcfe;">list-style</span><span style="color: #d4d4d4;">: </span><span style="color: #ce9178;">none</span><span style="color: #d4d4d4;">; </span><span style="color: #9cdcfe;">padding</span><span style="color: #d4d4d4;">: </span><span style="color: #b5cea8;">0</span><span style="color: #d4d4d4;">; }</span>
+<span style="color: #d4d4d4;">    </span><span style="color: #d7ba7d;">li</span><span style="color: #d4d4d4;"> { </span><span style="color: #9cdcfe;">margin-bottom</span><span style="color: #d4d4d4;">: </span><span style="color: #b5cea8;">0.5</span><span style="color: #9cdcfe;">rem</span><span style="color: #d4d4d4;">; }</span>
+<span style="color: #d4d4d4;">    </span><span style="color: #d7ba7d;">li</span><span style="color: #d4d4d4;">.</span><span style="color: #4ec9b0;">completed</span><span style="color: #d4d4d4;"> </span><span style="color: #d7ba7d;">label</span><span style="color: #d4d4d4;"> { </span><span style="color: #9cdcfe;">text-decoration</span><span style="color: #d4d4d4;">: </span><span style="color: #ce9178;">line-through</span><span style="color: #d4d4d4;">; </span><span style="color: #9cdcfe;">color</span><span style="color: #d4d4d4;">: </span><span style="color: #b5cea8;">#777</span><span style="color: #d4d4d4;">; }</span>
+<span style="color: #d4d4d4;">    .</span><span style="color: #4ec9b0;">filters</span><span style="color: #d4d4d4;"> { </span><span style="color: #9cdcfe;">margin-top</span><span style="color: #d4d4d4;">: </span><span style="color: #b5cea8;">1</span><span style="color: #9cdcfe;">rem</span><span style="color: #d4d4d4;">; }</span>
+<span style="color: #d4d4d4;">    .</span><span style="color: #4ec9b0;">filters</span><span style="color: #d4d4d4;"> </span><span style="color: #d7ba7d;">a</span><span style="color: #d4d4d4;"> { </span><span style="color: #9cdcfe;">text-decoration</span><span style="color: #d4d4d4;">: </span><span style="color: #ce9178;">none</span><span style="color: #d4d4d4;">; </span><span style="color: #9cdcfe;">margin</span><span style="color: #d4d4d4;">: </span><span style="color: #b5cea8;">0</span><span style="color: #d4d4d4;"> </span><span style="color: #b5cea8;">0.5</span><span style="color: #9cdcfe;">rem</span><span style="color: #d4d4d4;">; }</span>
+<span style="color: #d4d4d4;">    .</span><span style="color: #4ec9b0;">filters</span><span style="color: #d4d4d4;"> </span><span style="color: #d7ba7d;">a</span><span style="color: #d4d4d4;">.</span><span style="color: #4ec9b0;">selected</span><span style="color: #d4d4d4;"> { </span><span style="color: #9cdcfe;">font-weight</span><span style="color: #d4d4d4;">: </span><span style="color: #ce9178;">bold</span><span style="color: #d4d4d4;">; }</span>
+<span style="color: #d4d4d4;">    .</span><span style="color: #4ec9b0;">back-link</span><span style="color: #d4d4d4;"> {</span>
+<span style="color: #d4d4d4;">      </span><span style="color: #9cdcfe;">margin-bottom</span><span style="color: #d4d4d4;">: </span><span style="color: #b5cea8;">2</span><span style="color: #9cdcfe;">rem</span><span style="color: #d4d4d4;">;</span>
+<span style="color: #d4d4d4;">      </span><span style="color: #9cdcfe;">padding-bottom</span><span style="color: #d4d4d4;">: </span><span style="color: #b5cea8;">1</span><span style="color: #9cdcfe;">rem</span><span style="color: #d4d4d4;">;</span>
+<span style="color: #d4d4d4;">      </span><span style="color: #9cdcfe;">border-bottom</span><span style="color: #d4d4d4;">: </span><span style="color: #b5cea8;">1</span><span style="color: #9cdcfe;">px</span><span style="color: #d4d4d4;"> </span><span style="color: #ce9178;">solid</span><span style="color: #d4d4d4;"> </span><span style="color: #b5cea8;">#ccc</span><span style="color: #d4d4d4;">;</span>
+<span style="color: #d4d4d4;">      </span><span style="color: #9cdcfe;">font-size</span><span style="color: #d4d4d4;">: </span><span style="color: #b5cea8;">1.8</span><span style="color: #9cdcfe;">rem</span><span style="color: #d4d4d4;">;</span>
+<span style="color: #d4d4d4;">      </span><span style="color: #9cdcfe;">font-weight</span><span style="color: #d4d4d4;">: </span><span style="color: #ce9178;">bold</span><span style="color: #d4d4d4;">;</span>
+<span style="color: #d4d4d4;">    }</span>
+<span style="color: #d4d4d4;">    .</span><span style="color: #4ec9b0;">back-link</span><span style="color: #d4d4d4;"> </span><span style="color: #d7ba7d;">a</span><span style="color: #d4d4d4;"> {</span>
+<span style="color: #d4d4d4;">      </span><span style="color: #9cdcfe;">color</span><span style="color: #d4d4d4;">: </span><span style="color: #b5cea8;">#be5028</span><span style="color: #d4d4d4;">;</span>
+<span style="color: #d4d4d4;">      </span><span style="color: #9cdcfe;">text-decoration</span><span style="color: #d4d4d4;">: </span><span style="color: #ce9178;">none</span><span style="color: #d4d4d4;">;</span>
+<span style="color: #d4d4d4;">    }</span>
+<span style="color: #d4d4d4;">    .</span><span style="color: #4ec9b0;">code-column</span><span style="color: #d4d4d4;"> {</span>
+<span style="color: #d4d4d4;">      </span><span style="color: #9cdcfe;">overflow-x</span><span style="color: #d4d4d4;">: </span><span style="color: #ce9178;">auto</span><span style="color: #d4d4d4;">;</span>
+<span style="color: #d4d4d4;">    }</span>
+  <span style="color: #808080;">&lt;/</span><span style="color: #569cd6; font-weight: bold;">style</span><span style="color: #808080;">&gt;</span>
+<span style="color: #808080;">&lt;/</span><span style="color: #569cd6; font-weight: bold;">head</span><span style="color: #808080;">&gt;</span>
+<span style="color: #808080;">&lt;</span><span style="color: #569cd6; font-weight: bold;">body</span><span style="color: #808080;">&gt;</span>
+  <span style="color: #808080;">&lt;</span><span style="color: #569cd6; font-weight: bold;">div</span> <span style="color: #92c5f8;">class</span><span style="color: #808080;">=</span><span style="color: #ce9178;">"back-link"</span><span style="color: #808080;">&gt;&lt;</span><span style="color: #569cd6; font-weight: bold;">a</span> <span style="color: #92c5f8;">href</span><span style="color: #808080;">=</span><span style="color: #ce9178;">"/"</span><span style="color: #808080;">&gt;</span>&amp;larr; PageQL<span style="color: #808080;">&lt;/</span><span style="color: #569cd6; font-weight: bold;">a</span><span style="color: #808080;">&gt;&lt;/</span><span style="color: #569cd6; font-weight: bold;">div</span><span style="color: #808080;">&gt;</span>
+  <span style="color: #808080;">&lt;</span><span style="color: #569cd6; font-weight: bold;">h1</span><span style="color: #808080;">&gt;</span>TODOMVC<span style="color: #808080;">&lt;/</span><span style="color: #569cd6; font-weight: bold;">h1</span><span style="color: #808080;">&gt;</span>
+  <span style="color: #808080;">&lt;</span><span style="color: #569cd6; font-weight: bold;">div</span><span style="color: #808080;">&gt;</span>
+      &#123;&#123;<span style="color: #c586c0; font-weight: bold;">#if</span> <span style="color: #9cdcfe;">:total_count</span> &lt; <span style="color: #ce9178;">20</span>&#125;&#125;
+      <span style="color: #808080;">&lt;</span><span style="color: #569cd6; font-weight: bold;">input</span> <span style="color: #92c5f8;">name</span><span style="color: #808080;">=</span><span style="color: #ce9178;">"text"</span> <span style="color: #92c5f8;">placeholder</span><span style="color: #808080;">=</span><span style="color: #ce9178;">"What needs to be done?"</span> <span style="color: #92c5f8;">maxlength</span><span style="color: #808080;">=</span><span style="color: #ce9178;">"100"</span> <span style="color: #92c5f8;">autofocus</span> <span style="color: #92c5f8;">autocomplete</span><span style="color: #808080;">=</span><span style="color: #ce9178;">"off"</span>
+        <span style="color: #92c5f8;">hx-post</span><span style="color: #808080;">=</span><span style="color: #ce9178;">"/todos/add"</span> <span style="color: #92c5f8;">hx-trigger</span><span style="color: #808080;">=</span><span style="color: #ce9178;">"keyup[key=='Enter']"</span> <span style="color: #92c5f8;">hx-on:htmx:after-on-load</span><span style="color: #808080;">=</span><span style="color: #ce9178;">"this.value=''"</span><span style="color: #808080;">&gt;</span>
+      &#123;&#123;<span style="color: #c586c0; font-weight: bold;">/if</span>&#125;&#125;
+      <span style="color: #808080;">&lt;</span><span style="color: #569cd6; font-weight: bold;">ul</span><span style="color: #808080;">&gt;</span>
+        &#123;&#123;<span style="color: #569cd6; font-weight: bold;">#from</span> todos
+          <span style="color: #c586c0; font-weight: bold;">WHERE</span> (<span style="color: #9cdcfe;">:filter</span> == <span style="color: #ce9178;">'all'</span>)
+                <span style="color: #c586c0; font-weight: bold;">OR</span> (<span style="color: #9cdcfe;">:filter</span> == <span style="color: #ce9178;">'active'</span>    <span style="color: #c586c0; font-weight: bold;">AND</span> completed = <span style="color: #ce9178;">0</span>)
+                <span style="color: #c586c0; font-weight: bold;">OR</span> (<span style="color: #9cdcfe;">:filter</span> == <span style="color: #ce9178;">'completed'</span> <span style="color: #c586c0; font-weight: bold;">AND</span> completed = <span style="color: #ce9178;">1</span>)
+                <span style="color: #c586c0; font-weight: bold;">ORDER</span> <span style="color: #c586c0; font-weight: bold;">BY</span> id&#125;&#125;
+            <span style="color: #808080;">&lt;</span><span style="color: #569cd6; font-weight: bold;">li</span> &#123;&#123;<span style="color: #c586c0; font-weight: bold;">#if</span> completed&#125;&#125;<span style="color: #92c5f8;">class</span><span style="color: #808080;">=</span><span style="color: #ce9178;">"completed"</span>&#123;&#123;<span style="color: #c586c0; font-weight: bold;">/if</span>&#125;&#125;<span style="color: #808080;">&gt;</span>
+                <span style="color: #808080;">&lt;</span><span style="color: #569cd6; font-weight: bold;">input</span> <span style="color: #92c5f8;">hx-post</span><span style="color: #808080;">=</span><span style="color: #ce9178;">"/todos/&#123;&#123;id&#125;&#125;/toggle"</span> <span style="color: #92c5f8;">class</span><span style="color: #808080;">=</span><span style="color: #ce9178;">"toggle"</span> <span style="color: #92c5f8;">type</span><span style="color: #808080;">=</span><span style="color: #ce9178;">"checkbox"</span> &#123;&#123;<span style="color: #c586c0; font-weight: bold;">#if</span> completed&#125;&#125;<span style="color: #92c5f8;">checked</span>&#123;&#123;<span style="color: #c586c0; font-weight: bold;">/if</span>&#125;&#125;<span style="color: #808080;">&gt;</span>
+                <span style="color: #808080;">&lt;</span><span style="color: #569cd6; font-weight: bold;">label</span>
+                  <span style="color: #92c5f8;">contenteditable</span><span style="color: #808080;">=</span><span style="color: #ce9178;">"false"</span>
+                  <span style="color: #92c5f8;">onclick</span><span style="color: #808080;">=</span><span style="color: #ce9178;">"this.contentEditable=true;this.focus();"</span>
+                  <span style="color: #92c5f8;">onblur</span><span style="color: #808080;">=</span><span style="color: #ce9178;">"this.contentEditable=false;"</span>
+                  <span style="color: #92c5f8;">onkeydown</span><span style="color: #808080;">=</span><span style="color: #ce9178;">"if(event.key==='Enter'){event.preventDefault();this.blur();}"</span>
+                  <span style="color: #92c5f8;">oninput</span><span style="color: #808080;">=</span><span style="color: #ce9178;">"if(this.innerText.length&gt;100){this.innerText=this.innerText.slice(0,100);}"</span>
+                  <span style="color: #92c5f8;">hx-patch</span><span style="color: #808080;">=</span><span style="color: #ce9178;">"/todos/&#123;&#123;id&#125;&#125;"</span>
+                  <span style="color: #92c5f8;">hx-trigger</span><span style="color: #808080;">=</span><span style="color: #ce9178;">"blur"</span>
+                  <span style="color: #92c5f8;">hx-vals</span><span style="color: #808080;">=</span><span style="color: #ce9178;">'js:{text: event.target.innerText.slice(0, 100)}'</span>
+                  <span style="color: #92c5f8;">hx-swap</span><span style="color: #808080;">=</span><span style="color: #ce9178;">"none"</span>
+                <span style="color: #808080;">&gt;</span>&#123;&#123;text&#125;&#125;<span style="color: #808080;">&lt;/</span><span style="color: #569cd6; font-weight: bold;">label</span><span style="color: #808080;">&gt;</span>
+                
+                <span style="color: #808080;">&lt;</span><span style="color: #569cd6; font-weight: bold;">button</span> <span style="color: #92c5f8;">hx-delete</span><span style="color: #808080;">=</span><span style="color: #ce9178;">"/todos/&#123;&#123;id&#125;&#125;"</span> <span style="color: #92c5f8;">class</span><span style="color: #808080;">=</span><span style="color: #ce9178;">"destroy"</span>
+                  <span style="color: #92c5f8;">style</span><span style="color: #808080;">=</span><span style="color: #ce9178;">"cursor:pointer; background:none; border:none; color:#ac4a1a;"</span><span style="color: #808080;">&gt;</span>✕<span style="color: #808080;">&lt;/</span><span style="color: #569cd6; font-weight: bold;">button</span><span style="color: #808080;">&gt;</span>
+            <span style="color: #808080;">&lt;/</span><span style="color: #569cd6; font-weight: bold;">li</span><span style="color: #808080;">&gt;</span>
+        &#123;&#123;<span style="color: #569cd6; font-weight: bold;">/from</span>&#125;&#125;
+      <span style="color: #808080;">&lt;/</span><span style="color: #569cd6; font-weight: bold;">ul</span><span style="color: #808080;">&gt;</span>
 
-  <span style="color: #f8f8f2">&lt;</span><span style="color: #ff4689">input</span> <span style="color: #a6e22e">id</span><span style="color: #ff4689">=</span><span style="color: #e6db74">&quot;toggle-all&quot;</span> <span style="color: #a6e22e">class</span><span style="color: #ff4689">=</span><span style="color: #e6db74">&quot;toggle-all&quot;</span> <span style="color: #a6e22e">type</span><span style="color: #ff4689">=</span><span style="color: #e6db74">&quot;checkbox&quot;</span> <span style="color: #ed007e; background-color: #1e0010">&#123;&#123;#</span><span style="color: #a6e22e">if</span> <span style="color: #a6e22e">all_complete</span><span style="color: #ed007e; background-color: #1e0010">&#125;&#125;</span><span style="color: #a6e22e">checked</span><span style="color: #ed007e; background-color: #1e0010">&#123;&#123;/</span><span style="color: #a6e22e">if</span><span style="color: #ed007e; background-color: #1e0010">&#125;&#125;</span> <span style="color: #a6e22e">hx-post</span><span style="color: #ff4689">=</span><span style="color: #e6db74">&quot;/todos/toggle_all&quot;</span><span style="color: #f8f8f2">&gt;</span>
-  <span style="color: #f8f8f2">&lt;</span><span style="color: #ff4689">label</span> <span style="color: #a6e22e">for</span><span style="color: #ff4689">=</span><span style="color: #e6db74">&quot;toggle-all&quot;</span><span style="color: #f8f8f2">&gt;</span>Mark all as complete<span style="color: #f8f8f2">&lt;/</span><span style="color: #ff4689">label</span><span style="color: #f8f8f2">&gt;</span>
+      <span style="color: #808080;">&lt;</span><span style="color: #569cd6; font-weight: bold;">input</span> <span style="color: #92c5f8;">id</span><span style="color: #808080;">=</span><span style="color: #ce9178;">"toggle-all"</span> <span style="color: #92c5f8;">class</span><span style="color: #808080;">=</span><span style="color: #ce9178;">"toggle-all"</span> <span style="color: #92c5f8;">type</span><span style="color: #808080;">=</span><span style="color: #ce9178;">"checkbox"</span>
+        &#123;&#123;<span style="color: #c586c0; font-weight: bold;">#if</span> all_complete&#125;&#125;<span style="color: #92c5f8;">checked</span>&#123;&#123;<span style="color: #c586c0; font-weight: bold;">/if</span>&#125;&#125; <span style="color: #92c5f8;">hx-post</span><span style="color: #808080;">=</span><span style="color: #ce9178;">"/todos/toggle_all"</span><span style="color: #808080;">&gt;</span>
+      <span style="color: #808080;">&lt;</span><span style="color: #569cd6; font-weight: bold;">label</span> <span style="color: #92c5f8;">for</span><span style="color: #808080;">=</span><span style="color: #ce9178;">"toggle-all"</span><span style="color: #808080;">&gt;</span>Mark all as complete<span style="color: #808080;">&lt;/</span><span style="color: #569cd6; font-weight: bold;">label</span><span style="color: #808080;">&gt;</span>
 
-<span style="color: #f8f8f2">&lt;</span><span style="color: #ff4689">span</span> <span style="color: #a6e22e">class</span><span style="color: #ff4689">=</span><span style="color: #e6db74">&quot;todo-count&quot;</span><span style="color: #f8f8f2">&gt;</span>
-  <span style="color: #f8f8f2">&lt;</span><span style="color: #ff4689">strong</span><span style="color: #f8f8f2">&gt;</span>&#123;&#123;active_count&#125;&#125;<span style="color: #f8f8f2">&lt;/</span><span style="color: #ff4689">strong</span><span style="color: #f8f8f2">&gt;</span>
-  item&#123;&#123;#if :active_count != 1&#125;&#125;s&#123;&#123;/if&#125;&#125; left
-<span style="color: #f8f8f2">&lt;/</span><span style="color: #ff4689">span</span><span style="color: #f8f8f2">&gt;</span>
+<span style="color: #808080;">&lt;</span><span style="color: #569cd6; font-weight: bold;">span</span> <span style="color: #92c5f8;">class</span><span style="color: #808080;">=</span><span style="color: #ce9178;">"todo-count"</span><span style="color: #808080;">&gt;</span>
+  <span style="color: #808080;">&lt;</span><span style="color: #569cd6; font-weight: bold;">strong</span><span style="color: #808080;">&gt;</span>&#123;&#123;active_count&#125;&#125;<span style="color: #808080;">&lt;/</span><span style="color: #569cd6; font-weight: bold;">strong</span><span style="color: #808080;">&gt;</span>
+  item&#123;&#123;<span style="color: #c586c0; font-weight: bold;">#if</span> <span style="color: #9cdcfe;">:active_count</span> != <span style="color: #ce9178;">1</span>&#125;&#125;s&#123;&#123;<span style="color: #c586c0; font-weight: bold;">/if</span>&#125;&#125; left
+<span style="color: #808080;">&lt;/</span><span style="color: #569cd6; font-weight: bold;">span</span><span style="color: #808080;">&gt;</span>
 
 
-&#123;&#123;#if :completed_count &gt; 0&#125;&#125;
-  <span style="color: #f8f8f2">&lt;</span><span style="color: #ff4689">button</span> <span style="color: #a6e22e">class</span><span style="color: #ff4689">=</span><span style="color: #e6db74">&quot;clear-completed&quot;</span> <span style="color: #a6e22e">hx-post</span><span style="color: #ff4689">=</span><span style="color: #e6db74">&quot;/todos/clear_completed&quot;</span><span style="color: #f8f8f2">&gt;</span>Clear completed<span style="color: #f8f8f2">&lt;/</span><span style="color: #ff4689">button</span><span style="color: #f8f8f2">&gt;</span>
-&#123;&#123;/if&#125;&#125;
-<span style="color: #f8f8f2">&lt;</span><span style="color: #ff4689">div</span> <span style="color: #a6e22e">class</span><span style="color: #ff4689">=</span><span style="color: #e6db74">&quot;filters&quot;</span><span style="color: #f8f8f2">&gt;</span>
-  <span style="color: #f8f8f2">&lt;</span><span style="color: #ff4689">a</span> <span style="color: #ed007e; background-color: #1e0010">&#123;&#123;#</span><span style="color: #a6e22e">if</span> <span style="color: #a6e22e">:filter </span><span style="color: #ff4689">=</span><span style="color: #e6db74">=</span> <span style="color: #ed007e; background-color: #1e0010">&#39;</span><span style="color: #a6e22e">all</span><span style="color: #ed007e; background-color: #1e0010">&#39;&#125;&#125;</span><span style="color: #a6e22e">class</span><span style="color: #ff4689">=</span><span style="color: #e6db74">&quot;selected&quot;</span><span style="color: #ed007e; background-color: #1e0010">&#123;&#123;/</span><span style="color: #a6e22e">if</span><span style="color: #ed007e; background-color: #1e0010">&#125;&#125;</span> <span style="color: #a6e22e">href</span><span style="color: #ff4689">=</span><span style="color: #e6db74">&quot;/todos?filter=all&quot;</span><span style="color: #f8f8f2">&gt;</span>All<span style="color: #f8f8f2">&lt;/</span><span style="color: #ff4689">a</span><span style="color: #f8f8f2">&gt;</span> |
-  <span style="color: #f8f8f2">&lt;</span><span style="color: #ff4689">a</span> <span style="color: #ed007e; background-color: #1e0010">&#123;&#123;#</span><span style="color: #a6e22e">if</span> <span style="color: #a6e22e">:filter </span><span style="color: #ff4689">=</span><span style="color: #e6db74">=</span> <span style="color: #ed007e; background-color: #1e0010">&#39;</span><span style="color: #a6e22e">active</span><span style="color: #ed007e; background-color: #1e0010">&#39;&#125;&#125;</span><span style="color: #a6e22e">class</span><span style="color: #ff4689">=</span><span style="color: #e6db74">&quot;selected&quot;</span><span style="color: #ed007e; background-color: #1e0010">&#123;&#123;/</span><span style="color: #a6e22e">if</span><span style="color: #ed007e; background-color: #1e0010">&#125;&#125;</span> <span style="color: #a6e22e">href</span><span style="color: #ff4689">=</span><span style="color: #e6db74">&quot;/todos?filter=active&quot;</span><span style="color: #f8f8f2">&gt;</span>Active<span style="color: #f8f8f2">&lt;/</span><span style="color: #ff4689">a</span><span style="color: #f8f8f2">&gt;</span> |
-  <span style="color: #f8f8f2">&lt;</span><span style="color: #ff4689">a</span> <span style="color: #ed007e; background-color: #1e0010">&#123;&#123;#</span><span style="color: #a6e22e">if</span> <span style="color: #a6e22e">:filter </span><span style="color: #ff4689">=</span><span style="color: #e6db74">=</span> <span style="color: #ed007e; background-color: #1e0010">&#39;</span><span style="color: #a6e22e">completed</span><span style="color: #ed007e; background-color: #1e0010">&#39;&#125;&#125;</span><span style="color: #a6e22e">class</span><span style="color: #ff4689">=</span><span style="color: #e6db74">&quot;selected&quot;</span><span style="color: #ed007e; background-color: #1e0010">&#123;&#123;/</span><span style="color: #a6e22e">if</span><span style="color: #ed007e; background-color: #1e0010">&#125;&#125;</span> <span style="color: #a6e22e">href</span><span style="color: #ff4689">=</span><span style="color: #e6db74">&quot;/todos?filter=completed&quot;</span><span style="color: #f8f8f2">&gt;</span>Completed<span style="color: #f8f8f2">&lt;/</span><span style="color: #ff4689">a</span><span style="color: #f8f8f2">&gt;</span>
-<span style="color: #f8f8f2">&lt;/</span><span style="color: #ff4689">div</span><span style="color: #f8f8f2">&gt;</span>
-<span style="color: #f8f8f2">&lt;/</span><span style="color: #ff4689">body</span><span style="color: #f8f8f2">&gt;</span>
-<span style="color: #f8f8f2">&lt;/</span><span style="color: #ff4689">html</span><span style="color: #f8f8f2">&gt;</span>
+&#123;&#123;<span style="color: #c586c0; font-weight: bold;">#if</span> <span style="color: #9cdcfe;">:completed_count</span> &gt; <span style="color: #ce9178;">0</span>&#125;&#125;
+  <span style="color: #808080;">&lt;</span><span style="color: #569cd6; font-weight: bold;">button</span> <span style="color: #92c5f8;">class</span><span style="color: #808080;">=</span><span style="color: #ce9178;">"clear-completed"</span> <span style="color: #92c5f8;">hx-post</span><span style="color: #808080;">=</span><span style="color: #ce9178;">"/todos/clear_completed"</span><span style="color: #808080;">&gt;</span>Clear completed<span style="color: #808080;">&lt;/</span><span style="color: #569cd6; font-weight: bold;">button</span><span style="color: #808080;">&gt;</span>
+&#123;&#123;<span style="color: #c586c0; font-weight: bold;">/if</span>&#125;&#125;
+<span style="color: #808080;">&lt;</span><span style="color: #569cd6; font-weight: bold;">div</span> <span style="color: #92c5f8;">class</span><span style="color: #808080;">=</span><span style="color: #ce9178;">"filters"</span><span style="color: #808080;">&gt;</span>
+  <span style="color: #808080;">&lt;</span><span style="color: #569cd6; font-weight: bold;">a</span> &#123;&#123;<span style="color: #c586c0; font-weight: bold;">#if</span> <span style="color: #9cdcfe;">:filter</span> == <span style="color: #ce9178;">'all'</span>&#125;&#125;<span style="color: #92c5f8;">class</span><span style="color: #808080;">=</span><span style="color: #ce9178;">"selected"</span>&#123;&#123;<span style="color: #c586c0; font-weight: bold;">/if</span>&#125;&#125; <span style="color: #92c5f8;">href</span><span style="color: #808080;">=</span><span style="color: #ce9178;">"/todos?filter=all"</span><span style="color: #808080;">&gt;</span>All<span style="color: #808080;">&lt;/</span><span style="color: #569cd6; font-weight: bold;">a</span><span style="color: #808080;">&gt;</span> |
+  <span style="color: #808080;">&lt;</span><span style="color: #569cd6; font-weight: bold;">a</span> &#123;&#123;<span style="color: #c586c0; font-weight: bold;">#if</span> <span style="color: #9cdcfe;">:filter</span> == <span style="color: #ce9178;">'active'</span>&#125;&#125;<span style="color: #92c5f8;">class</span><span style="color: #808080;">=</span><span style="color: #ce9178;">"selected"</span>&#123;&#123;<span style="color: #c586c0; font-weight: bold;">/if</span>&#125;&#125; <span style="color: #92c5f8;">href</span><span style="color: #808080;">=</span><span style="color: #ce9178;">"/todos?filter=active"</span><span style="color: #808080;">&gt;</span>Active<span style="color: #808080;">&lt;/</span><span style="color: #569cd6; font-weight: bold;">a</span><span style="color: #808080;">&gt;</span> |
+  <span style="color: #808080;">&lt;</span><span style="color: #569cd6; font-weight: bold;">a</span> &#123;&#123;<span style="color: #c586c0; font-weight: bold;">#if</span> <span style="color: #9cdcfe;">:filter</span> == <span style="color: #ce9178;">'completed'</span>&#125;&#125;<span style="color: #92c5f8;">class</span><span style="color: #808080;">=</span><span style="color: #ce9178;">"selected"</span>&#123;&#123;<span style="color: #c586c0; font-weight: bold;">/if</span>&#125;&#125; <span style="color: #92c5f8;">href</span><span style="color: #808080;">=</span><span style="color: #ce9178;">"/todos?filter=completed"</span><span style="color: #808080;">&gt;</span>Completed<span style="color: #808080;">&lt;/</span><span style="color: #569cd6; font-weight: bold;">a</span><span style="color: #808080;">&gt;</span>
+<span style="color: #808080;">&lt;/</span><span style="color: #569cd6; font-weight: bold;">div</span><span style="color: #808080;">&gt;</span>
+<span style="color: #808080;">&lt;/</span><span style="color: #569cd6; font-weight: bold;">div</span><span style="color: #808080;">&gt;</span>
+<span style="color: #808080;">&lt;/</span><span style="color: #569cd6; font-weight: bold;">body</span><span style="color: #808080;">&gt;</span>
+<span style="color: #808080;">&lt;/</span><span style="color: #569cd6; font-weight: bold;">html</span><span style="color: #808080;">&gt;</span>
 </pre></div>
     </div>
 </body>

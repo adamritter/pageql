@@ -133,9 +133,9 @@
   <a {{#if :filter == 'completed'}}class="selected"{{/if}} href="/todos?filter=completed">Completed</a>
 </div>
 </div>
-  <h2 style="margin-top: 2rem;">Source code</h2>
-    <div class="code-column">
-<div class="highlight" style="background: #1e1e1e; border-radius: 8px; padding: 1rem; overflow-x: auto;"><pre style="line-height: 125%; color: #d4d4d4; margin: 0;"><span></span>&#123;&#123;<span style="color: #569cd6; font-weight: bold;">#partial</span> <span style="color: #dcdcaa;">post</span> <span style="color: #4ec9b0;">add</span>&#125;&#125;
+  <h2 style="color:rgb(50, 56, 86); margin-top: 2rem; margin-bottom: 0.5rem;">Source code</h2>
+<div class="code-column">
+<div class="highlight" style="background:rgb(24, 28, 29); border-radius: 8px; padding: 1rem; overflow-x: auto;"><pre style="line-height: 125%; color: #d4d4d4; margin: 0;"><span></span>&#123;&#123;<span style="color: #569cd6; font-weight: bold;">#partial</span> <span style="color: #dcdcaa;">post</span> <span style="color: #4ec9b0;">add</span>&#125;&#125;
   &#123;&#123;<span style="color: #c586c0; font-weight: bold;">#param</span> <span style="color: #9cdcfe;">text</span> <span style="color: #dcdcaa;">maxlength</span>=<span style="color: #ce9178;">100</span>&#125;&#125;
   &#123;&#123;<span style="color: #569cd6; font-weight: bold;">#let</span> <span style="color: #9cdcfe;">current_total</span> = <span style="color: #4fc1ff; font-weight: bold;">COUNT</span>(*) <span style="color: #c586c0; font-weight: bold;">from</span> todos&#125;&#125;
   &#123;&#123;<span style="color: #c586c0; font-weight: bold;">#if</span> <span style="color: #9cdcfe;">:current_total</span> &lt; <span style="color: #ce9178;">20</span>&#125;&#125;

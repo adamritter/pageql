@@ -22,6 +22,8 @@ dependencies = [
     "watchfiles",
     "sqlglot",
     "joserfc",
+    "httpx",
+    "authlib",
 ]
 
 [project.optional-dependencies]

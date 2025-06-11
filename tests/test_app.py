@@ -149,6 +149,27 @@ def test_before_hook_handles_bytes(tmp_path):
     assert base64.b64encode(b"abcd").decode() in body.decode()
 
 
+def test_before_all_middleware_modifies_scope(tmp_path):
+    (Path(tmp_path) / "index.pageql").write_text("{{ headers.X_Test }}")
+
+    async def run_test():
+        server, task, port = await run_server_in_task(str(tmp_path))
+        app = server.config.app
+
+        @app.before_all
+        def add_header(scope):
+            scope.setdefault("headers", []).append((b"X-Test", b"foo"))
+
+        status, _headers, body = await _http_get(f"http://127.0.0.1:{port}/index")
+        server.should_exit = True
+        await task
+        return status, body
+
+    status, body = asyncio.run(run_test())
+    assert status == 200
+    assert "foo" in body.decode()
+
+
 def test_index_html_served_when_pageql_missing(tmp_path):
     index_html = Path(tmp_path) / "index.html"
     index_html.write_text("<h1>Home</h1>", encoding="utf-8")

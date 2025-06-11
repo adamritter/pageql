@@ -121,6 +121,7 @@ class PageQLApp:
         self.static_files = {}
         self.static_headers = {}
         self.before_hooks = {}
+        self.before_all_hooks = []
         self.render_contexts = defaultdict(list)
         self.websockets = {}
         self._body_waiters = {}
@@ -175,6 +176,16 @@ class PageQLApp:
                 self.before_hooks[path] = async_wrapper
             return func
         return decorator
+
+    def before_all(self, func):
+        """Register a function to run before every request."""
+        if asyncio.iscoroutinefunction(func):
+            self.before_all_hooks.append(func)
+        else:
+            async def async_wrapper(scope):
+                func(scope)
+            self.before_all_hooks.append(async_wrapper)
+        return func
 
 
     def load(self, template_dir, filename):
@@ -618,6 +629,9 @@ class PageQLApp:
             )
             await send({'type': 'http.response.body', 'body': b'OK'})
             return
+        for hook in self.before_all_hooks:
+            await hook(scope)
+        path = scope.get('path', '/')
         self._log(f"path: {path}")
         if scope["type"] == "websocket" and scope["path"] == "/reload-request-ws":
             await self._handle_reload_websocket(scope, receive, send)

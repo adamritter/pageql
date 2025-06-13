@@ -469,7 +469,8 @@ class PageQLApp:
         path_cleaned = parsed_path.path.strip('/') or 'index'
 
         headers = {k.decode('utf-8').replace('-', '_'): v.decode('utf-8') for k, v in scope['headers']}
-        include_scripts = headers.get('hx_mode', '').lower() != 'none'
+        htmx_request = headers.get('hx_request', '').lower() == 'true'
+        include_scripts = (not htmx_request) and headers.get('hx_mode', '').lower() != 'none'
         query = scope['query_string']
         query_params = parse_qs(query, keep_blank_values=True)
 

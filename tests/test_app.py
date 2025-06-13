@@ -40,6 +40,34 @@ def test_app_returns_404_for_missing_route():
         assert status == 404
 
 
+def test_render_context_not_saved_on_404():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        async def run_test():
+            server, task, port = await run_server_in_task(tmpdir)
+            app = server.config.app
+
+            def make_request():
+                conn = http.client.HTTPConnection("127.0.0.1", port)
+                conn.request("GET", "/missing")
+                resp = conn.getresponse()
+                status = resp.status
+                resp.read()
+                conn.close()
+                return status
+
+            status_inner = await asyncio.to_thread(make_request)
+            contexts_len = len(app.render_contexts)
+
+            server.should_exit = True
+            await task
+            return status_inner, contexts_len
+
+        status, contexts_len = asyncio.run(run_test())
+
+        assert status == 404
+        assert contexts_len == 0
+
+
 def test_fallback_app_handles_unknown_route():
     with tempfile.TemporaryDirectory() as tmpdir:
         async def run_test():

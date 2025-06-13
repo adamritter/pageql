@@ -407,7 +407,7 @@ class PageQLApp:
                     await send({'type': 'http.response.body', 'body': body})
                     return None
 
-            if client_id:
+            if client_id and result.context is not None:
                 self.render_contexts[client_id].append(result.context)
                 ws = self.websockets.get(client_id)
                 if ws:

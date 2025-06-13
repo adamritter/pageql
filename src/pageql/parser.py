@@ -22,9 +22,12 @@ def quote_state(text: str, start_state: str | None = None) -> str | None:
 
 def parsefirstword(s):
     s = s.strip()
-    if s.find(' ') < 0:
-        return s, None
-    return s[:s.find(' ')], s[s.find(' '):].strip()
+    if not s:
+        return "", None
+    parts = s.split(None, 1)
+    if len(parts) == 1:
+        return parts[0], None
+    return parts[0], parts[1].strip()
 
 
 def _shorten_error_token(value: str) -> str:

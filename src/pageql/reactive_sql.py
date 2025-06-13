@@ -188,11 +188,16 @@ def parse_reactive(
     cte_names = {c.alias_or_name for c in expr.find_all(exp.CTE)}
     table_refs = [t for t in expr.find_all(exp.Table) if t.name not in cte_names]
     if not table_refs:
+        cur = execute(tables.conn, sql, [])
         if one_value:
-            row = execute(tables.conn, sql, []).fetchone()
-            return ReadOnly(row[0] if row else None)
-        rows = execute(tables.conn, sql, []).fetchall()
-        return ReadOnly(rows)
+            row = cur.fetchone()
+            comp = ReadOnly(row[0] if row else None)
+        else:
+            rows = cur.fetchall()
+            comp = ReadOnly(rows)
+        comp.sql = sql
+        comp.columns = [d[0] for d in cur.description]
+        return comp
 
     if list(expr.find_all(exp.Join)):
         comp = FallbackReactive(tables, sql, expr)

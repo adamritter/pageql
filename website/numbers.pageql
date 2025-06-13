@@ -1,0 +1,10 @@
+{{#from
+  WITH RECURSIVE numbers(n) AS (
+    VALUES(1)
+    UNION ALL
+    SELECT n+1 FROM numbers WHERE n < 1000
+  )
+  SELECT n FROM numbers
+}}
+  {{n}}<br>
+{{/from}}

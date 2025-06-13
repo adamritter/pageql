@@ -1,6 +1,7 @@
 import re
 from pageql.parser import parsefirstword
 from pageql.database import parse_param_attrs
+from pageql.reactive import ReadOnly
 
 
 def handle_param(node_content: str, params: dict) -> tuple[str, object | None]:
@@ -11,6 +12,8 @@ def handle_param(node_content: str, params: dict) -> tuple[str, object | None]:
 
     is_required = attrs.get('required', not attrs.__contains__('optional'))
     param_value = params.get(param_name)
+    if isinstance(param_value, ReadOnly):
+        param_value = param_value.value
 
     if param_value is None:
         if 'default' in attrs:

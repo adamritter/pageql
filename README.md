@@ -236,6 +236,17 @@ Generally, you can use standard SQL expressions supported by your database, such
 
 **Important:** Since expressions are evaluated by the database, their exact syntax and available functions depend on the specific SQL database being used (primarily SQLite in the initial design). Variables within these expressions must be prefixed with `:`.
 
+## Comments
+
+PageQL templates support three comment styles:
+
+```html
+{{! This comment will not show up in the output}}
+<!-- This comment will show up as HTML-comment -->
+{{!-- This comment may contain mustaches like }} --}}
+```
+
+The first and third forms are stripped from the rendered output. The HTML comment remains and will appear in the final HTML.
 
 # Example
 

@@ -1,7 +1,3 @@
-{{#from WITH RECURSIVE numbers(n) AS (
-    VALUES(1)
-    UNION ALL
-    SELECT n+1 FROM numbers WHERE n < 1000
-  ) SELECT n FROM numbers}}
+{{#from (WITH RECURSIVE numbers AS (Select 1 as n UNION ALL SELECT n+1 FROM numbers WHERE n < 1000) SELECT n FROM numbers) limit 100}}
   {{n}}<br>
 {{/from}}

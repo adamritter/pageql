@@ -144,6 +144,17 @@ reachable from outside the container.
     *   Dots in `<name>` are converted to `__` when the parameter is looked up, so `#param cookies.session` binds the value of `cookies__session`.
 
 *   `#fetch <var> from <url_expression>`: Fetches an external URL using a callback provided to `PageQL` and exposes the result as `<var>.body`, `<var>.status_code` and `<var>.headers`.
+*   `#fetch async <var> from <url_expression>`: Runs the fetch in the background while rendering.  `<var>.status_code`, `<var>.body` and `<var>.headers` start as `NULL` but update reactively when the request finishes.
+
+    ```pageql
+    {{#fetch async horse from "https://t3.ftcdn.net/jpg/03/26/50/04/360_F_326500445_ZD1zFSz2cMT1qOOjDy7C5xCD4shawQfM.jpg"}}
+        {{#if :horse.status_code == 200 }}
+        <img src="data:image/jpeg;base64,{{base64_encode(:horse.body)}}" alt="Horse">
+        {{#else}}
+          <p>Loading horse image...</p>
+        {{/if}}
+    {{/fetch}}
+    ```
 
 **Flow Control:**
 

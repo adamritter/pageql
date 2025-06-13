@@ -1,3 +1,15 @@
-{{#from (WITH RECURSIVE numbers AS (Select 1 as n UNION ALL SELECT n+1 FROM numbers WHERE n < 1000) SELECT n FROM numbers) limit 100}}
-  {{n}}<br>
-{{/from}}
+{{#partial numbers/:f}}
+{{#param f type=integer}}
+{{#if :f < 1000}}
+<span hx-get="/numbers/numbers/{{:f+100}}" hx-trigger="revealed" hx-swap="beforeend" hx-target="#list">
+  {{#from (WITH RECURSIVE numbers AS (Select 1 as n UNION ALL SELECT n+1 FROM numbers WHERE n < 1000) SELECT n FROM numbers) limit :f,100}}
+    {{n}}<br>
+  {{/from}}
+  </span>
+{{/if}}
+{{/partial}}
+
+<div id="list">
+{{#let f = 100}}
+{{#render numbers/:f}}
+</div>

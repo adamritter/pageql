@@ -116,3 +116,29 @@ def test_parse_select_constant():
     comp = parse_reactive(expr, tables, {})
     assert isinstance(comp, ReadOnly)
     assert comp.value == [(42,)]
+
+
+def test_parse_recursive_cte_constant():
+    conn = _db()
+    tables = Tables(conn)
+    sql = (
+        "WITH RECURSIVE numbers AS (SELECT 1 AS n UNION ALL "
+        "SELECT n+1 FROM numbers WHERE n < 3) SELECT n FROM numbers"
+    )
+    expr = sqlglot.parse_one(sql, read="sqlite")
+    comp = parse_reactive(expr, tables, {})
+    assert isinstance(comp, ReadOnly)
+    assert comp.value == list(conn.execute(sql).fetchall())
+
+
+def test_parse_recursive_cte_with_table_deps():
+    conn = _db()
+    tables = Tables(conn)
+    sql = (
+        "WITH RECURSIVE nums AS (SELECT 1 AS n UNION ALL SELECT n+1 FROM nums WHERE n < 2) "
+        "SELECT name FROM items WHERE id IN (SELECT n FROM nums)"
+    )
+    expr = sqlglot.parse_one(sql, read="sqlite")
+    comp = FallbackReactive(tables, sql, expr)
+    assert_sql_equivalent(conn, sql, comp.sql)
+    assert {d.table_name for d in comp.deps} == {"items"}

@@ -1,8 +1,3 @@
-import types, sys
-sys.modules.setdefault("watchfiles", types.ModuleType("watchfiles"))
-sys.modules["watchfiles"].awatch = lambda *args, **kwargs: None
-sys.path.insert(0, "src")
-
 import sqlglot
 from sqlglot import expressions as exp
 

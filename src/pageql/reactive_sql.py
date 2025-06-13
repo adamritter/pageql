@@ -34,7 +34,7 @@ def _replace_placeholders(
         if name not in params:
             continue
         val = params[name]
-        if isinstance(val, (DerivedSignal, DerivedSignal2, OneValue, ReadOnly)):
+        if isinstance(val, (DerivedSignal, DerivedSignal2, OneValue, ReadOnly, Signal)):
             val = val.value
         if val is None:
             lit = exp.Null()

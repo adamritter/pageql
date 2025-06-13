@@ -63,8 +63,11 @@ class FallbackReactive(Signal):
             expr = sqlglot.parse_one(sql, read=tables.dialect)
 
         # Determine table dependencies
+        cte_names = {c.alias_or_name for c in expr.find_all(exp.CTE)}
         self.deps = []
         for tbl in expr.find_all(exp.Table):
+            if tbl.name in cte_names:
+                continue
             dep = tables._get(tbl.name)
             self.deps.append(dep)
             dep.listeners.append(self._on_parent_event)
@@ -179,9 +182,12 @@ def parse_reactive(
         if comp is not None and comp.listeners:
             return comp
 
-    # If the expression references no tables the result is constant, so
-    # return a simple ReadOnly wrapper instead of a reactive component.
-    if not list(expr.find_all(exp.Table)):
+    # If the expression references no tables (ignoring CTEs) the result is
+    # constant, so return a simple ReadOnly wrapper instead of a reactive
+    # component.
+    cte_names = {c.alias_or_name for c in expr.find_all(exp.CTE)}
+    table_refs = [t for t in expr.find_all(exp.Table) if t.name not in cte_names]
+    if not table_refs:
         if one_value:
             row = execute(tables.conn, sql, []).fetchone()
             return ReadOnly(row[0] if row else None)

@@ -450,7 +450,7 @@ class PageQLAsync(PageQL):
             body = node[2]
 
         if reactive:
-            sql = "SELECT * FROM " + query
+            sql = "SELECT * FROM (" + query + ")"
             sql = re.sub(r":([A-Za-z0-9_]+(?:\.[A-Za-z0-9_]+)+)", lambda m: ":" + m.group(1).replace(".", "__"), sql)
             converted_params = {
                 k: (v.value if isinstance(v, Signal) else v)

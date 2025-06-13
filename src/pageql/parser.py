@@ -63,7 +63,7 @@ def tokenize(source):
         [('text', 'Visible')]
     """
     nodes = []
-    parts = re.split(r'({{.*?}}}?)', source, flags=re.DOTALL)
+    parts = re.split(r'({{!--.*?--}}|{{.*?}}}?)', source, flags=re.DOTALL)
     for part in parts:
         if not part:  # Skip empty strings from split
             continue
@@ -75,12 +75,12 @@ def tokenize(source):
             nodes.append(('render_raw', inner.strip()))
         elif part.startswith('{{') and part.endswith('}}'):
             inner = part[2:-2]
-            if '{{' in inner or '}}' in inner:
+            inner = inner.strip()
+            if inner.startswith('!'):
+                pass  # Skip comment nodes
+            elif '{{' in inner or '}}' in inner:
                 snippet = _shorten_error_token(inner)
                 raise SyntaxError(f"mismatched {{{{ in token: {snippet!r}")
-            inner = inner.strip()
-            if inner.startswith('!--') and inner.endswith('--'):
-                pass  # Skip comment nodes
             elif inner.startswith('#') or inner.startswith('/'):
                 first, rest = parsefirstword(inner)
                 if first == '#param' and rest:

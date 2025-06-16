@@ -13,9 +13,18 @@ SNIPPET = (
     "    text TEXT NOT NULL,"
     "    completed INTEGER DEFAULT 0 CHECK(completed IN (0,1))"
     ")}}"
+    "["
     "{{{COALESCE(json_group_array("
     "    json_object('id', id, 'text', text, 'completed', completed)"
     "), '[]') from todos}}}"
+    ","
+    "["
+    "{{#let max_id = MAX(id) from todos}}"
+    "{{#from todos order by id}}"
+    "{\"id\":{{id}},\"text\":\"{{text}}\",\"completed\":{{completed}} }{{#if :id != :max_id}},{{/if}}"
+    "{{/from}}"
+    "]"
+    "]"
 )
 
 def test_json_page_outputs_array():
@@ -27,5 +36,4 @@ def test_json_page_outputs_array():
     r.db.execute("INSERT INTO todos(text) VALUES ('task')")
     result = r.render("/json", reactive=False)
     assert ("Content-Type", "application/json") in result.headers
-    assert result.body.strip() == '[{"id":1,"text":"task","completed":0}]'
-
+    assert result.body.strip() == '[[{"id":1,"text":"task","completed":0}],[{"id":1,"text":"task","completed":0 }\n]]'

@@ -43,14 +43,21 @@ async def start_server(tmpdir: str, reload: bool = False):
 async def test_hello_world_in_browser(setup):
 
     with tempfile.TemporaryDirectory() as tmpdir:
-        Path(tmpdir, "hello.pageql").write_text("Hello world!", encoding="utf-8")
+        Path(tmpdir, "hello.pageql").write_text(
+            "{{#header X-Test 'v'}}Hello world!", encoding="utf-8"
+        )
 
         server, task, port, app = await start_server(tmpdir)
-        result = await _load_page_async(port, "hello", app, browser=setup)
-        status, body_text, client_id = result
 
-        assert status == 200
+        page = await setup.new_page()
+        response = await page.goto(f"http://127.0.0.1:{port}/hello")
+        body_text = await response.text()
+
+        assert response.status == 200
+        assert response.headers.get("x-test") == "v"
         assert "Hello world!" in body_text
+
+        await page.close()
         server.should_exit = True
         await task
 

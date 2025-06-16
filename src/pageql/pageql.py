@@ -519,9 +519,12 @@ class PageQL:
 
     def _process_header_directive(self, node_content, params, path, includes,
                                   http_verb, reactive, ctx, out):
-        name, value_expr = parsefirstword(node_content)
-        if value_expr is None:
-            raise ValueError("#header requires a name and expression")
+        if isinstance(node_content, tuple):
+            name, value_expr = node_content
+        else:
+            name, value_expr = parsefirstword(node_content)
+            if value_expr is None:
+                raise ValueError("#header requires a name and expression")
         value = evalone(self.db, value_expr, params, reactive, self.tables)
         if isinstance(value, Signal):
             value = value.value

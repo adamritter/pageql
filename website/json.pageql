@@ -13,7 +13,7 @@
 [
 {{#let max_id = MAX(id) from todos}}
 {{#from todos order by id}}
-{"id":{{id}},"text":"{{text}}","completed":{{completed}}{{{'}}'}}{{#if :id != :max_id}},{{/if}}
+{"id":{{id}},"text":"{{text}}","completed":{{completed}} }{{#if :id != :max_id}},{{/if}}
 {{/from}}
 ]
 ]

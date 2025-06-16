@@ -362,11 +362,12 @@ class PageQLApp:
             for name, value in result.headers:
                 if name.lower() == 'content-type':
                     content_type = value
+                    continue
                 headers.append((str(name).encode('utf-8'), str(value).encode('utf-8')))
 
             if content_type is None:
                 content_type = 'text/html; charset=utf-8'
-                headers.insert(0, (b'Content-Type', b'text/html; charset=utf-8'))
+            headers.insert(0, (b'Content-Type', str(content_type).encode('utf-8')))
 
             for name, value, opts in result.cookies:
                 parts = [f"{name}={value}"]

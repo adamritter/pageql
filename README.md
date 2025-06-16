@@ -448,7 +448,12 @@ async def before_handler(params):
     return params
 ```
 
-The returned dictionary is merged into the template namespace. 
+The returned dictionary is merged into the template namespace.
+
+If a file named `_before.pageql` exists in the template directory root it
+executes before every request. When it returns a status code of `200`, rendering
+continues with any modifications the template makes to the parameters. Other
+status codes short‑circuit rendering and their response is sent directly.
 
 PageQLApp also exposes several helper SQLite functions automatically when it
 starts:

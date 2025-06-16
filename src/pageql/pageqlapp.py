@@ -3,7 +3,6 @@ import os, time
 import sqlite3
 import mimetypes
 import base64
-import json
 from urllib.parse import urlparse, parse_qs
 from watchfiles import awatch
 import uuid
@@ -381,6 +380,19 @@ class PageQLApp:
             t = time.time()
             path = parsed_path.path
             self._log(f"Rendering {path} with client_id {client_id} as {path_cleaned} with params: {params}")
+            before_result = None
+            if '_before' in self.pageql_engine._modules:
+                before_result = self.pageql_engine.render(
+                    '_before',
+                    params,
+                    None,
+                    method,
+                    reactive=self.reactive_default,
+                )
+                run_tasks()
+                if before_result.status_code != 200:
+                    await self._send_render_result(before_result, include_scripts, client_id, send)
+                    return client_id
             if path in self.before_hooks:
                 self._log(f"Before hook for {path}")
                 await self.before_hooks[path](params)
@@ -417,6 +429,10 @@ class PageQLApp:
                     result.context.send_script = sender
             self._log(f"{method} {path_cleaned} Params: {params} ({(time.time() - t) * 1000:.2f} ms)")
             self._log(f"Result: {result.status_code} {result.redirect_to} {result.headers}")
+
+            if before_result is not None:
+                result.headers = before_result.headers + result.headers
+                result.cookies = before_result.cookies + result.cookies
 
             await self._send_render_result(result, include_scripts, client_id, send)
 

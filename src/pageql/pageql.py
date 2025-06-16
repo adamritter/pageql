@@ -921,6 +921,42 @@ class PageQL:
         params.update(saved_params)
         return reactive
 
+    def _process_each_directive(self, node, params, path, includes,
+                                http_verb, reactive, ctx, out):
+        param_name = node[1].strip()
+        body = node[2]
+
+        if param_name.startswith(':'):
+            param_name = param_name[1:]
+        param_name = param_name.replace('.', '__')
+
+        count_val = params.get(f"{param_name}__count")
+        if isinstance(count_val, ReadOnly):
+            count_val = count_val.value
+        if isinstance(count_val, Signal):
+            count_val = count_val.value
+        try:
+            count = int(count_val)
+        except Exception:
+            count = 0
+
+        original = params.get(param_name)
+        had_original = param_name in params
+        for i in range(count):
+            val = params.get(f"{param_name}__{i}")
+            if isinstance(val, ReadOnly):
+                val = val.value
+            if isinstance(val, Signal):
+                val = val.value
+            params[param_name] = val
+            self.process_nodes(body, params, path, includes, http_verb, reactive, ctx, out)
+            ctx.out.append('\n')
+        if had_original:
+            params[param_name] = original
+        else:
+            params.pop(param_name, None)
+        return reactive
+
 
     def process_node(self, node, params, path, includes, http_verb=None, reactive=False, ctx=None, out=None):
         """
@@ -997,6 +1033,8 @@ class PageQL:
                 return self._process_ifndef_directive(node, params, path, includes, http_verb, reactive, ctx, out)
             elif directive == '#from':
                 return self._process_from_directive(node, params, path, includes, http_verb, reactive, ctx, out)
+            elif directive == '#each':
+                return self._process_each_directive(node, params, path, includes, http_verb, reactive, ctx, out)
             else:
                 if not directive.startswith('/'):
                     raise ValueError(format_unknown_directive(directive))

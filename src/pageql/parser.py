@@ -177,6 +177,17 @@ def _read_block(node_list, i, stop, partials, dialect, tests=None):
             body.append(["#from", (query, expr), deps, loop_body])
             continue
 
+        if ntype == "#each":
+            each_terms = {"/each"}
+            param_name = ncontent.strip()
+            i += 1
+            loop_body, i = _read_block(node_list, i, each_terms, partials, dialect, tests)
+            if node_list[i][0] != "/each":
+                raise SyntaxError("missing {{/each}}")
+            i += 1
+            body.append(["#each", param_name, loop_body])
+            continue
+
         if ntype == "#let":
             var, rest = parsefirstword(ncontent)
             sql = rest or ""
@@ -367,6 +378,8 @@ def _apply_add_reactive(n):
             if len(n) == 4:
                 return [name, n[1], n[2], add_reactive_elements(n[3])]
             return [name, n[1], add_reactive_elements(n[2])]
+        if name == "#each":
+            return [name, n[1], add_reactive_elements(n[2])]
     return n
 
 
@@ -518,6 +531,13 @@ def ast_param_dependencies(ast):
                     walk_nodes(node[3])
                 else:
                     walk_nodes(node[2])
+            elif name == "#each":
+                param = node[1].strip()
+                if param.startswith(":"):
+                    param = param[1:]
+                param = param.replace(".", "__")
+                deps.add(f"{param}__count")
+                walk_nodes(node[2])
             elif name == "#render":
                 _, rest = parsefirstword(node[1])
                 if rest:

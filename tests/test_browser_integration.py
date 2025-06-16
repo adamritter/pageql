@@ -300,3 +300,38 @@ async def test_fetch_async_directive_in_browser(setup):
         server.should_exit = True
         await task
 
+
+@pytest.mark.filterwarnings("ignore:.*:DeprecationWarning")
+async def test_json_page_in_browser(setup):
+    """Render the json.pageql template and verify JSON output."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        src = Path(__file__).resolve().parent.parent / "website" / "json.pageql"
+        Path(tmpdir, "json.pageql").write_text(src.read_text(), encoding="utf-8")
+
+        server, task, port, app = await start_server(tmpdir)
+
+        app.conn.execute(
+            "CREATE TABLE IF NOT EXISTS todos(id INTEGER PRIMARY KEY AUTOINCREMENT, text TEXT NOT NULL, completed INTEGER DEFAULT 0 CHECK(completed IN (0,1)))"
+        )
+        app.conn.execute("INSERT INTO todos(text) VALUES ('task')")
+        app.conn.commit()
+
+        page = await setup.new_page()
+        response = await page.goto(f"http://127.0.0.1:{port}/json")
+        body_text = await response.text()
+
+        assert response.status == 200
+        assert response.headers.get("content-type") == "application/json"
+
+        import json
+
+        data = json.loads(body_text)
+        assert data == [
+            [{"id": 1, "text": "task", "completed": 0}],
+            [{"id": 1, "text": "task", "completed": 0}],
+        ]
+
+        await page.close()
+        server.should_exit = True
+        await task
+

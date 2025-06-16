@@ -357,22 +357,35 @@ class PageQLApp:
             await send({'type': 'http.response.body', 'body': result.body.encode('utf-8')})
             self._log(f"Redirecting to: {result.redirect_to} (Status: {result.status_code})")
         else:
-            headers = [(b'Content-Type', b'text/html; charset=utf-8')]
+            headers = []
+            content_type = None
             for name, value in result.headers:
+                if name.lower() == 'content-type':
+                    content_type = value
                 headers.append((str(name).encode('utf-8'), str(value).encode('utf-8')))
+
+            if content_type is None:
+                content_type = 'text/html; charset=utf-8'
+                headers.insert(0, (b'Content-Type', b'text/html; charset=utf-8'))
+
             for name, value, opts in result.cookies:
                 parts = [f"{name}={value}"]
                 for k, v in opts.items():
                     parts.append(k if v is True else f"{k}={v}")
                 headers.append((b'Set-Cookie', '; '.join(parts).encode('utf-8')))
+
             await send({'type': 'http.response.start', 'status': result.status_code, 'headers': headers})
-            scripts = client_script(client_id) if include_scripts else ''
+
+            is_html = content_type.lower().startswith('text/html')
+            scripts = client_script(client_id) if include_scripts and is_html else ''
             body_content = scripts + result.body
-            low = result.body.lower()
-            if '<body' not in low:
-                body_content = '<body>' + body_content + '</body>'
-            if '<html' not in low:
-                body_content = '<html>' + body_content + '</html>'
+            if is_html:
+                low = result.body.lower()
+                if '<body' not in low:
+                    body_content = '<body>' + body_content + '</body>'
+                if '<html' not in low:
+                    body_content = '<html>' + body_content + '</html>'
+
             await send({'type': 'http.response.body', 'body': body_content.encode('utf-8')})
 
     async def _render_and_send(self, parsed_path, path_cleaned, params, include_scripts, client_id, method, scope, receive, send):

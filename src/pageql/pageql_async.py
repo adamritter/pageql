@@ -554,6 +554,51 @@ class PageQLAsync(PageQL):
         params.update(saved_params)
         return reactive
 
+    async def _process_each_directive_async(
+        self,
+        node,
+        params,
+        path,
+        includes,
+        http_verb,
+        reactive,
+        ctx,
+        out,
+    ):
+        param_name = node[1].strip()
+        body = node[2]
+
+        if param_name.startswith(":"):
+            param_name = param_name[1:]
+        param_name = param_name.replace(".", "__")
+
+        count_val = params.get(f"{param_name}__count")
+        if isinstance(count_val, ReadOnly):
+            count_val = count_val.value
+        if isinstance(count_val, Signal):
+            count_val = count_val.value
+        try:
+            count = int(count_val)
+        except Exception:
+            count = 0
+
+        original = params.get(param_name)
+        had_original = param_name in params
+        for i in range(count):
+            val = params.get(f"{param_name}__{i}")
+            if isinstance(val, ReadOnly):
+                val = val.value
+            if isinstance(val, Signal):
+                val = val.value
+            params[param_name] = val
+            await self.process_nodes_async(body, params, path, includes, http_verb, reactive, ctx, out)
+            ctx.out.append("\n")
+        if had_original:
+            params[param_name] = original
+        else:
+            params.pop(param_name, None)
+        return reactive
+
     async def process_node_async(
         self,
         node,
@@ -669,6 +714,8 @@ class PageQLAsync(PageQL):
                 return await self._process_ifndef_directive_async(node, params, path, includes, http_verb, reactive, ctx, out)
             elif directive == "#from":
                 return await self._process_from_directive_async(node, params, path, includes, http_verb, reactive, ctx, out)
+            elif directive == "#each":
+                return await self._process_each_directive_async(node, params, path, includes, http_verb, reactive, ctx, out)
             else:
                 if not directive.startswith("/"):
                     raise ValueError(format_unknown_directive(directive))

@@ -162,7 +162,7 @@ reachable from outside the container.
 *   `#elif <expression>`: Else-if condition within an `#if` block.
 *   `#ifdef <variable>`: Checks if a variable is defined
 *   `#ifndef <variable>`: Checks if a variable is not defined
-*  [NOT IMPLEMENTED]  `#each collection`: (Potential loop/iteration construct over a collection, likely passed in params. Probably it should introduce :this param like in Handlebars)
+*   `#each <param>`: Iterate over sequential parameters `<param>__0` .. `<param>__(<param>__count-1)` setting `<param>` for each value.
 *   `#reactive on|off`: Toggle reactive rendering. PageQL starts in reactive mode, automatically wrapping dynamic output so changes can be pushed to the browser. Use `#reactive off` to disable live updates and `#reactive on` to re-enable them.
 
 **Debugging:**

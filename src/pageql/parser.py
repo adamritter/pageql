@@ -174,6 +174,7 @@ def _read_block(node_list, i, stop, partials, dialect, tests=None):
                 raise SyntaxError("missing {{/from}}")
             i += 1
             deps = ast_param_dependencies(loop_body)
+            deps.discard("__first_row")
             body.append(["#from", (query, expr), deps, loop_body])
             continue
 

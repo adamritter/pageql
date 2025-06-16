@@ -3,3 +3,11 @@
   <button>Login with GitHub</button>
 </a>
 
+
+{{#partial GET callback}}
+  {{#param code required}}
+  {{#param state required}}
+  {{#let client_secret = "YOUR_CLIENT_SECRET"}}
+  {{#fetch token from 'https://github.com/login/oauth/access_token?client_id=Iv23liGYF2X5uR4izdC3&client_secret=' || :client_secret || '&code=' || :code || '&state=' || :state}}
+  {{token__body}}
+{{/partial}}

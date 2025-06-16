@@ -234,3 +234,35 @@ def test_run_tasks_called(monkeypatch, tmp_path):
     status = asyncio.run(run_test())
     assert status == 200
     assert called
+
+
+def test_before_template_modifies_params(tmp_path):
+    (tmp_path / "_before.pageql").write_text("{{#header X-Test 'hi'}}")
+    (tmp_path / "hello.pageql").write_text("ok")
+
+    async def run_test():
+        server, task, port = await run_server_in_task(str(tmp_path))
+        status, headers, body = await _http_get(f"http://127.0.0.1:{port}/hello")
+        server.should_exit = True
+        await task
+        return status, headers, body.decode()
+
+    status, headers, body = asyncio.run(run_test())
+    assert status == 200
+    assert (b"x-test", b"hi") in headers
+
+
+def test_before_template_stops_render_on_error(tmp_path):
+    (tmp_path / "_before.pageql").write_text("{{#respond 401 body='no'}}")
+    (tmp_path / "hello.pageql").write_text("ok")
+
+    async def run_test():
+        server, task, port = await run_server_in_task(str(tmp_path))
+        status, _headers, body = await _http_get(f"http://127.0.0.1:{port}/hello")
+        server.should_exit = True
+        await task
+        return status, body.decode()
+
+    status, body = asyncio.run(run_test())
+    assert status == 401
+    assert "no" in body

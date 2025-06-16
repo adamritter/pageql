@@ -496,6 +496,27 @@ class PageQL:
             )
         )
 
+    def _process_respond_directive(self, node_content, params, path, includes,
+                                   http_verb, reactive, ctx, out):
+        status_expr, body_expr = node_content
+        code = evalone(self.db, status_expr, params, reactive, self.tables)
+        if isinstance(code, Signal):
+            code = code.value
+        if body_expr is not None:
+            body = evalone(self.db, body_expr, params, reactive, self.tables)
+            if isinstance(body, Signal):
+                body = body.value
+            ctx.clear_output()
+            ctx.out.append(str(body))
+        raise RenderResultException(
+            RenderResult(
+                status_code=code,
+                headers=ctx.headers,
+                cookies=ctx.cookies,
+                body="".join(ctx.out),
+            )
+        )
+
     def _process_header_directive(self, node_content, params, path, includes,
                                   http_verb, reactive, ctx, out):
         name, value_expr = parsefirstword(node_content)
@@ -939,6 +960,8 @@ class PageQL:
                 return self._process_error_directive(node_content, params, path, includes, http_verb, reactive, ctx, out)
             elif node_type == '#statuscode':
                 return self._process_statuscode_directive(node_content, params, path, includes, http_verb, reactive, ctx, out)
+            elif node_type == '#respond':
+                return self._process_respond_directive(node_content, params, path, includes, http_verb, reactive, ctx, out)
             elif node_type == '#header':
                 return self._process_header_directive(node_content, params, path, includes, http_verb, reactive, ctx, out)
             elif node_type == '#cookie':

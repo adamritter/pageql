@@ -515,6 +515,7 @@ class PageQLApp:
         params['cookies'] = _parse_cookies(headers.get('cookie', ''))
         params['headers'] = headers
         params['method'] = method
+        params['env'] = dict(os.environ)
 
         if (
             path_cleaned == 'index'

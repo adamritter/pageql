@@ -79,6 +79,7 @@ DIRECTIVE_HELP: dict[str, str] = {
     "#render <name>": "render a named partial",
     "#let <name> = <expr>": "assign a variable from an expression",
     "#statuscode <code>": "set the HTTP status code",
+    "#respond [code] [body=<expr>]": "return a response with optional status and body",
     "#header <name> <expr>": "add an HTTP response header",
     "#cookie <name> <expr> [opts]": "set an HTTP cookie",
     "#update <table> set <expr> where <cond>": "execute an SQL UPDATE",

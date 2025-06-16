@@ -6,7 +6,15 @@
     completed INTEGER DEFAULT 0 CHECK(completed IN (0,1))
 )}}
 
+[
 {{{COALESCE(json_group_array(
     json_object('id', id, 'text', text, 'completed', completed)
-), '[]') from todos}}}
+), '[]') from todos}}},
+[
+{{#let max_id = MAX(id) from todos}}
+{{#from todos order by id}}
+{"id":{{id}},"text":"{{text}}","completed":{{completed}}{{{'}}'}}{{#if :id != :max_id}},{{/if}}
+{{/from}}
+]
+]
 

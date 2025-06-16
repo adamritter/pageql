@@ -4,6 +4,7 @@ sys.modules["watchfiles"].awatch = lambda *args, **kwargs: None
 sys.path.insert(0, "src")
 
 from pageql.parser import tokenize, build_ast, ast_param_dependencies
+from pageql.pageql import PageQL
 
 
 def test_respond_directive_default():
@@ -29,3 +30,19 @@ def test_respond_directive_dependencies():
     ast = build_ast(tokens, dialect="sqlite")
     deps = ast_param_dependencies(ast)
     assert deps == {"code", "msg"}
+
+
+def test_respond_runtime_status_only():
+    r = PageQL(":memory:")
+    r.load_module("m", "a{{#respond 201}}b")
+    res = r.render("/m", reactive=False)
+    assert res.status_code == 201
+    assert res.body == "a"
+
+
+def test_respond_runtime_with_body():
+    r = PageQL(":memory:")
+    r.load_module("m", "a{{#respond 404 body='err'}}b")
+    res = r.render("/m", reactive=False)
+    assert res.status_code == 404
+    assert res.body == "err"

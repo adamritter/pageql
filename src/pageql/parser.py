@@ -232,6 +232,14 @@ def _read_block(node_list, i, stop, partials, dialect, tests=None):
             body.append(("#respond", (status_expr, body_expr)))
             continue
 
+        if ntype == "#header":
+            name, value_expr = parsefirstword(ncontent)
+            if value_expr is None:
+                raise SyntaxError("#header requires a name and expression")
+            i += 1
+            body.append(("#header", (name, value_expr)))
+            continue
+
         # -------------------------------------------------------- #partial ...
         if ntype == "#partial":
             part_terms = {"/partial"}
@@ -458,9 +466,13 @@ def ast_param_dependencies(ast):
             elif t == "#fetch":
                 deps.update(get_dependencies(_convert_dot_sql(c[1])))
             elif t == "#header":
-                _, rest = parsefirstword(c)
-                if rest:
-                    deps.update(get_dependencies(_convert_dot_sql(rest)))
+                if isinstance(c, tuple):
+                    _, expr = c
+                    deps.update(get_dependencies(_convert_dot_sql(expr)))
+                else:
+                    _, rest = parsefirstword(c)
+                    if rest:
+                        deps.update(get_dependencies(_convert_dot_sql(rest)))
             elif t == "#cookie":
                 _, rest = parsefirstword(c)
                 if rest:

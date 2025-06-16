@@ -176,7 +176,6 @@ reachable from outside the container.
 *   `#error <expression>`: Raises an error with the evaluated expression.
 *   `#header <name> <value_expression>`: Sets an HTTP response header. The `<name>` (e.g., `Cache-Control`, `"X-Custom-Header"`) and `<value_expression>` (e.g., `"no-cache"`, `:some_variable`) are required positional arguments. Example: `#header Cache-Control "no-cache, no-store, must-revalidate"`.
 *   `#cookie <name> <expression> [options...]`: Sets an outgoing HTTP cookie. The `<name>` is a literal string and `<expression>` is evaluated to determine the cookie value. Optional attributes like `expires="..."`, `path="..."`, `domain="..."`, `secure`, and `httponly` may follow.
-*   [NOT IMPLEMENTED] `#contenttype <expression>`: Sets the `Content-Type` HTTP response header (e.g., `text/html; charset=utf-8`).
 
 When a directive is mistyped or unrecognized, PageQL prints a list of valid directives with short syntax hints. These hints show minimal syntax like `#insert into <table> (cols) values (vals)`, `#update <table> set ... where ...`, or `#delete from <table> where ...`. This quick reference can help diagnose typos during development.
 

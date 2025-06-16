@@ -6,9 +6,7 @@
     completed INTEGER DEFAULT 0 CHECK(completed IN (0,1))
 )}}
 
-{{#from (SELECT COALESCE(json_group_array(
+{{{COALESCE(json_group_array(
     json_object('id', id, 'text', text, 'completed', completed)
-), '[]') AS js FROM todos)}}
-{{{js}}}
-{{/from}}
+), '[]') from todos}}}
 

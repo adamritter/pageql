@@ -214,6 +214,24 @@ def _read_block(node_list, i, stop, partials, dialect, tests=None):
             body.append(("#fetch", (var, expr, is_async)))
             continue
 
+        if ntype == "#respond":
+            status_expr = "200"
+            body_expr = None
+            content = (ncontent or "").strip()
+            if content:
+                first, rest = parsefirstword(content)
+                if first.startswith("body="):
+                    body_expr = first[len("body="):].strip()
+                else:
+                    status_expr = first
+                    if rest and rest.startswith("body="):
+                        body_expr = rest[len("body="):].strip()
+                    elif rest:
+                        raise SyntaxError("#respond syntax is '[status_code] [body=<expr>]'")
+            i += 1
+            body.append(("#respond", (status_expr, body_expr)))
+            continue
+
         # -------------------------------------------------------- #partial ...
         if ntype == "#partial":
             part_terms = {"/partial"}
@@ -431,6 +449,12 @@ def ast_param_dependencies(ast):
                 deps.update(get_dependencies(_convert_dot_sql(c[1])))
             elif t in {"#update", "#insert", "#delete", "#merge", "#create", "#redirect", "#statuscode", "#error"}:
                 deps.update(get_dependencies(_convert_dot_sql(c)))
+            elif t == "#respond":
+                status_expr, body_expr = c
+                if status_expr:
+                    deps.update(get_dependencies(_convert_dot_sql(status_expr)))
+                if body_expr:
+                    deps.update(get_dependencies(_convert_dot_sql(body_expr)))
             elif t == "#fetch":
                 deps.update(get_dependencies(_convert_dot_sql(c[1])))
             elif t == "#header":

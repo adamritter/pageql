@@ -195,7 +195,7 @@ PageQL uses a unified namespace for variables originating from different sources
 
 *   Request parameters declared and validated via `#param`.
 *   Variables explicitly set using `#let`.
-*   Columns selected within a `#from` loop (each column becomes a variable within the loop's scope). A special `__first_row` parameter is also set to `1` for the first row and `0` thereafter.
+*   Columns selected within a `#from` loop (each column becomes a variable within the loop's scope). A special `__first_row` parameter is also set to `1` for the first row and `0` thereafter. `__first_row` is not reactive and was created mainly to assist with static JSON output.
 *   Parameters passed to a partial via `#render <partial> param_name=value`.
 *   (Potentially cookie values, details TBD).
 

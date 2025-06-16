@@ -496,8 +496,11 @@ class PageQLAsync(PageQL):
                         v = v.value
                     extra_cache_values[k] = v
                 extra_cache_key = json.dumps(extra_cache_values, sort_keys=True)
+        first = True
         for row in rows:
             row_params = params.copy()
+            row_params["__first_row"] = ReadOnly(first)
+            first = False
             for i, col_name in enumerate(col_names):
                 row_params[col_name] = ReadOnly(row[i])
 

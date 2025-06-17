@@ -25,7 +25,7 @@ def test_githubauth_page_renders_button():
         assert "Iv23liGYF2X5uR4izdC3" in body
 
 
-def test_githubauth_callback_fetch():
+def test_githubauth_callback_fetch(monkeypatch):
     src = Path("website/githubauth.pageql").read_text()
     with tempfile.TemporaryDirectory() as tmpdir:
         Path(tmpdir, "githubauth.pageql").write_text(src, encoding="utf-8")
@@ -40,6 +40,7 @@ def test_githubauth_callback_fetch():
 
             old_fetch = pql_mod.fetch_sync
             pql_mod.fetch_sync = fake_fetch
+            monkeypatch.setenv("GITHUB_CLIENT_SECRET", "secret")
             try:
                 server, task, port = await run_server_in_task(tmpdir)
                 status, _headers, body = await _http_get(
@@ -57,6 +58,7 @@ def test_githubauth_callback_fetch():
         assert "resp" in body
         assert url.startswith("https://github.com/login/oauth/access_token")
         assert "Iv23liGYF2X5uR4izdC3" in url
+        assert "client_secret=secret" in url
         assert "code=abc" in url
         assert "state=xyz" in url
 

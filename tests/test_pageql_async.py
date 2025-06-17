@@ -24,8 +24,8 @@ async def test_render_async_returns_expected_result():
 async def test_fetch_async_queues_task(monkeypatch):
     calls = []
 
-    async def fake_fetch(url: str, headers=None):
-        calls.append(url)
+    async def fake_fetch(url: str, headers=None, method="GET", body=None):
+        calls.append((url, method))
         return {"status_code": 200, "headers": [], "body": "ok"}
 
     import pageql.pageql_async as pqa
@@ -38,6 +38,6 @@ async def test_fetch_async_queues_task(monkeypatch):
     assert res.body.strip() == "None"
     assert len(pql_mod.tasks) == 1
     await pql_mod.tasks.pop()  # run the queued task
-    assert calls == ["http://x"]
+    assert calls == [("http://x", "GET")]
     pql_mod.tasks.clear()
 

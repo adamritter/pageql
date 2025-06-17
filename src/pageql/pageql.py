@@ -559,6 +559,24 @@ class PageQL:
         url = evalone(self.db, expr, params, reactive, self.tables)
         if isinstance(url, Signal):
             url = url.value
+        base_url = None
+        if isinstance(url, str) and url.startswith("/") and not urlparse(str(url)).scheme:
+            base_url = params.get("base_url")
+            if not base_url:
+                headers_dict = params.get("headers") or {}
+                host = None
+                if isinstance(headers_dict, dict):
+                    host = headers_dict.get("host") or headers_dict.get("Host")
+                if not host:
+                    host = params.get("headers__host") or params.get("headers__Host")
+                path_val = params.get("path")
+                if host:
+                    scheme = "https" if str(path_val).startswith("https://") else "http"
+                    base_url = f"{scheme}://{host}"
+                elif path_val and "://" in str(path_val):
+                    parsed = urlparse(str(path_val))
+                    if parsed.scheme and parsed.netloc:
+                        base_url = f"{parsed.scheme}://{parsed.netloc}"
         req_headers = None
         if header_expr is not None:
             req_headers = evalone(self.db, header_expr, params, reactive, self.tables)
@@ -603,8 +621,8 @@ class PageQL:
             params[f"{var}__status_code"] = status_sig
             params[f"{var}__headers"] = headers_sig
 
-            async def do_fetch(url=url, b=body_sig, s=status_sig, h=headers_sig, headers=req_headers, meth=method, body=req_body):
-                data = await fetch(str(url), headers=headers, method=meth, body=body)
+            async def do_fetch(url=url, b=body_sig, s=status_sig, h=headers_sig, headers=req_headers, meth=method, body=req_body, base=base_url):
+                data = await fetch(str(url), headers=headers, method=meth, body=body, base_url=base)
                 b.set_value(data.get("body"))
                 s.set_value(data.get("status_code"))
                 h.set_value(data.get("headers"))
@@ -612,7 +630,7 @@ class PageQL:
             print(f"queued async fetch for {url}")
             tasks.append(do_fetch())
         else:
-            data = fetch_sync(str(url), headers=req_headers, method=method, body=req_body)
+            data = fetch_sync(str(url), headers=req_headers, method=method, body=req_body, base_url=base_url)
             for k, v in flatten_params(data).items():
                 params[f"{var}__{k}"] = v
         return reactive

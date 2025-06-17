@@ -1,7 +1,7 @@
 {{#param port required}}
-{{#fetch async outer from 'http://127.0.0.1:'||:port||'/healthz'}}
+{{#fetch async outer from '/healthz'}}
   {{#if :outer.status_code == 200}}
-    {{#fetch async inner from 'http://127.0.0.1:'||:port||'/healthz'}}
+    {{#fetch async inner from '/healthz'}}
       {{#if :inner.status_code == 200}}
         Fetched twice
       {{#else}}

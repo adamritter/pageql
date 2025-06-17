@@ -462,3 +462,4 @@ starts:
 * `jws_serialize_compact(payload)` - sign a payload using JSON Web Signature
 * `jws_deserialize_compact(token)` - extract the payload from a JWS token
 * `query_param(qs, name)` - return the first value of ``name`` from ``qs``
+* `html_escape(text)` - escape special characters in ``text`` for safe HTML output

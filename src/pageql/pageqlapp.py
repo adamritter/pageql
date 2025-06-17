@@ -8,6 +8,7 @@ from watchfiles import awatch
 import uuid
 import traceback
 from collections import defaultdict
+from collections.abc import Iterable
 from typing import Callable, Awaitable, Dict, List, Optional
 
 # Assuming pageql.py is in the same directory or Python path
@@ -21,6 +22,7 @@ from .http_utils import (
 )
 from .jws_utils import jws_serialize_compact, jws_deserialize_compact
 from .client_script import client_script
+from .database import flatten_params
 
 scripts_by_send: defaultdict = defaultdict(list)
 _idle_task: Optional[asyncio.Task] = None
@@ -68,6 +70,19 @@ def run_tasks() -> None:
 
     for t in local_tasks:
         asyncio.create_task(run_task(t))
+
+
+def _expand_array_params(params: Dict[str, object]) -> Dict[str, object]:
+    """Return *params* with array values expanded for ``#each`` loops."""
+    params = flatten_params(params)
+    for key, value in list(params.items()):
+        if isinstance(value, Iterable) and not isinstance(value, (str, bytes, bytearray, dict)):
+            items = list(value)
+            if f"{key}__count" not in params:
+                params[f"{key}__count"] = len(items)
+                for i, item in enumerate(items):
+                    params[f"{key}__{i}"] = item
+    return params
 
 
 
@@ -392,6 +407,7 @@ class PageQLApp:
     async def _render_and_send(self, parsed_path, path_cleaned, params, include_scripts, client_id, method, scope, receive, send):
         try:
             t = time.time()
+            params = _expand_array_params(params)
             path = parsed_path.path
             self._log(f"Rendering {path} with client_id {client_id} as {path_cleaned} with params: {params}")
             before_result = None

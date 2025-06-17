@@ -181,12 +181,18 @@ async def fetch(url: str, headers: Dict[str, str] | None = None) -> Dict[str, ob
 def fetch_sync(url: str, headers: Dict[str, str] | None = None) -> Dict[str, object]:
     """Synchronous variant of :func:`fetch` using ``urllib``."""
     from urllib.request import urlopen, Request
+    from urllib.error import HTTPError
 
     req = Request(url, headers=headers or {})
-    with urlopen(req) as resp:
-        status = resp.status
-        headers = [(k.lower().encode(), v.encode()) for k, v in resp.getheaders()]
-        body_bytes = resp.read()
+    try:
+        with urlopen(req) as resp:
+            status = resp.status
+            headers = [(k.lower().encode(), v.encode()) for k, v in resp.getheaders()]
+            body_bytes = resp.read()
+    except HTTPError as e:
+        status = e.code
+        headers = [(k.lower().encode(), v.encode()) for k, v in e.headers.items()]
+        body_bytes = e.read()
     try:
         body = body_bytes.decode("utf-8")
     except Exception:

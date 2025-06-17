@@ -141,4 +141,35 @@ def test_fetch_header_directive_render():
     assert seen == [("http://x", {"X": "v"})]
 
 
+def test_fetch_directive_handles_http_error():
+    import http.server, threading
+
+    class Handler(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):
+            body = b"nope"
+            self.send_response(400)
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, *args):
+            pass
+
+    server = http.server.HTTPServer(("127.0.0.1", 0), Handler)
+    port = server.server_address[1]
+    t = threading.Thread(target=server.serve_forever)
+    t.start()
+    try:
+        r = PageQL(":memory:")
+        r.load_module(
+            "m",
+            "{{#fetch d from 'http://127.0.0.1:'||:port}}{{d__status_code}}",
+        )
+        out = r.render("/m", {"port": port}, reactive=False).body.strip()
+        assert out == "400"
+    finally:
+        server.shutdown()
+        t.join()
+
+
 

@@ -35,7 +35,7 @@ def test_githubauth_callback_fetch(monkeypatch):
             seen = []
 
             def fake_fetch(url: str, headers=None):
-                seen.append(url)
+                seen.append((url, headers))
                 if "api.github.com/user" in url:
                     return {
                         "status_code": 200,
@@ -67,11 +67,12 @@ def test_githubauth_callback_fetch(monkeypatch):
         assert status == 200
         assert "access_token" in body
         assert "octocat" in body
-        token_url, user_url = urls
+        (token_url, token_headers), (user_url, user_headers) = urls
         assert token_url.startswith("https://github.com/login/oauth/access_token")
         assert "Iv23liGYF2X5uR4izdC3" in token_url
         assert "client_secret=secret" in token_url
         assert "code=abc" in token_url
         assert "state=xyz" in token_url
-        assert user_url.startswith("https://api.github.com/user?access_token=")
+        assert user_url == "https://api.github.com/user"
+        assert user_headers == {"Authorization": "token \"t\""}
 

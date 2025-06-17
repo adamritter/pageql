@@ -70,7 +70,7 @@ def test_fetch_body_directive_parsed():
 def test_fetch_directive_render():
     seen = []
 
-    def fetch(url: str, headers=None, method="GET", body=None):
+    def fetch(url: str, headers=None, method="GET", body=None, **kwargs):
         seen.append((url, method))
         return {"a": "1", "b": "2"}
 
@@ -159,7 +159,7 @@ def test_fetch_directive_custom_method():
 def test_fetch_commits_before_call(tmp_path):
     db_file = tmp_path / "db.sqlite"
 
-    def fetch(_url: str, headers=None, method="GET", body=None):
+    def fetch(_url: str, headers=None, method="GET", body=None, **kwargs):
         with sqlite3.connect(db_file) as c2:
             return {"cnt": c2.execute("select count(*) from t").fetchone()[0]}
 
@@ -181,7 +181,7 @@ def test_fetch_commits_before_call(tmp_path):
 def test_fetch_header_directive_render():
     seen = []
 
-    def fetch(url: str, headers=None, method="GET", body=None):
+    def fetch(url: str, headers=None, method="GET", body=None, **kwargs):
         seen.append((url, headers, method))
         return {"a": "1"}
 
@@ -201,7 +201,7 @@ def test_fetch_header_directive_render():
 def test_fetch_body_directive_render():
     seen = []
 
-    def fetch(url: str, headers=None, method="GET", body=None):
+    def fetch(url: str, headers=None, method="GET", body=None, **kwargs):
         seen.append((url, body))
         return {"a": "1"}
 
@@ -250,3 +250,34 @@ def test_fetch_directive_handles_http_error():
 
 
 
+
+def test_fetch_directive_relative_url():
+    import http.server, threading
+
+    class Handler(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):
+            body = b"ok"
+            self.send_response(200)
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, *args):
+            pass
+
+    server = http.server.HTTPServer(("127.0.0.1", 0), Handler)
+    port = server.server_address[1]
+    t = threading.Thread(target=server.serve_forever)
+    t.start()
+    try:
+        r = PageQL(":memory:")
+        r.load_module("m", "{{#fetch d from '/healthz'}}{{d__body}}")
+        out = r.render(
+            "/m",
+            {"headers": {"host": f"127.0.0.1:{port}"}, "path": "/m"},
+            reactive=False,
+        ).body.strip()
+        assert out == "ok"
+    finally:
+        server.shutdown()
+        t.join()

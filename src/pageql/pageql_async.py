@@ -272,6 +272,8 @@ class PageQLAsync(PageQL):
                 cur = ctx.reactiveelement
                 ctx.reactiveelement = []
                 self.process_nodes(node[1], params, path, includes, http_verb, True, ctx, out=new_buf)
+                from .pageqlapp import run_tasks
+                run_tasks()
                 ctx.reactiveelement = cur
                 html_content = "".join(new_buf).strip()
                 tag = ""
@@ -363,6 +365,8 @@ class PageQLAsync(PageQL):
                         buf = []
                         if new_idx is not None:
                             self.process_nodes(bodies[new_idx], params, path, includes, http_verb, True, ctx, out=buf)
+                        from .pageqlapp import run_tasks
+                        run_tasks()
                         html_content = "".join(buf).strip()
                         ctx.append_script(
                             f"pset({mid},{json.dumps(html_content)})",

@@ -222,6 +222,9 @@ def _read_block(node_list, i, stop, partials, dialect, tests=None):
             kw, expr = parsefirstword(rest)
             if kw.lower() != "from" or expr is None:
                 raise SyntaxError("#fetch syntax is '[async] <var> from <expr>'")
+            expr, more = parsefirstword(expr)
+            if more is not None:
+                raise SyntaxError("#fetch syntax is '[async] <var> from <expr>'")
             i += 1
             body.append(("#fetch", (var, expr, is_async)))
             continue

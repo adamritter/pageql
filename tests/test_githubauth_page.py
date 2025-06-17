@@ -45,7 +45,7 @@ def test_githubauth_callback_fetch(monkeypatch):
                 return {
                     "status_code": 200,
                     "headers": [],
-                    "body": '{"access_token": "t"}',
+                    "body": 'access_token=t&token_type=bearer&scope=',
                 }
 
             old_fetch = pql_mod.fetch_sync

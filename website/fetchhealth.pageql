@@ -1,4 +1,3 @@
-{{#param port required}}
 {{#fetch async outer from '/healthz'}}
   {{#if :outer.status_code == 200}}
     {{#fetch async inner from '/healthz'}}

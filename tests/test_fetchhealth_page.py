@@ -31,7 +31,7 @@ def test_fetchhealth_nested_fetch(monkeypatch):
             try:
                 server, task, port = await run_server_in_task(tmpdir)
                 status, _headers, body = await _http_get(
-                    f"http://127.0.0.1:{port}/fetchhealth?port={port}"
+                    f"http://127.0.0.1:{port}/fetchhealth"
                 )
                 server.should_exit = True
                 await task

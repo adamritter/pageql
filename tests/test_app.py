@@ -150,6 +150,14 @@ def test_base64_encode_function_is_registered(tmp_path):
     assert result == base64.b64encode(b'abcd').decode()
 
 
+def test_query_param_function_is_registered(tmp_path):
+    app = pageql.pageqlapp.PageQLApp(":memory:", tmp_path, create_db=True, should_reload=False)
+    result = app.conn.execute("select query_param('a=1&b=two', 'b')").fetchone()[0]
+    assert result == 'two'
+    result_none = app.conn.execute("select query_param('a=1', 'b')").fetchone()[0]
+    assert result_none is None
+
+
 def test_before_hook_handles_bytes(tmp_path):
     template = Path(tmp_path) / "before.pageql"
     template.write_text(

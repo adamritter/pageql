@@ -84,6 +84,16 @@ def _expand_array_params(params: Dict[str, object]) -> Dict[str, object]:
                     params[f"{key}__{i}"] = item
     return params
 
+  def _query_param(qs: str | bytes | None, name: str | None):
+    """Return the first value of *name* from *qs* query string."""
+    if qs is None or name is None:
+        return None
+    if isinstance(qs, bytes):
+        qs = qs.decode()
+    params = parse_qs(qs, keep_blank_values=True)
+    values = params.get(name)
+    return values[0] if values else None
+
 
 
 
@@ -641,6 +651,10 @@ class PageQLApp:
                 self.conn.create_function(
                     "jws_deserialize_compact", 1,
                     lambda token: jws_deserialize_compact(token),
+                )
+                self.conn.create_function(
+                    "query_param", 2,
+                    _query_param,
                 )
             except Exception as e:
                 self._log(f"Warning: could not register base64_encode: {e}")

@@ -12,6 +12,7 @@
   {{token__body}}
   {{#let token_json = '{"'||replace(replace(:token__body, '=', '":"'), '&', '","')||'"}'}}
   {{#let access_token = json_extract(:token_json, '$.access_token')}}
-  {{#fetch user from 'https://api.github.com/user?access_token='||:access_token}}
+  {{#fetch user from 'https://api.github.com/user' header='Authorization: token '||:access_token}}
+  {{access_token}}
   {{user__body}}
   {{/partial}}

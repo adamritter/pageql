@@ -44,7 +44,7 @@ def test_githubauth_callback_fetch(monkeypatch):
             from pageql import pageql as pql_mod
             seen = []
 
-            async def fake_fetch(url: str, headers=None, method="GET", body=None):
+            async def fake_fetch(url: str, headers=None, method="GET", body=None, **kwargs):
                 seen.append((url, headers, method))
                 if "api.github.com/user" in url:
                     return {

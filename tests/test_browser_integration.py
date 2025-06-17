@@ -287,7 +287,7 @@ async def test_fetch_async_directive_in_browser(setup):
     with tempfile.TemporaryDirectory() as tmpdir:
         Path(tmpdir, "data.pageql").write_text("hello", encoding="utf-8")
         Path(tmpdir, "fetch.pageql").write_text(
-            "{{#fetch async d from 'http://127.0.0.1:' || :port || '/data'}}{{d__body}}",
+            "{{#fetch async d from 'http://127.0.0.1:'||:port||'/data'}}{{d__body}}",
             encoding="utf-8",
         )
 

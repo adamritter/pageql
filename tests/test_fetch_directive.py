@@ -35,10 +35,23 @@ def test_fetch_async_directive_dependencies():
     assert deps == {"url"}
 
 
+def test_fetch_header_directive_parsed():
+    tokens = tokenize("{{#fetch file from 'http://ex' header=:hdr}}")
+    body, _ = build_ast(tokens, dialect="sqlite")
+    assert body == [("#fetch", ("file", "'http://ex'", False, ":hdr"))]
+
+
+def test_fetch_header_directive_dependencies():
+    tokens = tokenize("{{#fetch dst from :url header=:hdr}}")
+    ast = build_ast(tokens, dialect="sqlite")
+    deps = ast_param_dependencies(ast)
+    assert deps == {"url", "hdr"}
+
+
 def test_fetch_directive_render():
     seen = []
 
-    def fetch(url: str):
+    def fetch(url: str, headers=None):
         seen.append(url)
         return {"a": "1", "b": "2"}
 
@@ -89,7 +102,7 @@ def test_fetch_directive_defaults_to_http_get():
 def test_fetch_commits_before_call(tmp_path):
     db_file = tmp_path / "db.sqlite"
 
-    def fetch(_url: str):
+    def fetch(_url: str, headers=None):
         with sqlite3.connect(db_file) as c2:
             return {"cnt": c2.execute("select count(*) from t").fetchone()[0]}
 
@@ -106,6 +119,26 @@ def test_fetch_commits_before_call(tmp_path):
     finally:
         pql_mod.fetch_sync = old_fetch
     assert out == "1"
+
+
+def test_fetch_header_directive_render():
+    seen = []
+
+    def fetch(url: str, headers=None):
+        seen.append((url, headers))
+        return {"a": "1"}
+
+    from pageql import pageql as pql_mod
+    old_fetch = pql_mod.fetch_sync
+    pql_mod.fetch_sync = fetch
+    try:
+        r = PageQL(":memory:")
+        r.load_module("m", "{{#fetch data from 'http://x' header=:hdr}}{{data__a}}")
+        out = r.render("/m", {"hdr": "X: v"}, reactive=False).body
+    finally:
+        pql_mod.fetch_sync = old_fetch
+    assert out.strip() == "1"
+    assert seen == [("http://x", {"X": "v"})]
 
 
 

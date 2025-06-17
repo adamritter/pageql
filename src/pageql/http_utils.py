@@ -168,9 +168,9 @@ async def _http_get(
     return status, resp_headers, body
 
 
-async def fetch(url: str) -> Dict[str, object]:
+async def fetch(url: str, headers: Dict[str, str] | None = None) -> Dict[str, object]:
     """Return a mapping with ``status_code``, ``headers`` and decoded ``body``."""
-    status, headers, body = await _http_get(url)
+    status, headers, body = await _http_get(url, headers=headers)
     try:
         body = body.decode("utf-8")
     except Exception:
@@ -178,11 +178,12 @@ async def fetch(url: str) -> Dict[str, object]:
     return {"status_code": status, "headers": headers, "body": body}
 
 
-def fetch_sync(url: str) -> Dict[str, object]:
+def fetch_sync(url: str, headers: Dict[str, str] | None = None) -> Dict[str, object]:
     """Synchronous variant of :func:`fetch` using ``urllib``."""
-    from urllib.request import urlopen
+    from urllib.request import urlopen, Request
 
-    with urlopen(url) as resp:
+    req = Request(url, headers=headers or {})
+    with urlopen(req) as resp:
         status = resp.status
         headers = [(k.lower().encode(), v.encode()) for k, v in resp.getheaders()]
         body_bytes = resp.read()

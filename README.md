@@ -143,7 +143,7 @@ reachable from outside the container.
     *   **Access:** The validated (and potentially defaulted) parameter value is made available as `:<name>`. Direct access via `:<name>` without this tag bypasses validation and defaults.
     *   Dots in `<name>` are converted to `__` when the parameter is looked up, so `#param cookies.session` binds the value of `cookies__session`.
 
-*   `#fetch async <var> from <url_expression>`: Fetches an external URL in the background while rendering. `<var>.status_code`, `<var>.body`, and `<var>.headers` start as `NULL` but automatically update when the request completes.
+*   `#fetch async <var> from <url_expression> [header=<expr>]`: Fetches an external URL in the background while rendering. `<var>.status_code`, `<var>.body`, and `<var>.headers` start as `NULL` but automatically update when the request completes. The optional `header` expression supplies request headers as a mapping.
 
     ```pageql
     {{#fetch async horse from "https://t3.ftcdn.net/jpg/03/26/50/04/360_F_326500445_ZD1zFSz2cMT1qOOjDy7C5xCD4shawQfM.jpg"}}

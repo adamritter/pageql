@@ -22,6 +22,8 @@
       {{#fetch async user from 'https://api.github.com/user' header=:header}}
         {{#if :user.status_code == 200}}
           {{user.body}}
+        {{#elif :user.status_code IS NOT NULL}}
+          <p>Error: {{:user.status_code}} {{:user.body}}</p>
         {{#else}}
           <p>Loading user...</p>
         {{/if}}

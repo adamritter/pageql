@@ -3,6 +3,7 @@ import os, time
 import sqlite3
 import mimetypes
 import base64
+import html
 from urllib.parse import urlparse, parse_qs
 from watchfiles import awatch
 import uuid
@@ -656,6 +657,10 @@ class PageQLApp:
                 self.conn.create_function(
                     "query_param", 2,
                     _query_param,
+                )
+                self.conn.create_function(
+                    "html_escape", 1,
+                    lambda txt: html.escape(str(txt)) if txt is not None else None,
                 )
             except Exception as e:
                 self._log(f"Warning: could not register base64_encode: {e}")

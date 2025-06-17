@@ -7,6 +7,7 @@ import pageql.pageqlapp
 from pageql.http_utils import _http_get
 import asyncio
 import base64
+import html
 # Ensure the package can be imported without optional dependencies
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 sys.modules.setdefault("watchfiles", types.ModuleType("watchfiles"))
@@ -156,6 +157,12 @@ def test_query_param_function_is_registered(tmp_path):
     assert result == 'two'
     result_none = app.conn.execute("select query_param('a=1', 'b')").fetchone()[0]
     assert result_none is None
+
+
+def test_html_escape_function_is_registered(tmp_path):
+    app = pageql.pageqlapp.PageQLApp(":memory:", tmp_path, create_db=True, should_reload=False)
+    result = app.conn.execute("select html_escape('<div>&')").fetchone()[0]
+    assert result == html.escape('<div>&')
 
 
 def test_before_hook_handles_bytes(tmp_path):

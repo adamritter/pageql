@@ -170,7 +170,9 @@ async def _http_get(
 
 async def fetch(url: str, headers: Dict[str, str] | None = None) -> Dict[str, object]:
     """Return a mapping with ``status_code``, ``headers`` and decoded ``body``."""
+    print(f"fetching {url}")
     status, headers, body = await _http_get(url, headers=headers)
+    print(f"fetched {url} with status: {status}")
     try:
         body = body.decode("utf-8")
     except Exception:

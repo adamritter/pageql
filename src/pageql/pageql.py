@@ -552,20 +552,26 @@ class PageQL:
 
     def _process_fetch_directive(self, node_content, params, path, includes,
                                  http_verb, reactive, ctx, out):
-        if len(node_content) == 5:
+        if len(node_content) == 6:
+            var, expr, is_async, header_expr, method_expr, body_expr = node_content
+        elif len(node_content) == 5:
             var, expr, is_async, header_expr, method_expr = node_content
+            body_expr = None
         elif len(node_content) == 4:
             var, expr, is_async, header_expr = node_content
             method_expr = None
+            body_expr = None
         elif len(node_content) == 3:
             var, expr, is_async = node_content
             header_expr = None
             method_expr = None
+            body_expr = None
         else:
             var, expr = node_content
             is_async = False
             header_expr = None
             method_expr = None
+            body_expr = None
         if var.startswith(":"):
             var = var[1:]
         var = var.replace(".", "__")
@@ -598,6 +604,13 @@ class PageQL:
                 method = "GET"
             else:
                 method = str(method).upper()
+        req_body = None
+        if body_expr is not None:
+            req_body = evalone(self.db, body_expr, params, reactive, self.tables)
+            if isinstance(req_body, Signal):
+                req_body = req_body.value
+            if isinstance(req_body, str):
+                req_body = req_body.encode()
         # Commit any pending database changes so the fetch callback sees
         # a consistent view of the database before performing the HTTP request
         self.db.commit()
@@ -609,15 +622,15 @@ class PageQL:
             params[f"{var}__status_code"] = status_sig
             params[f"{var}__headers"] = headers_sig
 
-            async def do_fetch(url=url, b=body_sig, s=status_sig, h=headers_sig, headers=req_headers, meth=method):
-                data = await fetch(str(url), headers=headers, method=meth)
+            async def do_fetch(url=url, b=body_sig, s=status_sig, h=headers_sig, headers=req_headers, meth=method, body=req_body):
+                data = await fetch(str(url), headers=headers, method=meth, body=body)
                 b.set_value(data.get("body"))
                 s.set_value(data.get("status_code"))
                 h.set_value(data.get("headers"))
 
             tasks.append(do_fetch())
         else:
-            data = fetch_sync(str(url), headers=req_headers, method=method)
+            data = fetch_sync(str(url), headers=req_headers, method=method, body=req_body)
             for k, v in flatten_params(data).items():
                 params[f"{var}__{k}"] = v
         return reactive

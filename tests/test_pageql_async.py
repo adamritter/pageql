@@ -41,3 +41,24 @@ async def test_fetch_async_queues_task(monkeypatch):
     assert calls == [("http://x", "GET")]
     pql_mod.tasks.clear()
 
+
+async def test_fetch_async_with_body(monkeypatch):
+    calls = []
+
+    async def fake_fetch(url: str, headers=None, method="GET", body=None):
+        calls.append((url, body))
+        return {"status_code": 200, "headers": [], "body": "ok"}
+
+    import pageql.pageql_async as pqa
+    monkeypatch.setattr(pqa, "fetch", fake_fetch)
+    from pageql import pageql as pql_mod
+
+    r = PageQLAsync(":memory:")
+    r.load_module("m", "{{#fetch async d from 'http://x' body='hi'}}{{d__body}}")
+    res = await r.render_async("/m", reactive=False)
+    assert res.body.strip() == "None"
+    assert len(pql_mod.tasks) == 1
+    await pql_mod.tasks.pop()
+    assert calls == [("http://x", b"hi")]
+    pql_mod.tasks.clear()
+

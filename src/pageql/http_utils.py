@@ -2,7 +2,7 @@
 
 import asyncio
 import re
-from urllib.parse import urlparse, parse_qs
+from urllib.parse import urlparse, parse_qs, urljoin
 from typing import Dict, List, Tuple, Callable, Awaitable
 
 __all__ = [
@@ -173,8 +173,17 @@ async def fetch(
     headers: Dict[str, str] | None = None,
     method: str = "GET",
     body: bytes | None = None,
+    *,
+    base_url: str | None = None,
 ) -> Dict[str, object]:
-    """Return a mapping with ``status_code``, ``headers`` and decoded ``body``."""
+    """Return a mapping with ``status_code``, ``headers`` and decoded ``body``.
+
+    If *url* is relative, it must be resolved against *base_url*.
+    """
+    if url.startswith("/") and not urlparse(url).scheme:
+        if not base_url:
+            raise ValueError("Relative URL requires base_url")
+        url = urljoin(base_url.rstrip("/"), url)
     print(f"fetching {url}")
     status, headers, body = await _http_get(url, method=method, headers=headers, body=body)
     print(f"fetched {url} with status: {status}")
@@ -190,8 +199,17 @@ def fetch_sync(
     headers: Dict[str, str] | None = None,
     method: str = "GET",
     body: bytes | None = None,
+    *,
+    base_url: str | None = None,
 ) -> Dict[str, object]:
-    """Synchronous variant of :func:`fetch` using ``urllib``."""
+    """Synchronous variant of :func:`fetch` using ``urllib``.
+
+    Relative URLs are resolved the same way as :func:`fetch`.
+    """
+    if url.startswith("/") and not urlparse(url).scheme:
+        if not base_url:
+            raise ValueError("Relative URL requires base_url")
+        url = urljoin(base_url.rstrip("/"), url)
     from urllib.request import urlopen, Request
     from urllib.error import HTTPError
 

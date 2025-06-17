@@ -461,3 +461,4 @@ starts:
 * `base64_decode(text)` - decode a Base64 string back into text
 * `jws_serialize_compact(payload)` - sign a payload using JSON Web Signature
 * `jws_deserialize_compact(token)` - extract the payload from a JWS token
+* `query_param(qs, name)` - return the first value of ``name`` from ``qs``

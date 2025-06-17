@@ -14,11 +14,20 @@
   <p>Payload path: {{:payload_path}}</p>
 
   {{#let client_secret = env.GITHUB_CLIENT_SECRET}}
-  {{#fetch token from 'https://github.com/login/oauth/access_token?client_id=Iv23liGYF2X5uR4izdC3&client_secret='||:client_secret||'&code='||:code||'&state='||:state}}
-  {{token__body}}
-  {{#let access_token = query_param(:token__body, 'access_token')}}
-  <p>Extracted access token: {{access_token}}</p>
-  {{#let header = 'Authorization: Bearer '||:access_token}}
-  {{#fetch user from 'https://api.github.com/user' header=:header}}
-  {{user__body}}
-  {{/partial}}
+  {{#fetch async token from 'https://github.com/login/oauth/access_token?client_id=Iv23liGYF2X5uR4izdC3&client_secret='||:client_secret||'&code='||:code||'&state='||:state}}
+    {{#if :token.status_code == 200}}
+      {{#let access_token = query_param(:token.body, 'access_token')}}
+      <p>Extracted access token: {{access_token}}</p>
+      {{#let header = 'Authorization: Bearer '||:access_token}}
+      {{#fetch async user from 'https://api.github.com/user' header=:header}}
+        {{#if :user.status_code == 200}}
+          {{user.body}}
+        {{#else}}
+          <p>Loading user...</p>
+        {{/if}}
+      {{/fetch}}
+    {{#else}}
+      <p>Loading token...</p>
+    {{/if}}
+  {{/fetch}}
+{{/partial}}

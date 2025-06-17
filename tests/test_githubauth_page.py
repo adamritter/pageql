@@ -44,7 +44,7 @@ def test_githubauth_callback_fetch(monkeypatch):
             from pageql import pageql as pql_mod
             seen = []
 
-            def fake_fetch(url: str, headers=None):
+            async def fake_fetch(url: str, headers=None):
                 seen.append((url, headers))
                 if "api.github.com/user" in url:
                     return {
@@ -58,8 +58,8 @@ def test_githubauth_callback_fetch(monkeypatch):
                     "body": 'access_token=t&token_type=bearer&scope=',
                 }
 
-            old_fetch = pql_mod.fetch_sync
-            pql_mod.fetch_sync = fake_fetch
+            old_fetch = pql_mod.fetch
+            pql_mod.fetch = fake_fetch
             monkeypatch.setenv("GITHUB_CLIENT_SECRET", "secret")
             try:
                 server, task, port = await run_server_in_task(tmpdir)
@@ -70,14 +70,15 @@ def test_githubauth_callback_fetch(monkeypatch):
                 server.should_exit = True
                 await task
             finally:
-                pql_mod.fetch_sync = old_fetch
+                pql_mod.fetch = old_fetch
             return status, body.decode(), seen, state
 
         status, body, urls, state = asyncio.run(run_test())
 
         assert status == 200
-        assert "access_token" in body
-        assert "octocat" in body
+        assert "Loading token" in body
+        assert "access_token" not in body
+        assert "octocat" not in body
         (token_url, token_headers), (user_url, user_headers) = urls
         assert token_url.startswith("https://github.com/login/oauth/access_token")
         assert "Iv23liGYF2X5uR4izdC3" in token_url

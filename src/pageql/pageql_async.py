@@ -813,6 +813,7 @@ class PageQLAsync(PageQL):
                 s.set_value(data.get("status_code"))
                 h.set_value(data.get("headers"))
 
+            print(f"queued async fetch for {url}")
             tasks.append(do_fetch())
         else:
             data = await fetch(str(url), headers=req_headers, method=method, body=req_body)

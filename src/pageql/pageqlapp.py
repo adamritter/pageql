@@ -46,16 +46,20 @@ async def _flush_ws_scripts() -> None:
           for send, scripts in current.items() if scripts),
         return_exceptions=True,
     )
+    if current:
+        print(f"_flush_ws_scripts sent {sum(len(s) for s in current.values())} scripts")
 
 BATCH_WS_SCRIPTS = False
 
 def queue_ws_script(send: Callable[[dict], Awaitable[None]], script: str) -> None:
     if not BATCH_WS_SCRIPTS:
+        print(f"queue_ws_script sending {script!r}")
         asyncio.create_task(send({"type": "websocket.send", "text": script}))
         return
 
     global _idle_task
     scripts_by_send[send].append(script)
+    print(f"queue_ws_script queued {script!r}")
     if _idle_task is None or _idle_task.done():
         _idle_task = asyncio.create_task(_flush_ws_scripts())
 
@@ -64,12 +68,16 @@ def run_tasks() -> None:
     """Execute tasks queued in ``pageql.tasks``."""
     local_tasks = pageql.tasks.copy()
     pageql.tasks.clear()
+    if local_tasks:
+        print(f"run_tasks starting {len(local_tasks)} task(s)")
 
     async def run_task(coro):
         await coro
+        print("task finished, checking for more")
         run_tasks()
 
     for t in local_tasks:
+        print(f"creating async task {t}")
         asyncio.create_task(run_task(t))
 
 

@@ -719,7 +719,7 @@ class PageQL:
                     html_content += f"</{tag}>"
                 ctx.append_script(
                     f"pupdatetag({mid},{json.dumps(html_content)})",
-                    out,
+                    out if ctx.rendering else None,
                 )
 
             for sig in signals:
@@ -787,7 +787,7 @@ class PageQL:
                         html_content = "".join(buf).strip()
                         ctx.append_script(
                             f"pset({mid},{json.dumps(html_content)})",
-                            out,
+                            out if ctx.rendering else None,
                         )
 
                     for sig in signals:

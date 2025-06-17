@@ -758,26 +758,7 @@ class PageQLAsync(PageQL):
         ctx,
         out,
     ):
-        if len(node_content) == 6:
-            var, expr, is_async, header_expr, method_expr, body_expr = node_content
-        elif len(node_content) == 5:
-            var, expr, is_async, header_expr, method_expr = node_content
-            body_expr = None
-        elif len(node_content) == 4:
-            var, expr, is_async, header_expr = node_content
-            method_expr = None
-            body_expr = None
-        elif len(node_content) == 3:
-            var, expr, is_async = node_content
-            header_expr = None
-            method_expr = None
-            body_expr = None
-        else:
-            var, expr = node_content
-            is_async = False
-            header_expr = None
-            method_expr = None
-            body_expr = None
+        var, expr, is_async, header_expr, method_expr, body_expr = node_content
         if var.startswith(":"):
             var = var[1:]
         var = var.replace(".", "__")

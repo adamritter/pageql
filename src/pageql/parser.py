@@ -501,12 +501,15 @@ def ast_param_dependencies(ast):
                     deps.update(get_dependencies(_convert_dot_sql(body_expr)))
             elif t == "#fetch":
                 deps.update(get_dependencies(_convert_dot_sql(c[1])))
-                if len(c) > 3 and c[3] is not None:
-                    deps.update(get_dependencies(_convert_dot_sql(c[3])))
-                if len(c) > 4 and c[4] is not None:
-                    deps.update(get_dependencies(_convert_dot_sql(c[4])))
-                if len(c) > 5 and c[5] is not None:
-                    deps.update(get_dependencies(_convert_dot_sql(c[5])))
+                header_expr = c[3]
+                method_expr = c[4]
+                body_expr = c[5]
+                if header_expr is not None:
+                    deps.update(get_dependencies(_convert_dot_sql(header_expr)))
+                if method_expr is not None:
+                    deps.update(get_dependencies(_convert_dot_sql(method_expr)))
+                if body_expr is not None:
+                    deps.update(get_dependencies(_convert_dot_sql(body_expr)))
             elif t == "#header":
                 if isinstance(c, tuple):
                     _, expr = c

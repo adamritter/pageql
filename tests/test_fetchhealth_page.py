@@ -13,10 +13,13 @@ def test_fetchhealth_nested_fetch(monkeypatch):
 
         async def run_test():
             from pageql import pageql as pql_mod
+
             seen = []
 
-            async def fake_fetch(url: str, headers=None, method="GET", body=None):
-                seen.append(url)
+            async def fake_fetch(
+                url: str, headers=None, method="GET", body=None, **kwargs
+            ):
+                seen.append((url, kwargs.get("base_url")))
                 return {
                     "status_code": 200,
                     "headers": [],
@@ -41,6 +44,6 @@ def test_fetchhealth_nested_fetch(monkeypatch):
         assert status == 200
         assert "Loading outer" in body
         assert urls == [
-            f"http://127.0.0.1:{port}/healthz",
-            f"http://127.0.0.1:{port}/healthz",
+            ("/healthz", "http://127.0.0.1"),
+            ("/healthz", "http://127.0.0.1"),
         ]

@@ -221,20 +221,26 @@ def _read_block(node_list, i, stop, partials, dialect, tests=None):
                 raise SyntaxError("#fetch requires a variable and expression")
             kw, expr = parsefirstword(rest)
             if kw.lower() != "from" or expr is None:
-                raise SyntaxError("#fetch syntax is '[async] <var> from <expr> [header=<expr>]'")
+                raise SyntaxError(
+                    "#fetch syntax is '[async] <var> from <expr> [header=<expr>] [method=<expr>]'")
             expr, more = parsefirstword(expr)
             header_expr = None
-            if more is not None:
-                if more.startswith("header="):
-                    header_expr = more[len("header="):].strip()
+            method_expr = None
+            while more is not None:
+                part, more = parsefirstword(more)
+                if part.startswith("header="):
+                    if header_expr is not None:
+                        raise SyntaxError("duplicate header argument in #fetch")
+                    header_expr = part[len("header=") :].strip()
+                elif part.startswith("method="):
+                    if method_expr is not None:
+                        raise SyntaxError("duplicate method argument in #fetch")
+                    method_expr = part[len("method=") :].strip()
                 else:
                     raise SyntaxError(
-                        "#fetch syntax is '[async] <var> from <expr> [header=<expr>]'")
+                        "#fetch syntax is '[async] <var> from <expr> [header=<expr>] [method=<expr>]'")
             i += 1
-            if header_expr is not None:
-                body.append(("#fetch", (var, expr, is_async, header_expr)))
-            else:
-                body.append(("#fetch", (var, expr, is_async)))
+            body.append(("#fetch", (var, expr, is_async, header_expr, method_expr)))
             continue
 
         if ntype == "#respond":
@@ -490,8 +496,10 @@ def ast_param_dependencies(ast):
                     deps.update(get_dependencies(_convert_dot_sql(body_expr)))
             elif t == "#fetch":
                 deps.update(get_dependencies(_convert_dot_sql(c[1])))
-                if len(c) > 3:
+                if len(c) > 3 and c[3] is not None:
                     deps.update(get_dependencies(_convert_dot_sql(c[3])))
+                if len(c) > 4 and c[4] is not None:
+                    deps.update(get_dependencies(_convert_dot_sql(c[4])))
             elif t == "#header":
                 if isinstance(c, tuple):
                     _, expr = c

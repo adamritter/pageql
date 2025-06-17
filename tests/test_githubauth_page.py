@@ -44,8 +44,8 @@ def test_githubauth_callback_fetch(monkeypatch):
             from pageql import pageql as pql_mod
             seen = []
 
-            async def fake_fetch(url: str, headers=None):
-                seen.append((url, headers))
+            async def fake_fetch(url: str, headers=None, method="GET", body=None):
+                seen.append((url, headers, method))
                 if "api.github.com/user" in url:
                     return {
                         "status_code": 200,
@@ -79,7 +79,7 @@ def test_githubauth_callback_fetch(monkeypatch):
         assert "Loading token" in body
         assert "access_token" not in body
         assert "octocat" not in body
-        (token_url, token_headers), (user_url, user_headers) = urls
+        (token_url, token_headers, token_method), (user_url, user_headers, user_method) = urls
         assert token_url.startswith("https://github.com/login/oauth/access_token")
         assert "Iv23liGYF2X5uR4izdC3" in token_url
         assert "client_secret=secret" in token_url
@@ -87,4 +87,6 @@ def test_githubauth_callback_fetch(monkeypatch):
         assert f"state={state}" in token_url
         assert user_url == "https://api.github.com/user"
         assert user_headers == {"Authorization": "Bearer t"}
+        assert token_method == "GET"
+        assert user_method == "GET"
 

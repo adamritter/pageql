@@ -168,10 +168,15 @@ async def _http_get(
     return status, resp_headers, body
 
 
-async def fetch(url: str, headers: Dict[str, str] | None = None) -> Dict[str, object]:
+async def fetch(
+    url: str,
+    headers: Dict[str, str] | None = None,
+    method: str = "GET",
+    body: bytes | None = None,
+) -> Dict[str, object]:
     """Return a mapping with ``status_code``, ``headers`` and decoded ``body``."""
     print(f"fetching {url}")
-    status, headers, body = await _http_get(url, headers=headers)
+    status, headers, body = await _http_get(url, method=method, headers=headers, body=body)
     print(f"fetched {url} with status: {status}")
     try:
         body = body.decode("utf-8")
@@ -180,12 +185,17 @@ async def fetch(url: str, headers: Dict[str, str] | None = None) -> Dict[str, ob
     return {"status_code": status, "headers": headers, "body": body}
 
 
-def fetch_sync(url: str, headers: Dict[str, str] | None = None) -> Dict[str, object]:
+def fetch_sync(
+    url: str,
+    headers: Dict[str, str] | None = None,
+    method: str = "GET",
+    body: bytes | None = None,
+) -> Dict[str, object]:
     """Synchronous variant of :func:`fetch` using ``urllib``."""
     from urllib.request import urlopen, Request
     from urllib.error import HTTPError
 
-    req = Request(url, headers=headers or {})
+    req = Request(url, data=body, headers=headers or {}, method=method)
     try:
         with urlopen(req) as resp:
             status = resp.status

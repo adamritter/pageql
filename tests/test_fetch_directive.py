@@ -12,13 +12,13 @@ import pytest
 def test_fetch_directive_parsed():
     tokens = tokenize("{{#fetch file from 'http://ex'}}")
     body, _ = build_ast(tokens, dialect="sqlite")
-    assert body == [("#fetch", ("file", "'http://ex'", False))]
+    assert body == [("#fetch", ("file", "'http://ex'", False, None, None))]
 
 
 def test_fetch_async_directive_parsed():
     tokens = tokenize("{{#fetch async file from 'http://ex'}}")
     body, _ = build_ast(tokens, dialect="sqlite")
-    assert body == [("#fetch", ("file", "'http://ex'", True))]
+    assert body == [("#fetch", ("file", "'http://ex'", True, None, None))]
 
 
 def test_fetch_directive_dependencies():
@@ -38,7 +38,7 @@ def test_fetch_async_directive_dependencies():
 def test_fetch_header_directive_parsed():
     tokens = tokenize("{{#fetch file from 'http://ex' header=:hdr}}")
     body, _ = build_ast(tokens, dialect="sqlite")
-    assert body == [("#fetch", ("file", "'http://ex'", False, ":hdr"))]
+    assert body == [("#fetch", ("file", "'http://ex'", False, ":hdr", None))]
 
 
 def test_fetch_header_directive_dependencies():
@@ -48,11 +48,17 @@ def test_fetch_header_directive_dependencies():
     assert deps == {"url", "hdr"}
 
 
+def test_fetch_method_directive_parsed():
+    tokens = tokenize("{{#fetch file from 'http://ex' method='POST'}}")
+    body, _ = build_ast(tokens, dialect="sqlite")
+    assert body == [("#fetch", ("file", "'http://ex'", False, None, "'POST'"))]
+
+
 def test_fetch_directive_render():
     seen = []
 
-    def fetch(url: str, headers=None):
-        seen.append(url)
+    def fetch(url: str, headers=None, method="GET", body=None):
+        seen.append((url, method))
         return {"a": "1", "b": "2"}
 
     from pageql import pageql as pql_mod
@@ -65,7 +71,7 @@ def test_fetch_directive_render():
     finally:
         pql_mod.fetch_sync = old_fetch
     assert out.strip() == "1 2"
-    assert seen == ["http://x"]
+    assert seen == [("http://x", "GET")]
 
 
 def test_fetch_directive_defaults_to_http_get():
@@ -99,10 +105,48 @@ def test_fetch_directive_defaults_to_http_get():
         t.join()
 
 
+def test_fetch_directive_custom_method():
+    import http.server, threading
+
+    class Handler(http.server.BaseHTTPRequestHandler):
+        def do_POST(self):
+            body = b"post"
+            self.send_response(201)
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def do_GET(self):
+            body = b"nope"
+            self.send_response(405)
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, *args):
+            pass
+
+    server = http.server.HTTPServer(("127.0.0.1", 0), Handler)
+    port = server.server_address[1]
+    t = threading.Thread(target=server.serve_forever)
+    t.start()
+    try:
+        r = PageQL(":memory:")
+        r.load_module(
+            "m",
+            "{{#fetch d from 'http://127.0.0.1:'||:port method='POST'}}{{d__status_code}} {{d__body}}",
+        )
+        out = r.render("/m", {"port": port}, reactive=False).body.strip()
+        assert out == "201 post"
+    finally:
+        server.shutdown()
+        t.join()
+
+
 def test_fetch_commits_before_call(tmp_path):
     db_file = tmp_path / "db.sqlite"
 
-    def fetch(_url: str, headers=None):
+    def fetch(_url: str, headers=None, method="GET", body=None):
         with sqlite3.connect(db_file) as c2:
             return {"cnt": c2.execute("select count(*) from t").fetchone()[0]}
 
@@ -124,8 +168,8 @@ def test_fetch_commits_before_call(tmp_path):
 def test_fetch_header_directive_render():
     seen = []
 
-    def fetch(url: str, headers=None):
-        seen.append((url, headers))
+    def fetch(url: str, headers=None, method="GET", body=None):
+        seen.append((url, headers, method))
         return {"a": "1"}
 
     from pageql import pageql as pql_mod
@@ -138,7 +182,7 @@ def test_fetch_header_directive_render():
     finally:
         pql_mod.fetch_sync = old_fetch
     assert out.strip() == "1"
-    assert seen == [("http://x", {"X": "v"})]
+    assert seen == [("http://x", {"X": "v"}, "GET")]
 
 
 def test_fetch_directive_handles_http_error():

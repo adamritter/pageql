@@ -754,17 +754,38 @@ class PageQLAsync(PageQL):
         ctx,
         out,
     ):
-        if len(node_content) == 3:
+        if len(node_content) == 4:
+            var, expr, is_async, header_expr = node_content
+        elif len(node_content) == 3:
             var, expr, is_async = node_content
+            header_expr = None
         else:
             var, expr = node_content
             is_async = False
+            header_expr = None
         if var.startswith(":"):
             var = var[1:]
         var = var.replace(".", "__")
         url = evalone(self.db, expr, params, reactive, self.tables)
         if isinstance(url, Signal):
             url = url.value
+        req_headers = None
+        if header_expr is not None:
+            req_headers = evalone(self.db, header_expr, params, reactive, self.tables)
+            if isinstance(req_headers, Signal):
+                req_headers = req_headers.value
+            if isinstance(req_headers, dict):
+                req_headers = {str(k): str(v) for k, v in req_headers.items()}
+            elif isinstance(req_headers, str):
+                hdr_lines = req_headers.split("\n")
+                hdr_dict = {}
+                for line in hdr_lines:
+                    if ":" in line:
+                        k, v = line.split(":", 1)
+                        hdr_dict[k.strip()] = v.strip()
+                req_headers = hdr_dict
+            else:
+                req_headers = {str(req_headers): ""}
         self.db.commit()
         if is_async:
             body_sig = Signal(None)
@@ -774,15 +795,15 @@ class PageQLAsync(PageQL):
             params[f"{var}__status_code"] = status_sig
             params[f"{var}__headers"] = headers_sig
 
-            async def do_fetch(url=url, b=body_sig, s=status_sig, h=headers_sig):
-                data = await fetch(str(url))
+            async def do_fetch(url=url, b=body_sig, s=status_sig, h=headers_sig, headers=req_headers):
+                data = await fetch(str(url), headers=headers)
                 b.set_value(data.get("body"))
                 s.set_value(data.get("status_code"))
                 h.set_value(data.get("headers"))
 
             tasks.append(do_fetch())
         else:
-            data = await fetch(str(url))
+            data = await fetch(str(url), headers=req_headers)
             for k, v in flatten_params(data).items():
                 params[f"{var}__{k}"] = v
         return reactive

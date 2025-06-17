@@ -24,7 +24,7 @@ async def test_render_async_returns_expected_result():
 async def test_fetch_async_queues_task(monkeypatch):
     calls = []
 
-    async def fake_fetch(url: str):
+    async def fake_fetch(url: str, headers=None):
         calls.append(url)
         return {"status_code": 200, "headers": [], "body": "ok"}
 

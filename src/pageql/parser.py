@@ -221,12 +221,20 @@ def _read_block(node_list, i, stop, partials, dialect, tests=None):
                 raise SyntaxError("#fetch requires a variable and expression")
             kw, expr = parsefirstword(rest)
             if kw.lower() != "from" or expr is None:
-                raise SyntaxError("#fetch syntax is '[async] <var> from <expr>'")
+                raise SyntaxError("#fetch syntax is '[async] <var> from <expr> [header=<expr>]'")
             expr, more = parsefirstword(expr)
+            header_expr = None
             if more is not None:
-                raise SyntaxError("#fetch syntax is '[async] <var> from <expr>'")
+                if more.startswith("header="):
+                    header_expr = more[len("header="):].strip()
+                else:
+                    raise SyntaxError(
+                        "#fetch syntax is '[async] <var> from <expr> [header=<expr>]'")
             i += 1
-            body.append(("#fetch", (var, expr, is_async)))
+            if header_expr is not None:
+                body.append(("#fetch", (var, expr, is_async, header_expr)))
+            else:
+                body.append(("#fetch", (var, expr, is_async)))
             continue
 
         if ntype == "#respond":
@@ -482,6 +490,8 @@ def ast_param_dependencies(ast):
                     deps.update(get_dependencies(_convert_dot_sql(body_expr)))
             elif t == "#fetch":
                 deps.update(get_dependencies(_convert_dot_sql(c[1])))
+                if len(c) > 3:
+                    deps.update(get_dependencies(_convert_dot_sql(c[3])))
             elif t == "#header":
                 if isinstance(c, tuple):
                     _, expr = c

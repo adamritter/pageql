@@ -84,7 +84,7 @@ def _expand_array_params(params: Dict[str, object]) -> Dict[str, object]:
                     params[f"{key}__{i}"] = item
     return params
 
-  def _query_param(qs: str | bytes | None, name: str | None):
+def _query_param(qs: str | bytes | None, name: str | None):
     """Return the first value of *name* from *qs* query string."""
     if qs is None or name is None:
         return None
@@ -543,6 +543,7 @@ class PageQLApp:
         params['headers'] = headers
         params['method'] = method
         params['env'] = dict(os.environ)
+        params['path'] = scope['path']
 
         if (
             path_cleaned == 'index'

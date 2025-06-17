@@ -74,5 +74,5 @@ def test_githubauth_callback_fetch(monkeypatch):
         assert "code=abc" in token_url
         assert "state=xyz" in token_url
         assert user_url == "https://api.github.com/user"
-        assert user_headers == {"Authorization": "token \"t\""}
+        assert user_headers == {"Authorization": "Bearer t"}
 

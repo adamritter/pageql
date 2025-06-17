@@ -222,10 +222,11 @@ def _read_block(node_list, i, stop, partials, dialect, tests=None):
             kw, expr = parsefirstword(rest)
             if kw.lower() != "from" or expr is None:
                 raise SyntaxError(
-                    "#fetch syntax is '[async] <var> from <expr> [header=<expr>] [method=<expr>]'")
+                    "#fetch syntax is '[async] <var> from <expr> [header=<expr>] [method=<expr>] [body=<expr>]'")
             expr, more = parsefirstword(expr)
             header_expr = None
             method_expr = None
+            body_expr = None
             while more is not None:
                 part, more = parsefirstword(more)
                 if part.startswith("header="):
@@ -236,11 +237,15 @@ def _read_block(node_list, i, stop, partials, dialect, tests=None):
                     if method_expr is not None:
                         raise SyntaxError("duplicate method argument in #fetch")
                     method_expr = part[len("method=") :].strip()
+                elif part.startswith("body="):
+                    if body_expr is not None:
+                        raise SyntaxError("duplicate body argument in #fetch")
+                    body_expr = part[len("body=") :].strip()
                 else:
                     raise SyntaxError(
-                        "#fetch syntax is '[async] <var> from <expr> [header=<expr>] [method=<expr>]'")
+                        "#fetch syntax is '[async] <var> from <expr> [header=<expr>] [method=<expr>] [body=<expr>]'")
             i += 1
-            body.append(("#fetch", (var, expr, is_async, header_expr, method_expr)))
+            body.append(("#fetch", (var, expr, is_async, header_expr, method_expr, body_expr)))
             continue
 
         if ntype == "#respond":
@@ -500,6 +505,8 @@ def ast_param_dependencies(ast):
                     deps.update(get_dependencies(_convert_dot_sql(c[3])))
                 if len(c) > 4 and c[4] is not None:
                     deps.update(get_dependencies(_convert_dot_sql(c[4])))
+                if len(c) > 5 and c[5] is not None:
+                    deps.update(get_dependencies(_convert_dot_sql(c[5])))
             elif t == "#header":
                 if isinstance(c, tuple):
                     _, expr = c

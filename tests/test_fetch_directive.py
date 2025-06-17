@@ -12,13 +12,13 @@ import pytest
 def test_fetch_directive_parsed():
     tokens = tokenize("{{#fetch file from 'http://ex'}}")
     body, _ = build_ast(tokens, dialect="sqlite")
-    assert body == [("#fetch", ("file", "'http://ex'", False, None, None))]
+    assert body == [("#fetch", ("file", "'http://ex'", False, None, None, None))]
 
 
 def test_fetch_async_directive_parsed():
     tokens = tokenize("{{#fetch async file from 'http://ex'}}")
     body, _ = build_ast(tokens, dialect="sqlite")
-    assert body == [("#fetch", ("file", "'http://ex'", True, None, None))]
+    assert body == [("#fetch", ("file", "'http://ex'", True, None, None, None))]
 
 
 def test_fetch_directive_dependencies():
@@ -38,7 +38,7 @@ def test_fetch_async_directive_dependencies():
 def test_fetch_header_directive_parsed():
     tokens = tokenize("{{#fetch file from 'http://ex' header=:hdr}}")
     body, _ = build_ast(tokens, dialect="sqlite")
-    assert body == [("#fetch", ("file", "'http://ex'", False, ":hdr", None))]
+    assert body == [("#fetch", ("file", "'http://ex'", False, ":hdr", None, None))]
 
 
 def test_fetch_header_directive_dependencies():
@@ -48,10 +48,23 @@ def test_fetch_header_directive_dependencies():
     assert deps == {"url", "hdr"}
 
 
+def test_fetch_body_directive_dependencies():
+    tokens = tokenize("{{#fetch dst from :url body=:data}}")
+    ast = build_ast(tokens, dialect="sqlite")
+    deps = ast_param_dependencies(ast)
+    assert deps == {"url", "data"}
+
+
 def test_fetch_method_directive_parsed():
     tokens = tokenize("{{#fetch file from 'http://ex' method='POST'}}")
     body, _ = build_ast(tokens, dialect="sqlite")
-    assert body == [("#fetch", ("file", "'http://ex'", False, None, "'POST'"))]
+    assert body == [("#fetch", ("file", "'http://ex'", False, None, "'POST'", None))]
+
+
+def test_fetch_body_directive_parsed():
+    tokens = tokenize("{{#fetch file from 'http://ex' body='hi'}}")
+    body, _ = build_ast(tokens, dialect="sqlite")
+    assert body == [("#fetch", ("file", "'http://ex'", False, None, None, "'hi'"))]
 
 
 def test_fetch_directive_render():
@@ -183,6 +196,26 @@ def test_fetch_header_directive_render():
         pql_mod.fetch_sync = old_fetch
     assert out.strip() == "1"
     assert seen == [("http://x", {"X": "v"}, "GET")]
+
+
+def test_fetch_body_directive_render():
+    seen = []
+
+    def fetch(url: str, headers=None, method="GET", body=None):
+        seen.append((url, body))
+        return {"a": "1"}
+
+    from pageql import pageql as pql_mod
+    old_fetch = pql_mod.fetch_sync
+    pql_mod.fetch_sync = fetch
+    try:
+        r = PageQL(":memory:")
+        r.load_module("m", "{{#fetch data from 'http://x' body='hi'}}{{data__a}}")
+        out = r.render("/m", reactive=False).body
+    finally:
+        pql_mod.fetch_sync = old_fetch
+    assert out.strip() == "1"
+    assert seen == [("http://x", b"hi")]
 
 
 def test_fetch_directive_handles_http_error():

@@ -763,6 +763,6 @@ def test_nested_if_reactive_bug():
         "less or equal to 1\n"
         "<script>pend(1)</script>\n"
         "<script>pset(0,\"2\")</script><script>pset(1,\"greater than 1\\n<script>pstart(2)<\\/script>\\nless or equal to 2\\n<script>pend(2)<\\/script>\")</script>\n"
-        "<script>pset(0,\"3\")</script>"
+        "<script>pset(0,\"3\")</script><script>pset(2,\"greater than 2\")</script>"
     )
     assert result.body == expected

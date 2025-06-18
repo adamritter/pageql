@@ -732,3 +732,37 @@ def test_let_null_literal():
     r.load_module("m", snippet)
     result = r.render("/m")
     assert "null" in result.body
+
+def test_nested_if_reactive_bug():
+    r = PageQL(":memory:")
+    snippet = (
+        "{{#create table if not exists todos (id integer primary key autoincrement, text text)}}\n"
+        "{{#delete from todos}}\n"
+        "{{#insert into todos (text) values ('Hello, world!')}}\n"
+        "{{#let todos_count = (select count(*) from todos)}}\n"
+        "{{todos_count}}\n"
+        "{{#if :todos_count > 1}}\n"
+        "greater than 1\n"
+        "{{#if :todos_count > 2}}\n"
+        "greater than 2\n"
+        "{{#else}}\n"
+        "less or equal to 2\n"
+        "{{/if}}\n"
+        "{{#else}}\n"
+        "less or equal to 1\n"
+        "{{/if}}\n"
+        "\n"
+        "{{#insert into todos (text) values ('Hello, world!')}}\n"
+        "{{#insert into todos (text) values ('Hello, world!')}}"
+    )
+    r.load_module("m", snippet)
+    result = r.render("/m")
+    expected = (
+        "\n\n<script>pstart(0)</script>1<script>pend(0)</script>\n"
+        "<script>pstart(1)</script>\n"
+        "less or equal to 1\n"
+        "<script>pend(1)</script>\n"
+        "<script>pset(0,\"2\")</script><script>pset(1,\"greater than 1\\n<script>pstart(2)<\\/script>\\nless or equal to 2\\n<script>pend(2)<\\/script>\")</script>\n"
+        "<script>pset(0,\"3\")</script>"
+    )
+    assert result.body == expected

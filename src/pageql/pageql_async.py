@@ -121,14 +121,13 @@ class PageQLAsync(PageQL):
                 ctx.reactiveelement.append(signal)
         elif reactive and signal is not None:
             mid = ctx.marker_id()
-            ctx.append_script(f"pstart({mid})", out)
+            ctx.append_script(f"pstart({mid})")
             out.append(value)
-            ctx.append_script(f"pend({mid})", out)
+            ctx.append_script(f"pend({mid})")
 
             def listener(v=None, *, sig=signal, mid=mid, ctx=ctx):
                 ctx.append_script(
-                    f"pset({mid},{json.dumps(html.escape(str(sig.value)))})",
-                    out,
+                    f"pset({mid},{json.dumps(html.escape(str(sig.value)))})"
                 )
 
             ctx.add_listener(signal, listener)
@@ -162,15 +161,14 @@ class PageQLAsync(PageQL):
                         ctx.reactiveelement.append(signal)
                 elif reactive:
                     mid = ctx.marker_id()
-                    ctx.append_script(f"pstart({mid})", out)
+                    ctx.append_script(f"pstart({mid})")
                     out.append(value)
-                    ctx.append_script(f"pend({mid})", out)
+                    ctx.append_script(f"pend({mid})")
                     if signal:
 
                         def listener(v=None, *, sig=signal, mid=mid, ctx=ctx):
                             ctx.append_script(
-                                f"pset({mid},{json.dumps(html.escape(str(sig.value)))})",
-                                out,
+                                f"pset({mid},{json.dumps(html.escape(str(sig.value)))})"
                             )
 
                         ctx.add_listener(signal, listener)
@@ -207,14 +205,13 @@ class PageQLAsync(PageQL):
                 ctx.reactiveelement.append(signal)
         elif reactive and signal is not None:
             mid = ctx.marker_id()
-            ctx.append_script(f"pstart({mid})", out)
+            ctx.append_script(f"pstart({mid})")
             out.append(value)
-            ctx.append_script(f"pend({mid})", out)
+            ctx.append_script(f"pend({mid})")
 
             def listener(v=None, *, sig=signal, mid=mid, ctx=ctx):
                 ctx.append_script(
-                    f"pset({mid},{json.dumps(str(sig.value))})",
-                    out,
+                    f"pset({mid},{json.dumps(str(sig.value))})"
                 )
 
             ctx.add_listener(signal, listener)
@@ -265,7 +262,7 @@ class PageQLAsync(PageQL):
         out.extend(buf)
         if reactive and ctx and signals:
             mid = ctx.marker_id()
-            ctx.append_script(f"pprevioustag({mid})", out)
+            ctx.append_script(f"pprevioustag({mid})")
 
             def listener(_=None, *, mid=mid, ctx=ctx):
                 new_buf = []
@@ -292,8 +289,7 @@ class PageQLAsync(PageQL):
                 ):
                     html_content += f"</{tag}>"
                 ctx.append_script(
-                    f"pupdatetag({mid},{json.dumps(html_content)})",
-                    out,
+                    f"pupdatetag({mid},{json.dumps(html_content)})"
                 )
 
             for sig in signals:
@@ -353,12 +349,12 @@ class PageQLAsync(PageQL):
                         await self.process_nodes_async(bodies[idx], params, path, includes, http_verb, reactive, ctx, out)
                 else:
                     mid = ctx.marker_id()
-                    ctx.append_script(f"pstart({mid})", out)
+                    ctx.append_script(f"pstart({mid})")
 
                     if idx is not None:
                         await self.process_nodes_async(bodies[idx], params, path, includes, http_verb, reactive, ctx, out)
 
-                    ctx.append_script(f"pend({mid})", out)
+                    ctx.append_script(f"pend({mid})")
 
                     def listener(_=None, *, mid=mid, ctx=ctx):
                         new_idx = pick_index()
@@ -369,8 +365,7 @@ class PageQLAsync(PageQL):
                         run_tasks()
                         html_content = "".join(buf).strip()
                         ctx.append_script(
-                            f"pset({mid},{json.dumps(html_content)})",
-                            out,
+                            f"pset({mid},{json.dumps(html_content)})"
                         )
 
                     for sig in signals:

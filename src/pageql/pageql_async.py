@@ -5,7 +5,7 @@ from .render_context import (
     RenderContext,
     RenderResult,
     RenderResultException,
-    escape_script,
+    embed_html_in_js,
 )
 from .parser import parsefirstword
 from .database import evalone, flatten_params, db_execute_dot
@@ -212,7 +212,7 @@ class PageQLAsync(PageQL):
             ctx.append_script(f"pend({mid})")
 
             def listener(v=None, *, sig=signal, mid=mid, ctx=ctx):
-                safe_json = escape_script(json.dumps(str(sig.value)))
+                safe_json = embed_html_in_js(str(sig.value))
                 ctx.append_script(f"pset({mid},{safe_json})")
 
             ctx.add_listener(signal, listener)
@@ -368,7 +368,7 @@ class PageQLAsync(PageQL):
                         from .pageqlapp import run_tasks
                         run_tasks()
                         html_content = "".join(buf).strip()
-                        safe_json = escape_script(json.dumps(html_content))
+                        safe_json = embed_html_in_js(html_content)
                         ctx.append_script(f"pset({mid},{safe_json})")
 
                     for sig in signals:
@@ -537,7 +537,7 @@ class PageQLAsync(PageQL):
                         ctx.rendering = prev
                         row_content = "".join(row_buf).strip()
                         _ONEVENT_CACHE[cache_key] = row_content
-                    safe_json = escape_script(json.dumps(row_content))
+                    safe_json = embed_html_in_js(row_content)
                     ctx.append_script(f"pinsert('{row_id}',{safe_json})")
                 elif ev[0] == 3:
                     old_id = f"{mid}_{base64.b64encode(hashlib.sha256(repr(tuple(ev[1])).encode()).digest())[:8].decode()}"
@@ -555,7 +555,7 @@ class PageQLAsync(PageQL):
                         ctx.rendering = prev
                         row_content = "".join(row_buf).strip()
                         _ONEVENT_CACHE[cache_key] = row_content
-                    safe_json = escape_script(json.dumps(row_content))
+                    safe_json = embed_html_in_js(row_content)
                     ctx.append_script(f"pupdate('{old_id}','{new_id}',{safe_json})")
 
             ctx.add_listener(comp, on_event)
@@ -750,7 +750,7 @@ class PageQLAsync(PageQL):
         reactive,
         ctx,
     ):
-        var, expr, is_async, header_expr, method_expr, body_expr = node_content
+        var, expr, is_async, header_exprs, method_expr, body_expr = node_content
         if var.startswith(":"):
             var = var[1:]
         var = var.replace(".", "__")
@@ -758,22 +758,27 @@ class PageQLAsync(PageQL):
         if isinstance(url, Signal):
             url = url.value
         req_headers = None
-        if header_expr is not None:
-            req_headers = evalone(self.db, header_expr, params, reactive, self.tables)
-            if isinstance(req_headers, Signal):
-                req_headers = req_headers.value
-            if isinstance(req_headers, dict):
-                req_headers = {str(k): str(v) for k, v in req_headers.items()}
-            elif isinstance(req_headers, str):
-                hdr_lines = req_headers.split("\n")
-                hdr_dict = {}
-                for line in hdr_lines:
-                    if ":" in line:
-                        k, v = line.split(":", 1)
-                        hdr_dict[k.strip()] = v.strip()
-                req_headers = hdr_dict
-            else:
-                req_headers = {str(req_headers): ""}
+        if header_exprs:
+            hdrs: dict[str, str] = {}
+            for header_expr in header_exprs:
+                hval = evalone(self.db, header_expr, params, reactive, self.tables)
+                if isinstance(hval, Signal):
+                    hval = hval.value
+                if isinstance(hval, dict):
+                    hdr_dict = {str(k): str(v) for k, v in hval.items()}
+                elif isinstance(hval, str):
+                    hdr_lines = hval.split("\n")
+                    hdr_dict = {}
+                    for line in hdr_lines:
+                        if ":" in line:
+                            k, v = line.split(":", 1)
+                            hdr_dict[k.strip()] = v.strip()
+                        elif line.strip():
+                            hdr_dict[line.strip()] = ""
+                else:
+                    hdr_dict = {str(hval): ""}
+                hdrs.update(hdr_dict)
+            req_headers = hdrs
         method = "GET"
         if method_expr is not None:
             method = evalone(self.db, method_expr, params, reactive, self.tables)

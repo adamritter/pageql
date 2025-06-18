@@ -224,15 +224,13 @@ def _read_block(node_list, i, stop, partials, dialect, tests=None):
                 raise SyntaxError(
                     "#fetch syntax is '[async] <var> from <expr> [header=<expr>] [method=<expr>] [body=<expr>]'")
             expr, more = parsefirstword(expr)
-            header_expr = None
+            header_exprs: list[str] = []
             method_expr = None
             body_expr = None
             while more is not None:
                 part, more = parsefirstword(more)
                 if part.startswith("header="):
-                    if header_expr is not None:
-                        raise SyntaxError("duplicate header argument in #fetch")
-                    header_expr = part[len("header=") :].strip()
+                    header_exprs.append(part[len("header=") :].strip())
                 elif part.startswith("method="):
                     if method_expr is not None:
                         raise SyntaxError("duplicate method argument in #fetch")
@@ -245,7 +243,7 @@ def _read_block(node_list, i, stop, partials, dialect, tests=None):
                     raise SyntaxError(
                         "#fetch syntax is '[async] <var> from <expr> [header=<expr>] [method=<expr>] [body=<expr>]'")
             i += 1
-            body.append(("#fetch", (var, expr, is_async, header_expr, method_expr, body_expr)))
+            body.append(("#fetch", (var, expr, is_async, header_exprs, method_expr, body_expr)))
             continue
 
         if ntype == "#respond":
@@ -501,10 +499,10 @@ def ast_param_dependencies(ast):
                     deps.update(get_dependencies(_convert_dot_sql(body_expr)))
             elif t == "#fetch":
                 deps.update(get_dependencies(_convert_dot_sql(c[1])))
-                header_expr = c[3]
+                header_exprs = c[3]
                 method_expr = c[4]
                 body_expr = c[5]
-                if header_expr is not None:
+                for header_expr in header_exprs:
                     deps.update(get_dependencies(_convert_dot_sql(header_expr)))
                 if method_expr is not None:
                     deps.update(get_dependencies(_convert_dot_sql(method_expr)))

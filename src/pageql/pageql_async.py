@@ -103,7 +103,6 @@ class PageQLAsync(PageQL):
         http_verb,
         reactive,
         ctx,
-        out,
     ):
         result = evalone(self.db, node_content, params, reactive, self.tables)
         if isinstance(result, ReadOnly):
@@ -144,7 +143,6 @@ class PageQLAsync(PageQL):
         http_verb,
         reactive,
         ctx,
-        out,
     ):
         try:
             val = params[node_content]
@@ -187,7 +185,6 @@ class PageQLAsync(PageQL):
         http_verb,
         reactive,
         ctx,
-        out,
     ):
         result = evalone(self.db, node_content, params, reactive, self.tables)
         if isinstance(result, ReadOnly):
@@ -228,7 +225,6 @@ class PageQLAsync(PageQL):
         http_verb,
         reactive,
         ctx,
-        out,
     ):
         rendered_content = await self.handle_render_async(
             node_content,
@@ -251,7 +247,6 @@ class PageQLAsync(PageQL):
         http_verb,
         reactive,
         ctx,
-        out,
     ):
         prev = ctx.reactiveelement
         ctx.reactiveelement = []
@@ -308,7 +303,6 @@ class PageQLAsync(PageQL):
         http_verb,
         reactive,
         ctx,
-        out,
     ):
         if reactive and ctx:
             cond_exprs = []
@@ -398,7 +392,6 @@ class PageQLAsync(PageQL):
         http_verb,
         reactive,
         ctx,
-        out,
     ):
         param_name = node[1].strip()
         then_body = node[2]
@@ -422,7 +415,6 @@ class PageQLAsync(PageQL):
         http_verb,
         reactive,
         ctx,
-        out,
     ):
         param_name = node[1].strip()
         then_body = node[2]
@@ -446,7 +438,6 @@ class PageQLAsync(PageQL):
         http_verb,
         reactive,
         ctx,
-        out,
     ):
         query, expr = node[1]
         if len(node) == 4:
@@ -571,7 +562,6 @@ class PageQLAsync(PageQL):
         http_verb,
         reactive,
         ctx,
-        out,
     ):
         param_name = node[1].strip()
         body = node[2]
@@ -616,15 +606,11 @@ class PageQLAsync(PageQL):
         http_verb=None,
         reactive=False,
         ctx=None,
-        out=None,
     ):
-        if out is None:
-            out = ctx.out
-
         if isinstance(node, tuple):
             node_type, node_content = node
             if node_type == "text":
-                return self._process_text_node(node_content, params, path, includes, http_verb, reactive, ctx, out)
+                return self._process_text_node(node_content, params, path, includes, http_verb, reactive, ctx)
             elif node_type == "render_expression":
                 return await self._process_render_expression_node_async(
                     node_content,
@@ -634,7 +620,6 @@ class PageQLAsync(PageQL):
                     http_verb,
                     reactive,
                     ctx,
-                    out,
                 )
             elif node_type == "render_param":
                 return await self._process_render_param_node_async(
@@ -645,7 +630,6 @@ class PageQLAsync(PageQL):
                     http_verb,
                     reactive,
                     ctx,
-                    out,
                 )
             elif node_type == "render_raw":
                 return await self._process_render_raw_node_async(
@@ -656,12 +640,11 @@ class PageQLAsync(PageQL):
                     http_verb,
                     reactive,
                     ctx,
-                    out,
                 )
             elif node_type == "#param":
-                return self._process_param_directive(node_content, params, path, includes, http_verb, reactive, ctx, out)
+                return self._process_param_directive(node_content, params, path, includes, http_verb, reactive, ctx)
             elif node_type == "#let":
-                return self._process_let_directive(node_content, params, path, includes, http_verb, reactive, ctx, out)
+                return self._process_let_directive(node_content, params, path, includes, http_verb, reactive, ctx)
             elif node_type == "#render":
                 return await self._process_render_directive_async(
                     node_content,
@@ -671,20 +654,19 @@ class PageQLAsync(PageQL):
                     http_verb,
                     reactive,
                     ctx,
-                    out,
                 )
             elif node_type == "#reactive":
-                return self._process_reactive_directive(node_content, params, path, includes, http_verb, reactive, ctx, out)
+                return self._process_reactive_directive(node_content, params, path, includes, http_verb, reactive, ctx)
             elif node_type == "#redirect":
-                return self._process_redirect_directive(node_content, params, path, includes, http_verb, reactive, ctx, out)
+                return self._process_redirect_directive(node_content, params, path, includes, http_verb, reactive, ctx)
             elif node_type == "#error":
-                return self._process_error_directive(node_content, params, path, includes, http_verb, reactive, ctx, out)
+                return self._process_error_directive(node_content, params, path, includes, http_verb, reactive, ctx)
             elif node_type == "#statuscode":
-                return self._process_statuscode_directive(node_content, params, path, includes, http_verb, reactive, ctx, out)
+                return self._process_statuscode_directive(node_content, params, path, includes, http_verb, reactive, ctx)
             elif node_type == "#header":
-                return self._process_header_directive(node_content, params, path, includes, http_verb, reactive, ctx, out)
+                return self._process_header_directive(node_content, params, path, includes, http_verb, reactive, ctx)
             elif node_type == "#cookie":
-                return self._process_cookie_directive(node_content, params, path, includes, http_verb, reactive, ctx, out)
+                return self._process_cookie_directive(node_content, params, path, includes, http_verb, reactive, ctx)
             elif node_type == "#fetch":
                 return await self._process_fetch_directive_async(
                     node_content,
@@ -694,18 +676,17 @@ class PageQLAsync(PageQL):
                     http_verb,
                     reactive,
                     ctx,
-                    out,
                 )
             elif node_type in ("#update", "#insert", "#delete"):
-                return self._process_update_directive(node_content, params, path, includes, http_verb, reactive, ctx, out, node_type)
+                return self._process_update_directive(node_content, params, path, includes, http_verb, reactive, ctx, node_type)
             elif node_type in ("#create", "#merge"):
-                return self._process_schema_directive(node_content, params, path, includes, http_verb, reactive, ctx, out, node_type)
+                return self._process_schema_directive(node_content, params, path, includes, http_verb, reactive, ctx, node_type)
             elif node_type == "#import":
-                return self._process_import_directive(node_content, params, path, includes, http_verb, reactive, ctx, out)
+                return self._process_import_directive(node_content, params, path, includes, http_verb, reactive, ctx)
             elif node_type == "#log":
-                return self._process_log_directive(node_content, params, path, includes, http_verb, reactive, ctx, out)
+                return self._process_log_directive(node_content, params, path, includes, http_verb, reactive, ctx)
             elif node_type == "#dump":
-                return self._process_dump_directive(node_content, params, path, includes, http_verb, reactive, ctx, out)
+                return self._process_dump_directive(node_content, params, path, includes, http_verb, reactive, ctx)
             else:
                 if not node_type.startswith("/"):
                     raise ValueError(format_unknown_directive(node_type))
@@ -713,17 +694,17 @@ class PageQLAsync(PageQL):
         elif isinstance(node, list):
             directive = node[0]
             if directive == "#reactiveelement":
-                return await self._process_reactiveelement_directive_async(node, params, path, includes, http_verb, reactive, ctx, out)
+                return await self._process_reactiveelement_directive_async(node, params, path, includes, http_verb, reactive, ctx)
             elif directive == "#if":
-                return await self._process_if_directive_async(node, params, path, includes, http_verb, reactive, ctx, out)
+                return await self._process_if_directive_async(node, params, path, includes, http_verb, reactive, ctx)
             elif directive == "#ifdef":
-                return await self._process_ifdef_directive_async(node, params, path, includes, http_verb, reactive, ctx, out)
+                return await self._process_ifdef_directive_async(node, params, path, includes, http_verb, reactive, ctx)
             elif directive == "#ifndef":
-                return await self._process_ifndef_directive_async(node, params, path, includes, http_verb, reactive, ctx, out)
+                return await self._process_ifndef_directive_async(node, params, path, includes, http_verb, reactive, ctx)
             elif directive == "#from":
-                return await self._process_from_directive_async(node, params, path, includes, http_verb, reactive, ctx, out)
+                return await self._process_from_directive_async(node, params, path, includes, http_verb, reactive, ctx)
             elif directive == "#each":
-                return await self._process_each_directive_async(node, params, path, includes, http_verb, reactive, ctx, out)
+                return await self._process_each_directive_async(node, params, path, includes, http_verb, reactive, ctx)
             else:
                 if not directive.startswith("/"):
                     raise ValueError(format_unknown_directive(directive))
@@ -745,7 +726,7 @@ class PageQLAsync(PageQL):
             out = ctx.out
 
         for node in nodes:
-            reactive = await self.process_node_async(node, params, path, includes, http_verb, reactive, ctx, out)
+            reactive = await self.process_node_async(node, params, path, includes, http_verb, reactive, ctx)
         return reactive
 
     async def _process_fetch_directive_async(
@@ -757,7 +738,6 @@ class PageQLAsync(PageQL):
         http_verb,
         reactive,
         ctx,
-        out,
     ):
         var, expr, is_async, header_expr, method_expr, body_expr = node_content
         if var.startswith(":"):

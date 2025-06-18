@@ -82,6 +82,6 @@ def test_fetchhealth_nested_fetch_scripts(monkeypatch):
     assert scripts[0] == 'pset(1,"OK")'
     assert scripts[2] == 'pset(3,"OK")'
     assert scripts[3] == 'pset(2,"Fetched twice")'
-    assert scripts[1].startswith('pset(0,"<script>pstart(2)</script>')
-    assert '<script>pstart(3)</script>' in scripts[1]
-    assert scripts[1].endswith('<script>pend(2)</script>")')
+    assert scripts[1].startswith('pset(0,"<script>pstart(2)<\\/script>')
+    assert '<script>pstart(3)<\\/script>' in scripts[1]
+    assert scripts[1].endswith('<script>pend(2)<\\/script>")')

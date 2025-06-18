@@ -1,9 +1,16 @@
 """Utilities and classes for managing rendering state."""
 
+import json
+
 
 def escape_script(content: str) -> str:
     """Escape closing ``</script>`` tags in *content* for safe embedding."""
     return content.replace("</script>", "<\\/script>")
+
+
+def embed_html_in_js(content: str) -> str:
+    """Return a JSON string of *content* with ``</script>`` escaped."""
+    return escape_script(json.dumps(content))
 
 class RenderResult:
     """Holds the results of a render operation."""

@@ -39,7 +39,7 @@ from pageql.render_context import (
     RenderContext,
     RenderResult,
     RenderResultException,
-    escape_script,
+    embed_html_in_js,
 )
 from pageql.reactive_sql import parse_reactive, _replace_placeholders
 from pageql.database import (
@@ -404,7 +404,7 @@ class PageQL:
             ctx.append_script(f"pend({mid})")
 
             def listener(v=None, *, sig=signal, mid=mid, ctx=ctx):
-                safe_json = escape_script(json.dumps(str(sig.value)))
+                safe_json = embed_html_in_js(str(sig.value))
                 ctx.append_script(f"pset({mid},{safe_json})")
 
             ctx.add_listener(signal, listener)
@@ -816,7 +816,7 @@ class PageQL:
                         from .pageqlapp import run_tasks
                         run_tasks()
                         html_content = "".join(buf).strip()
-                        safe_json = escape_script(json.dumps(html_content))
+                        safe_json = embed_html_in_js(html_content)
                         ctx.append_script(f"pset({mid},{safe_json})")
 
                     for sig in signals:
@@ -967,7 +967,7 @@ class PageQL:
                         ctx.rendering = prev
                         row_content = ''.join(row_buf).strip()
                         _ONEVENT_CACHE[cache_key] = row_content
-                    safe_json = escape_script(json.dumps(row_content))
+                    safe_json = embed_html_in_js(row_content)
                     ctx.append_script(f"pinsert('{row_id}',{safe_json})")
                 elif ev[0] == 3:
                     old_id = f"{mid}_{base64.b64encode(hashlib.sha256(repr(tuple(ev[1])).encode()).digest())[:8].decode()}"
@@ -986,7 +986,7 @@ class PageQL:
                         ctx.rendering = prev
                         row_content = ''.join(row_buf).strip()
                         _ONEVENT_CACHE[cache_key] = row_content
-                    safe_json = escape_script(json.dumps(row_content))
+                    safe_json = embed_html_in_js(row_content)
                     ctx.append_script(f"pupdate('{old_id}','{new_id}',{safe_json})")
 
             ctx.add_listener(comp, on_event)

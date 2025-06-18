@@ -116,13 +116,13 @@ class PageQLAsync(PageQL):
             signal = None
         value = html.escape(str(result))
         if ctx.reactiveelement is not None:
-            out.append(value)
+            ctx.out.append(value)
             if signal:
                 ctx.reactiveelement.append(signal)
         elif reactive and signal is not None:
             mid = ctx.marker_id()
             ctx.append_script(f"pstart({mid})")
-            out.append(value)
+            ctx.out.append(value)
             ctx.append_script(f"pend({mid})")
 
             def listener(v=None, *, sig=signal, mid=mid, ctx=ctx):
@@ -132,7 +132,7 @@ class PageQLAsync(PageQL):
 
             ctx.add_listener(signal, listener)
         else:
-            out.append(value)
+            ctx.out.append(value)
         return reactive
 
     async def _process_render_param_node_async(
@@ -149,20 +149,20 @@ class PageQLAsync(PageQL):
         try:
             val = params[node_content]
             if isinstance(val, ReadOnly):
-                out.append(html.escape(str(val.value)))
+                ctx.out.append(html.escape(str(val.value)))
             else:
                 signal = val if isinstance(val, Signal) else None
                 if isinstance(val, Signal):
                     val = val.value
                 value = html.escape(str(val))
                 if ctx.reactiveelement is not None:
-                    out.append(value)
+                    ctx.out.append(value)
                     if signal:
                         ctx.reactiveelement.append(signal)
                 elif reactive:
                     mid = ctx.marker_id()
                     ctx.append_script(f"pstart({mid})")
-                    out.append(value)
+                    ctx.out.append(value)
                     ctx.append_script(f"pend({mid})")
                     if signal:
 
@@ -173,7 +173,7 @@ class PageQLAsync(PageQL):
 
                         ctx.add_listener(signal, listener)
                 else:
-                    out.append(value)
+                    ctx.out.append(value)
         except KeyError:
             raise ValueError(f"Parameter `{node_content}` not found in params `{params}`")
         return reactive
@@ -200,13 +200,13 @@ class PageQLAsync(PageQL):
             signal = None
         value = str(result)
         if ctx.reactiveelement is not None:
-            out.append(value)
+            ctx.out.append(value)
             if signal:
                 ctx.reactiveelement.append(signal)
         elif reactive and signal is not None:
             mid = ctx.marker_id()
             ctx.append_script(f"pstart({mid})")
-            out.append(value)
+            ctx.out.append(value)
             ctx.append_script(f"pend({mid})")
 
             def listener(v=None, *, sig=signal, mid=mid, ctx=ctx):
@@ -216,7 +216,7 @@ class PageQLAsync(PageQL):
 
             ctx.add_listener(signal, listener)
         else:
-            out.append(value)
+            ctx.out.append(value)
         return reactive
 
     async def _process_render_directive_async(

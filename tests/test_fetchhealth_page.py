@@ -43,6 +43,7 @@ def test_fetchhealth_nested_fetch(monkeypatch):
 
         assert status == 200
         assert "Loading outer" in body
+        assert "None" in body
         assert urls == [
             ("/healthz", "http://127.0.0.1"),
             ("/healthz", "http://127.0.0.1"),

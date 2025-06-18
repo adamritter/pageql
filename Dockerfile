@@ -14,4 +14,4 @@ EXPOSE 8000
 VOLUME ["/data", "/app/website"]
 
 ENTRYPOINT ["pageql"]
-CMD ["/data/data.db", "/app/website", "--create", "--host", "0.0.0.0"]
+CMD ["/app/website", "/data/data.db", "--create", "--host", "0.0.0.0"]

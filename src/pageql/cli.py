@@ -51,8 +51,8 @@ def main():
     parser = argparse.ArgumentParser(description="Run the PageQL development server.")
 
     # Add positional arguments - these will be the primary way to use the command
-    parser.add_argument('db_file', help="Path to the SQLite database file or a database URL")
     parser.add_argument('templates_dir', help="Path to the directory containing .pageql template and static files")
+    parser.add_argument('db_file', help="Path to the SQLite database file or a database URL")
     parser.add_argument('--host', default='127.0.0.1', help="Host interface to bind the server.")
     parser.add_argument('--port', type=int, default=8000, help="Port number to run the server on.")
     parser.add_argument('--create', action='store_true', help="Create the database file if it doesn't exist.")

@@ -22,7 +22,6 @@ dependencies = [
     "watchfiles",
     "sqlglot",
     "joserfc",
-    "httpx",
     "authlib",
 ]
 

@@ -307,7 +307,11 @@ async def test_fetch_async_healthz_in_browser(setup):
     """Async fetch should resolve relative URLs using the request host."""
     with tempfile.TemporaryDirectory() as tmpdir:
         Path(tmpdir, "fetchrel.pageql").write_text(
-            "{{#fetch async d from '/healthz'}}{{d__body}}",
+            "{{#fetch async d from '/healthz'}}"
+            "{{#if :d.status_code == 200}}"
+            "{{d__body}}"
+            "{{#else}}Loading...{{/if}}"
+            "{{/fetch}}",
             encoding="utf-8",
         )
 

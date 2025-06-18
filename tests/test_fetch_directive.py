@@ -12,13 +12,13 @@ import pytest
 def test_fetch_directive_parsed():
     tokens = tokenize("{{#fetch file from 'http://ex'}}")
     body, _ = build_ast(tokens, dialect="sqlite")
-    assert body == [("#fetch", ("file", "'http://ex'", False, None, None, None))]
+    assert body == [("#fetch", ("file", "'http://ex'", False, [], None, None))]
 
 
 def test_fetch_async_directive_parsed():
     tokens = tokenize("{{#fetch async file from 'http://ex'}}")
     body, _ = build_ast(tokens, dialect="sqlite")
-    assert body == [("#fetch", ("file", "'http://ex'", True, None, None, None))]
+    assert body == [("#fetch", ("file", "'http://ex'", True, [], None, None))]
 
 
 def test_fetch_directive_dependencies():
@@ -38,7 +38,7 @@ def test_fetch_async_directive_dependencies():
 def test_fetch_header_directive_parsed():
     tokens = tokenize("{{#fetch file from 'http://ex' header=:hdr}}")
     body, _ = build_ast(tokens, dialect="sqlite")
-    assert body == [("#fetch", ("file", "'http://ex'", False, ":hdr", None, None))]
+    assert body == [("#fetch", ("file", "'http://ex'", False, [":hdr"], None, None))]
 
 
 def test_fetch_header_directive_dependencies():
@@ -46,6 +46,14 @@ def test_fetch_header_directive_dependencies():
     ast = build_ast(tokens, dialect="sqlite")
     deps = ast_param_dependencies(ast)
     assert deps == {"url", "hdr"}
+
+
+def test_fetch_multiple_headers_parsed():
+    tokens = tokenize("{{#fetch file from 'http://ex' header=:h1 header=:h2}}")
+    body, _ = build_ast(tokens, dialect="sqlite")
+    assert body == [
+        ("#fetch", ("file", "'http://ex'", False, [":h1", ":h2"], None, None))
+    ]
 
 
 def test_fetch_body_directive_dependencies():
@@ -58,13 +66,13 @@ def test_fetch_body_directive_dependencies():
 def test_fetch_method_directive_parsed():
     tokens = tokenize("{{#fetch file from 'http://ex' method='POST'}}")
     body, _ = build_ast(tokens, dialect="sqlite")
-    assert body == [("#fetch", ("file", "'http://ex'", False, None, "'POST'", None))]
+    assert body == [("#fetch", ("file", "'http://ex'", False, [], "'POST'", None))]
 
 
 def test_fetch_body_directive_parsed():
     tokens = tokenize("{{#fetch file from 'http://ex' body='hi'}}")
     body, _ = build_ast(tokens, dialect="sqlite")
-    assert body == [("#fetch", ("file", "'http://ex'", False, None, None, "'hi'"))]
+    assert body == [("#fetch", ("file", "'http://ex'", False, [], None, "'hi'"))]
 
 
 def test_fetch_directive_render():
@@ -196,6 +204,29 @@ def test_fetch_header_directive_render():
         pql_mod.fetch_sync = old_fetch
     assert out.strip() == "1"
     assert seen == [("http://x", {"X": "v"}, "GET")]
+
+
+def test_fetch_multiple_headers_render():
+    seen = []
+
+    def fetch(url: str, headers=None, method="GET", body=None, **kwargs):
+        seen.append(headers)
+        return {"a": "1"}
+
+    from pageql import pageql as pql_mod
+    old_fetch = pql_mod.fetch_sync
+    pql_mod.fetch_sync = fetch
+    try:
+        r = PageQL(":memory:")
+        r.load_module(
+            "m",
+            "{{#fetch data from 'http://x' header=:h1 header=:h2}}{{data__a}}",
+        )
+        out = r.render("/m", {"h1": "X: v1", "h2": "Y: v2"}, reactive=False).body
+    finally:
+        pql_mod.fetch_sync = old_fetch
+    assert out.strip() == "1"
+    assert seen == [{"X": "v1", "Y": "v2"}]
 
 
 def test_fetch_body_directive_render():

@@ -19,7 +19,8 @@
       {{#let access_token = query_param(:token.body, 'access_token')}}
       <p>Extracted access token: {{access_token}}</p>
       {{#let header = 'Authorization: Bearer '||:access_token}}
-      {{#fetch async user from 'https://api.github.com/user' header=:header}}
+      {{#let user_agent_header = 'User-Agent: PageQL'}}
+      {{#fetch async user from 'https://api.github.com/user' header=:header header=:user_agent_header}}
         {{#if :user.status_code == 200}}
           {{user.body}}
         {{#elif :user.status_code IS NOT NULL}}

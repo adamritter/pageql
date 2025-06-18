@@ -35,7 +35,12 @@ from pageql.reactive import (
     ReadOnly,
     _convert_dot_sql,
 )
-from pageql.render_context import RenderContext, RenderResult, RenderResultException
+from pageql.render_context import (
+    RenderContext,
+    RenderResult,
+    RenderResultException,
+    escape_script,
+)
 from pageql.reactive_sql import parse_reactive, _replace_placeholders
 from pageql.database import (
     connect_database,
@@ -392,9 +397,8 @@ class PageQL:
             ctx.append_script(f"pend({mid})")
 
             def listener(v=None, *, sig=signal, mid=mid, ctx=ctx):
-                ctx.append_script(
-                    f"pset({mid},{json.dumps(str(sig.value))})",
-                )
+                safe_json = escape_script(json.dumps(str(sig.value)))
+                ctx.append_script(f"pset({mid},{safe_json})")
 
             ctx.add_listener(signal, listener)
         else:
@@ -799,7 +803,8 @@ class PageQL:
                         from .pageqlapp import run_tasks
                         run_tasks()
                         html_content = "".join(buf).strip()
-                        ctx.append_script(f"pset({mid},{json.dumps(html_content)})")
+                        safe_json = escape_script(json.dumps(html_content))
+                        ctx.append_script(f"pset({mid},{safe_json})")
 
                     for sig in signals:
                         ctx.add_listener(sig, listener)
@@ -946,7 +951,8 @@ class PageQL:
                         self.process_nodes(body, row_params, path, includes, http_verb, True, ctx, out=row_buf)
                         row_content = ''.join(row_buf).strip()
                         _ONEVENT_CACHE[cache_key] = row_content
-                    ctx.append_script(f"pinsert('{row_id}',{json.dumps(row_content)})")
+                    safe_json = escape_script(json.dumps(row_content))
+                    ctx.append_script(f"pinsert('{row_id}',{safe_json})")
                 elif ev[0] == 3:
                     old_id = f"{mid}_{base64.b64encode(hashlib.sha256(repr(tuple(ev[1])).encode()).digest())[:8].decode()}"
                     new_id = f"{mid}_{base64.b64encode(hashlib.sha256(repr(tuple(ev[2])).encode()).digest())[:8].decode()}"
@@ -961,7 +967,8 @@ class PageQL:
                         self.process_nodes(body, row_params, path, includes, http_verb, True, ctx, out=row_buf)
                         row_content = ''.join(row_buf).strip()
                         _ONEVENT_CACHE[cache_key] = row_content
-                    ctx.append_script(f"pupdate('{old_id}','{new_id}',{json.dumps(row_content)})")
+                    safe_json = escape_script(json.dumps(row_content))
+                    ctx.append_script(f"pupdate('{old_id}','{new_id}',{safe_json})")
 
             ctx.add_listener(comp, on_event)
 

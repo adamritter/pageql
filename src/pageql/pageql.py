@@ -394,7 +394,6 @@ class PageQL:
             def listener(v=None, *, sig=signal, mid=mid, ctx=ctx):
                 ctx.append_script(
                     f"pset({mid},{json.dumps(str(sig.value))})",
-                    out,
                 )
 
             ctx.add_listener(signal, listener)
@@ -734,8 +733,7 @@ class PageQL:
                 ):
                     html_content += f"</{tag}>"
                 ctx.append_script(
-                    f"pupdatetag({mid},{json.dumps(html_content)})",
-                    out if ctx.rendering else None,
+                    f"pupdatetag({mid},{json.dumps(html_content)})"
                 )
 
             for sig in signals:

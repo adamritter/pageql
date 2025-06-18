@@ -9,10 +9,11 @@ import json
 import re
 
 
-def test_githubauth_page_renders_button():
+def test_githubauth_page_renders_button(monkeypatch):
     src = Path("website/githubauth.pageql").read_text()
     with tempfile.TemporaryDirectory() as tmpdir:
         Path(tmpdir, "githubauth.pageql").write_text(src, encoding="utf-8")
+        monkeypatch.setenv("GITHUB_CLIENT_ID", "Iv23liGYF2X5uR4izdC3")
 
         async def run_test():
             server, task, port = await run_server_in_task(tmpdir)
@@ -61,6 +62,7 @@ def test_githubauth_callback_fetch(monkeypatch):
             old_fetch = pql_mod.fetch
             pql_mod.fetch = fake_fetch
             monkeypatch.setenv("GITHUB_CLIENT_SECRET", "secret")
+            monkeypatch.setenv("GITHUB_CLIENT_ID", "Iv23liGYF2X5uR4izdC3")
             try:
                 server, task, port = await run_server_in_task(tmpdir)
                 state = jws_serialize_compact('{"ongoing":1,"path":"/githubauth"}')

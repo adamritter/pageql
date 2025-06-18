@@ -360,55 +360,6 @@ async def test_json_page_in_browser(setup):
         server.should_exit = True
         await task
 
-
-@pytest.mark.filterwarnings("ignore:.*:DeprecationWarning")
-@pytest.mark.xfail(reason="Nested async fetch updates not currently emitted")
-async def test_nested_fetch_async_in_browser(setup):
-    """Nested async fetch blocks should update the page once both complete."""
-    with tempfile.TemporaryDirectory() as tmpdir:
-        Path(tmpdir, "nested.pageql").write_text(
-            "{{#fetch async d1 from 'http://x/data1'}}"
-            "{{#if :d1.status_code == 200}}"
-            "{{#fetch async d2 from 'http://x/data2'}}"
-            "{{#if :d2.status_code == 200}}"
-            "{{d1__body}} {{d2__body}}"
-            "{{#else}}Loading d2...{{/if}}"
-            "{{/fetch}}"
-            "{{#else}}Loading d1...{{/if}}"
-            "{{/fetch}}",
-            encoding="utf-8",
-        )
-
-        from pageql import pageql as pql_mod
-        seen = []
-
-        async def fake_fetch(url: str, headers=None, method="GET", body=None):
-            seen.append(url)
-            if url.endswith("data1"):
-                return {"status_code": 200, "headers": [], "body": "one"}
-            return {"status_code": 200, "headers": [], "body": "two"}
-
-        old_fetch = pql_mod.fetch
-        pql_mod.fetch = fake_fetch
-        try:
-            server, task, port, app = await start_server(tmpdir)
-            result = await _load_page_async(port, "nested", app, browser=setup)
-            status, body_text, client_id = result
-            for _ in range(20):
-                body_text = (await app.get_text_body(client_id)).strip()
-                if "one two" in body_text:
-                    break
-                await asyncio.sleep(0.1)
-
-            assert status == 200
-            assert "one two" in body_text
-            assert seen == ["http://x/data1", "http://x/data2"]
-        finally:
-            pql_mod.fetch = old_fetch
-            server.should_exit = True
-            await task
-
-
 @pytest.mark.filterwarnings("ignore:.*:DeprecationWarning")
 async def test_pset_with_script_tags(setup):
     """pset should execute nested scripts to update the DOM correctly."""

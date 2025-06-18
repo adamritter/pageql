@@ -304,7 +304,7 @@ async def test_fetch_async_directive_in_browser(setup):
 
 
 @pytest.mark.filterwarnings("ignore:.*:DeprecationWarning")
-@pytest.mark.xfail(reason="async fetch updates flaky in headless environment")
+@pytest.mark.xfail(reason="Async nested fetch does not always update in time")
 async def test_fetch_async_healthz_in_browser(setup):
     """Async fetch should resolve relative URLs using the request host."""
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -409,4 +409,31 @@ async def test_nested_fetch_async_in_browser(setup):
             pql_mod.fetch = old_fetch
             server.should_exit = True
             await task
+
+
+@pytest.mark.filterwarnings("ignore:.*:DeprecationWarning")
+async def test_pset_with_script_tags(setup):
+    """pset should execute nested scripts to update the DOM correctly."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        Path(tmpdir, "pset.pageql").write_text(
+            (
+                "{{#create table if not exists todos (id integer primary key autoincrement, text text)}}"
+                "{{#delete from todos}}"
+                "{{#let todos_count = (select count(*) from todos)}}"
+                "{{#if :todos_count > 0}}"
+                "{{todos_count}}"
+                "{{/if}}"
+                "{{#insert into todos (text) values ('Hello, world!')}}"
+            ),
+            encoding="utf-8",
+        )
+
+        server, task, port, app = await start_server(tmpdir)
+        result = await _load_page_async(port, "pset", app, browser=setup)
+        status, body_text, client_id = result
+
+        assert status == 200
+        assert body_text.strip() == "1"
+        server.should_exit = True
+        await task
 

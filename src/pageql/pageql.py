@@ -298,13 +298,20 @@ class PageQL:
     # ------------------------------------------------------------------
 
     def _process_text_node(self, node_content, params, path, includes,
-                            http_verb, reactive, ctx, out):
+                            http_verb, reactive, ctx):
         ctx.out.append(node_content)
         return reactive
 
-    def _process_render_expression_node(self, node_content, params, path,
-                                         includes, http_verb, reactive, ctx,
-                                         out):
+    def _process_render_expression_node(
+        self,
+        node_content,
+        params,
+        path,
+        includes,
+        http_verb,
+        reactive,
+        ctx,
+    ):
         result = evalone(self.db, node_content, params, reactive, self.tables)
         if isinstance(result, ReadOnly):
             signal = None
@@ -336,7 +343,7 @@ class PageQL:
         return reactive
 
     def _process_render_param_node(self, node_content, params, path, includes,
-                                   http_verb, reactive, ctx, out):
+                                   http_verb, reactive, ctx):
         try:
             val = params[node_content]
             if isinstance(val, ReadOnly):
@@ -370,7 +377,7 @@ class PageQL:
         return reactive
 
     def _process_render_raw_node(self, node_content, params, path, includes,
-                                 http_verb, reactive, ctx, out):
+                                 http_verb, reactive, ctx):
         result = evalone(self.db, node_content, params, reactive, self.tables)
         if isinstance(result, ReadOnly):
             signal = None
@@ -402,13 +409,13 @@ class PageQL:
         return reactive
 
     def _process_param_directive(self, node_content, params, path, includes,
-                                 http_verb, reactive, ctx, out):
+                                 http_verb, reactive, ctx):
         param_name, param_value = handle_param(node_content, params)
         params[param_name] = param_value
         return reactive
 
     def _process_let_directive(self, node_content, params, path, includes,
-                               http_verb, reactive, ctx, out):
+                               http_verb, reactive, ctx):
         var, sql, expr = node_content
         if var[0] == ':':
             var = var[1:]
@@ -440,7 +447,7 @@ class PageQL:
         return reactive
 
     def _process_render_directive(self, node_content, params, path, includes,
-                                  http_verb, reactive, ctx, out):
+                                  http_verb, reactive, ctx):
         rendered_content = self.handle_render(
             node_content,
             path,
@@ -454,7 +461,7 @@ class PageQL:
         return reactive
 
     def _process_reactive_directive(self, node_content, params, path, includes,
-                                    http_verb, reactive, ctx, out):
+                                    http_verb, reactive, ctx):
         mode = node_content.strip().lower()
         if mode == 'on':
             reactive = True
@@ -466,7 +473,7 @@ class PageQL:
         return reactive
 
     def _process_redirect_directive(self, node_content, params, path, includes,
-                                    http_verb, reactive, ctx, out):
+                                    http_verb, reactive, ctx):
         url = evalone(self.db, node_content, params, reactive, self.tables)
         raise RenderResultException(
             RenderResult(
@@ -477,12 +484,12 @@ class PageQL:
         )
 
     def _process_error_directive(self, node_content, params, path, includes,
-                                 http_verb, reactive, ctx, out):
+                                 http_verb, reactive, ctx):
         msg = evalone(self.db, node_content, params, reactive, self.tables)
         raise ValueError(str(msg))
 
     def _process_statuscode_directive(self, node_content, params, path, includes,
-                                      http_verb, reactive, ctx, out):
+                                      http_verb, reactive, ctx):
         code = evalone(self.db, node_content, params, reactive, self.tables)
         raise RenderResultException(
             RenderResult(
@@ -494,7 +501,7 @@ class PageQL:
         )
 
     def _process_respond_directive(self, node_content, params, path, includes,
-                                   http_verb, reactive, ctx, out):
+                                   http_verb, reactive, ctx):
         status_expr, body_expr = node_content
         code = evalone(self.db, status_expr, params, reactive, self.tables)
         if isinstance(code, Signal):
@@ -515,7 +522,7 @@ class PageQL:
         )
 
     def _process_header_directive(self, node_content, params, path, includes,
-                                  http_verb, reactive, ctx, out):
+                                  http_verb, reactive, ctx):
         if isinstance(node_content, tuple):
             name, value_expr = node_content
         else:
@@ -530,7 +537,7 @@ class PageQL:
         return reactive
 
     def _process_cookie_directive(self, node_content, params, path, includes,
-                                  http_verb, reactive, ctx, out):
+                                  http_verb, reactive, ctx):
         name, rest = parsefirstword(node_content)
         if rest is None:
             raise ValueError("#cookie requires a name and expression")
@@ -548,7 +555,7 @@ class PageQL:
         return reactive
 
     def _process_fetch_directive(self, node_content, params, path, includes,
-                                 http_verb, reactive, ctx, out):
+                                 http_verb, reactive, ctx):
         var, expr, is_async, header_expr, method_expr, body_expr = node_content
         if var.startswith(":"):
             var = var[1:]
@@ -633,7 +640,7 @@ class PageQL:
         return reactive
 
     def _process_update_directive(self, node_content, params, path, includes,
-                                  http_verb, reactive, ctx, out, node_type):
+                                  http_verb, reactive, ctx,  node_type):
         try:
             self.tables.executeone(node_type[1:] + " " + node_content, params)
         except sqlite3.Error as e:
@@ -643,7 +650,7 @@ class PageQL:
         return reactive
 
     def _process_schema_directive(self, node_content, params, path, includes,
-                                  http_verb, reactive, ctx, out, node_type):
+                                  http_verb, reactive, ctx, node_type):
         try:
             db_execute_dot(self.db, node_type[1:] + " " + node_content, params)
         except sqlite3.Error as e:
@@ -653,7 +660,7 @@ class PageQL:
         return reactive
 
     def _process_import_directive(self, node_content, params, path, includes,
-                                  http_verb, reactive, ctx, out):
+                                  http_verb, reactive, ctx):
         parts = node_content.split()
         if not parts:
             raise ValueError("Empty import statement")
@@ -670,14 +677,14 @@ class PageQL:
         return reactive
 
     def _process_log_directive(self, node_content, params, path, includes,
-                               http_verb, reactive, ctx, out):
+                               http_verb, reactive, ctx):
         print(
             "Logging: " + str(evalone(self.db, node_content, params, reactive, self.tables))
         )
         return reactive
 
     def _process_dump_directive(self, node_content, params, path, includes,
-                                http_verb, reactive, ctx, out):
+                                http_verb, reactive, ctx):
         cursor = db_execute_dot(self.db, "select * from " + node_content, params)
         t = time.time()
         rows_all = cursor.fetchall()
@@ -696,14 +703,14 @@ class PageQL:
         return reactive
 
     def _process_reactiveelement_directive(self, node, params, path, includes,
-                                           http_verb, reactive, ctx, out):
+                                           http_verb, reactive, ctx):
         prev = ctx.reactiveelement
         ctx.reactiveelement = []
         buf = []
         self.process_nodes(node[1], params, path, includes, http_verb, reactive, ctx, out=buf)
         signals = ctx.reactiveelement
         ctx.reactiveelement = prev
-        out.extend(buf)
+        ctx.out.extend(buf)
         if reactive and ctx and signals:
             mid = ctx.marker_id()
             ctx.append_script(f"pprevioustag({mid})")
@@ -741,7 +748,7 @@ class PageQL:
         return reactive
 
     def _process_if_directive(self, node, params, path, includes,
-                              http_verb, reactive, ctx, out):
+                              http_verb, reactive, ctx):
         if reactive and ctx:
             cond_exprs = []
             bodies = []
@@ -775,19 +782,19 @@ class PageQL:
             if ctx.reactiveelement is not None:
                 idx = pick_index()
                 if idx is not None:
-                    reactive = self.process_nodes(bodies[idx], params, path, includes, http_verb, True, ctx, out)
+                    reactive = self.process_nodes(bodies[idx], params, path, includes, http_verb, True, ctx)
                 ctx.reactiveelement.extend(signals)
             else:
                 idx = pick_index()
                 if not signals:
                     if idx is not None:
-                        reactive = self.process_nodes(bodies[idx], params, path, includes, http_verb, reactive, ctx, out)
+                        reactive = self.process_nodes(bodies[idx], params, path, includes, http_verb, reactive, ctx)
                 else:
                     mid = ctx.marker_id()
                     ctx.append_script(f"pstart({mid})")
 
                     if idx is not None:
-                        reactive = self.process_nodes(bodies[idx], params, path, includes, http_verb, reactive, ctx, out)
+                        reactive = self.process_nodes(bodies[idx], params, path, includes, http_verb, reactive, ctx)
 
                     ctx.append_script(f"pend({mid})")
 
@@ -812,12 +819,12 @@ class PageQL:
                         i += 2
                         continue
                     i += 1
-                reactive = self.process_nodes(node[i], params, path, includes, http_verb, reactive, ctx, out)
+                reactive = self.process_nodes(node[i], params, path, includes, http_verb, reactive, ctx)
                 i += 1
         return reactive
 
     def _process_ifdef_directive(self, node, params, path, includes,
-                                 http_verb, reactive, ctx, out):
+                                 http_verb, reactive, ctx):
         param_name = node[1].strip()
         then_body = node[2]
         else_body = node[3] if len(node) > 3 else None
@@ -828,11 +835,11 @@ class PageQL:
 
         body = then_body if param_name in params else else_body
         if body:
-            reactive = self.process_nodes(body, params, path, includes, http_verb, reactive, ctx, out)
+            reactive = self.process_nodes(body, params, path, includes, http_verb, reactive, ctx)
         return reactive
 
     def _process_ifndef_directive(self, node, params, path, includes,
-                                  http_verb, reactive, ctx, out):
+                                  http_verb, reactive, ctx):
         param_name = node[1].strip()
         then_body = node[2]
         else_body = node[3] if len(node) > 3 else None
@@ -843,11 +850,11 @@ class PageQL:
 
         body = then_body if param_name not in params else else_body
         if body:
-            reactive = self.process_nodes(body, params, path, includes, http_verb, reactive, ctx, out)
+            reactive = self.process_nodes(body, params, path, includes, http_verb, reactive, ctx)
         return reactive
 
     def _process_from_directive(self, node, params, path, includes,
-                                http_verb, reactive, ctx, out):
+                                http_verb, reactive, ctx):
         query, expr = node[1]
         if len(node) == 4:
             _, _, deps, body = node
@@ -970,7 +977,7 @@ class PageQL:
         return reactive
 
     def _process_each_directive(self, node, params, path, includes,
-                                http_verb, reactive, ctx, out):
+                                http_verb, reactive, ctx):
         param_name = node[1].strip()
         body = node[2]
 
@@ -997,7 +1004,7 @@ class PageQL:
             if isinstance(val, Signal):
                 val = val.value
             params[param_name] = val
-            self.process_nodes(body, params, path, includes, http_verb, reactive, ctx, out)
+            self.process_nodes(body, params, path, includes, http_verb, reactive, ctx)
             ctx.out.append('\n')
         if had_original:
             params[param_name] = original
@@ -1006,7 +1013,7 @@ class PageQL:
         return reactive
 
 
-    def process_node(self, node, params, path, includes, http_verb=None, reactive=False, ctx=None, out=None):
+    def process_node(self, node, params, path, includes, http_verb=None, reactive=False, ctx=None):
         """
         Process a single AST node and append its rendered output to the buffer.
         
@@ -1020,51 +1027,48 @@ class PageQL:
         Returns:
             None (output is appended to *out* or ctx.out)
         """
-        if out is None:
-            out = ctx.out
-
         if isinstance(node, tuple):
             node_type, node_content = node
             if node_type == 'text':
-                return self._process_text_node(node_content, params, path, includes, http_verb, reactive, ctx, out)
+                return self._process_text_node(node_content, params, path, includes, http_verb, reactive, ctx)
             elif node_type == 'render_expression':
-                return self._process_render_expression_node(node_content, params, path, includes, http_verb, reactive, ctx, out)
+                return self._process_render_expression_node(node_content, params, path, includes, http_verb, reactive, ctx)
             elif node_type == 'render_param':
-                return self._process_render_param_node(node_content, params, path, includes, http_verb, reactive, ctx, out)
+                return self._process_render_param_node(node_content, params, path, includes, http_verb, reactive, ctx)
             elif node_type == 'render_raw':
-                return self._process_render_raw_node(node_content, params, path, includes, http_verb, reactive, ctx, out)
+                return self._process_render_raw_node(node_content, params, path, includes, http_verb, reactive, ctx)
             elif node_type == '#param':
-                return self._process_param_directive(node_content, params, path, includes, http_verb, reactive, ctx, out)
+                return self._process_param_directive(node_content, params, path, includes, http_verb, reactive, ctx)
             elif node_type == '#let':
-                return self._process_let_directive(node_content, params, path, includes, http_verb, reactive, ctx, out)
+                return self._process_let_directive(node_content, params, path, includes, http_verb, reactive, ctx)
             elif node_type == '#render':
-                return self._process_render_directive(node_content, params, path, includes, http_verb, reactive, ctx, out)
+                return self._process_render_directive(node_content, params, path, includes, http_verb, reactive, ctx)
             elif node_type == '#reactive':
-                return self._process_reactive_directive(node_content, params, path, includes, http_verb, reactive, ctx, out)
+                return self._process_reactive_directive(node_content, params, path, includes, http_verb, reactive, ctx)
             elif node_type == '#redirect':
-                return self._process_redirect_directive(node_content, params, path, includes, http_verb, reactive, ctx, out)
+                return self._process_redirect_directive(node_content, params, path, includes, http_verb, reactive, ctx)
             elif node_type == '#error':
-                return self._process_error_directive(node_content, params, path, includes, http_verb, reactive, ctx, out)
+                return self._process_error_directive(node_content, params, path, includes, http_verb, reactive, ctx)
             elif node_type == '#statuscode':
-                return self._process_statuscode_directive(node_content, params, path, includes, http_verb, reactive, ctx, out)
+                return self._process_statuscode_directive(node_content, params, path, includes, http_verb, reactive, ctx)
             elif node_type == '#respond':
-                return self._process_respond_directive(node_content, params, path, includes, http_verb, reactive, ctx, out)
+                return self._process_respond_directive(node_content, params, path, includes, http_verb, reactive, ctx)
             elif node_type == '#header':
-                return self._process_header_directive(node_content, params, path, includes, http_verb, reactive, ctx, out)
+                return self._process_header_directive(node_content, params, path, includes, http_verb, reactive, ctx)
             elif node_type == '#cookie':
-                return self._process_cookie_directive(node_content, params, path, includes, http_verb, reactive, ctx, out)
+                return self._process_cookie_directive(node_content, params, path, includes, http_verb, reactive, ctx)
             elif node_type == '#fetch':
-                return self._process_fetch_directive(node_content, params, path, includes, http_verb, reactive, ctx, out)
+                return self._process_fetch_directive(node_content, params, path, includes, http_verb, reactive, ctx)
             elif node_type in ('#update', '#insert', '#delete'):
-                return self._process_update_directive(node_content, params, path, includes, http_verb, reactive, ctx, out, node_type)
+                return self._process_update_directive(node_content, params, path, includes, http_verb, reactive, ctx, node_type)
             elif node_type in ('#create', '#merge'):
-                return self._process_schema_directive(node_content, params, path, includes, http_verb, reactive, ctx, out, node_type)
+                return self._process_schema_directive(node_content, params, path, includes, http_verb, reactive, ctx, node_type)
             elif node_type == '#import':
-                return self._process_import_directive(node_content, params, path, includes, http_verb, reactive, ctx, out)
+                return self._process_import_directive(node_content, params, path, includes, http_verb, reactive, ctx)
             elif node_type == '#log':
-                return self._process_log_directive(node_content, params, path, includes, http_verb, reactive, ctx, out)
+                return self._process_log_directive(node_content, params, path, includes, http_verb, reactive, ctx)
             elif node_type == '#dump':
-                return self._process_dump_directive(node_content, params, path, includes, http_verb, reactive, ctx, out)
+                return self._process_dump_directive(node_content, params, path, includes, http_verb, reactive, ctx)
             else:
                 if not node_type.startswith('/'):
                     raise ValueError(format_unknown_directive(node_type))
@@ -1072,17 +1076,17 @@ class PageQL:
         elif isinstance(node, list):
             directive = node[0]
             if directive == '#reactiveelement':
-                return self._process_reactiveelement_directive(node, params, path, includes, http_verb, reactive, ctx, out)
+                return self._process_reactiveelement_directive(node, params, path, includes, http_verb, reactive, ctx)
             elif directive == '#if':
-                return self._process_if_directive(node, params, path, includes, http_verb, reactive, ctx, out)
+                return self._process_if_directive(node, params, path, includes, http_verb, reactive, ctx)
             elif directive == '#ifdef':
-                return self._process_ifdef_directive(node, params, path, includes, http_verb, reactive, ctx, out)
+                return self._process_ifdef_directive(node, params, path, includes, http_verb, reactive, ctx)
             elif directive == '#ifndef':
-                return self._process_ifndef_directive(node, params, path, includes, http_verb, reactive, ctx, out)
+                return self._process_ifndef_directive(node, params, path, includes, http_verb, reactive, ctx)
             elif directive == '#from':
-                return self._process_from_directive(node, params, path, includes, http_verb, reactive, ctx, out)
+                return self._process_from_directive(node, params, path, includes, http_verb, reactive, ctx)
             elif directive == '#each':
-                return self._process_each_directive(node, params, path, includes, http_verb, reactive, ctx, out)
+                return self._process_each_directive(node, params, path, includes, http_verb, reactive, ctx)
             else:
                 if not directive.startswith('/'):
                     raise ValueError(format_unknown_directive(directive))
@@ -1108,7 +1112,7 @@ class PageQL:
             ctx.out = out
 
         for node in nodes:
-            reactive = self.process_node(node, params, path, includes, http_verb, reactive, ctx, None)
+            reactive = self.process_node(node, params, path, includes, http_verb, reactive, ctx)
         ctx.out = oldout
         return reactive
 

@@ -328,7 +328,6 @@ class PageQL:
             def listener(v=None, *, sig=signal, mid=mid, ctx=ctx):
                 ctx.append_script(
                     f"pset({mid},{json.dumps(html.escape(str(sig.value)))})",
-                    out,
                 )
 
             ctx.add_listener(signal, listener)
@@ -361,7 +360,6 @@ class PageQL:
                         def listener(v=None, *, sig=signal, mid=mid, ctx=ctx):
                             ctx.append_script(
                                 f"pset({mid},{json.dumps(html.escape(str(sig.value)))})",
-                                out,
                             )
 
                         ctx.add_listener(signal, listener)
@@ -803,10 +801,7 @@ class PageQL:
                         from .pageqlapp import run_tasks
                         run_tasks()
                         html_content = "".join(buf).strip()
-                        ctx.append_script(
-                            f"pset({mid},{json.dumps(html_content)})",
-                            out if ctx.rendering else None,
-                        )
+                        ctx.append_script(f"pset({mid},{json.dumps(html_content)})")
 
                     for sig in signals:
                         ctx.add_listener(sig, listener)
@@ -1110,11 +1105,13 @@ class PageQL:
         Returns:
             None (output is appended to *out* or ctx.out)
         """
-        if out is None:
-            out = ctx.out
+        oldout = ctx.out
+        if out is not None:
+            ctx.out = out
 
         for node in nodes:
-            reactive = self.process_node(node, params, path, includes, http_verb, reactive, ctx, out)
+            reactive = self.process_node(node, params, path, includes, http_verb, reactive, ctx, None)
+        ctx.out = oldout
         return reactive
 
     def render(

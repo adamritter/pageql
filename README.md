@@ -4,7 +4,7 @@ It was inspired by ColdFusion language that allows embedding SQL and Handlebars 
 
 PageQL is **reactive-first**: rendered HTML automatically updates when the underlying database data changes.
 
-Usage: ```pageql <database> templates [--create] [--test]```
+Usage: ```pageql templates <database> [--create] [--test]```
 
 Install: pip install pageql  # uvicorn[standard] is installed automatically
 
@@ -65,11 +65,11 @@ To maintain focus and simplicity, several design choices have been made:
 PageQL is intended to be run via a command-line tool. The basic usage involves pointing the tool at a directory of `.pageql` files and specifying the SQLite database or a database URL to use.
 
 ```bash
-pageql path/to/your/database.sqlite ./templates
+pageql ./templates path/to/your/database.sqlite
 ```
 
-*   `<database>`: (Required) Path to the SQLite database file or a PostgreSQL/MySQL connection URL.
 *   `<path>`: (Required) Path to the directory containing the PageQL template files (`.pageql`) to be served.
+*   `<database>`: (Required) Path to the SQLite database file or a PostgreSQL/MySQL connection URL.
 *   `--port <number>`: (Optional) Port number to run the development server on. Defaults to a standard port (e.g., 8000 or 8080).
 *   `-q, --quiet`: (Optional) Only output errors when running the server.
 *   `--fallback-url <url>`: (Optional) Forward unknown routes to this base URL.
@@ -103,7 +103,7 @@ docker run -p 8000:8000 \
     pageql
 ```
 
-The container runs `pageql /data/data.db /app/website --create --host 0.0.0.0` so
+The container runs `pageql /app/website /data/data.db --create --host 0.0.0.0` so
 a new database is created automatically on first use and the server is
 reachable from outside the container.
 

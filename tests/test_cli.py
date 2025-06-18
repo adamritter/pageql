@@ -34,8 +34,8 @@ def test_cli_fallback_url(monkeypatch, tmp_path):
 
     argv = [
         "pageql",
-        "test.db",
         str(tmp_path),
+        "test.db",
         "--fallback-url",
         "http://example.com",
     ]
@@ -48,7 +48,7 @@ def test_cli_test_command(monkeypatch, tmp_path, capsys):
     (tmp_path / "t.pageql").write_text(
         "{{#test a}}{{#create table t(x int)}}{{#insert into t values (1)}}{{count(*) from t}}{{/test}}"
     )
-    argv = ["pageql", "db.sqlite", str(tmp_path), "--test"]
+    argv = ["pageql", str(tmp_path), "db.sqlite", "--test"]
     monkeypatch.setattr(sys, "argv", argv)
     with pytest.raises(SystemExit) as exc:
         cli.main()
@@ -80,8 +80,8 @@ def test_cli_http_disconnect_timeout(monkeypatch, tmp_path):
 
     argv = [
         "pageql",
-        "db",
         str(tmp_path),
+        "db",
         "--http-disconnect-cleanup-timeout",
         "0.5",
     ]

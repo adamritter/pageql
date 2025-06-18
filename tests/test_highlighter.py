@@ -3,7 +3,7 @@ import html
 import re
 import time
 
-from pageql.highlighter import highlight
+from pageql.highlighter import highlight, highlight_block
 
 
 def _extract_snippet(page: str) -> str:
@@ -29,3 +29,17 @@ def test_highlight_roundtrip():
     assert duration < 0.01
 
     assert rehighlighted[:200] == snippet[:200]
+
+
+def test_highlight_block_wraps_highlight():
+    page = Path("website/todos.pageql").read_text()
+    snippet = _extract_snippet(page)
+    plain = _remove_color_spans(snippet)
+
+    block = highlight_block(plain)
+
+    assert block.startswith('<div style="position: relative;">')
+    assert '<button onclick="copySourceCode(this)"' in block
+    assert '<div class="highlight"' in block
+    assert highlight(plain) in block
+    assert block.rstrip().endswith('</pre></div></div></div>')

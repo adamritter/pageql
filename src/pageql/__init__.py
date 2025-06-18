@@ -10,7 +10,7 @@ from .reactive import ReadOnly
 from .pageqlapp import PageQLApp
 from .reactive_sql import parse_reactive
 from .jws_utils import jws_serialize_compact, jws_deserialize_compact
-from .highlighter import highlight
+from .highlighter import highlight, highlight_block
 # Define the version
 __version__ = "0.1.0"
 
@@ -25,4 +25,5 @@ __all__ = [
     "jws_serialize_compact",
     "jws_deserialize_compact",
     "highlight",
+    "highlight_block",
 ]

@@ -411,7 +411,6 @@ async def test_nested_fetch_async_in_browser(setup):
 
 
 @pytest.mark.filterwarnings("ignore:.*:DeprecationWarning")
-@pytest.mark.xfail(reason="Scripts inserted via pset containing <script> tags are not executed")
 async def test_pset_with_script_tags(setup):
     """pset should execute nested scripts to update the DOM correctly."""
     with tempfile.TemporaryDirectory() as tmpdir:

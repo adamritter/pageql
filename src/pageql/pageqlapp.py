@@ -66,20 +66,23 @@ def queue_ws_script(send: Callable[[dict], Awaitable[None]], script: str, log_le
         _idle_task = asyncio.create_task(_flush_ws_scripts())
 
 
-def run_tasks() -> None:
+def run_tasks(log_level: str = "info") -> None:
     """Execute tasks queued in ``pageql.tasks``."""
     local_tasks = pageql.tasks.copy()
     pageql.tasks.clear()
     if local_tasks:
-        print(f"run_tasks starting {len(local_tasks)} task(s)")
+        if log_level == "debug":
+            print(f"run_tasks starting {len(local_tasks)} task(s)")
 
     async def run_task(coro):
         await coro
-        print("task finished, checking for more")
-        run_tasks()
+        if log_level == "debug":
+            print("task finished, checking for more")
+        run_tasks(log_level)
 
     for t in local_tasks:
-        print(f"creating async task {t}")
+        if log_level == "debug":
+            print(f"creating async task {t}")
         asyncio.create_task(run_task(t))
 
 
@@ -440,7 +443,7 @@ class PageQLApp:
                     method,
                     reactive=self.reactive_default,
                 )
-                run_tasks()
+                run_tasks(self.log_level)
                 if before_result.status_code != 200:
                     await self._send_render_result(before_result, include_scripts, client_id, send)
                     return client_id
@@ -454,7 +457,7 @@ class PageQLApp:
                 method,
                 reactive=self.reactive_default,
             )
-            run_tasks()
+            run_tasks(self.log_level)
 
             if result.status_code == 404:
                 if self.fallback_app is not None:

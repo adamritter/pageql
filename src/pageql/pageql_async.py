@@ -268,7 +268,10 @@ class PageQLAsync(PageQL):
                 new_buf = []
                 cur = ctx.reactiveelement
                 ctx.reactiveelement = []
+                prev = ctx.rendering
+                ctx.rendering = True
                 self.process_nodes(node[1], params, path, includes, http_verb, True, ctx, out=new_buf)
+                ctx.rendering = prev
                 from .pageqlapp import run_tasks
                 run_tasks()
                 ctx.reactiveelement = cur
@@ -360,7 +363,10 @@ class PageQLAsync(PageQL):
                         new_idx = pick_index()
                         buf = []
                         if new_idx is not None:
+                            prev = ctx.rendering
+                            ctx.rendering = True
                             self.process_nodes(bodies[new_idx], params, path, includes, http_verb, True, ctx, out=buf)
+                            ctx.rendering = prev
                         from .pageqlapp import run_tasks
                         run_tasks()
                         html_content = "".join(buf).strip()

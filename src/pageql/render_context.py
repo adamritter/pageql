@@ -51,11 +51,10 @@ class RenderContext:
     def clear_output(self):
         self.out.clear()
 
-    def append_script(self, content, out=None):
-        if out is None:
-            out = self.out
+    def append_script(self, content):
+        """Append *content* as a script tag or queue it for later."""
 
-        send_directly = out is self.out and not self.rendering
+        send_directly = not self.rendering
 
         if not send_directly:
             # Avoid prematurely closing the script tag if ``content`` contains
@@ -67,7 +66,7 @@ class RenderContext:
             # prevents ``SyntaxWarning: invalid escape sequence`` from Python
             # while producing the desired ``<\/script>`` string in HTML.
             safe_content = content.replace("</script>", "<\\/script>")
-            out.append(f"<script>{safe_content}</script>")
+            self.out.append(f"<script>{safe_content}</script>")
         else:
             if self.send_script is not None:
                 self.send_script(content)

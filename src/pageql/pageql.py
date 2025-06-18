@@ -321,9 +321,9 @@ class PageQL:
                 ctx.reactiveelement.append(signal)
         elif reactive and signal is not None:
             mid = ctx.marker_id()
-            ctx.append_script(f"pstart({mid})", out)
+            ctx.append_script(f"pstart({mid})")
             out.append(value)
-            ctx.append_script(f"pend({mid})", out)
+            ctx.append_script(f"pend({mid})")
 
             def listener(v=None, *, sig=signal, mid=mid, ctx=ctx):
                 ctx.append_script(
@@ -352,9 +352,9 @@ class PageQL:
                         ctx.reactiveelement.append(signal)
                 elif reactive:
                     mid = ctx.marker_id()
-                    ctx.append_script(f"pstart({mid})", out)
+                    ctx.append_script(f"pstart({mid})")
                     out.append(value)
-                    ctx.append_script(f"pend({mid})", out)
+                    ctx.append_script(f"pend({mid})")
                     if signal:
 
                         def listener(v=None, *, sig=signal, mid=mid, ctx=ctx):
@@ -387,9 +387,9 @@ class PageQL:
                 ctx.reactiveelement.append(signal)
         elif reactive and signal is not None:
             mid = ctx.marker_id()
-            ctx.append_script(f"pstart({mid})", out)
+            ctx.append_script(f"pstart({mid})")
             out.append(value)
-            ctx.append_script(f"pend({mid})", out)
+            ctx.append_script(f"pend({mid})")
 
             def listener(v=None, *, sig=signal, mid=mid, ctx=ctx):
                 ctx.append_script(
@@ -706,7 +706,7 @@ class PageQL:
         out.extend(buf)
         if reactive and ctx and signals:
             mid = ctx.marker_id()
-            ctx.append_script(f"pprevioustag({mid})", out)
+            ctx.append_script(f"pprevioustag({mid})")
 
             def listener(_=None, *, mid=mid, ctx=ctx):
                 new_buf = []
@@ -784,12 +784,12 @@ class PageQL:
                         reactive = self.process_nodes(bodies[idx], params, path, includes, http_verb, reactive, ctx, out)
                 else:
                     mid = ctx.marker_id()
-                    ctx.append_script(f"pstart({mid})", out)
+                    ctx.append_script(f"pstart({mid})")
 
                     if idx is not None:
                         reactive = self.process_nodes(bodies[idx], params, path, includes, http_verb, reactive, ctx, out)
 
-                    ctx.append_script(f"pend({mid})", out)
+                    ctx.append_script(f"pend({mid})")
 
                     def listener(_=None, *, mid=mid, ctx=ctx):
                         new_idx = pick_index()

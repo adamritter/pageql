@@ -39,14 +39,6 @@ def test_append_script_send_script():
     assert ctx.scripts == []
 
 
-def test_append_script_with_out_buffer_when_not_rendering():
-    ctx = RenderContext()
-    ctx.rendering = False
-    buf = []
-    ctx.append_script("foo", out=buf)
-    assert buf == ["<script>foo</script>"]
-    assert ctx.scripts == []
-
 
 def test_reactive_toggle():
     r = PageQL(":memory:")

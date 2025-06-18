@@ -732,8 +732,6 @@ class PageQL:
                 ctx.rendering = True
                 self.process_nodes(node[1], params, path, includes, http_verb, True, ctx, out=new_buf)
                 ctx.rendering = prev
-                from .pageqlapp import run_tasks
-                run_tasks()
                 ctx.reactiveelement = cur
                 html_content = "".join(new_buf).strip()
                 tag = ''
@@ -818,8 +816,6 @@ class PageQL:
                             ctx.rendering = True
                             self.process_nodes(bodies[new_idx], params, path, includes, http_verb, True, ctx, out=buf)
                             ctx.rendering = prev
-                        from .pageqlapp import run_tasks
-                        run_tasks()
                         html_content = "".join(buf).strip()
                         safe_json = embed_html_in_js(html_content)
                         ctx.append_script(f"pset({mid},{safe_json})")

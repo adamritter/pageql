@@ -51,15 +51,17 @@ async def _flush_ws_scripts() -> None:
 
 BATCH_WS_SCRIPTS = False
 
-def queue_ws_script(send: Callable[[dict], Awaitable[None]], script: str) -> None:
+def queue_ws_script(send: Callable[[dict], Awaitable[None]], script: str, log_level: str = "info") -> None:
     if not BATCH_WS_SCRIPTS:
-        print(f"queue_ws_script sending {script!r}")
+        if log_level == "debug":
+            print(f"queue_ws_script sending {script!r}")
         asyncio.create_task(send({"type": "websocket.send", "text": script}))
         return
 
     global _idle_task
     scripts_by_send[send].append(script)
-    print(f"queue_ws_script queued {script!r}")
+    if log_level == "debug":
+        print(f"queue_ws_script queued {script!r}")
     if _idle_task is None or _idle_task.done():
         _idle_task = asyncio.create_task(_flush_ws_scripts())
 
@@ -297,14 +299,14 @@ class PageQLApp:
             self.websockets[client_id] = send
 
             def sender(sc, send=send):
-                queue_ws_script(send, sc)
+                queue_ws_script(send, sc, self.log_level)
 
             for ctx in self.render_contexts.get(client_id, []):
                 ctx.send_script = sender
                 scripts = list(ctx.scripts)
                 ctx.scripts.clear()
                 for sc in scripts:
-                    queue_ws_script(send, sc)
+                    queue_ws_script(send, sc, self.log_level)
         fut = asyncio.Event()
         self.notifies.append(fut)
         receive_task = asyncio.create_task(receive())
@@ -473,7 +475,7 @@ class PageQLApp:
                 ws = self.websockets.get(client_id)
                 if ws:
                     def sender(sc, send=ws):
-                        queue_ws_script(send, sc)
+                        queue_ws_script(send, sc, self.log_level)
 
                     result.context.send_script = sender
             self._log(f"{method} {path_cleaned} Params: {params} ({(time.time() - t) * 1000:.2f} ms)")

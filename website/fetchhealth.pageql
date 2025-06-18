@@ -4,10 +4,10 @@
       {{#if :inner.status_code == 200}}
         Fetched twice
       {{#else}}
-        Loading inner...
+        Loading inner... {{inner__body}}
       {{/if}}
     {{/fetch}}
   {{#else}}
-    Loading outer...
+    Loading outer... {{outer__body}}
   {{/if}}
 {{/fetch}}

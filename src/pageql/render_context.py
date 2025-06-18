@@ -1,5 +1,10 @@
 """Utilities and classes for managing rendering state."""
 
+
+def escape_script(content: str) -> str:
+    """Escape closing ``</script>`` tags in *content* for safe embedding."""
+    return content.replace("</script>", "<\\/script>")
+
 class RenderResult:
     """Holds the results of a render operation."""
 
@@ -57,16 +62,7 @@ class RenderContext:
         send_directly = not self.rendering
 
         if not send_directly:
-            # Avoid prematurely closing the script tag if ``content`` contains
-            # the ``</script>`` sequence by escaping it. This can happen when
-            # reactive HTML snippets include nested ``<script>`` tags that are
-            # inserted via ``pinsert`` or ``pupdate``.
-            # Escape any nested ``</script>`` sequences to avoid prematurely
-            # terminating the surrounding script tag. Using a double backslash
-            # prevents ``SyntaxWarning: invalid escape sequence`` from Python
-            # while producing the desired ``<\/script>`` string in HTML.
-            safe_content = content.replace("</script>", "<\\/script>")
-            self.out.append(f"<script>{safe_content}</script>")
+            self.out.append(f"<script>{content}</script>")
         else:
             if self.send_script is not None:
                 self.send_script(content)

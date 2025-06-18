@@ -303,6 +303,25 @@ async def test_fetch_async_directive_in_browser(setup):
 
 
 @pytest.mark.filterwarnings("ignore:.*:DeprecationWarning")
+async def test_fetch_async_healthz_in_browser(setup):
+    """Async fetch should resolve relative URLs using the request host."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        Path(tmpdir, "fetchrel.pageql").write_text(
+            "{{#fetch async d from '/healthz'}}{{d__body}}",
+            encoding="utf-8",
+        )
+
+        server, task, port, app = await start_server(tmpdir)
+        result = await _load_page_async(port, "fetchrel", app, browser=setup)
+        status, body_text, client_id = result
+
+        assert status == 200
+        assert "OK" in body_text
+        server.should_exit = True
+        await task
+
+
+@pytest.mark.filterwarnings("ignore:.*:DeprecationWarning")
 async def test_json_page_in_browser(setup):
     """Render the json.pageql template and verify JSON output."""
     with tempfile.TemporaryDirectory() as tmpdir:

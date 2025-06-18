@@ -309,7 +309,9 @@ async def test_fetch_async_healthz_in_browser(setup):
         Path(tmpdir, "fetchrel.pageql").write_text(
             "{{#fetch async d from '/healthz'}}"
             "{{#if :d.status_code == 200}}"
-            "{{d__body}}"
+            "{{#fetch async d2 from '/healthz'}}"
+            "{{d2__body}}"
+            "{{/fetch}}"
             "{{#else}}Loading...{{/if}}"
             "{{/fetch}}",
             encoding="utf-8",
@@ -318,7 +320,6 @@ async def test_fetch_async_healthz_in_browser(setup):
         server, task, port, app = await start_server(tmpdir)
         result = await _load_page_async(port, "fetchrel", app, browser=setup)
         status, body_text, client_id = result
-
         assert status == 200
         assert "OK" in body_text
         server.should_exit = True

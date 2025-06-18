@@ -956,7 +956,10 @@ class PageQL:
                         for i, col_name in enumerate(col_names):
                             row_params[col_name] = ReadOnly(ev[1][i])
                         row_buf = []
+                        prev = ctx.rendering
+                        ctx.rendering = True
                         self.process_nodes(body, row_params, path, includes, http_verb, True, ctx, out=row_buf)
+                        ctx.rendering = prev
                         row_content = ''.join(row_buf).strip()
                         _ONEVENT_CACHE[cache_key] = row_content
                     ctx.append_script(f"pinsert('{row_id}',{json.dumps(row_content)})")
@@ -971,7 +974,10 @@ class PageQL:
                             row_params[col_name] = ReadOnly(ev[2][i])
                         row_buf = []
                         #print("processing node for update", body)
+                        prev = ctx.rendering
+                        ctx.rendering = True
                         self.process_nodes(body, row_params, path, includes, http_verb, True, ctx, out=row_buf)
+                        ctx.rendering = prev
                         row_content = ''.join(row_buf).strip()
                         _ONEVENT_CACHE[cache_key] = row_content
                     ctx.append_script(f"pupdate('{old_id}','{new_id}',{json.dumps(row_content)})")

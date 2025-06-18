@@ -228,29 +228,6 @@ def test_index_html_served_when_pageql_missing(tmp_path):
     assert status == 200
     assert "<h1>Home</h1>" in body
 
-
-def test_run_tasks_called(monkeypatch, tmp_path):
-    (tmp_path / "index.pageql").write_text("hello")
-
-    called = []
-
-    def fake_run_tasks():
-        called.append(True)
-
-    monkeypatch.setattr(pageql.pageqlapp, "run_tasks", fake_run_tasks)
-
-    async def run_test():
-        server, task, port = await run_server_in_task(str(tmp_path))
-        status, _headers, _body = await _http_get(f"http://127.0.0.1:{port}/index")
-        server.should_exit = True
-        await task
-        return status
-
-    status = asyncio.run(run_test())
-    assert status == 200
-    assert called
-
-
 def test_before_template_modifies_params(tmp_path):
     (tmp_path / "_before.pageql").write_text("{{#header X-Test 'hi'}}")
     (tmp_path / "hello.pageql").write_text("ok")

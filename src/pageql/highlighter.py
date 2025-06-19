@@ -151,7 +151,7 @@ def _highlight_html_tag(tag: str) -> str:
     out = [f'<span style="color: {_HTML_BRACKET}">&lt;']
     i = 1
     if tag.startswith('</'):
-        out.append('</span><span style="color: {_HTML_BRACKET}">/</span>')
+        out.append(f'</span><span style="color: {_HTML_BRACKET}">/</span>')
         i = 2
     m = re.match(r'([a-zA-Z0-9_-]+)', tag[i:])
     if m:

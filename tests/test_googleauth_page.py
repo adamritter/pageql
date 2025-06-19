@@ -47,7 +47,7 @@ def test_googleauth_callback_fetch(monkeypatch):
             seen = []
 
             async def fake_fetch(url: str, headers=None, method="GET", body=None, **kwargs):
-                seen.append((url, headers, method))
+                seen.append((url, headers, method, body))
                 if "www.googleapis.com/oauth2/v3/userinfo" in url:
                     return {
                         "status_code": 200,
@@ -82,16 +82,29 @@ def test_googleauth_callback_fetch(monkeypatch):
         assert "Loading token" in body
         assert "access_token" not in body
         assert "octo@example.com" not in body
-        (token_url, token_headers, token_method), (user_url, user_headers, user_method) = urls
-        assert token_url.startswith("https://oauth2.googleapis.com/token")
-        assert "123456789.apps.googleusercontent.com" in token_url
-        assert "client_secret=secret" in token_url
-        assert "code=abc" in token_url
-        assert "redirect_uri=https://127.0.0.1/googleauth/callback" in token_url
-        assert f"state={state}" in token_url
+        (
+            token_url,
+            token_headers,
+            token_method,
+            token_body,
+        ), (
+            user_url,
+            user_headers,
+            user_method,
+            _,
+        ) = urls
+        assert token_url == "https://oauth2.googleapis.com/token"
+        assert token_headers == {
+            "Content-Type": "application/x-www-form-urlencoded"
+        }
+        assert (
+            token_body
+            == b"client_id=123456789.apps.googleusercontent.com&client_secret=secret&code=abc&redirect_uri=https://127.0.0.1/googleauth/callback&grant_type=authorization_code&state="
+            + state.encode()
+        )
         assert user_url == "https://www.googleapis.com/oauth2/v3/userinfo"
         assert user_headers == {
             "Authorization": "Bearer t",
         }
-        assert token_method == "GET"
+        assert token_method == "POST"
         assert user_method == "GET"

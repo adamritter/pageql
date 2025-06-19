@@ -59,6 +59,7 @@ def _highlight_pageql_expr(text: str) -> str:
     i = 0
     out: list[str] = []
     next_as_var = False
+    skip_next_type = False
     while i < len(text):
         ch = text[i]
         if ch.isspace():
@@ -113,7 +114,19 @@ def _highlight_pageql_expr(text: str) -> str:
                 color = _SQL_COLOR
             else:
                 color = _TYPENAME_COLOR
-            out.append(_span(escape(word), color))
+            if color is _TYPENAME_COLOR and skip_next_type:
+                out.append(escape(word))
+                skip_next_type = False
+            else:
+                out.append(_span(escape(word), color))
+            if color is _SQL_COLOR and word_lower in {
+                "from",
+                "into",
+                "update",
+                "delete",
+                "table",
+            }:
+                skip_next_type = True
             i = j
             continue
         out.append(escape(ch))

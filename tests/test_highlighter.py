@@ -28,7 +28,18 @@ def test_highlight_roundtrip():
     duration = time.perf_counter() - start
     assert duration < 0.01
 
-    assert rehighlighted[:700] == snippet[:700]
+    if rehighlighted != snippet:
+        max_len = min(len(rehighlighted), len(snippet))
+        diff_index = next(
+            (i for i in range(max_len) if rehighlighted[i] != snippet[i]),
+            max_len,
+        )
+        expected = snippet[diff_index : diff_index + 100]
+        actual = rehighlighted[diff_index : diff_index + 100]
+        print(
+            f"Mismatch at char {diff_index}: {actual!r} != {expected!r}",
+        )
+    assert _remove_color_spans(rehighlighted) == plain
 
 
 def test_highlight_block_wraps_highlight():

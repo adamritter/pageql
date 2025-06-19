@@ -1,0 +1,36 @@
+{{#let payload json_set('{}', '$.ongoing', 1, '$.path', :path)}}
+{{#let state jws_serialize_compact(:payload)}}
+{{#let client_id = env.GOOGLE_CLIENT_ID}}
+<a href="https://accounts.google.com/o/oauth2/v2/auth?client_id={{client_id}}&response_type=code&scope=openid%20email%20profile&state={{state}}">
+  <button>Login with Gmail</button>
+</a>
+
+{{#partial GET callback}}
+  {{#param code required}}
+  {{#param state required}}
+  {{#let payload jws_deserialize_compact(:state)}}
+  {{#let payload_path = json_extract(:payload, '$.path')}}
+  <p>Payload: {{:payload}}</p>
+  <p>Payload path: {{:payload_path}}</p>
+  {{#let client_id = env.GOOGLE_CLIENT_ID}}
+
+  {{#let client_secret = env.GOOGLE_CLIENT_SECRET}}
+  {{#fetch async token from 'https://oauth2.googleapis.com/token?client_id='||:client_id||'&client_secret='||:client_secret||'&code='||:code||'&grant_type=authorization_code&state='||:state}}
+    {{#if :token.status_code == 200}}
+      {{#let access_token = query_param(:token.body, 'access_token')}}
+      <p>Extracted access token: {{access_token}}</p>
+      {{#let header = 'Authorization: Bearer '||:access_token}}
+      {{#fetch async user from 'https://www.googleapis.com/oauth2/v3/userinfo' header=:header}}
+        {{#if :user.status_code == 200}}
+          {{user.body}}
+        {{#elif :user.status_code IS NOT NULL}}
+          <p>Error: {{:user.status_code}} {{:user.body}}</p>
+        {{#else}}
+          <p>Loading user...</p>
+        {{/if}}
+      {{/fetch}}
+    {{#else}}
+      <p>Loading token...</p>
+    {{/if}}
+  {{/fetch}}
+{{/partial}}

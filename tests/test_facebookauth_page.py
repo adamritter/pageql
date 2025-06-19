@@ -83,16 +83,14 @@ def test_facebookauth_callback_fetch(monkeypatch):
         assert "access_token" not in body
         assert "fuser" not in body
         (token_url, token_headers, token_method), (user_url, user_headers, user_method) = urls
-        assert token_url.startswith("https://graph.facebook.com")
-        assert "123456789" in token_url
-        assert "client_secret=secret" in token_url
-        assert "code=abc" in token_url
-        assert f"state={state}" in token_url
-        assert "redirect_uri=http://127.0.0.1/facebookauth/callback" in token_url
+        assert token_url == "https://graph.facebook.com/v18.0/oauth/access_token"
+        assert token_headers == {
+            "Content-Type": "application/x-www-form-urlencoded"
+        }
         assert user_url == "https://graph.facebook.com/me"
         assert user_headers == {
             "Authorization": "Bearer t",
             "User-Agent": "PageQL",
         }
-        assert token_method == "GET"
+        assert token_method == "POST"
         assert user_method == "GET"

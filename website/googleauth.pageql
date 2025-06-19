@@ -1,7 +1,7 @@
 {{#let payload json_set('{}', '$.ongoing', 1, '$.path', :path)}}
 {{#let state jws_serialize_compact(:payload)}}
 {{#let client_id = env.GOOGLE_CLIENT_ID}}
-{{#let redirect_uri = 'http://'||:headers.host||replace(:path, '"', '')||'/callback'}}
+{{#let redirect_uri = 'https://'||:headers.host||replace(:path, '"', '')||'/callback'}}
 <a href="https://accounts.google.com/o/oauth2/v2/auth?client_id={{client_id}}&redirect_uri={{redirect_uri}}&response_type=code&scope=openid%20email%20profile&state={{state}}">
   <button>Login with Gmail</button>
 </a>
@@ -15,7 +15,7 @@
   <p>Payload path: {{:payload_path}}</p>
   {{#let client_id = env.GOOGLE_CLIENT_ID}}
 
-  {{#let redirect_uri = 'http://'||:headers.host||replace(:payload_path, '"', '')||'/callback'}}
+  {{#let redirect_uri = 'https://'||:headers.host||replace(:payload_path, '"', '')||'/callback'}}
 
   {{#let client_secret = env.GOOGLE_CLIENT_SECRET}}
   {{#fetch async token from 'https://oauth2.googleapis.com/token?client_id='||:client_id||'&client_secret='||:client_secret||'&code='||:code||'&redirect_uri='||:redirect_uri||'&grant_type=authorization_code&state='||:state}}

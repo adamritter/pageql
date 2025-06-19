@@ -694,6 +694,8 @@ class PageQLAsync(PageQL):
                 return self._process_log_directive(node_content, params, path, includes, http_verb, reactive, ctx)
             elif node_type == "#dump":
                 return self._process_dump_directive(node_content, params, path, includes, http_verb, reactive, ctx)
+            elif node_type == "#showsource":
+                return self._process_showsource_directive(node_content, params, path, includes, http_verb, reactive, ctx)
             else:
                 if not node_type.startswith("/"):
                     raise ValueError(format_unknown_directive(node_type))

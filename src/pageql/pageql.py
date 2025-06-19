@@ -41,6 +41,7 @@ from pageql.render_context import (
     RenderResultException,
     embed_html_in_js,
 )
+from pageql.highlighter import highlight_block
 from pageql.reactive_sql import parse_reactive, _replace_placeholders
 from pageql.database import (
     connect_database,
@@ -67,6 +68,7 @@ DIRECTIVE_HELP: dict[str, str] = {
     "#create <sql>": "execute an SQL CREATE statement",
     "#delete from <table> where <cond>": "execute an SQL DELETE query",
     "#dump <table>": "dump a table's contents",
+    "#showsource": "display highlighted source code",
     "#from <select>": "iterate SQL query results",
     "#if <expr>": "conditional block",
     "#ifdef <var>": "branch if variable defined",
@@ -124,6 +126,7 @@ class PageQL:
         self._modules = {} # Store parsed node lists here later
         self._parse_errors = {} # Store errors here
         self.tests = {}
+        self._sources = {}
         sqlite_file = None
         if not (
             db_path.startswith("postgres://")
@@ -177,6 +180,8 @@ class PageQL:
             del self._parse_errors[name]
         if name in self.tests:
             del self.tests[name]
+        if name in self._sources:
+            del self._sources[name]
         # Tokenize the source and build AST
         try:
             tokens = tokenize(source)
@@ -195,6 +200,7 @@ class PageQL:
 
             _apply(partials)
             self._modules[name] = [body, partials]
+            self._sources[name] = source
             if tests:
                 self.tests[name] = tests
         except Exception as e:
@@ -711,6 +717,15 @@ class PageQL:
         ctx.out.append(f"<p>Dumping {node_content} took {(end_time - t)*1000:.2f} ms</p>")
         return reactive
 
+    def _process_showsource_directive(self, node_content, params, path, includes,
+                                      http_verb, reactive, ctx):
+        module_name = includes.get(None, path.strip('/'))
+        source = self._sources.get(module_name)
+        if source is None:
+            raise ValueError(f"Source for {module_name} not found")
+        ctx.out.append(highlight_block(source))
+        return reactive
+
     def _process_reactiveelement_directive(self, node, params, path, includes,
                                            http_verb, reactive, ctx):
         prev = ctx.reactiveelement
@@ -1089,6 +1104,8 @@ class PageQL:
                 return self._process_log_directive(node_content, params, path, includes, http_verb, reactive, ctx)
             elif node_type == '#dump':
                 return self._process_dump_directive(node_content, params, path, includes, http_verb, reactive, ctx)
+            elif node_type == '#showsource':
+                return self._process_showsource_directive(node_content, params, path, includes, http_verb, reactive, ctx)
             else:
                 if not node_type.startswith('/'):
                     raise ValueError(format_unknown_directive(node_type))

@@ -43,3 +43,8 @@ def test_highlight_block_wraps_highlight():
     assert '<div class="highlight"' in block
     assert highlight(plain) in block
     assert block.rstrip().endswith('</pre></div></div></div>')
+
+
+def test_highlight_closing_tag_slash():
+    result = highlight("</h1>")
+    assert '<span style="color: #808080;">/</span>' in result

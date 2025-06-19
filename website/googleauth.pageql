@@ -18,7 +18,10 @@
   {{#let redirect_uri = 'https://'||:headers.host||replace(:payload_path, '"', '')||'/callback'}}
 
   {{#let client_secret = env.GOOGLE_CLIENT_SECRET}}
-  {{#fetch async token from 'https://oauth2.googleapis.com/token?client_id='||:client_id||'&client_secret='||:client_secret||'&code='||:code||'&redirect_uri='||:redirect_uri||'&grant_type=authorization_code&state='||:state}}
+  {{#let token_url = 'https://oauth2.googleapis.com/token'}}
+  {{#let token_body = 'client_id='||:client_id||'&client_secret='||:client_secret||'&code='||:code||'&redirect_uri='||:redirect_uri||'&grant_type=authorization_code&state='||:state}}
+  {{#let token_hdr = 'Content-Type: application/x-www-form-urlencoded'}}
+  {{#fetch async token from :token_url method='POST' header=:token_hdr body=:token_body}}
     {{#if :token.status_code == 200}}
       {{#let access_token = query_param(:token.body, 'access_token')}}
       <p>Extracted access token: {{access_token}}</p>

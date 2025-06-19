@@ -28,7 +28,7 @@ def test_highlight_roundtrip():
     duration = time.perf_counter() - start
     assert duration < 0.01
 
-    assert rehighlighted[:250] == snippet[:250]
+    assert rehighlighted[:300] == snippet[:300]
 
 
 def test_highlight_block_wraps_highlight():

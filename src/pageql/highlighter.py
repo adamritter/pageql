@@ -56,6 +56,7 @@ def _span(content: str, color: str) -> str:
 def _highlight_pageql_expr(text: str) -> str:
     i = 0
     out: list[str] = []
+    next_as_var = False
     while i < len(text):
         ch = text[i]
         if ch.isspace():
@@ -95,8 +96,13 @@ def _highlight_pageql_expr(text: str) -> str:
             word = text[i:j]
             word_lower = word.lower()
             word_upper = word.upper()
-            if word.startswith('#') or word.startswith('/'):
+            if next_as_var:
+                color = _VAR_COLOR
+                next_as_var = False
+            elif word.startswith('#') or word.startswith('/'):
                 color = _DIRECTIVE_COLOR
+                if word_lower in ('#param', '#let'):
+                    next_as_var = True
             elif word_lower in HTTP_VERBS:
                 color = _HTTPVERB_COLOR
             elif word_upper in FUNC_NAMES:

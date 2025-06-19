@@ -1,7 +1,8 @@
 {{#let payload json_set('{}', '$.ongoing', 1, '$.path', :path)}}
 {{#let state jws_serialize_compact(:payload)}}
 {{#let client_id = env.FACEBOOK_CLIENT_ID}}
-<a href="https://www.facebook.com/v18.0/dialog/oauth?client_id={{client_id}}&state={{state}}">
+{{#let redirect_uri = 'http://'||:headers.host||replace(:path, '"', '')||'/callback'}}
+<a href="https://www.facebook.com/v18.0/dialog/oauth?client_id={{client_id}}&redirect_uri={{redirect_uri}}&state={{state}}">
   <button>Login with Facebook</button>
 </a>
 
@@ -15,8 +16,10 @@
   <p>Payload path: {{:payload_path}}</p>
   {{#let client_id = env.FACEBOOK_CLIENT_ID}}
 
+  {{#let redirect_uri = 'http://'||:headers.host||replace(:payload_path, '"', '')||'/callback'}}
+
   {{#let client_secret = env.FACEBOOK_CLIENT_SECRET}}
-  {{#fetch async token from 'https://graph.facebook.com/v18.0/oauth/access_token?client_id='||:client_id||'&client_secret='||:client_secret||'&code='||:code||'&state='||:state}}
+  {{#fetch async token from 'https://graph.facebook.com/v18.0/oauth/access_token?client_id='||:client_id||'&client_secret='||:client_secret||'&code='||:code||'&redirect_uri='||:redirect_uri||'&state='||:state}}
     {{#if :token.status_code == 200}}
       {{#let access_token = query_param(:token.body, 'access_token')}}
       <p>Extracted access token: {{access_token}}</p>

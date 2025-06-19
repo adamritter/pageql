@@ -27,6 +27,7 @@ def test_facebookauth_page_renders_button(monkeypatch):
         assert status == 200
         assert "facebook.com" in body
         assert "123456789" in body
+        assert "redirect_uri=http://127.0.0.1/facebookauth/callback" in body
 
         m = re.search(r"state=([^\"]+)", body)
         assert m is not None
@@ -87,6 +88,7 @@ def test_facebookauth_callback_fetch(monkeypatch):
         assert "client_secret=secret" in token_url
         assert "code=abc" in token_url
         assert f"state={state}" in token_url
+        assert "redirect_uri=http://127.0.0.1/facebookauth/callback" in token_url
         assert user_url == "https://graph.facebook.com/me"
         assert user_headers == {
             "Authorization": "Bearer t",

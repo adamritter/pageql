@@ -27,7 +27,7 @@ def test_googleauth_page_renders_button(monkeypatch):
         assert status == 200
         assert "accounts.google.com/o/oauth2/v2/auth" in body
         assert "123456789.apps.googleusercontent.com" in body
-        assert "redirect_uri=http://127.0.0.1/googleauth/callback" in body
+        assert "redirect_uri=https://127.0.0.1/googleauth/callback" in body
 
         m = re.search(r"state=([^\"]+)", body)
         assert m is not None
@@ -87,7 +87,7 @@ def test_googleauth_callback_fetch(monkeypatch):
         assert "123456789.apps.googleusercontent.com" in token_url
         assert "client_secret=secret" in token_url
         assert "code=abc" in token_url
-        assert "redirect_uri=http://127.0.0.1/googleauth/callback" in token_url
+        assert "redirect_uri=https://127.0.0.1/googleauth/callback" in token_url
         assert f"state={state}" in token_url
         assert user_url == "https://www.googleapis.com/oauth2/v3/userinfo"
         assert user_headers == {

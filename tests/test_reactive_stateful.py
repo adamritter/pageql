@@ -92,6 +92,29 @@ class ReactiveStateMachine(RuleBasedStateMachine):
         rt.update(f"UPDATE {table} SET name=:name WHERE id=:id", {"name": name, "id": rid})
         self._assert_components()
 
+    @rule(
+        table=st.sampled_from(["items", "a", "b"]),
+        old=st.sampled_from(["x", "y", "z"]),
+        new=st.sampled_from(["x", "y", "z"]),
+    )
+    def update_rows_by_name(self, table, old, new):
+        assume(
+            self.conn_expected.execute(
+                f"SELECT 1 FROM {table} WHERE name=? LIMIT 1",
+                (old,),
+            ).fetchone()
+        )
+        self.conn_expected.execute(
+            f"UPDATE {table} SET name=? WHERE name=?",
+            (new, old),
+        )
+        rt = self._rt(table)
+        rt.update(
+            f"UPDATE {table} SET name=:new WHERE name=:old",
+            {"new": new, "old": old},
+        )
+        self._assert_components()
+
     @rule(table=st.sampled_from(["items", "a", "b"]))
     def delete_row(self, table):
         assume(self.ids[table])
@@ -100,6 +123,26 @@ class ReactiveStateMachine(RuleBasedStateMachine):
         rt = self._rt(table)
         rt.delete(f"DELETE FROM {table} WHERE id=:id", {"id": rid})
         self.ids[table].remove(rid)
+        self._assert_components()
+
+    @rule(table=st.sampled_from(["items", "a", "b"]), name=st.sampled_from(["x", "y", "z"]))
+    def delete_rows_by_name(self, table, name):
+        rows = self.conn_expected.execute(
+            f"SELECT id FROM {table} WHERE name=?",
+            (name,),
+        ).fetchall()
+        assume(rows)
+        self.conn_expected.execute(
+            f"DELETE FROM {table} WHERE name=?",
+            (name,),
+        )
+        rt = self._rt(table)
+        rt.delete(
+            f"DELETE FROM {table} WHERE name=:name",
+            {"name": name},
+        )
+        for rid, in rows:
+            self.ids[table].remove(rid)
         self._assert_components()
 
 

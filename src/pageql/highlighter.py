@@ -30,6 +30,8 @@ FUNC_NAMES = {"COUNT", "IIF"}
 
 HTTP_VERBS = {"post", "patch", "delete", "get", "put"}
 
+PARAM_ATTRS = {"maxlength", "default", "pattern"}
+
 
 _DIRECTIVE_COLOR = "#569cd6; font-weight: bold;"
 _SQL_COLOR = "#c586c0; font-weight: bold;"
@@ -103,7 +105,7 @@ def _highlight_pageql_expr(text: str) -> str:
                 color = _DIRECTIVE_COLOR
                 if word_lower in ('#param', '#let'):
                     next_as_var = True
-            elif word_lower in HTTP_VERBS:
+            elif word_lower in HTTP_VERBS or word_lower in PARAM_ATTRS:
                 color = _HTTPVERB_COLOR
             elif word_upper in FUNC_NAMES:
                 color = _FUNC_COLOR

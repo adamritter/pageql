@@ -9,15 +9,15 @@ import json
 import re
 
 
-def test_gmailauth_page_renders_button(monkeypatch):
-    src = Path("website/gmailauth.pageql").read_text()
+def test_googleauth_page_renders_button(monkeypatch):
+    src = Path("website/googleauth.pageql").read_text()
     with tempfile.TemporaryDirectory() as tmpdir:
-        Path(tmpdir, "gmailauth.pageql").write_text(src, encoding="utf-8")
+        Path(tmpdir, "googleauth.pageql").write_text(src, encoding="utf-8")
         monkeypatch.setenv("GOOGLE_CLIENT_ID", "123456789.apps.googleusercontent.com")
 
         async def run_test():
             server, task, port = await run_server_in_task(tmpdir)
-            status, _headers, body = await _http_get(f"http://127.0.0.1:{port}/gmailauth")
+            status, _headers, body = await _http_get(f"http://127.0.0.1:{port}/googleauth")
             server.should_exit = True
             await task
             return status, body.decode()
@@ -33,13 +33,13 @@ def test_gmailauth_page_renders_button(monkeypatch):
         token = m.group(1)
         data = json.loads(jws_deserialize_compact(token).decode())
         assert data["ongoing"] == 1
-        assert data["path"] == "/gmailauth"
+        assert data["path"] == "/googleauth"
 
 
-def test_gmailauth_callback_fetch(monkeypatch):
-    src = Path("website/gmailauth.pageql").read_text()
+def test_googleauth_callback_fetch(monkeypatch):
+    src = Path("website/googleauth.pageql").read_text()
     with tempfile.TemporaryDirectory() as tmpdir:
-        Path(tmpdir, "gmailauth.pageql").write_text(src, encoding="utf-8")
+        Path(tmpdir, "googleauth.pageql").write_text(src, encoding="utf-8")
 
         async def run_test():
             from pageql import pageql as pql_mod
@@ -65,9 +65,9 @@ def test_gmailauth_callback_fetch(monkeypatch):
             monkeypatch.setenv("GOOGLE_CLIENT_ID", "123456789.apps.googleusercontent.com")
             try:
                 server, task, port = await run_server_in_task(tmpdir)
-                state = jws_serialize_compact('{"ongoing":1,"path":"/gmailauth"}')
+                state = jws_serialize_compact('{"ongoing":1,"path":"/googleauth"}')
                 status, _headers, body = await _http_get(
-                    f"http://127.0.0.1:{port}/gmailauth/callback?code=abc&state={state}"
+                    f"http://127.0.0.1:{port}/googleauth/callback?code=abc&state={state}"
                 )
                 server.should_exit = True
                 await task

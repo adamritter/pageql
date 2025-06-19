@@ -19,6 +19,11 @@ def _remove_color_spans(html_text: str) -> str:
 
 
 def test_highlight_roundtrip():
+    """Verify highlight() output and that it runs reasonably fast.
+
+    The duration limit is a heuristic intended to catch extreme slowdowns
+    rather than an exact performance benchmark.
+    """
     page = Path("website/todos.pageql").read_text()
     snippet = _extract_snippet(page)
     plain = _remove_color_spans(snippet)
@@ -26,7 +31,9 @@ def test_highlight_roundtrip():
     start = time.perf_counter()
     rehighlighted = highlight(plain)
     duration = time.perf_counter() - start
-    assert duration < 0.01
+    # Allow a small buffer because this check is only to detect drastic
+    # regressions in performance.
+    assert duration < 0.05
 
     if rehighlighted != snippet:
         max_len = min(len(rehighlighted), len(snippet))

@@ -143,7 +143,7 @@
   </button>
 <div class="code-column">
 <div class="highlight" style="background:rgb(24, 28, 29); border-radius: 8px; padding: 1rem; overflow-x: auto;"><pre style="line-height: 125%; color: #d4d4d4; margin: 0;"><span></span>&#123;&#123;<span style="color: #569cd6; font-weight: bold;">#partial</span> <span style="color: #dcdcaa;">post</span> <span style="color: #4ec9b0;">add</span>&#125;&#125;
-  &#123;&#123;<span style="color: #c586c0; font-weight: bold;">#param</span> <span style="color: #9cdcfe;">text</span> <span style="color: #dcdcaa;">maxlength</span>=<span style="color: #ce9178;">100</span>&#125;&#125;
+  &#123;&#123;<span style="color: #569cd6; font-weight: bold;">#param</span> <span style="color: #9cdcfe;">text</span> <span style="color: #dcdcaa;">maxlength</span>=<span style="color: #ce9178;">100</span>&#125;&#125;
   &#123;&#123;<span style="color: #569cd6; font-weight: bold;">#let</span> <span style="color: #9cdcfe;">current_total</span> = <span style="color: #4fc1ff; font-weight: bold;">COUNT</span>(*) <span style="color: #c586c0; font-weight: bold;">from</span> todos&#125;&#125;
   &#123;&#123;<span style="color: #c586c0; font-weight: bold;">#if</span> <span style="color: #9cdcfe;">:current_total</span> &lt; <span style="color: #ce9178;">20</span>&#125;&#125;
     &#123;&#123;<span style="color: #569cd6; font-weight: bold;">#insert</span> <span style="color: #c586c0; font-weight: bold;">into</span> todos(text) <span style="color: #c586c0; font-weight: bold;">values</span> (<span style="color: #9cdcfe;">:text</span>)&#125;&#125;
@@ -157,7 +157,7 @@
 
 
 &#123;&#123;<span style="color: #569cd6; font-weight: bold;">#partial</span> <span style="color: #dcdcaa;">patch</span> <span style="color: #9cdcfe;">:id</span>&#125;&#125;
-  &#123;&#123;<span style="color: #c586c0; font-weight: bold;">#param</span> <span style="color: #9cdcfe;">text</span> <span style="color: #dcdcaa;">maxlength</span>=<span style="color: #ce9178;">100</span>&#125;&#125;
+  &#123;&#123;<span style="color: #569cd6; font-weight: bold;">#param</span> <span style="color: #9cdcfe;">text</span> <span style="color: #dcdcaa;">maxlength</span>=<span style="color: #ce9178;">100</span>&#125;&#125;
   &#123;&#123;<span style="color: #569cd6; font-weight: bold;">#update</span> todos <span style="color: #c586c0; font-weight: bold;">set</span> text = <span style="color: #9cdcfe;">:text</span> <span style="color: #c586c0; font-weight: bold;">WHERE</span> id = <span style="color: #9cdcfe;">:id</span>&#125;&#125;
 &#123;&#123;<span style="color: #569cd6; font-weight: bold;">/partial</span>&#125;&#125;
 
@@ -178,7 +178,7 @@
 &#123;&#123;<span style="color: #569cd6; font-weight: bold;">/partial</span>&#125;&#125;
 
 
-&#123;&#123;<span style="color: #c586c0; font-weight: bold;">#param</span> <span style="color: #9cdcfe;">filter</span> <span style="color: #dcdcaa;">default</span>=<span style="color: #ce9178;">'all'</span> <span style="color: #dcdcaa;">pattern</span>=<span style="color: #ce9178;">"^(all|active|completed)$"</span>&#125;&#125;
+&#123;&#123;<span style="color: #569cd6; font-weight: bold;">#param</span> <span style="color: #9cdcfe;">filter</span> <span style="color: #dcdcaa;">default</span>=<span style="color: #ce9178;">'all'</span> <span style="color: #dcdcaa;">pattern</span>=<span style="color: #ce9178;">"^(all|active|completed)$"</span>&#125;&#125;
 
 &#123;&#123;<span style="color: #6a9955; font-style: italic;">!-- Ensure the table exists (harmless if already created) --</span>&#125;&#125;
 &#123;&#123;<span style="color: #569cd6; font-weight: bold;">#create</span> <span style="color: #c586c0; font-weight: bold;">table</span> <span style="color: #c586c0; font-weight: bold;">if</span> <span style="color: #c586c0; font-weight: bold;">not</span> <span style="color: #c586c0; font-weight: bold;">exists</span> todos (

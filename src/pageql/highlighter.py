@@ -96,7 +96,11 @@ def _highlight_pageql_expr(text: str) -> str:
             word_lower = word.lower()
             word_upper = word.upper()
             if word.startswith('#') or word.startswith('/'):
-                color = _DIRECTIVE_COLOR
+                inner = word.lstrip('#/')
+                if inner.lower() in ("param", "if"):
+                    color = _SQL_COLOR
+                else:
+                    color = _DIRECTIVE_COLOR
             elif word_lower in HTTP_VERBS:
                 color = _HTTPVERB_COLOR
             elif word_upper in FUNC_NAMES:

@@ -150,6 +150,7 @@ class PageQLApp:
         fallback_url: Optional[str] = None,
         csrf_protect: bool = True,
         http_disconnect_cleanup_timeout: float = 10.0,
+        static_html: bool = False,
     ):
         self.stop_event = None
         self.notifies = []
@@ -170,6 +171,7 @@ class PageQLApp:
         self.fallback_url = fallback_url
         self.csrf_protect = csrf_protect
         self.http_disconnect_cleanup_timeout = http_disconnect_cleanup_timeout
+        self.static_html = static_html
         self.load_builtin_static()
         self.prepare_server(db_path, template_dir, create_db)
 
@@ -260,7 +262,7 @@ class PageQLApp:
         if content_type == 'text/html':
             content_type = 'text/html; charset=utf-8'
             body = self.static_files[path_cleaned]
-            if include_scripts:
+            if include_scripts and not self.static_html:
                 body = client_script(client_id).encode('utf-8') + body
         else:
             body = self.static_files[path_cleaned]

@@ -24,6 +24,7 @@ def test_cli_fallback_url(monkeypatch, tmp_path):
             fallback_url=None,
             csrf_protect=True,
             http_disconnect_cleanup_timeout=10.0,
+            static_html=False,
         ):
             created["db"] = db_file
             created["tpl"] = templates_dir
@@ -72,6 +73,7 @@ def test_cli_http_disconnect_timeout(monkeypatch, tmp_path):
             fallback_url=None,
             csrf_protect=True,
             http_disconnect_cleanup_timeout=10.0,
+            static_html=False,
         ):
             created["timeout"] = http_disconnect_cleanup_timeout
 
@@ -88,5 +90,38 @@ def test_cli_http_disconnect_timeout(monkeypatch, tmp_path):
     monkeypatch.setattr(sys, "argv", argv)
     cli.main()
     assert created["timeout"] == 0.5
+
+
+def test_cli_static_html(monkeypatch, tmp_path):
+    created = {}
+
+    class DummyApp:
+        def __init__(
+            self,
+            db_file,
+            templates_dir,
+            create_db=False,
+            should_reload=True,
+            quiet=False,
+            fallback_app=None,
+            fallback_url=None,
+            csrf_protect=True,
+            http_disconnect_cleanup_timeout=10.0,
+            static_html=False,
+        ):
+            created["static_html"] = static_html
+
+    monkeypatch.setattr(cli, "PageQLApp", DummyApp)
+    monkeypatch.setattr(cli.uvicorn, "run", lambda *a, **kw: None)
+
+    argv = [
+        "pageql",
+        str(tmp_path),
+        "db",
+        "--static-html",
+    ]
+    monkeypatch.setattr(sys, "argv", argv)
+    cli.main()
+    assert created["static_html"] is True
 
 

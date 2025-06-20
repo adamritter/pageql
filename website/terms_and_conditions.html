@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Terms and Conditions</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-gradient-start: #1a2233;
+      --bg-gradient-end:   #2d3748;
+      --card-bg:  #2a2e3a;
+      --text:     #e2e2e2;
+      --text-muted: #b0b8c4;
+      --primary:  #be5028;
+      --border-subtle: #3a4259;
+    }
+    * { box-sizing: border-box; font-family: 'Inter', sans-serif; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: linear-gradient(135deg, var(--bg-gradient-start), var(--bg-gradient-end));
+      color: var(--text);
+      line-height: 1.6;
+      padding: 2rem;
+    }
+    h1 { text-align: center; color: var(--primary); }
+    .card {
+      background: var(--card-bg);
+      border-radius: 12px;
+      padding: 2rem;
+      max-width: 800px;
+      margin: 0 auto;
+      border: 1px solid var(--border-subtle);
+    }
+    a { color: var(--primary); }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Terms and Conditions</h1>
+    <p>This demo application is provided for testing the PageQL framework. The application has no warranty.</p>
+    <p>By using this demo you agree that all data entered is for testing only and may be removed at any time.</p>
+    <p>No liability is assumed for any loss or damages resulting from the use of this demo.</p>
+  </div>
+</body>
+</html>

@@ -74,6 +74,7 @@ pageql ./templates path/to/your/database.sqlite
 *   `-q, --quiet`: (Optional) Only output errors when running the server.
 *   `--fallback-url <url>`: (Optional) Forward unknown routes to this base URL.
 *   `--no-csrf`: (Optional) Disable CSRF protection. Useful for local testing but not recommended in production.
+*   `--static-html`: (Optional) Serve HTML files without injecting the client script.
 *   `--test`: (Optional) Run template tests and exit instead of serving.
 *   `--http-disconnect-cleanup-timeout <seconds>`: (Optional) Delay before cleaning up HTTP disconnect contexts.
 *   `--profile`: (Optional) Profile the server using `cProfile` and print statistics when it stops.

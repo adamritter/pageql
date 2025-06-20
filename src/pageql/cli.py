@@ -60,6 +60,7 @@ def main():
     parser.add_argument('-q', '--quiet', action='store_true', help="Only show errors in output.")
     parser.add_argument('--fallback-url', help="Forward unknown routes to this base URL")
     parser.add_argument('--no-csrf', action='store_true', help="Disable CSRF protection")
+    parser.add_argument('--static-html', action='store_true', help="Don't send client script for HTML files")
     parser.add_argument('--test', action='store_true', help="Run tests instead of serving")
     parser.add_argument(
         '--profile',
@@ -99,6 +100,7 @@ def main():
         "fallback_url": args.fallback_url,
         "csrf_protect": not args.no_csrf,
         "http_disconnect_cleanup_timeout": args.http_disconnect_cleanup_timeout,
+        "static_html": args.static_html,
     }
     app = PageQLApp(args.db_file, args.templates_dir, **kwargs)
     app.log_level = args.log_level

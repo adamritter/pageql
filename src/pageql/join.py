@@ -35,7 +35,6 @@ class Join(Signal):
         )
 
         self.rows1 = list(execute(self.conn, self.parent1.sql, []).fetchall())
-        self.rows2 = list(execute(self.conn, self.parent2.sql, []).fetchall())
 
     def _emit(self, event):
         for listener in self.listeners:
@@ -59,7 +58,6 @@ class Join(Signal):
             self._emit([1, row + r2])
 
     def _insert_right(self, row):
-        self.rows2.append(row)
         for r1 in self._fetch_left(row):
             self._emit([1, r1 + row])
 
@@ -72,10 +70,6 @@ class Join(Signal):
             self._emit([2, row + r2])
 
     def _delete_right(self, row):
-        try:
-            self.rows2.remove(row)
-        except ValueError:
-            return
         for r1 in self._fetch_left(row):
             self._emit([2, r1 + row])
 
@@ -109,9 +103,6 @@ class Join(Signal):
     def _update_right(self, oldrow, newrow):
         if oldrow == newrow:
             return
-        idx = self.rows2.index(oldrow)
-        self.rows2[idx] = newrow
-
         old_matches = self._fetch_left(oldrow)
         new_matches = self._fetch_left(newrow)
 

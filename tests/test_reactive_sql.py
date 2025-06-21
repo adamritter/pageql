@@ -9,7 +9,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 sys.modules.setdefault("watchfiles", types.ModuleType("watchfiles"))
 sys.modules["watchfiles"].awatch = lambda *args, **kwargs: None
 
-from pageql.reactive import Tables, ReactiveTable, Select, Where, Aggregate, UnionAll
+from pageql.reactive import Tables, ReactiveTable, Select, Where, Aggregate, UnionAll, Join
 from pageql.reactive_sql import parse_reactive, FallbackReactive
 from pageql.reactive import ReadOnly
 
@@ -107,7 +107,7 @@ def test_parse_union_all():
     assert_sql_equivalent(conn, sql, comp.sql)
 
 
-def test_parse_reactive_fallback_join():
+def test_parse_join():
     conn = sqlite3.connect(":memory:")
     conn.execute("CREATE TABLE a(id INTEGER PRIMARY KEY, name TEXT)")
     conn.execute("CREATE TABLE b(id INTEGER PRIMARY KEY, a_id INTEGER, title TEXT)")
@@ -115,6 +115,9 @@ def test_parse_reactive_fallback_join():
     sql = "SELECT a.name, b.title FROM a JOIN b ON a.id=b.a_id"
     expr = sqlglot.parse_one(sql, read="sqlite")
     comp = parse_reactive(expr, tables, {})
+    assert isinstance(comp, Select)
+    assert isinstance(comp.parent, Join)
+
     events = []
     comp.listeners.append(events.append)
 

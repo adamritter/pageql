@@ -1,4 +1,5 @@
 import re
+from collections import Counter
 import sqlglot
 
 def execute(conn, sql, params):
@@ -625,6 +626,8 @@ class Intersect(Signal):
             for parent, cb in ((self.parent1, self._cb1), (self.parent2, self._cb2)):
                 parent.remove_listener(cb)
             self.listeners = None
+
+
 
 
 

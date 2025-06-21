@@ -507,6 +507,52 @@ def test_join_delete():
     assert events == []
 
 
+def test_left_outer_join_basic():
+    conn = sqlite3.connect(":memory:")
+    conn.execute("CREATE TABLE a(id INTEGER PRIMARY KEY, name TEXT)")
+    conn.execute("CREATE TABLE b(id INTEGER PRIMARY KEY, a_id INTEGER, title TEXT)")
+    r1, r2 = ReactiveTable(conn, "a"), ReactiveTable(conn, "b")
+    j = Join(r1, r2, "a.id = b.a_id", left_outer=True)
+    events = []
+    j.listeners.append(events.append)
+
+    r1.insert("INSERT INTO a(name) VALUES ('x')", {})
+    aid = conn.execute("SELECT id FROM a WHERE name='x'").fetchone()[0]
+    assert_eq(events, [[1, (aid, 'x', None, None, None)]])
+    events.clear()
+
+    r2.insert("INSERT INTO b(a_id, title) VALUES (:a, 't')", {"a": aid})
+    bid = conn.execute("SELECT id FROM b WHERE a_id=:a", {"a": aid}).fetchone()[0]
+    assert_eq(events, [[3, (aid, 'x', None, None, None), (aid, 'x', bid, aid, 't')]])
+
+
+def test_left_outer_join_update_delete():
+    conn = sqlite3.connect(":memory:")
+    conn.execute("CREATE TABLE a(id INTEGER PRIMARY KEY, name TEXT)")
+    conn.execute("CREATE TABLE b(id INTEGER PRIMARY KEY, a_id INTEGER, title TEXT)")
+    r1, r2 = ReactiveTable(conn, "a"), ReactiveTable(conn, "b")
+    j = Join(r1, r2, "a.id = b.a_id", left_outer=True)
+    events = []
+    j.listeners.append(events.append)
+
+    r1.insert("INSERT INTO a(name) VALUES ('x')", {})
+    aid = conn.execute("SELECT id FROM a WHERE name='x'").fetchone()[0]
+    r2.insert("INSERT INTO b(a_id, title) VALUES (:a, 't1')", {"a": aid})
+    bid = conn.execute("SELECT id FROM b WHERE title='t1'").fetchone()[0]
+    events.clear()
+
+    r2.update("UPDATE b SET title='t2' WHERE id=:id", {"id": bid})
+    assert_eq(events, [[3, (aid, 'x', bid, aid, 't1'), (aid, 'x', bid, aid, 't2')]])
+    events.clear()
+
+    r2.delete("DELETE FROM b WHERE id=:id", {"id": bid})
+    assert_eq(events, [[3, (aid, 'x', bid, aid, 't2'), (aid, 'x', None, None, None)]])
+    events.clear()
+
+    r1.delete("DELETE FROM a WHERE id=:id", {"id": aid})
+    assert_eq(events, [[2, (aid, 'x', None, None, None)]])
+
+
 def test_intersect_deduplication():
     conn = sqlite3.connect(":memory:")
     for t in ("a", "b"):

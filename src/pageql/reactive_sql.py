@@ -12,6 +12,7 @@ from .reactive import (
     OneValue,
     Signal,
     ReadOnly,
+    Join,
     execute,
 )
 
@@ -128,6 +129,27 @@ def build_reactive(expr, tables: Tables):
         if from_expr is None:
             return FallbackReactive(tables, expr.sql(dialect=tables.dialect))
         parent = build_from(from_expr.this, tables)
+
+        joins = expr.args.get("joins") or []
+        alias_map = None
+        if joins:
+            if len(joins) > 1:
+                raise NotImplementedError("multiple joins not supported")
+            j = joins[0]
+            if j.args.get("method") is not None or j.args.get("kind") in {"CROSS"} or j.args.get("using") is not None or j.args.get("on") is None:
+                raise NotImplementedError("unsupported join")
+            right = build_from(j.this, tables)
+            left_alias = from_expr.this.alias_or_name
+            right_alias = j.this.alias_or_name
+            on_sql = j.args["on"].sql(dialect=tables.dialect)
+            on_sql = on_sql.replace(f"{left_alias}.", "a.")
+            on_sql = on_sql.replace(f"{right_alias}.", "b.")
+            side = j.args.get("side")
+            left_outer = side in ("LEFT", "FULL")
+            right_outer = side in ("RIGHT", "FULL")
+            parent = Join(parent, right, on_sql, left_outer=left_outer, right_outer=right_outer)
+            alias_map = {left_alias, right_alias}
+
         if expr.args.get("where"):
             parent = Where(parent, expr.args["where"].this.sql(dialect=tables.dialect))
         select_list = expr.args.get("expressions") or [exp.Star()]
@@ -144,7 +166,14 @@ def build_reactive(expr, tables: Tables):
             if isinstance(col, exp.Avg):
                 expr_sql = col.sql(dialect=tables.dialect)
                 return Aggregate(parent, (expr_sql,))
-        select_sql = ", ".join(col.sql(dialect=tables.dialect) for col in select_list)
+
+        cols = []
+        for c in select_list:
+            if alias_map and isinstance(c, exp.Column) and c.table in alias_map:
+                cols.append(c.name)
+            else:
+                cols.append(c.sql(dialect=tables.dialect))
+        select_sql = ", ".join(cols)
         return Select(parent, select_sql)
     if isinstance(expr, exp.Table):
         return tables._get(expr.name)
@@ -206,13 +235,10 @@ def parse_reactive(
         comp.columns = [d[0] for d in cur.description]
         return comp
 
-    if list(expr.find_all(exp.Join)):
+    try:
+        comp = build_reactive(expr, tables)
+    except NotImplementedError:
         comp = FallbackReactive(tables, sql, expr)
-    else:
-        try:
-            comp = build_reactive(expr, tables)
-        except NotImplementedError:
-            comp = FallbackReactive(tables, sql, expr)
 
     if one_value:
         comp = OneValue(comp)

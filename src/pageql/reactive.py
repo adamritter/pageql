@@ -310,23 +310,41 @@ class Where(Signal):
 
 
 class CountAll(Signal):
-    def __init__(self, parent):
+    def __init__(self, parent, expr: str | None = None):
         super().__init__(None)
         self.parent = parent
+        self.expr = expr
         self.conn = self.parent.conn
-        self.sql = f"SELECT COUNT(*) FROM ({self.parent.sql})"
+        if expr is None:
+            self.sql = f"SELECT COUNT(*) FROM ({self.parent.sql})"
+        else:
+            self.sql = f"SELECT COUNT({expr}) FROM ({self.parent.sql})"
+            placeholders = ", ".join(f"? AS {c}" for c in self.parent.columns)
+            self._expr_sql = f"SELECT {expr} FROM (SELECT {placeholders})"
         self.value = execute(self.conn, self.sql, []).fetchone()[0]
         self.parent.listeners.append(self.onevent)
-        self.columns = "COUNT(*)"
+        self.columns = f"COUNT({expr if expr else '*'} )".replace(' )', ')')
         self.deps = [self.parent]
         self.update = self.onevent
+
+    def _expr_not_null(self, row):
+        if self.expr is None:
+            return True
+        cur = execute(self.conn, self._expr_sql, row)
+        return cur.fetchone()[0] is not None
 
     def onevent(self, event):
         oldvalue = self.value
         if event[0] == 1:
-            self.value += 1
+            if self._expr_not_null(event[1]):
+                self.value += 1
         elif event[0] == 2:
-            self.value -= 1
+            if self._expr_not_null(event[1]):
+                self.value -= 1
+        elif event[0] == 3 and self.expr is not None:
+            before = self._expr_not_null(event[1])
+            after = self._expr_not_null(event[2])
+            self.value += int(after) - int(before)
         if oldvalue != self.value:
             for listener in self.listeners:
                 listener([3, [oldvalue], [self.value]])

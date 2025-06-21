@@ -297,6 +297,20 @@ def test_min_max_expression():
     assert_eq(mn.value, [5])
 
 
+def test_aggregate_constant_expression():
+    conn = _db()
+    rt = ReactiveTable(conn, "items")
+    ag = Aggregate(rt, ("COUNT(*)", "42"))
+    events = []
+    ag.listeners.append(events.append)
+
+    assert_eq(ag.value, [0, 42])
+
+    rt.insert("INSERT INTO items(name) VALUES ('x')", {})
+    assert_eq(ag.value, [1, 42])
+    assert_eq(events[-1], [3, [0, 42], [1, 42]])
+
+
 def test_signal_and_derived():
     a_val = [1]
     b_val = [2]

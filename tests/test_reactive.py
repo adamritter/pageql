@@ -258,6 +258,45 @@ def test_avg_expression():
     assert_eq(events[-1], [3, [3], [1]])
 
 
+def test_min_max_expression():
+    conn = sqlite3.connect(":memory:")
+    conn.execute("CREATE TABLE nums(id INTEGER PRIMARY KEY, n INTEGER)")
+    rt = ReactiveTable(conn, "nums")
+    mn = Aggregate(rt, ("MIN(n)",))
+    mx = Aggregate(rt, ("MAX(n)",))
+    mn_events, mx_events = [], []
+    mn.listeners.append(mn_events.append)
+    mx.listeners.append(mx_events.append)
+
+    rt.insert("INSERT INTO nums(n) VALUES (5)", {})
+    assert_eq(mn.value, [5])
+    assert_eq(mx.value, [5])
+
+    rt.insert("INSERT INTO nums(n) VALUES (2)", {})
+    assert_eq(mn.value, [2])
+    assert_eq(mx.value, [5])
+
+    rt.insert("INSERT INTO nums(n) VALUES (10)", {})
+    assert_eq(mx.value, [10])
+
+    rid = conn.execute("SELECT id FROM nums WHERE n=2").fetchone()[0]
+    rt.update("UPDATE nums SET n=7 WHERE id=:id", {"id": rid})
+    assert_eq(mn.value, [5])
+
+    rid = conn.execute("SELECT id FROM nums WHERE n=10").fetchone()[0]
+    rt.update("UPDATE nums SET n=1 WHERE id=:id", {"id": rid})
+    assert_eq(mn.value, [1])
+    assert_eq(mx.value, [7])
+
+    rid = conn.execute("SELECT id FROM nums WHERE n=7").fetchone()[0]
+    rt.delete("DELETE FROM nums WHERE id=:id", {"id": rid})
+    assert_eq(mx.value, [5])
+
+    rid = conn.execute("SELECT id FROM nums WHERE n=1").fetchone()[0]
+    rt.delete("DELETE FROM nums WHERE id=:id", {"id": rid})
+    assert_eq(mn.value, [5])
+
+
 def test_signal_and_derived():
     a_val = [1]
     b_val = [2]

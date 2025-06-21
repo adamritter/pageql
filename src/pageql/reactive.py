@@ -311,81 +311,87 @@ class Where(Signal):
 
 
 class CountAll(Signal):
-    def __init__(self, parent, expr: str = "COUNT(*)"):
+    def __init__(self, parent, exprs=("COUNT(*)",)):
         super().__init__(None)
         self.parent = parent
-        self.expr = expr
+        if isinstance(exprs, str):
+            exprs = (exprs,)
+        self.exprs = tuple(exprs)
         self.conn = self.parent.conn
 
-        m = re.fullmatch(r"\s*(count|sum)\s*\(\s*(\*|[^)]*)\s*\)\s*", expr, re.I)
-        if not m or (m.group(1).lower() == "sum" and m.group(2).strip() == "*"):
-            raise ValueError(
-                "expr must be of the form COUNT(*)/COUNT(expr) or SUM(expr)"
-            )
-        self._func = m.group(1).lower()
-        inner = m.group(2).strip()
-        self._inner = None if inner == "*" else inner
-
-        if self._func == "count":
-            if self._inner is None:
-                self.sql = f"SELECT COUNT(*) FROM ({self.parent.sql})"
+        self._funcs = []
+        self._inners = []
+        self._expr_sqls = []
+        columns = []
+        for expr in self.exprs:
+            m = re.fullmatch(r"\s*(count|sum)\s*\(\s*(\*|[^)]*)\s*\)\s*", expr, re.I)
+            if not m or (m.group(1).lower() == "sum" and m.group(2).strip() == "*"):
+                raise ValueError(
+                    "expr must be of the form COUNT(*)/COUNT(expr) or SUM(expr)"
+                )
+            func = m.group(1).lower()
+            inner = m.group(2).strip()
+            inner_val = None if inner == "*" else inner
+            self._funcs.append(func)
+            self._inners.append(inner_val)
+            columns.append(f"{func.upper()}({inner})")
+            if func == "count" and inner_val is None:
+                self._expr_sqls.append(None)
             else:
-                self.sql = (
-                    f"SELECT COUNT({self._inner}) FROM ({self.parent.sql})"
-                )
                 placeholders = ", ".join(f"? AS {c}" for c in self.parent.columns)
-                self._expr_sql = (
-                    f"SELECT {self._inner} FROM (SELECT {placeholders})"
+                self._expr_sqls.append(
+                    f"SELECT {inner} FROM (SELECT {placeholders})"
                 )
-        else:
-            self.sql = f"SELECT SUM({self._inner}) FROM ({self.parent.sql})"
-            placeholders = ", ".join(f"? AS {c}" for c in self.parent.columns)
-            self._expr_sql = f"SELECT {self._inner} FROM (SELECT {placeholders})"
 
-        val = execute(self.conn, self.sql, []).fetchone()[0]
-        self.value = 0 if val is None else val
+        self.sql = f"SELECT {', '.join(self.exprs)} FROM ({self.parent.sql})"
+
+        row = execute(self.conn, self.sql, []).fetchone()
+        self.value = [0 if v is None else v for v in row]
         self.parent.listeners.append(self.onevent)
-        self.columns = f"{self._func.upper()}({inner})"
+        self.columns = columns[0] if len(columns) == 1 else columns
         self.deps = [self.parent]
         self.update = self.onevent
 
-    def _expr_not_null(self, row):
-        if self._inner is None:
+    def _expr_not_null(self, idx, row):
+        if self._inners[idx] is None:
             return True
-        cur = execute(self.conn, self._expr_sql, row)
+        cur = execute(self.conn, self._expr_sqls[idx], row)
         return cur.fetchone()[0] is not None
 
-    def _expr_value(self, row):
-        cur = execute(self.conn, self._expr_sql, row)
+    def _expr_value(self, idx, row):
+        cur = execute(self.conn, self._expr_sqls[idx], row)
         val = cur.fetchone()[0]
         return 0 if val is None else val
 
     def onevent(self, event):
-        oldvalue = self.value
+        oldvalue = list(self.value)
         if event[0] == 1:
-            if self._func == "count":
-                if self._expr_not_null(event[1]):
-                    self.value += 1
-            else:
-                self.value += self._expr_value(event[1])
+            for i, func in enumerate(self._funcs):
+                if func == "count":
+                    if self._expr_not_null(i, event[1]):
+                        self.value[i] += 1
+                else:
+                    self.value[i] += self._expr_value(i, event[1])
         elif event[0] == 2:
-            if self._func == "count":
-                if self._expr_not_null(event[1]):
-                    self.value -= 1
-            else:
-                self.value -= self._expr_value(event[1])
-        elif event[0] == 3 and self.expr is not None:
-            if self._func == "count":
-                before = self._expr_not_null(event[1])
-                after = self._expr_not_null(event[2])
-                self.value += int(after) - int(before)
-            else:
-                before = self._expr_value(event[1])
-                after = self._expr_value(event[2])
-                self.value += after - before
+            for i, func in enumerate(self._funcs):
+                if func == "count":
+                    if self._expr_not_null(i, event[1]):
+                        self.value[i] -= 1
+                else:
+                    self.value[i] -= self._expr_value(i, event[1])
+        elif event[0] == 3 and self.exprs is not None:
+            for i, func in enumerate(self._funcs):
+                if func == "count":
+                    before = self._expr_not_null(i, event[1])
+                    after = self._expr_not_null(i, event[2])
+                    self.value[i] += int(after) - int(before)
+                else:
+                    before = self._expr_value(i, event[1])
+                    after = self._expr_value(i, event[2])
+                    self.value[i] += after - before
         if oldvalue != self.value:
             for listener in self.listeners:
-                listener([3, [oldvalue], [self.value]])
+                listener([3, oldvalue, list(self.value)])
     
     def remove_listener(self, listener):
         if listener in self.listeners:

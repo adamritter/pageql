@@ -322,12 +322,18 @@ class CountAll(Signal):
         self._funcs = []
         self._inners = []
         self._expr_sqls = []
+        self._avg_counts = []
+        self._avg_sums = []
         columns = []
         for expr in self.exprs:
-            m = re.fullmatch(r"\s*(count|sum)\s*\(\s*(\*|[^)]*)\s*\)\s*", expr, re.I)
-            if not m or (m.group(1).lower() == "sum" and m.group(2).strip() == "*"):
+            m = re.fullmatch(
+                r"\s*(count|sum|avg)\s*\(\s*(\*|[^)]*)\s*\)\s*", expr, re.I
+            )
+            if not m or (
+                m.group(1).lower() in {"sum", "avg"} and m.group(2).strip() == "*"
+            ):
                 raise ValueError(
-                    "expr must be of the form COUNT(*)/COUNT(expr) or SUM(expr)"
+                    "expr must be of the form COUNT(*)/COUNT(expr)/SUM(expr)/AVG(expr)"
                 )
             func = m.group(1).lower()
             inner = m.group(2).strip()
@@ -342,6 +348,16 @@ class CountAll(Signal):
                 self._expr_sqls.append(
                     f"SELECT {inner} FROM (SELECT {placeholders})"
                 )
+            if func == "avg":
+                count_sql = f"SELECT COUNT({inner}) FROM ({self.parent.sql})"
+                sum_sql = f"SELECT SUM({inner}) FROM ({self.parent.sql})"
+                c = execute(self.conn, count_sql, []).fetchone()[0]
+                s = execute(self.conn, sum_sql, []).fetchone()[0]
+                self._avg_counts.append(0 if c is None else c)
+                self._avg_sums.append(0 if s is None else s)
+            else:
+                self._avg_counts.append(None)
+                self._avg_sums.append(None)
 
         self.sql = f"SELECT {', '.join(self.exprs)} FROM ({self.parent.sql})"
 
@@ -370,25 +386,55 @@ class CountAll(Signal):
                 if func == "count":
                     if self._expr_not_null(i, event[1]):
                         self.value[i] += 1
-                else:
+                elif func == "sum":
                     self.value[i] += self._expr_value(i, event[1])
+                else:  # avg
+                    if self._expr_not_null(i, event[1]):
+                        val = self._expr_value(i, event[1])
+                        self._avg_counts[i] += 1
+                        self._avg_sums[i] += val
+                        self.value[i] = self._avg_sums[i] / self._avg_counts[i]
         elif event[0] == 2:
             for i, func in enumerate(self._funcs):
                 if func == "count":
                     if self._expr_not_null(i, event[1]):
                         self.value[i] -= 1
-                else:
+                elif func == "sum":
                     self.value[i] -= self._expr_value(i, event[1])
+                else:  # avg
+                    if self._expr_not_null(i, event[1]):
+                        val = self._expr_value(i, event[1])
+                        self._avg_counts[i] -= 1
+                        self._avg_sums[i] -= val
+                        if self._avg_counts[i]:
+                            self.value[i] = self._avg_sums[i] / self._avg_counts[i]
+                        else:
+                            self.value[i] = 0
         elif event[0] == 3 and self.exprs is not None:
             for i, func in enumerate(self._funcs):
                 if func == "count":
                     before = self._expr_not_null(i, event[1])
                     after = self._expr_not_null(i, event[2])
                     self.value[i] += int(after) - int(before)
-                else:
+                elif func == "sum":
                     before = self._expr_value(i, event[1])
                     after = self._expr_value(i, event[2])
                     self.value[i] += after - before
+                else:  # avg
+                    before_n = self._expr_not_null(i, event[1])
+                    after_n = self._expr_not_null(i, event[2])
+                    before_v = self._expr_value(i, event[1]) if before_n else 0
+                    after_v = self._expr_value(i, event[2]) if after_n else 0
+                    if before_n:
+                        self._avg_counts[i] -= 1
+                        self._avg_sums[i] -= before_v
+                    if after_n:
+                        self._avg_counts[i] += 1
+                        self._avg_sums[i] += after_v
+                    if self._avg_counts[i]:
+                        self.value[i] = self._avg_sums[i] / self._avg_counts[i]
+                    else:
+                        self.value[i] = 0
         if oldvalue != self.value:
             for listener in self.listeners:
                 listener([3, oldvalue, list(self.value)])

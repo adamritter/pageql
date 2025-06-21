@@ -324,16 +324,18 @@ class Aggregate(Signal):
         self._expr_sqls = []
         self._avg_counts = []
         self._avg_sums = []
+        self._recompute = []
         columns = []
         for expr in self.exprs:
             m = re.fullmatch(
-                r"\s*(count|sum|avg)\s*\(\s*(\*|[^)]*)\s*\)\s*", expr, re.I
+                r"\s*(count|sum|avg|min|max)\s*\(\s*(\*|[^)]*)\s*\)\s*", expr, re.I
             )
             if not m or (
-                m.group(1).lower() in {"sum", "avg"} and m.group(2).strip() == "*"
+                m.group(1).lower() in {"sum", "avg", "min", "max"}
+                and m.group(2).strip() == "*"
             ):
                 raise ValueError(
-                    "expr must be of the form COUNT(*)/COUNT(expr)/SUM(expr)/AVG(expr)"
+                    "expr must be of the form COUNT(*)/COUNT(expr)/SUM(expr)/AVG(expr)/MIN(expr)/MAX(expr)"
                 )
             func = m.group(1).lower()
             inner = m.group(2).strip()
@@ -358,11 +360,17 @@ class Aggregate(Signal):
             else:
                 self._avg_counts.append(None)
                 self._avg_sums.append(None)
+            self._recompute.append(False)
 
         self.sql = f"SELECT {', '.join(self.exprs)} FROM ({self.parent.sql})"
 
         row = execute(self.conn, self.sql, []).fetchone()
-        self.value = [0 if v is None else v for v in row]
+        self.value = []
+        for v, func in zip(row, self._funcs):
+            if v is None:
+                self.value.append(0 if func in {"count", "sum", "avg"} else None)
+            else:
+                self.value.append(v)
         self.parent.listeners.append(self.onevent)
         self.columns = columns[0] if len(columns) == 1 else columns
         self.deps = [self.parent]
@@ -388,12 +396,22 @@ class Aggregate(Signal):
                         self.value[i] += 1
                 elif func == "sum":
                     self.value[i] += self._expr_value(i, event[1])
-                else:  # avg
+                elif func == "avg":
                     if self._expr_not_null(i, event[1]):
                         val = self._expr_value(i, event[1])
                         self._avg_counts[i] += 1
                         self._avg_sums[i] += val
                         self.value[i] = self._avg_sums[i] / self._avg_counts[i]
+                elif func == "min":
+                    if self._expr_not_null(i, event[1]):
+                        val = self._expr_value(i, event[1])
+                        if self.value[i] is None or val < self.value[i]:
+                            self.value[i] = val
+                else:  # max
+                    if self._expr_not_null(i, event[1]):
+                        val = self._expr_value(i, event[1])
+                        if self.value[i] is None or val > self.value[i]:
+                            self.value[i] = val
         elif event[0] == 2:
             for i, func in enumerate(self._funcs):
                 if func == "count":
@@ -401,7 +419,7 @@ class Aggregate(Signal):
                         self.value[i] -= 1
                 elif func == "sum":
                     self.value[i] -= self._expr_value(i, event[1])
-                else:  # avg
+                elif func == "avg":
                     if self._expr_not_null(i, event[1]):
                         val = self._expr_value(i, event[1])
                         self._avg_counts[i] -= 1
@@ -410,6 +428,16 @@ class Aggregate(Signal):
                             self.value[i] = self._avg_sums[i] / self._avg_counts[i]
                         else:
                             self.value[i] = 0
+                elif func == "min":
+                    if self._expr_not_null(i, event[1]):
+                        val = self._expr_value(i, event[1])
+                        if self.value[i] is not None and val == self.value[i]:
+                            self._recompute[i] = True
+                else:  # max
+                    if self._expr_not_null(i, event[1]):
+                        val = self._expr_value(i, event[1])
+                        if self.value[i] is not None and val == self.value[i]:
+                            self._recompute[i] = True
         elif event[0] == 3 and self.exprs is not None:
             for i, func in enumerate(self._funcs):
                 if func == "count":
@@ -420,7 +448,7 @@ class Aggregate(Signal):
                     before = self._expr_value(i, event[1])
                     after = self._expr_value(i, event[2])
                     self.value[i] += after - before
-                else:  # avg
+                elif func == "avg":
                     before_n = self._expr_not_null(i, event[1])
                     after_n = self._expr_not_null(i, event[2])
                     before_v = self._expr_value(i, event[1]) if before_n else 0
@@ -435,6 +463,35 @@ class Aggregate(Signal):
                         self.value[i] = self._avg_sums[i] / self._avg_counts[i]
                     else:
                         self.value[i] = 0
+                elif func == "min":
+                    before_n = self._expr_not_null(i, event[1])
+                    after_n = self._expr_not_null(i, event[2])
+                    before_v = self._expr_value(i, event[1]) if before_n else None
+                    after_v = self._expr_value(i, event[2]) if after_n else None
+                    if after_n and (self.value[i] is None or after_v < self.value[i]):
+                        self.value[i] = after_v
+                    if before_n and before_v == self.value[i] and (not after_n or after_v > before_v):
+                        self._recompute[i] = True
+                else:  # max
+                    before_n = self._expr_not_null(i, event[1])
+                    after_n = self._expr_not_null(i, event[2])
+                    before_v = self._expr_value(i, event[1]) if before_n else None
+                    after_v = self._expr_value(i, event[2]) if after_n else None
+                    if after_n and (self.value[i] is None or after_v > self.value[i]):
+                        self.value[i] = after_v
+                    if before_n and before_v == self.value[i] and (not after_n or after_v < before_v):
+                        self._recompute[i] = True
+        if any(self._recompute):
+            row = execute(self.conn, self.sql, []).fetchone()
+            for idx, flag in enumerate(self._recompute):
+                if flag:
+                    val = row[idx]
+                    if val is None and self._funcs[idx] in {"count", "sum", "avg"}:
+                        self.value[idx] = 0
+                    else:
+                        self.value[idx] = val
+                    self._recompute[idx] = False
+
         if oldvalue != self.value:
             for listener in self.listeners:
                 listener([3, oldvalue, list(self.value)])

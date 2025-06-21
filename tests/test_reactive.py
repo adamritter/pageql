@@ -206,6 +206,32 @@ def test_count_expression():
     assert_eq(events[-1], [3, [2], [1]])
 
 
+def test_sum_expression():
+    conn = sqlite3.connect(":memory:")
+    conn.execute("CREATE TABLE nums(id INTEGER PRIMARY KEY, n INTEGER)")
+    rt = ReactiveTable(conn, "nums")
+    sm = CountAll(rt, "SUM(n)")
+    events = []
+    sm.listeners.append(events.append)
+
+    rt.insert("INSERT INTO nums(n) VALUES (1)", {})
+    assert_eq(sm.value, 1)
+    assert_eq(events[-1], [3, [0], [1]])
+
+    rt.insert("INSERT INTO nums(n) VALUES (2)", {})
+    assert_eq(sm.value, 3)
+    assert_eq(events[-1], [3, [1], [3]])
+
+    rid = conn.execute("SELECT id FROM nums WHERE n=2").fetchone()[0]
+    rt.update("UPDATE nums SET n=5 WHERE id=:id", {"id": rid})
+    assert_eq(sm.value, 6)
+    assert_eq(events[-1], [3, [3], [6]])
+
+    rt.delete("DELETE FROM nums WHERE id=:id", {"id": rid})
+    assert_eq(sm.value, 1)
+    assert_eq(events[-1], [3, [6], [1]])
+
+
 def test_signal_and_derived():
     a_val = [1]
     b_val = [2]

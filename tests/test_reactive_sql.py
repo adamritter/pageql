@@ -70,6 +70,17 @@ def test_parse_count_expr():
     assert_sql_equivalent(conn, sql, comp.sql)
 
 
+def test_parse_sum_expr():
+    conn = sqlite3.connect(":memory:")
+    conn.execute("CREATE TABLE nums(id INTEGER PRIMARY KEY, n INTEGER)")
+    tables = Tables(conn)
+    sql = "SELECT SUM(n) FROM nums"
+    expr = sqlglot.parse_one(sql, read="sqlite")
+    comp = parse_reactive(expr, tables, {})
+    assert isinstance(comp, CountAll)
+    assert_sql_equivalent(conn, sql, comp.sql)
+
+
 def test_parse_union_all():
     conn = sqlite3.connect(":memory:")
     for t in ("a", "b"):

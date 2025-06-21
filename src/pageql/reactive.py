@@ -317,21 +317,35 @@ class CountAll(Signal):
         self.expr = expr
         self.conn = self.parent.conn
 
-        m = re.fullmatch(r"\s*count\s*\(\s*(\*|[^)]*)\s*\)\s*", expr, re.I)
-        if not m:
-            raise ValueError("expr must be of the form COUNT(*) or COUNT(expr)")
-        inner = m.group(1).strip()
+        m = re.fullmatch(r"\s*(count|sum)\s*\(\s*(\*|[^)]*)\s*\)\s*", expr, re.I)
+        if not m or (m.group(1).lower() == "sum" and m.group(2).strip() == "*"):
+            raise ValueError(
+                "expr must be of the form COUNT(*)/COUNT(expr) or SUM(expr)"
+            )
+        self._func = m.group(1).lower()
+        inner = m.group(2).strip()
         self._inner = None if inner == "*" else inner
 
-        if self._inner is None:
-            self.sql = f"SELECT COUNT(*) FROM ({self.parent.sql})"
+        if self._func == "count":
+            if self._inner is None:
+                self.sql = f"SELECT COUNT(*) FROM ({self.parent.sql})"
+            else:
+                self.sql = (
+                    f"SELECT COUNT({self._inner}) FROM ({self.parent.sql})"
+                )
+                placeholders = ", ".join(f"? AS {c}" for c in self.parent.columns)
+                self._expr_sql = (
+                    f"SELECT {self._inner} FROM (SELECT {placeholders})"
+                )
         else:
-            self.sql = f"SELECT COUNT({self._inner}) FROM ({self.parent.sql})"
+            self.sql = f"SELECT SUM({self._inner}) FROM ({self.parent.sql})"
             placeholders = ", ".join(f"? AS {c}" for c in self.parent.columns)
             self._expr_sql = f"SELECT {self._inner} FROM (SELECT {placeholders})"
-        self.value = execute(self.conn, self.sql, []).fetchone()[0]
+
+        val = execute(self.conn, self.sql, []).fetchone()[0]
+        self.value = 0 if val is None else val
         self.parent.listeners.append(self.onevent)
-        self.columns = f"COUNT({inner})"  # normalized expression
+        self.columns = f"{self._func.upper()}({inner})"
         self.deps = [self.parent]
         self.update = self.onevent
 
@@ -341,18 +355,34 @@ class CountAll(Signal):
         cur = execute(self.conn, self._expr_sql, row)
         return cur.fetchone()[0] is not None
 
+    def _expr_value(self, row):
+        cur = execute(self.conn, self._expr_sql, row)
+        val = cur.fetchone()[0]
+        return 0 if val is None else val
+
     def onevent(self, event):
         oldvalue = self.value
         if event[0] == 1:
-            if self._expr_not_null(event[1]):
-                self.value += 1
+            if self._func == "count":
+                if self._expr_not_null(event[1]):
+                    self.value += 1
+            else:
+                self.value += self._expr_value(event[1])
         elif event[0] == 2:
-            if self._expr_not_null(event[1]):
-                self.value -= 1
+            if self._func == "count":
+                if self._expr_not_null(event[1]):
+                    self.value -= 1
+            else:
+                self.value -= self._expr_value(event[1])
         elif event[0] == 3 and self.expr is not None:
-            before = self._expr_not_null(event[1])
-            after = self._expr_not_null(event[2])
-            self.value += int(after) - int(before)
+            if self._func == "count":
+                before = self._expr_not_null(event[1])
+                after = self._expr_not_null(event[2])
+                self.value += int(after) - int(before)
+            else:
+                before = self._expr_value(event[1])
+                after = self._expr_value(event[2])
+                self.value += after - before
         if oldvalue != self.value:
             for listener in self.listeners:
                 listener([3, [oldvalue], [self.value]])

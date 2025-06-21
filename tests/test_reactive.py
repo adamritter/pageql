@@ -232,6 +232,32 @@ def test_sum_expression():
     assert_eq(events[-1], [3, [6], [1]])
 
 
+def test_avg_expression():
+    conn = sqlite3.connect(":memory:")
+    conn.execute("CREATE TABLE nums(id INTEGER PRIMARY KEY, n INTEGER)")
+    rt = ReactiveTable(conn, "nums")
+    av = CountAll(rt, ("AVG(n)",))
+    events = []
+    av.listeners.append(events.append)
+
+    rt.insert("INSERT INTO nums(n) VALUES (1)", {})
+    assert_eq(av.value, [1])
+    assert_eq(events[-1], [3, [0], [1]])
+
+    rt.insert("INSERT INTO nums(n) VALUES (2)", {})
+    assert_eq(av.value, [1.5])
+    assert_eq(events[-1], [3, [1], [1.5]])
+
+    rid = conn.execute("SELECT id FROM nums WHERE n=2").fetchone()[0]
+    rt.update("UPDATE nums SET n=5 WHERE id=:id", {"id": rid})
+    assert_eq(av.value, [3])
+    assert_eq(events[-1], [3, [1.5], [3]])
+
+    rt.delete("DELETE FROM nums WHERE id=:id", {"id": rid})
+    assert_eq(av.value, [1])
+    assert_eq(events[-1], [3, [3], [1]])
+
+
 def test_signal_and_derived():
     a_val = [1]
     b_val = [2]

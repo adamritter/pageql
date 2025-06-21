@@ -451,20 +451,19 @@ class Union(Signal):
         self.parent2 = parent2
         self.conn = self.parent1.conn
         self.sql = f"SELECT * FROM ({self.parent1.sql}) UNION SELECT * FROM ({self.parent2.sql})"
-        self.parent1.listeners.append(self.onevent)
-        self.parent2.listeners.append(self.onevent)
+        self._cb1 = lambda e: self.onevent(e, 1)
+        self._cb2 = lambda e: self.onevent(e, 2)
+        self.parent1.listeners.append(self._cb1)
+        self.parent2.listeners.append(self._cb2)
         self.columns = self.parent1.columns
         if self.parent1.columns != self.parent2.columns:
             raise ValueError(
                 f"Union: parent1 and parent2 must have the same columns {self.parent1.columns} != {self.parent2.columns}"
             )
 
-        # Track how many times a row appears across parents
-        self._counts = {}
-        for row in execute(self.conn, self.parent1.sql, []).fetchall():
-            self._counts[row] = self._counts.get(row, 0) + 1
-        for row in execute(self.conn, self.parent2.sql, []).fetchall():
-            self._counts[row] = self._counts.get(row, 0) + 1
+        where = " AND ".join([f"{c} IS ?" for c in self.columns])
+        self._contains1 = f"SELECT 1 FROM ({self.parent1.sql}) WHERE {where} LIMIT 1"
+        self._contains2 = f"SELECT 1 FROM ({self.parent2.sql}) WHERE {where} LIMIT 1"
         self.deps = [self.parent1, self.parent2]
         self.update = self.onevent
 
@@ -472,62 +471,59 @@ class Union(Signal):
         for listener in self.listeners:
             listener(event)
 
-    def _insert(self, row):
-        prev = self._counts.get(row, 0)
-        self._counts[row] = prev + 1
-        if prev == 0:
-            self._emit([1, row])
+    def _in_parent1(self, row):
+        return execute(self.conn, self._contains1, row).fetchone() is not None
 
-    def _delete(self, row):
-        prev = self._counts.get(row, 0)
-        if prev == 1:
-            del self._counts[row]
-            self._emit([2, row])
-        elif prev > 1:
-            self._counts[row] = prev - 1
+    def _in_parent2(self, row):
+        return execute(self.conn, self._contains2, row).fetchone() is not None
 
-    def _update(self, oldrow, newrow):
+    def _insert(self, row, which):
+        if which == 1:
+            if not self._in_parent2(row):
+                self._emit([1, row])
+        else:
+            if not self._in_parent1(row):
+                self._emit([1, row])
+
+    def _delete(self, row, which):
+        if which == 1:
+            if not self._in_parent2(row):
+                self._emit([2, row])
+        else:
+            if not self._in_parent1(row):
+                self._emit([2, row])
+
+    def _update(self, oldrow, newrow, which):
         if oldrow == newrow:
             return
-        delete_event = False
-        insert_event = False
-        oldcnt = self._counts.get(oldrow, 0)
-        newcnt = self._counts.get(newrow, 0)
-
-        if oldcnt > 0:
-            if oldcnt == 1:
-                del self._counts[oldrow]
-                delete_event = True
-            else:
-                self._counts[oldrow] = oldcnt - 1
-
-        if newcnt == 0:
-            self._counts[newrow] = 1
-            insert_event = True
+        if which == 1:
+            old_other = self._in_parent2(oldrow)
+            new_other = self._in_parent2(newrow)
         else:
-            self._counts[newrow] = newcnt + 1
+            old_other = self._in_parent1(oldrow)
+            new_other = self._in_parent1(newrow)
 
-        if delete_event and insert_event:
+        if not old_other and not new_other:
             self._emit([3, oldrow, newrow])
-        elif delete_event:
+        elif not old_other and new_other:
             self._emit([2, oldrow])
-        elif insert_event:
+        elif old_other and not new_other:
             self._emit([1, newrow])
 
-    def onevent(self, event):
+    def onevent(self, event, which):
         if event[0] == 1:
-            self._insert(event[1])
+            self._insert(event[1], which)
         elif event[0] == 2:
-            self._delete(event[1])
+            self._delete(event[1], which)
         else:
-            self._update(event[1], event[2])
+            self._update(event[1], event[2], which)
 
     def remove_listener(self, listener):
         if listener in self.listeners:
             self.listeners.remove(listener)
         if not self.listeners:
-            self.parent1.remove_listener(self.onevent)
-            self.parent2.remove_listener(self.onevent)
+            for parent, cb in ((self.parent1, self._cb1), (self.parent2, self._cb2)):
+                parent.remove_listener(cb)
             self.listeners = None
 
 

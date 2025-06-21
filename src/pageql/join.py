@@ -65,237 +65,203 @@ class Join(Signal):
         cur = execute(self.conn, self.fetch_left_sql, list(r2))
         return list(cur.fetchall())
 
-    def _insert_left(self, row):
-        matches = self._fetch_right(row)
-        if matches:
-            for r2 in matches:
-                if self.right_outer:
-                    lefts = self._fetch_left(r2)
-                    if len(lefts) == 1:
-                        self._emit([3, self._null_left + r2, row + r2])
-                    else:
-                        self._emit([1, row + r2])
-                else:
-                    self._emit([1, row + r2])
-        elif self.left_outer:
-            self._emit([1, row + self._null_right])
+    def _cfg(self, side):
+        if side == 1:
+            return {
+                "fetch_this": self._fetch_left,
+                "fetch_other": self._fetch_right,
+                "null_this": getattr(self, "_null_left", None),
+                "null_other": getattr(self, "_null_right", None),
+                "outer_this": self.left_outer,
+                "outer_other": self.right_outer,
+            }
+        return {
+            "fetch_this": self._fetch_right,
+            "fetch_other": self._fetch_left,
+            "null_this": getattr(self, "_null_right", None),
+            "null_other": getattr(self, "_null_left", None),
+            "outer_this": self.right_outer,
+            "outer_other": self.left_outer,
+        }
 
-    def _insert_right(self, row):
-        lefts = self._fetch_left(row)
-        if lefts:
-            for r1 in lefts:
-                if self.left_outer:
-                    matches = self._fetch_right(r1)
-                    if len(matches) == 1:
-                        self._emit([3, r1 + self._null_right, r1 + row])
-                    else:
-                        self._emit([1, r1 + row])
-                else:
-                    self._emit([1, r1 + row])
-        elif self.right_outer:
-            self._emit([1, self._null_left + row])
+    def _combine(self, side, r1, r2):
+        return r1 + r2 if side == 1 else r2 + r1
 
-    def _delete_left(self, row):
-        matches = self._fetch_right(row)
-        if matches:
-            for r2 in matches:
-                if self.right_outer:
-                    remaining = self._fetch_left(r2)
+    def _insert_side(self, row, side):
+        c = self._cfg(side)
+        others = c["fetch_other"](row)
+        if others:
+            for other in others:
+                if c["outer_other"]:
+                    this_rows = c["fetch_this"](other)
+                    if len(this_rows) == 1:
+                        self._emit([
+                            3,
+                            self._combine(side, c["null_this"], other),
+                            self._combine(side, row, other),
+                        ])
+                    else:
+                        self._emit([1, self._combine(side, row, other)])
+                else:
+                    self._emit([1, self._combine(side, row, other)])
+        elif c["outer_this"]:
+            self._emit([1, self._combine(side, row, c["null_other"])])
+
+    def _delete_side(self, row, side):
+        c = self._cfg(side)
+        others = c["fetch_other"](row)
+        if others:
+            for other in others:
+                if c["outer_other"]:
+                    remaining = c["fetch_this"](other)
                     if len(remaining) == 0:
-                        self._emit([3, row + r2, self._null_left + r2])
+                        self._emit([
+                            3,
+                            self._combine(side, row, other),
+                            self._combine(side, c["null_this"], other),
+                        ])
                     else:
-                        self._emit([2, row + r2])
+                        self._emit([2, self._combine(side, row, other)])
                 else:
-                    self._emit([2, row + r2])
-        elif self.left_outer:
-            self._emit([2, row + self._null_right])
+                    self._emit([2, self._combine(side, row, other)])
+        elif c["outer_this"]:
+            self._emit([2, self._combine(side, row, c["null_other"])])
 
-    def _delete_right(self, row):
-        lefts = self._fetch_left(row)
-        if lefts:
-            for r1 in lefts:
-                if self.left_outer:
-                    remaining = self._fetch_right(r1)
-                    if len(remaining) == 0:
-                        self._emit([3, r1 + row, r1 + self._null_right])
-                    else:
-                        self._emit([2, r1 + row])
-                else:
-                    self._emit([2, r1 + row])
-        elif self.right_outer:
-            self._emit([2, self._null_left + row])
-
-    def _update_left(self, oldrow, newrow):
+    def _update_side(self, oldrow, newrow, side):
         if oldrow == newrow:
             return
-        old_matches = self._fetch_right(oldrow)
-        new_matches = self._fetch_right(newrow)
+        c = self._cfg(side)
+        old_other = c["fetch_other"](oldrow)
+        new_other = c["fetch_other"](newrow)
 
-        if self.left_outer and self.right_outer:
-            old_set = set(old_matches)
-            new_set = set(new_matches)
+        if c["outer_this"] and c["outer_other"]:
+            old_set = set(old_other)
+            new_set = set(new_other)
 
-            for r2 in old_set & new_set:
-                if oldrow + r2 != newrow + r2:
-                    self._emit([3, oldrow + r2, newrow + r2])
+            for other in old_set & new_set:
+                if self._combine(side, oldrow, other) != self._combine(side, newrow, other):
+                    self._emit([
+                        3,
+                        self._combine(side, oldrow, other),
+                        self._combine(side, newrow, other),
+                    ])
 
-            for r2 in old_set - new_set:
-                remaining = self._fetch_left(r2)
+            for other in old_set - new_set:
+                remaining = c["fetch_this"](other)
                 if len(remaining) == 0:
-                    self._emit([3, oldrow + r2, self._null_left + r2])
+                    self._emit([
+                        3,
+                        self._combine(side, oldrow, other),
+                        self._combine(side, c["null_this"], other),
+                    ])
                 else:
-                    self._emit([2, oldrow + r2])
+                    self._emit([2, self._combine(side, oldrow, other)])
 
-            for r2 in new_set - old_set:
-                total = len(self._fetch_left(r2))
+            for other in new_set - old_set:
+                total = len(c["fetch_this"](other))
                 if total == 1:
-                    self._emit([3, self._null_left + r2, newrow + r2])
+                    self._emit([
+                        3,
+                        self._combine(side, c["null_this"], other),
+                        self._combine(side, newrow, other),
+                    ])
                 else:
-                    self._emit([1, newrow + r2])
+                    self._emit([1, self._combine(side, newrow, other)])
 
-            if not old_matches and not new_matches:
+            if not old_other and not new_other:
                 if oldrow != newrow:
-                    self._emit([3, oldrow + self._null_right, newrow + self._null_right])
-            elif not old_matches and new_matches:
-                self._emit([2, oldrow + self._null_right])
-            elif old_matches and not new_matches:
-                self._emit([1, newrow + self._null_right])
+                    self._emit([
+                        3,
+                        self._combine(side, oldrow, c["null_other"]),
+                        self._combine(side, newrow, c["null_other"]),
+                    ])
+            elif not old_other and new_other:
+                self._emit([2, self._combine(side, oldrow, c["null_other"])])
+            elif old_other and not new_other:
+                self._emit([1, self._combine(side, newrow, c["null_other"])])
             return
 
-        if self.right_outer:
-            old_set = set(old_matches)
-            new_set = set(new_matches)
+        if c["outer_other"]:
+            old_set = set(old_other)
+            new_set = set(new_other)
 
-            for r2 in old_set & new_set:
-                if oldrow + r2 != newrow + r2:
-                    self._emit([3, oldrow + r2, newrow + r2])
+            for other in old_set & new_set:
+                if self._combine(side, oldrow, other) != self._combine(side, newrow, other):
+                    self._emit([
+                        3,
+                        self._combine(side, oldrow, other),
+                        self._combine(side, newrow, other),
+                    ])
 
-            for r2 in old_set - new_set:
-                remaining = self._fetch_left(r2)
+            for other in old_set - new_set:
+                remaining = c["fetch_this"](other)
                 if len(remaining) == 0:
-                    self._emit([3, oldrow + r2, self._null_left + r2])
+                    self._emit([
+                        3,
+                        self._combine(side, oldrow, other),
+                        self._combine(side, c["null_this"], other),
+                    ])
                 else:
-                    self._emit([2, oldrow + r2])
+                    self._emit([2, self._combine(side, oldrow, other)])
 
-            for r2 in new_set - old_set:
-                total = len(self._fetch_left(r2))
+            for other in new_set - old_set:
+                total = len(c["fetch_this"](other))
                 if total == 1:
-                    self._emit([3, self._null_left + r2, newrow + r2])
+                    self._emit([
+                        3,
+                        self._combine(side, c["null_this"], other),
+                        self._combine(side, newrow, other),
+                    ])
                 else:
-                    self._emit([1, newrow + r2])
+                    self._emit([1, self._combine(side, newrow, other)])
             return
 
-        if self.left_outer:
-            if not old_matches:
-                old_matches = [self._null_right]
-            if not new_matches:
-                new_matches = [self._null_right]
+        if c["outer_this"]:
+            if not old_other:
+                old_other = [c["null_other"]]
+            if not new_other:
+                new_other = [c["null_other"]]
 
-        old_counts = Counter(old_matches)
-        new_counts = Counter(new_matches)
+        old_counts = Counter(old_other)
+        new_counts = Counter(new_other)
 
-        for r2, old_cnt in old_counts.items():
-            new_cnt = new_counts.get(r2, 0)
+        for other, old_cnt in old_counts.items():
+            new_cnt = new_counts.get(other, 0)
             for _ in range(min(old_cnt, new_cnt)):
-                if oldrow + r2 != newrow + r2:
-                    self._emit([3, oldrow + r2, newrow + r2])
+                if self._combine(side, oldrow, other) != self._combine(side, newrow, other):
+                    self._emit([
+                        3,
+                        self._combine(side, oldrow, other),
+                        self._combine(side, newrow, other),
+                    ])
             if old_cnt > new_cnt:
                 for _ in range(old_cnt - new_cnt):
-                    self._emit([2, oldrow + r2])
+                    self._emit([2, self._combine(side, oldrow, other)])
 
-        for r2, new_cnt in new_counts.items():
-            old_cnt = old_counts.get(r2, 0)
+        for other, new_cnt in new_counts.items():
+            old_cnt = old_counts.get(other, 0)
             if new_cnt > old_cnt:
                 for _ in range(new_cnt - old_cnt):
-                    self._emit([1, newrow + r2])
+                    self._emit([1, self._combine(side, newrow, other)])
+
+    def _insert_left(self, row):
+        self._insert_side(row, 1)
+
+    def _insert_right(self, row):
+        self._insert_side(row, 2)
+
+    def _delete_left(self, row):
+        self._delete_side(row, 1)
+
+    def _delete_right(self, row):
+        self._delete_side(row, 2)
+
+    def _update_left(self, oldrow, newrow):
+        self._update_side(oldrow, newrow, 1)
 
     def _update_right(self, oldrow, newrow):
-        if oldrow == newrow:
-            return
-        old_lefts = self._fetch_left(oldrow)
-        new_lefts = self._fetch_left(newrow)
+        self._update_side(oldrow, newrow, 2)
 
-        if self.left_outer and self.right_outer:
-            old_set = set(old_lefts)
-            new_set = set(new_lefts)
-
-            for r1 in old_set & new_set:
-                if r1 + oldrow != r1 + newrow:
-                    self._emit([3, r1 + oldrow, r1 + newrow])
-
-            for r1 in old_set - new_set:
-                remaining = self._fetch_right(r1)
-                if len(remaining) == 0:
-                    self._emit([3, r1 + oldrow, r1 + self._null_right])
-                else:
-                    self._emit([2, r1 + oldrow])
-
-            for r1 in new_set - old_set:
-                total = len(self._fetch_right(r1))
-                if total == 1:
-                    self._emit([3, r1 + self._null_right, r1 + newrow])
-                else:
-                    self._emit([1, r1 + newrow])
-
-            if not old_lefts and not new_lefts:
-                if oldrow != newrow:
-                    self._emit([3, self._null_left + oldrow, self._null_left + newrow])
-            elif not old_lefts and new_lefts:
-                self._emit([2, self._null_left + oldrow])
-            elif old_lefts and not new_lefts:
-                self._emit([1, self._null_left + newrow])
-        elif self.left_outer:
-            old_set = set(old_lefts)
-            new_set = set(new_lefts)
-
-            for r1 in old_set & new_set:
-                if r1 + oldrow != r1 + newrow:
-                    self._emit([3, r1 + oldrow, r1 + newrow])
-
-            for r1 in old_set - new_set:
-                remaining = self._fetch_right(r1)
-                if len(remaining) == 0:
-                    self._emit([3, r1 + oldrow, r1 + self._null_right])
-                else:
-                    self._emit([2, r1 + oldrow])
-
-            for r1 in new_set - old_set:
-                total = len(self._fetch_right(r1))
-                if total == 1:
-                    self._emit([3, r1 + self._null_right, r1 + newrow])
-                else:
-                    self._emit([1, r1 + newrow])
-        elif self.right_outer:
-            old_counts = Counter(old_lefts)
-            new_counts = Counter(new_lefts)
-
-            for r1, old_cnt in old_counts.items():
-                new_cnt = new_counts.get(r1, 0)
-                for _ in range(min(old_cnt, new_cnt)):
-                    if r1 + oldrow != r1 + newrow:
-                        self._emit([3, r1 + oldrow, r1 + newrow])
-                if old_cnt > new_cnt:
-                    for _ in range(old_cnt - new_cnt):
-                        self._emit([2, r1 + oldrow])
-
-            for r1, new_cnt in new_counts.items():
-                old_cnt = old_counts.get(r1, 0)
-                if new_cnt > old_cnt:
-                    for _ in range(new_cnt - old_cnt):
-                        self._emit([1, r1 + newrow])
-        else:
-            old_set = set(old_lefts)
-            new_set = set(new_lefts)
-
-            for r1 in old_set & new_set:
-                if r1 + oldrow != r1 + newrow:
-                    self._emit([3, r1 + oldrow, r1 + newrow])
-
-            for r1 in old_set - new_set:
-                self._emit([2, r1 + oldrow])
-
-            for r1 in new_set - old_set:
-                self._emit([1, r1 + newrow])
 
     def onevent(self, event, which):
         if which == 1:

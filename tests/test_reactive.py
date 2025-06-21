@@ -605,6 +605,25 @@ def test_join_update():
     assert_eq(events, [[3, (aid, 'x', bid, aid, 't1'), (aid, 'x', bid, aid, 't2')]])
 
 
+def test_join_update_no_change():
+    conn = sqlite3.connect(":memory:")
+    conn.execute("CREATE TABLE a(id INTEGER PRIMARY KEY, name TEXT)")
+    conn.execute("CREATE TABLE b(id INTEGER PRIMARY KEY, a_id INTEGER, title TEXT)")
+    r1, r2 = ReactiveTable(conn, "a"), ReactiveTable(conn, "b")
+    j = Join(r1, r2, "a.id = b.a_id")
+    events = []
+    j.listeners.append(events.append)
+
+    r1.insert("INSERT INTO a(name) VALUES ('x')", {})
+    aid = conn.execute("SELECT id FROM a WHERE name='x'").fetchone()[0]
+    r2.insert("INSERT INTO b(a_id, title) VALUES (:a, 't1')", {"a": aid})
+    bid = conn.execute("SELECT id FROM b WHERE title='t1'").fetchone()[0]
+    events.clear()
+
+    r2.update("UPDATE b SET title='t1' WHERE id=:id", {"id": bid})
+    assert events == []
+
+
 def test_join_delete():
     conn = sqlite3.connect(":memory:")
     conn.execute("CREATE TABLE a(id INTEGER PRIMARY KEY, name TEXT)")

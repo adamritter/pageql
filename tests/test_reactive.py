@@ -115,6 +115,17 @@ def check_component(comp, callback):
     assert_eq(expected, final)
 
 
+def _make_join(*, left=False, right=False):
+    conn = sqlite3.connect(":memory:")
+    conn.execute("CREATE TABLE a(id INTEGER PRIMARY KEY, name TEXT)")
+    conn.execute("CREATE TABLE b(id INTEGER PRIMARY KEY, a_id INTEGER, title TEXT)")
+    r1, r2 = ReactiveTable(conn, "a"), ReactiveTable(conn, "b")
+    j = Join(r1, r2, "a.id = b.a_id", left_outer=left, right_outer=right)
+    events = []
+    j.listeners.append(events.append)
+    return conn, r1, r2, events
+
+
 def test_reactive_table_events():
     conn = _db()
     rt = ReactiveTable(conn, "items")
@@ -570,13 +581,7 @@ def test_union_mismatched_columns():
 
 
 def test_join_basic():
-    conn = sqlite3.connect(":memory:")
-    conn.execute("CREATE TABLE a(id INTEGER PRIMARY KEY, name TEXT)")
-    conn.execute("CREATE TABLE b(id INTEGER PRIMARY KEY, a_id INTEGER, title TEXT)")
-    r1, r2 = ReactiveTable(conn, "a"), ReactiveTable(conn, "b")
-    j = Join(r1, r2, "a.id = b.a_id")
-    events = []
-    j.listeners.append(events.append)
+    conn, r1, r2, events = _make_join()
 
     r1.insert("INSERT INTO a(name) VALUES ('x')", {})
     aid = conn.execute("SELECT id FROM a WHERE name='x'").fetchone()[0]
@@ -587,13 +592,7 @@ def test_join_basic():
 
 
 def test_join_update():
-    conn = sqlite3.connect(":memory:")
-    conn.execute("CREATE TABLE a(id INTEGER PRIMARY KEY, name TEXT)")
-    conn.execute("CREATE TABLE b(id INTEGER PRIMARY KEY, a_id INTEGER, title TEXT)")
-    r1, r2 = ReactiveTable(conn, "a"), ReactiveTable(conn, "b")
-    j = Join(r1, r2, "a.id = b.a_id")
-    events = []
-    j.listeners.append(events.append)
+    conn, r1, r2, events = _make_join()
 
     r1.insert("INSERT INTO a(name) VALUES ('x')", {})
     aid = conn.execute("SELECT id FROM a WHERE name='x'").fetchone()[0]
@@ -606,13 +605,7 @@ def test_join_update():
 
 
 def test_join_delete():
-    conn = sqlite3.connect(":memory:")
-    conn.execute("CREATE TABLE a(id INTEGER PRIMARY KEY, name TEXT)")
-    conn.execute("CREATE TABLE b(id INTEGER PRIMARY KEY, a_id INTEGER, title TEXT)")
-    r1, r2 = ReactiveTable(conn, "a"), ReactiveTable(conn, "b")
-    j = Join(r1, r2, "a.id = b.a_id")
-    events = []
-    j.listeners.append(events.append)
+    conn, r1, r2, events = _make_join()
 
     r1.insert("INSERT INTO a(name) VALUES ('x')", {})
     aid = conn.execute("SELECT id FROM a WHERE name='x'").fetchone()[0]
@@ -629,13 +622,7 @@ def test_join_delete():
 
 
 def test_left_outer_join_basic():
-    conn = sqlite3.connect(":memory:")
-    conn.execute("CREATE TABLE a(id INTEGER PRIMARY KEY, name TEXT)")
-    conn.execute("CREATE TABLE b(id INTEGER PRIMARY KEY, a_id INTEGER, title TEXT)")
-    r1, r2 = ReactiveTable(conn, "a"), ReactiveTable(conn, "b")
-    j = Join(r1, r2, "a.id = b.a_id", left_outer=True)
-    events = []
-    j.listeners.append(events.append)
+    conn, r1, r2, events = _make_join(left=True)
 
     r1.insert("INSERT INTO a(name) VALUES ('x')", {})
     aid = conn.execute("SELECT id FROM a WHERE name='x'").fetchone()[0]
@@ -648,13 +635,7 @@ def test_left_outer_join_basic():
 
 
 def test_left_outer_join_update_delete():
-    conn = sqlite3.connect(":memory:")
-    conn.execute("CREATE TABLE a(id INTEGER PRIMARY KEY, name TEXT)")
-    conn.execute("CREATE TABLE b(id INTEGER PRIMARY KEY, a_id INTEGER, title TEXT)")
-    r1, r2 = ReactiveTable(conn, "a"), ReactiveTable(conn, "b")
-    j = Join(r1, r2, "a.id = b.a_id", left_outer=True)
-    events = []
-    j.listeners.append(events.append)
+    conn, r1, r2, events = _make_join(left=True)
 
     r1.insert("INSERT INTO a(name) VALUES ('x')", {})
     aid = conn.execute("SELECT id FROM a WHERE name='x'").fetchone()[0]
@@ -675,13 +656,7 @@ def test_left_outer_join_update_delete():
 
 
 def test_right_outer_join_basic():
-    conn = sqlite3.connect(":memory:")
-    conn.execute("CREATE TABLE a(id INTEGER PRIMARY KEY, name TEXT)")
-    conn.execute("CREATE TABLE b(id INTEGER PRIMARY KEY, a_id INTEGER, title TEXT)")
-    r1, r2 = ReactiveTable(conn, "a"), ReactiveTable(conn, "b")
-    j = Join(r1, r2, "a.id = b.a_id", right_outer=True)
-    events = []
-    j.listeners.append(events.append)
+    conn, r1, r2, events = _make_join(right=True)
 
     r2.insert("INSERT INTO b(a_id, title) VALUES (1, 't')", {})
     bid = conn.execute("SELECT id FROM b WHERE title='t'").fetchone()[0]
@@ -694,13 +669,7 @@ def test_right_outer_join_basic():
 
 
 def test_right_outer_join_update_delete():
-    conn = sqlite3.connect(":memory:")
-    conn.execute("CREATE TABLE a(id INTEGER PRIMARY KEY, name TEXT)")
-    conn.execute("CREATE TABLE b(id INTEGER PRIMARY KEY, a_id INTEGER, title TEXT)")
-    r1, r2 = ReactiveTable(conn, "a"), ReactiveTable(conn, "b")
-    j = Join(r1, r2, "a.id = b.a_id", right_outer=True)
-    events = []
-    j.listeners.append(events.append)
+    conn, r1, r2, events = _make_join(right=True)
 
     r2.insert("INSERT INTO b(a_id, title) VALUES (1, 't1')", {})
     bid = conn.execute("SELECT id FROM b WHERE title='t1'").fetchone()[0]
@@ -721,13 +690,7 @@ def test_right_outer_join_update_delete():
 
 
 def test_full_outer_join_left_then_right():
-    conn = sqlite3.connect(":memory:")
-    conn.execute("CREATE TABLE a(id INTEGER PRIMARY KEY, name TEXT)")
-    conn.execute("CREATE TABLE b(id INTEGER PRIMARY KEY, a_id INTEGER, title TEXT)")
-    r1, r2 = ReactiveTable(conn, "a"), ReactiveTable(conn, "b")
-    j = Join(r1, r2, "a.id = b.a_id", left_outer=True, right_outer=True)
-    events = []
-    j.listeners.append(events.append)
+    conn, r1, r2, events = _make_join(left=True, right=True)
 
     r1.insert("INSERT INTO a(name) VALUES ('x')", {})
     aid = conn.execute("SELECT id FROM a WHERE name='x'").fetchone()[0]
@@ -740,13 +703,7 @@ def test_full_outer_join_left_then_right():
 
 
 def test_full_outer_join_right_then_left():
-    conn = sqlite3.connect(":memory:")
-    conn.execute("CREATE TABLE a(id INTEGER PRIMARY KEY, name TEXT)")
-    conn.execute("CREATE TABLE b(id INTEGER PRIMARY KEY, a_id INTEGER, title TEXT)")
-    r1, r2 = ReactiveTable(conn, "a"), ReactiveTable(conn, "b")
-    j = Join(r1, r2, "a.id = b.a_id", left_outer=True, right_outer=True)
-    events = []
-    j.listeners.append(events.append)
+    conn, r1, r2, events = _make_join(left=True, right=True)
 
     r2.insert("INSERT INTO b(a_id, title) VALUES (1, 't1')", {})
     bid = conn.execute("SELECT id FROM b WHERE title='t1'").fetchone()[0]
@@ -759,13 +716,7 @@ def test_full_outer_join_right_then_left():
 
 
 def test_full_outer_join_update_delete():
-    conn = sqlite3.connect(":memory:")
-    conn.execute("CREATE TABLE a(id INTEGER PRIMARY KEY, name TEXT)")
-    conn.execute("CREATE TABLE b(id INTEGER PRIMARY KEY, a_id INTEGER, title TEXT)")
-    r1, r2 = ReactiveTable(conn, "a"), ReactiveTable(conn, "b")
-    j = Join(r1, r2, "a.id = b.a_id", left_outer=True, right_outer=True)
-    events = []
-    j.listeners.append(events.append)
+    conn, r1, r2, events = _make_join(left=True, right=True)
 
     r2.insert("INSERT INTO b(a_id, title) VALUES (1, 't1')", {})
     bid = conn.execute("SELECT id FROM b WHERE title='t1'").fetchone()[0]

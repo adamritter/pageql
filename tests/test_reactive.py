@@ -394,6 +394,23 @@ def test_union_update():
     assert_eq(events[-1], [3, (1, 'x'), (1, 'y')])
 
 
+def test_union_update_with_duplicate():
+    conn = sqlite3.connect(":memory:")
+    for t in ("a", "b"):
+        conn.execute(f"CREATE TABLE {t}(id INTEGER PRIMARY KEY, name TEXT)")
+    r1, r2 = ReactiveTable(conn, "a"), ReactiveTable(conn, "b")
+    u = Union(r1, r2)
+    events = []
+    u.listeners.append(events.append)
+
+    r1.insert("INSERT INTO a(name) VALUES ('x')", {})
+    r2.insert("INSERT INTO b(name) VALUES ('x')", {})
+    rid = conn.execute("SELECT id FROM a WHERE name='x'").fetchone()[0]
+    events.clear()
+    r1.update("UPDATE a SET name='y' WHERE id=:id", {"id": rid})
+    assert_eq(events, [[1, (1, 'y')]])
+
+
 def test_union_mismatched_columns():
     conn = sqlite3.connect(":memory:")
     conn.execute("CREATE TABLE a(id INTEGER PRIMARY KEY, name TEXT)")

@@ -34,7 +34,6 @@ class Join(Signal):
             f"SELECT a.* FROM ({self.parent1.sql}) AS a JOIN (SELECT {right_cols}) AS b ON {self.on_sql}"
         )
 
-        self.rows1 = list(execute(self.conn, self.parent1.sql, []).fetchall())
 
     def _emit(self, event):
         for listener in self.listeners:
@@ -53,7 +52,6 @@ class Join(Signal):
         return list(cur.fetchall())
 
     def _insert_left(self, row):
-        self.rows1.append(row)
         for r2 in self._fetch_right(row):
             self._emit([1, row + r2])
 
@@ -62,10 +60,6 @@ class Join(Signal):
             self._emit([1, r1 + row])
 
     def _delete_left(self, row):
-        try:
-            self.rows1.remove(row)
-        except ValueError:
-            return
         for r2 in self._fetch_right(row):
             self._emit([2, row + r2])
 
@@ -76,9 +70,6 @@ class Join(Signal):
     def _update_left(self, oldrow, newrow):
         if oldrow == newrow:
             return
-        idx = self.rows1.index(oldrow)
-        self.rows1[idx] = newrow
-
         old_matches = self._fetch_right(oldrow)
         new_matches = self._fetch_right(newrow)
 

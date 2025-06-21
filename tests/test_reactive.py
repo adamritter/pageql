@@ -553,6 +553,52 @@ def test_left_outer_join_update_delete():
     assert_eq(events, [[2, (aid, 'x', None, None, None)]])
 
 
+def test_right_outer_join_basic():
+    conn = sqlite3.connect(":memory:")
+    conn.execute("CREATE TABLE a(id INTEGER PRIMARY KEY, name TEXT)")
+    conn.execute("CREATE TABLE b(id INTEGER PRIMARY KEY, a_id INTEGER, title TEXT)")
+    r1, r2 = ReactiveTable(conn, "a"), ReactiveTable(conn, "b")
+    j = Join(r1, r2, "a.id = b.a_id", right_outer=True)
+    events = []
+    j.listeners.append(events.append)
+
+    r2.insert("INSERT INTO b(a_id, title) VALUES (1, 't')", {})
+    bid = conn.execute("SELECT id FROM b WHERE title='t'").fetchone()[0]
+    assert_eq(events, [[1, (None, None, bid, 1, 't')]])
+    events.clear()
+
+    r1.insert("INSERT INTO a(id, name) VALUES (1, 'x')", {})
+    aid = 1
+    assert_eq(events, [[3, (None, None, bid, 1, 't'), (aid, 'x', bid, 1, 't')]])
+
+
+def test_right_outer_join_update_delete():
+    conn = sqlite3.connect(":memory:")
+    conn.execute("CREATE TABLE a(id INTEGER PRIMARY KEY, name TEXT)")
+    conn.execute("CREATE TABLE b(id INTEGER PRIMARY KEY, a_id INTEGER, title TEXT)")
+    r1, r2 = ReactiveTable(conn, "a"), ReactiveTable(conn, "b")
+    j = Join(r1, r2, "a.id = b.a_id", right_outer=True)
+    events = []
+    j.listeners.append(events.append)
+
+    r2.insert("INSERT INTO b(a_id, title) VALUES (1, 't1')", {})
+    bid = conn.execute("SELECT id FROM b WHERE title='t1'").fetchone()[0]
+    r1.insert("INSERT INTO a(id, name) VALUES (1, 'x')", {})
+    aid = 1
+    events.clear()
+
+    r1.update("UPDATE a SET name='y' WHERE id=1", {})
+    assert_eq(events, [[3, (aid, 'x', bid, 1, 't1'), (aid, 'y', bid, 1, 't1')]])
+    events.clear()
+
+    r1.delete("DELETE FROM a WHERE id=1", {})
+    assert_eq(events, [[3, (aid, 'y', bid, 1, 't1'), (None, None, bid, 1, 't1')]])
+    events.clear()
+
+    r2.delete("DELETE FROM b WHERE id=:id", {"id": bid})
+    assert_eq(events, [[2, (None, None, bid, 1, 't1')]])
+
+
 def test_intersect_deduplication():
     conn = sqlite3.connect(":memory:")
     for t in ("a", "b"):

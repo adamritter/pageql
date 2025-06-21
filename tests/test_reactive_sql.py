@@ -60,6 +60,16 @@ def test_parse_count():
     assert_sql_equivalent(conn, sql, comp.sql)
 
 
+def test_parse_count_expr():
+    conn = _db()
+    tables = Tables(conn)
+    sql = "SELECT COUNT(name) FROM items"
+    expr = sqlglot.parse_one(sql, read="sqlite")
+    comp = parse_reactive(expr, tables, {})
+    assert isinstance(comp, CountAll)
+    assert_sql_equivalent(conn, sql, comp.sql)
+
+
 def test_parse_union_all():
     conn = sqlite3.connect(":memory:")
     for t in ("a", "b"):

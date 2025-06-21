@@ -179,7 +179,31 @@ def test_count_all():
 
     rt.insert("INSERT INTO items(name) VALUES ('x')", {})
     assert_eq(cnt.value, 1)
-    assert_eq(events[-1], [3, [0], [1]]) 
+    assert_eq(events[-1], [3, [0], [1]])
+
+
+def test_count_expression():
+    conn = _db()
+    rt = ReactiveTable(conn, "items")
+    cnt = CountAll(rt, "name")
+    events = []
+    cnt.listeners.append(events.append)
+
+    rt.insert("INSERT INTO items(name) VALUES ('x')", {})
+    assert_eq(cnt.value, 1)
+    assert_eq(events[-1], [3, [0], [1]])
+
+    rt.insert("INSERT INTO items(name) VALUES (NULL)", {})
+    assert_eq(cnt.value, 1)
+
+    rid = conn.execute("SELECT id FROM items WHERE name IS NULL").fetchone()[0]
+    rt.update("UPDATE items SET name='y' WHERE id=:id", {"id": rid})
+    assert_eq(cnt.value, 2)
+    assert_eq(events[-1], [3, [1], [2]])
+
+    rt.update("UPDATE items SET name=NULL WHERE id=:id", {"id": rid})
+    assert_eq(cnt.value, 1)
+    assert_eq(events[-1], [3, [2], [1]])
 
 
 def test_signal_and_derived():

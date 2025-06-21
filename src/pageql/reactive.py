@@ -310,7 +310,7 @@ class Where(Signal):
                     listener([3, event[1], event[2]])
 
 
-class CountAll(Signal):
+class Aggregate(Signal):
     def __init__(self, parent, exprs=("COUNT(*)",)):
         super().__init__(None)
         self.parent = parent

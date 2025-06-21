@@ -9,7 +9,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 sys.modules.setdefault("watchfiles", types.ModuleType("watchfiles"))
 sys.modules["watchfiles"].awatch = lambda *args, **kwargs: None
 
-from pageql.reactive import Tables, ReactiveTable, Select, Where, CountAll, UnionAll
+from pageql.reactive import Tables, ReactiveTable, Select, Where, Aggregate, UnionAll
 from pageql.reactive_sql import parse_reactive, FallbackReactive
 from pageql.reactive import ReadOnly
 
@@ -56,7 +56,7 @@ def test_parse_count():
     sql = "SELECT COUNT(*) FROM items"
     expr = sqlglot.parse_one(sql, read="sqlite")
     comp = parse_reactive(expr, tables, {})
-    assert isinstance(comp, CountAll)
+    assert isinstance(comp, Aggregate)
     assert_sql_equivalent(conn, sql, comp.sql)
 
 
@@ -66,7 +66,7 @@ def test_parse_count_expr():
     sql = "SELECT COUNT(name) FROM items"
     expr = sqlglot.parse_one(sql, read="sqlite")
     comp = parse_reactive(expr, tables, {})
-    assert isinstance(comp, CountAll)
+    assert isinstance(comp, Aggregate)
     assert_sql_equivalent(conn, sql, comp.sql)
 
 
@@ -77,7 +77,7 @@ def test_parse_sum_expr():
     sql = "SELECT SUM(n) FROM nums"
     expr = sqlglot.parse_one(sql, read="sqlite")
     comp = parse_reactive(expr, tables, {})
-    assert isinstance(comp, CountAll)
+    assert isinstance(comp, Aggregate)
     assert_sql_equivalent(conn, sql, comp.sql)
 
 
@@ -88,7 +88,7 @@ def test_parse_avg_expr():
     sql = "SELECT AVG(n) FROM nums"
     expr = sqlglot.parse_one(sql, read="sqlite")
     comp = parse_reactive(expr, tables, {})
-    assert isinstance(comp, CountAll)
+    assert isinstance(comp, Aggregate)
     assert_sql_equivalent(conn, sql, comp.sql)
 
 

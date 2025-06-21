@@ -56,7 +56,7 @@ def test_select_delete_event_should_be_labeled_delete():
 import sqlite3
 from pageql.reactive import (
     ReactiveTable,
-    CountAll,
+    Aggregate,
     OneValue,
     DerivedSignal,
     DerivedSignal2,
@@ -173,7 +173,7 @@ def test_delete_propagates_renderresultexception():
 def test_count_all():
     conn = _db()
     rt = ReactiveTable(conn, "items")
-    cnt = CountAll(rt)
+    cnt = Aggregate(rt)
     events = []
     cnt.listeners.append(events.append)
 
@@ -185,7 +185,7 @@ def test_count_all():
 def test_count_expression():
     conn = _db()
     rt = ReactiveTable(conn, "items")
-    cnt = CountAll(rt, ("COUNT(name)",))
+    cnt = Aggregate(rt, ("COUNT(name)",))
     events = []
     cnt.listeners.append(events.append)
 
@@ -210,7 +210,7 @@ def test_sum_expression():
     conn = sqlite3.connect(":memory:")
     conn.execute("CREATE TABLE nums(id INTEGER PRIMARY KEY, n INTEGER)")
     rt = ReactiveTable(conn, "nums")
-    sm = CountAll(rt, ("SUM(n)",))
+    sm = Aggregate(rt, ("SUM(n)",))
     events = []
     sm.listeners.append(events.append)
 
@@ -236,7 +236,7 @@ def test_avg_expression():
     conn = sqlite3.connect(":memory:")
     conn.execute("CREATE TABLE nums(id INTEGER PRIMARY KEY, n INTEGER)")
     rt = ReactiveTable(conn, "nums")
-    av = CountAll(rt, ("AVG(n)",))
+    av = Aggregate(rt, ("AVG(n)",))
     events = []
     av.listeners.append(events.append)
 
@@ -325,7 +325,7 @@ def test_select():
 def test_count_all_decrement():
     conn = _db()
     rt = ReactiveTable(conn, "items")
-    cnt = CountAll(rt)
+    cnt = Aggregate(rt)
     events = []
     cnt.listeners.append(events.append)
 
@@ -344,7 +344,7 @@ def test_count_all_decrement():
 def test_countall_multiple_expressions():
     conn = _db()
     rt = ReactiveTable(conn, "items")
-    cnt = CountAll(rt, ("COUNT(*)", "COUNT(name)"))
+    cnt = Aggregate(rt, ("COUNT(*)", "COUNT(name)"))
     events = []
     cnt.listeners.append(events.append)
 
@@ -820,7 +820,7 @@ def test_one_value_reset():
     conn = _db()
     rt = ReactiveTable(conn, "items")
 
-    cnt = CountAll(rt)
+    cnt = Aggregate(rt)
     dv = OneValue(cnt)
     seen = []
     dv.listeners.append(seen.append)
@@ -1046,7 +1046,7 @@ def fuzz_components(iterations=20, seed=None):
         (rt, rt),
         (Where(rt, "name LIKE 'x%'") , rt),
         (Select(rt, "name"), rt),
-        (CountAll(rt), rt),
+        (Aggregate(rt), rt),
     ]
 
     # UnionAll requires two tables

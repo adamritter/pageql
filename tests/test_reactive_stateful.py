@@ -14,7 +14,7 @@ from pageql.reactive import (
     ReactiveTable,
     Where,
     Select,
-    CountAll,
+    Aggregate,
     UnionAll,
     Union,
     Intersect,
@@ -40,7 +40,7 @@ class ReactiveStateMachine(RuleBasedStateMachine):
         # Derived components
         self.where_items = Where(self.rt_items, "name LIKE 'x%'")
         self.select_items = Select(self.rt_items, "name")
-        self.count_items = CountAll(self.rt_items)
+        self.count_items = Aggregate(self.rt_items)
         self.union_all = UnionAll(self.rt_a, self.rt_b)
         self.union = Union(self.rt_a, self.rt_b)
         self.intersect = Intersect(self.rt_a, self.rt_b)

@@ -6,7 +6,7 @@ from .reactive import (
     Where,
     Union,
     UnionAll,
-    CountAll,
+    Aggregate,
     DerivedSignal,
     DerivedSignal2,
     OneValue,
@@ -137,13 +137,13 @@ def build_reactive(expr, tables: Tables):
                 return parent
             if isinstance(col, exp.Count) and not col.args.get("distinct"):
                 expr_sql = col.sql(dialect=tables.dialect)
-                return CountAll(parent, (expr_sql,))
+                return Aggregate(parent, (expr_sql,))
             if isinstance(col, exp.Sum):
                 expr_sql = col.sql(dialect=tables.dialect)
-                return CountAll(parent, (expr_sql,))
+                return Aggregate(parent, (expr_sql,))
             if isinstance(col, exp.Avg):
                 expr_sql = col.sql(dialect=tables.dialect)
-                return CountAll(parent, (expr_sql,))
+                return Aggregate(parent, (expr_sql,))
         select_sql = ", ".join(col.sql(dialect=tables.dialect) for col in select_list)
         return Select(parent, select_sql)
     if isinstance(expr, exp.Table):

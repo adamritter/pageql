@@ -9,12 +9,12 @@ class Join(Signal):
         self.parent1 = parent1
         self.parent2 = parent2
         self.on_sql = on_sql
-        if left_outer and right_outer:
-            raise ValueError("Join cannot be both left and right outer")
         self.left_outer = left_outer
         self.right_outer = right_outer
         self.conn = self.parent1.conn
-        if self.left_outer:
+        if self.left_outer and self.right_outer:
+            join_kw = "FULL OUTER JOIN"
+        elif self.left_outer:
             join_kw = "LEFT JOIN"
         elif self.right_outer:
             join_kw = "RIGHT JOIN"
@@ -131,6 +131,37 @@ class Join(Signal):
         old_matches = self._fetch_right(oldrow)
         new_matches = self._fetch_right(newrow)
 
+        if self.left_outer and self.right_outer:
+            old_set = set(old_matches)
+            new_set = set(new_matches)
+
+            for r2 in old_set & new_set:
+                if oldrow + r2 != newrow + r2:
+                    self._emit([3, oldrow + r2, newrow + r2])
+
+            for r2 in old_set - new_set:
+                remaining = self._fetch_left(r2)
+                if len(remaining) == 0:
+                    self._emit([3, oldrow + r2, self._null_left + r2])
+                else:
+                    self._emit([2, oldrow + r2])
+
+            for r2 in new_set - old_set:
+                total = len(self._fetch_left(r2))
+                if total == 1:
+                    self._emit([3, self._null_left + r2, newrow + r2])
+                else:
+                    self._emit([1, newrow + r2])
+
+            if not old_matches and not new_matches:
+                if oldrow != newrow:
+                    self._emit([3, oldrow + self._null_right, newrow + self._null_right])
+            elif not old_matches and new_matches:
+                self._emit([2, oldrow + self._null_right])
+            elif old_matches and not new_matches:
+                self._emit([1, newrow + self._null_right])
+            return
+
         if self.right_outer:
             old_set = set(old_matches)
             new_set = set(new_matches)
@@ -184,13 +215,36 @@ class Join(Signal):
         old_lefts = self._fetch_left(oldrow)
         new_lefts = self._fetch_left(newrow)
 
-        if self.right_outer:
-            if not old_lefts:
-                old_lefts = [self._null_left]
-            if not new_lefts:
-                new_lefts = [self._null_left]
+        if self.left_outer and self.right_outer:
+            old_set = set(old_lefts)
+            new_set = set(new_lefts)
 
-        if self.left_outer:
+            for r1 in old_set & new_set:
+                if r1 + oldrow != r1 + newrow:
+                    self._emit([3, r1 + oldrow, r1 + newrow])
+
+            for r1 in old_set - new_set:
+                remaining = self._fetch_right(r1)
+                if len(remaining) == 0:
+                    self._emit([3, r1 + oldrow, r1 + self._null_right])
+                else:
+                    self._emit([2, r1 + oldrow])
+
+            for r1 in new_set - old_set:
+                total = len(self._fetch_right(r1))
+                if total == 1:
+                    self._emit([3, r1 + self._null_right, r1 + newrow])
+                else:
+                    self._emit([1, r1 + newrow])
+
+            if not old_lefts and not new_lefts:
+                if oldrow != newrow:
+                    self._emit([3, self._null_left + oldrow, self._null_left + newrow])
+            elif not old_lefts and new_lefts:
+                self._emit([2, self._null_left + oldrow])
+            elif old_lefts and not new_lefts:
+                self._emit([1, self._null_left + newrow])
+        elif self.left_outer:
             old_set = set(old_lefts)
             new_set = set(new_lefts)
 

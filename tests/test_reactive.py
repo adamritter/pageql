@@ -625,6 +625,75 @@ def test_right_outer_join_update_delete():
     assert_eq(events, [[2, (None, None, bid, 1, 't1')]])
 
 
+def test_full_outer_join_left_then_right():
+    conn = sqlite3.connect(":memory:")
+    conn.execute("CREATE TABLE a(id INTEGER PRIMARY KEY, name TEXT)")
+    conn.execute("CREATE TABLE b(id INTEGER PRIMARY KEY, a_id INTEGER, title TEXT)")
+    r1, r2 = ReactiveTable(conn, "a"), ReactiveTable(conn, "b")
+    j = Join(r1, r2, "a.id = b.a_id", left_outer=True, right_outer=True)
+    events = []
+    j.listeners.append(events.append)
+
+    r1.insert("INSERT INTO a(name) VALUES ('x')", {})
+    aid = conn.execute("SELECT id FROM a WHERE name='x'").fetchone()[0]
+    assert_eq(events, [[1, (aid, 'x', None, None, None)]])
+    events.clear()
+
+    r2.insert("INSERT INTO b(a_id, title) VALUES (:a, 't')", {"a": aid})
+    bid = conn.execute("SELECT id FROM b WHERE a_id=:a", {"a": aid}).fetchone()[0]
+    assert_eq(events, [[3, (aid, 'x', None, None, None), (aid, 'x', bid, aid, 't')]])
+
+
+def test_full_outer_join_right_then_left():
+    conn = sqlite3.connect(":memory:")
+    conn.execute("CREATE TABLE a(id INTEGER PRIMARY KEY, name TEXT)")
+    conn.execute("CREATE TABLE b(id INTEGER PRIMARY KEY, a_id INTEGER, title TEXT)")
+    r1, r2 = ReactiveTable(conn, "a"), ReactiveTable(conn, "b")
+    j = Join(r1, r2, "a.id = b.a_id", left_outer=True, right_outer=True)
+    events = []
+    j.listeners.append(events.append)
+
+    r2.insert("INSERT INTO b(a_id, title) VALUES (1, 't1')", {})
+    bid = conn.execute("SELECT id FROM b WHERE title='t1'").fetchone()[0]
+    assert_eq(events, [[1, (None, None, bid, 1, 't1')]])
+    events.clear()
+
+    r1.insert("INSERT INTO a(id, name) VALUES (1, 'x')", {})
+    aid = 1
+    assert_eq(events, [[3, (None, None, bid, 1, 't1'), (aid, 'x', bid, 1, 't1')]])
+
+
+def test_full_outer_join_update_delete():
+    conn = sqlite3.connect(":memory:")
+    conn.execute("CREATE TABLE a(id INTEGER PRIMARY KEY, name TEXT)")
+    conn.execute("CREATE TABLE b(id INTEGER PRIMARY KEY, a_id INTEGER, title TEXT)")
+    r1, r2 = ReactiveTable(conn, "a"), ReactiveTable(conn, "b")
+    j = Join(r1, r2, "a.id = b.a_id", left_outer=True, right_outer=True)
+    events = []
+    j.listeners.append(events.append)
+
+    r2.insert("INSERT INTO b(a_id, title) VALUES (1, 't1')", {})
+    bid = conn.execute("SELECT id FROM b WHERE title='t1'").fetchone()[0]
+    assert_eq(events, [[1, (None, None, bid, 1, 't1')]])
+    events.clear()
+
+    r1.insert("INSERT INTO a(id, name) VALUES (1, 'x')", {})
+    aid = 1
+    assert_eq(events, [[3, (None, None, bid, 1, 't1'), (aid, 'x', bid, 1, 't1')]])
+    events.clear()
+
+    r2.update("UPDATE b SET title='t2' WHERE id=:id", {"id": bid})
+    assert_eq(events, [[3, (aid, 'x', bid, 1, 't1'), (aid, 'x', bid, 1, 't2')]])
+    events.clear()
+
+    r1.delete("DELETE FROM a WHERE id=1", {})
+    assert_eq(events, [[3, (aid, 'x', bid, 1, 't2'), (None, None, bid, 1, 't2')]])
+    events.clear()
+
+    r2.delete("DELETE FROM b WHERE id=:id", {"id": bid})
+    assert_eq(events, [[2, (None, None, bid, 1, 't2')]])
+
+
 def test_intersect_deduplication():
     conn = sqlite3.connect(":memory:")
     for t in ("a", "b"):

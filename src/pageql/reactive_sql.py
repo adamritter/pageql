@@ -135,12 +135,9 @@ def build_reactive(expr, tables: Tables):
             col = select_list[0]
             if isinstance(col, exp.Star):
                 return parent
-            if isinstance(col, exp.Count):
-                if isinstance(col.this, exp.Star):
-                    return CountAll(parent)
-                if not col.args.get("distinct"):
-                    expr_sql = col.this.sql(dialect=tables.dialect)
-                    return CountAll(parent, expr_sql)
+            if isinstance(col, exp.Count) and not col.args.get("distinct"):
+                expr_sql = col.sql(dialect=tables.dialect)
+                return CountAll(parent, expr_sql)
         select_sql = ", ".join(col.sql(dialect=tables.dialect) for col in select_list)
         return Select(parent, select_sql)
     if isinstance(expr, exp.Table):

@@ -185,7 +185,7 @@ def test_count_all():
 def test_count_expression():
     conn = _db()
     rt = ReactiveTable(conn, "items")
-    cnt = CountAll(rt, "name")
+    cnt = CountAll(rt, "COUNT(name)")
     events = []
     cnt.listeners.append(events.append)
 

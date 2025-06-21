@@ -311,25 +311,32 @@ class Where(Signal):
 
 
 class CountAll(Signal):
-    def __init__(self, parent, expr: str | None = None):
+    def __init__(self, parent, expr: str = "COUNT(*)"):
         super().__init__(None)
         self.parent = parent
         self.expr = expr
         self.conn = self.parent.conn
-        if expr is None:
+
+        m = re.fullmatch(r"\s*count\s*\(\s*(\*|[^)]*)\s*\)\s*", expr, re.I)
+        if not m:
+            raise ValueError("expr must be of the form COUNT(*) or COUNT(expr)")
+        inner = m.group(1).strip()
+        self._inner = None if inner == "*" else inner
+
+        if self._inner is None:
             self.sql = f"SELECT COUNT(*) FROM ({self.parent.sql})"
         else:
-            self.sql = f"SELECT COUNT({expr}) FROM ({self.parent.sql})"
+            self.sql = f"SELECT COUNT({self._inner}) FROM ({self.parent.sql})"
             placeholders = ", ".join(f"? AS {c}" for c in self.parent.columns)
-            self._expr_sql = f"SELECT {expr} FROM (SELECT {placeholders})"
+            self._expr_sql = f"SELECT {self._inner} FROM (SELECT {placeholders})"
         self.value = execute(self.conn, self.sql, []).fetchone()[0]
         self.parent.listeners.append(self.onevent)
-        self.columns = f"COUNT({expr if expr else '*'} )".replace(' )', ')')
+        self.columns = f"COUNT({inner})"  # normalized expression
         self.deps = [self.parent]
         self.update = self.onevent
 
     def _expr_not_null(self, row):
-        if self.expr is None:
+        if self._inner is None:
             return True
         cur = execute(self.conn, self._expr_sql, row)
         return cur.fetchone()[0] is not None

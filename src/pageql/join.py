@@ -4,20 +4,24 @@ from .reactive import execute, Signal
 
 
 class Join(Signal):
-    def __init__(self, parent1, parent2, on_sql):
+    def __init__(self, parent1, parent2, on_sql, *, left_outer=False):
         super().__init__(None)
         self.parent1 = parent1
         self.parent2 = parent2
         self.on_sql = on_sql
+        self.left_outer = left_outer
         self.conn = self.parent1.conn
+        join_kw = "LEFT JOIN" if self.left_outer else "JOIN"
         self.sql = (
-            f"SELECT * FROM ({self.parent1.sql}) AS a JOIN ({self.parent2.sql}) AS b ON {self.on_sql}"
+            f"SELECT * FROM ({self.parent1.sql}) AS a {join_kw} ({self.parent2.sql}) AS b ON {self.on_sql}"
         )
         self._cb1 = lambda e: self.onevent(e, 1)
         self._cb2 = lambda e: self.onevent(e, 2)
         self.parent1.listeners.append(self._cb1)
         self.parent2.listeners.append(self._cb2)
         self.columns = list(self.parent1.columns) + list(self.parent2.columns)
+        if self.left_outer:
+            self._null_row = tuple([None] * len(self.parent2.columns))
         self.deps = [self.parent1, self.parent2]
 
         left_cols = ", ".join([f"? as {c}" for c in self.parent1.columns])
@@ -52,26 +56,53 @@ class Join(Signal):
         return list(cur.fetchall())
 
     def _insert_left(self, row):
-        for r2 in self._fetch_right(row):
-            self._emit([1, row + r2])
+        matches = self._fetch_right(row)
+        if matches:
+            for r2 in matches:
+                self._emit([1, row + r2])
+        elif self.left_outer:
+            self._emit([1, row + self._null_row])
 
     def _insert_right(self, row):
         for r1 in self._fetch_left(row):
-            self._emit([1, r1 + row])
+            if self.left_outer:
+                matches = self._fetch_right(r1)
+                if len(matches) == 1:
+                    self._emit([3, r1 + self._null_row, r1 + row])
+                else:
+                    self._emit([1, r1 + row])
+            else:
+                self._emit([1, r1 + row])
 
     def _delete_left(self, row):
-        for r2 in self._fetch_right(row):
-            self._emit([2, row + r2])
+        matches = self._fetch_right(row)
+        if matches:
+            for r2 in matches:
+                self._emit([2, row + r2])
+        elif self.left_outer:
+            self._emit([2, row + self._null_row])
 
     def _delete_right(self, row):
         for r1 in self._fetch_left(row):
-            self._emit([2, r1 + row])
+            if self.left_outer:
+                remaining = self._fetch_right(r1)
+                if len(remaining) == 0:
+                    self._emit([3, r1 + row, r1 + self._null_row])
+                else:
+                    self._emit([2, r1 + row])
+            else:
+                self._emit([2, r1 + row])
 
     def _update_left(self, oldrow, newrow):
         if oldrow == newrow:
             return
         old_matches = self._fetch_right(oldrow)
         new_matches = self._fetch_right(newrow)
+        if self.left_outer:
+            if not old_matches:
+                old_matches = [self._null_row]
+            if not new_matches:
+                new_matches = [self._null_row]
 
         old_counts = Counter(old_matches)
         new_counts = Counter(new_matches)
@@ -94,26 +125,35 @@ class Join(Signal):
     def _update_right(self, oldrow, newrow):
         if oldrow == newrow:
             return
-        old_matches = self._fetch_left(oldrow)
-        new_matches = self._fetch_left(newrow)
+        old_lefts = self._fetch_left(oldrow)
+        new_lefts = self._fetch_left(newrow)
 
-        old_counts = Counter(old_matches)
-        new_counts = Counter(new_matches)
+        old_set = set(old_lefts)
+        new_set = set(new_lefts)
 
-        for r1, old_cnt in old_counts.items():
-            new_cnt = new_counts.get(r1, 0)
-            for _ in range(min(old_cnt, new_cnt)):
-                if r1 + oldrow != r1 + newrow:
-                    self._emit([3, r1 + oldrow, r1 + newrow])
-            if old_cnt > new_cnt:
-                for _ in range(old_cnt - new_cnt):
+        for r1 in old_set & new_set:
+            if r1 + oldrow != r1 + newrow:
+                self._emit([3, r1 + oldrow, r1 + newrow])
+
+        for r1 in old_set - new_set:
+            if self.left_outer:
+                remaining = self._fetch_right(r1)
+                if len(remaining) == 0:
+                    self._emit([3, r1 + oldrow, r1 + self._null_row])
+                else:
                     self._emit([2, r1 + oldrow])
+            else:
+                self._emit([2, r1 + oldrow])
 
-        for r1, new_cnt in new_counts.items():
-            old_cnt = old_counts.get(r1, 0)
-            if new_cnt > old_cnt:
-                for _ in range(new_cnt - old_cnt):
+        for r1 in new_set - old_set:
+            if self.left_outer:
+                total = len(self._fetch_right(r1))
+                if total == 1:
+                    self._emit([3, r1 + self._null_row, r1 + newrow])
+                else:
                     self._emit([1, r1 + newrow])
+            else:
+                self._emit([1, r1 + newrow])
 
     def onevent(self, event, which):
         if which == 1:

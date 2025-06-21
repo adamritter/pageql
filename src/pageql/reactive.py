@@ -328,15 +328,23 @@ class Aggregate(Signal):
         columns = []
         for expr in self.exprs:
             m = re.fullmatch(
-                r"\s*(count|sum|avg|min|max)\s*\(\s*(\*|[^)]*)\s*\)\s*", expr, re.I
+                r"\s*(count|sum|avg|min|max)\s*\(\s*(\*|[^)]*)\s*\)\s*",
+                expr,
+                re.I,
             )
             if not m or (
                 m.group(1).lower() in {"sum", "avg", "min", "max"}
                 and m.group(2).strip() == "*"
             ):
-                raise ValueError(
-                    "expr must be of the form COUNT(*)/COUNT(expr)/SUM(expr)/AVG(expr)/MIN(expr)/MAX(expr)"
-                )
+                self._funcs.append(None)
+                self._inners.append(None)
+                self._expr_sqls.append(None)
+                self._avg_counts.append(None)
+                self._avg_sums.append(None)
+                self._recompute.append(False)
+                columns.append(expr)
+                continue
+
             func = m.group(1).lower()
             inner = m.group(2).strip()
             inner_val = None if inner == "*" else inner
@@ -391,6 +399,8 @@ class Aggregate(Signal):
         oldvalue = list(self.value)
         if event[0] == 1:
             for i, func in enumerate(self._funcs):
+                if func is None:
+                    continue
                 if func == "count":
                     if self._expr_not_null(i, event[1]):
                         self.value[i] += 1
@@ -414,6 +424,8 @@ class Aggregate(Signal):
                             self.value[i] = val
         elif event[0] == 2:
             for i, func in enumerate(self._funcs):
+                if func is None:
+                    continue
                 if func == "count":
                     if self._expr_not_null(i, event[1]):
                         self.value[i] -= 1
@@ -440,6 +452,8 @@ class Aggregate(Signal):
                             self._recompute[i] = True
         elif event[0] == 3 and self.exprs is not None:
             for i, func in enumerate(self._funcs):
+                if func is None:
+                    continue
                 if func == "count":
                     before = self._expr_not_null(i, event[1])
                     after = self._expr_not_null(i, event[2])

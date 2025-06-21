@@ -322,6 +322,31 @@ def test_aggregate_constant_expression():
     assert_eq(events[-1], [3, [0, 42], [1, 42]])
 
 
+def test_aggregate_group_by():
+    conn = sqlite3.connect(":memory:")
+    conn.execute("CREATE TABLE nums(id INTEGER PRIMARY KEY, grp INTEGER, n INTEGER)")
+    rt = ReactiveTable(conn, "nums")
+    ag = Aggregate(rt, ("COUNT(*)", "SUM(n)"), group_by="grp")
+    events = []
+    ag.listeners.append(events.append)
+
+    rt.insert("INSERT INTO nums(grp,n) VALUES (1,10)", {})
+    assert_eq(events[-1], [1, (1, 1, 10)])
+
+    rt.insert("INSERT INTO nums(grp,n) VALUES (1,5)", {})
+    assert_eq(events[-1], [3, (1, 1, 10), (1, 2, 15)])
+
+    rid = conn.execute("SELECT id FROM nums WHERE n=5").fetchone()[0]
+    rt.update("UPDATE nums SET grp=2 WHERE id=:id", {"id": rid})
+    assert events[-2:] == [[3, (1, 2, 15), (1, 1, 10)], [1, (2, 1, 5)]]
+
+    rid = conn.execute("SELECT id FROM nums WHERE grp=1").fetchone()[0]
+    rt.delete("DELETE FROM nums WHERE id=:id", {"id": rid})
+    assert_eq(events[-1], [2, (1, 1, 10)])
+
+    check_component(ag, lambda: None)
+
+
 def test_signal_and_derived():
     a_val = [1]
     b_val = [2]

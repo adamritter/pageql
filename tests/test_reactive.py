@@ -1089,3 +1089,16 @@ def test_order_bisect_desc():
     rt.delete("DELETE FROM items WHERE id=2", {})
     assert seen == [[2, 1]]
     assert ordered.value == [(1, "d"), (3, "a")]
+
+
+def test_order_deterministic():
+    conn = sqlite3.connect(":memory:")
+    conn.execute("CREATE TABLE items(id INTEGER PRIMARY KEY, name TEXT)")
+    rt = ReactiveTable(conn, "items")
+    ordered = Order(rt, "name")
+
+    rt.insert("INSERT INTO items(id,name) VALUES (2,'a')", {})
+    rt.insert("INSERT INTO items(id,name) VALUES (1,'a')", {})
+    rt.insert("INSERT INTO items(id,name) VALUES (3,'b')", {})
+
+    assert ordered.value == [(1, "a"), (2, "a"), (3, "b")]

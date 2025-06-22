@@ -841,6 +841,12 @@ class Order(Signal):
         self.deps = [self.parent]
         self.update = self.onevent
 
+        placeholders = ", ".join([f'? as {c}' for c in self.columns])
+        self._compare_sql = (
+            f"SELECT idx FROM (SELECT 0 as idx, {placeholders} UNION ALL "
+            f"SELECT 1 as idx, {placeholders}) ORDER BY {self.order_sql} LIMIT 1"
+        )
+
         cur = execute(self.conn, self.sql, [])
         self.value = list(cur.fetchall())
 
@@ -848,12 +854,25 @@ class Order(Signal):
         cur = execute(self.conn, self.sql, [])
         return list(cur.fetchall())
 
+    def _compare(self, row1, row2):
+        idx = execute(self.conn, self._compare_sql, list(row1) + list(row2)).fetchone()[0]
+        return idx == 0
+
+    def _bisect(self, row):
+        lo, hi = 0, len(self.value)
+        while lo < hi:
+            mid = (lo + hi) // 2
+            if self._compare(row, self.value[mid]):
+                hi = mid
+            else:
+                lo = mid + 1
+        return lo
+
     def onevent(self, event):
         if event[0] == 1:
             row = event[1]
-            new_rows = self._fetch_rows()
-            idx = new_rows.index(row)
-            self.value = new_rows
+            idx = self._bisect(row)
+            self.value.insert(idx, row)
             for l in self.listeners:
                 l([1, idx, row])
         elif event[0] == 2:
@@ -872,13 +891,11 @@ class Order(Signal):
                 old_idx = self.value.index(oldrow)
             except ValueError:
                 old_idx = -1
-            new_rows = self._fetch_rows()
-            try:
-                new_idx = new_rows.index(newrow)
-            except ValueError:
-                new_idx = -1
-            self.value = new_rows
-            if old_idx != -1 and new_idx != -1:
+            if old_idx != -1:
+                self.value.pop(old_idx)
+            new_idx = self._bisect(newrow)
+            self.value.insert(new_idx, newrow)
+            if old_idx != -1:
                 for l in self.listeners:
                     l([3, old_idx, new_idx, newrow])
 

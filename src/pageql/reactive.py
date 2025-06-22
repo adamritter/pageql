@@ -1,5 +1,6 @@
 import re
 from collections import Counter
+from difflib import SequenceMatcher
 import sqlglot
 
 def execute(conn, sql, params):
@@ -828,16 +829,23 @@ class Intersect(Signal):
 
 
 class Order(Signal):
-    def __init__(self, parent, order_sql):
+    def __init__(self, parent, order_sql, *, limit=None, offset=0):
         super().__init__(None)
         self.parent = parent
         self.order_sql = order_sql
+        self.limit = limit
+        self.offset = offset
         self.conn = self.parent.conn
         cols_order = ", ".join(self.parent.columns)
         self._full_order_sql = (
             f"{order_sql}, {cols_order}" if order_sql else cols_order
         )
-        self.sql = f"SELECT * FROM ({self.parent.sql}) ORDER BY {self._full_order_sql}"
+        self._all_sql = f"SELECT * FROM ({self.parent.sql}) ORDER BY {self._full_order_sql}"
+        self.sql = self._all_sql
+        if self.limit is not None:
+            self.sql += f" LIMIT {self.limit}"
+        if self.offset:
+            self.sql += f" OFFSET {self.offset}"
         self.columns = self.parent.columns
         self.parent.listeners.append(self.onevent)
         self.deps = [self.parent]
@@ -849,8 +857,9 @@ class Order(Signal):
             f"SELECT 1 as idx, {placeholders}) ORDER BY {self._full_order_sql} LIMIT 1"
         )
 
-        cur = execute(self.conn, self.sql, [])
-        self.value = list(cur.fetchall())
+        cur = execute(self.conn, self._all_sql, [])
+        self._rows = list(cur.fetchall())
+        self.value = self._rows[self.offset : self.offset + self.limit if self.limit is not None else None]
 
     def _fetch_rows(self):
         cur = execute(self.conn, self.sql, [])
@@ -860,46 +869,79 @@ class Order(Signal):
         idx = execute(self.conn, self._compare_sql, list(row1) + list(row2)).fetchone()[0]
         return idx == 0
 
-    def _bisect(self, row):
-        lo, hi = 0, len(self.value)
+    def _bisect(self, row, lst=None):
+        if lst is None:
+            lst = self.value
+        lo, hi = 0, len(lst)
         while lo < hi:
             mid = (lo + hi) // 2
-            if self._compare(row, self.value[mid]):
+            if self._compare(row, lst[mid]):
                 hi = mid
             else:
                 lo = mid + 1
         return lo
 
+    def _apply_limit_offset(self, rows):
+        if self.limit is None:
+            return rows[self.offset :]
+        return rows[self.offset : self.offset + self.limit]
+
+    def _diff_patch(self, old, new):
+        sm = SequenceMatcher(None, old, new)
+        events = []
+        offset = 0
+        for tag, i1, i2, j1, j2 in sm.get_opcodes():
+            if tag == "equal":
+                continue
+            if tag == "delete":
+                for idx in range(i1, i2):
+                    events.append([2, idx + offset])
+                offset -= i2 - i1
+            elif tag == "insert":
+                for idx in range(j1, j2):
+                    events.append([1, i1 + offset, new[idx]])
+                offset += j2 - j1
+            else:
+                for idx in range(i1, i2):
+                    events.append([2, idx + offset])
+                offset -= i2 - i1
+                for idx in range(j1, j2):
+                    events.append([1, i1 + offset, new[idx]])
+                offset += j2 - j1
+        return events
+
     def onevent(self, event):
+        old_value = list(self.value)
         if event[0] == 1:
             row = event[1]
-            idx = self._bisect(row)
-            self.value.insert(idx, row)
-            for l in self.listeners:
-                l([1, idx, row])
+            idx = self._bisect(row, self._rows)
+            self._rows.insert(idx, row)
         elif event[0] == 2:
             row = event[1]
-            try:
-                idx = self.value.index(row)
-            except ValueError:
-                idx = -1
-            if idx != -1:
-                self.value.pop(idx)
-                for l in self.listeners:
-                    l([2, idx])
+            idx = self._rows.index(row)
+            self._rows.pop(idx)
         else:
             oldrow, newrow = event[1], event[2]
-            try:
-                old_idx = self.value.index(oldrow)
-            except ValueError:
-                old_idx = -1
-            if old_idx != -1:
-                self.value.pop(old_idx)
-            new_idx = self._bisect(newrow)
-            self.value.insert(new_idx, newrow)
-            if old_idx != -1:
+            idx = self._rows.index(oldrow)
+            self._rows.pop(idx)
+            new_idx = self._bisect(newrow, self._rows)
+            self._rows.insert(new_idx, newrow)
+
+        self.value = self._apply_limit_offset(self._rows)
+        new_value = self.value
+
+        if event[0] == 3:
+            old_idx = old_value.index(event[1]) if event[1] in old_value else None
+            new_idx = new_value.index(event[2]) if event[2] in new_value else None
+            if old_idx is not None and new_idx is not None:
                 for l in self.listeners:
-                    l([3, old_idx, new_idx, newrow])
+                    l([3, old_idx, new_idx, event[2]])
+                return
+
+        events = self._diff_patch(old_value, new_value)
+        for ev in events:
+            for l in self.listeners:
+                l(ev)
 
 
 

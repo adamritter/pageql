@@ -1102,3 +1102,25 @@ def test_order_deterministic():
     rt.insert("INSERT INTO items(id,name) VALUES (3,'b')", {})
 
     assert ordered.value == [(1, "a"), (2, "a"), (3, "b")]
+
+
+def test_order_limit_offset_events():
+    conn = sqlite3.connect(":memory:")
+    conn.execute("CREATE TABLE items(id INTEGER PRIMARY KEY, name TEXT)")
+    rt = ReactiveTable(conn, "items")
+    ordered = Order(rt, "id", limit=2, offset=1)
+
+    seen = []
+    ordered.listeners.append(seen.append)
+
+    rt.insert("INSERT INTO items(id,name) VALUES (1,'a')", {})
+    rt.insert("INSERT INTO items(id,name) VALUES (2,'b')", {})
+    rt.insert("INSERT INTO items(id,name) VALUES (3,'c')", {})
+
+    seen.clear()
+    rt.insert("INSERT INTO items(id,name) VALUES (0,'z')", {})
+    assert seen == [[1, 0, (1, "a")], [2, 2]]
+
+    seen.clear()
+    rt.delete("DELETE FROM items WHERE id=1", {})
+    assert seen == [[2, 0], [1, 1, (3, "c")]]

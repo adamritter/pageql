@@ -1005,13 +1005,10 @@ def test_check_component_reactive_table():
     conn = _db()
     rt = ReactiveTable(conn, "items")
 
-    def cb():
-        rt.insert("INSERT INTO items(name) VALUES ('x')", {})
-        rid = conn.execute("SELECT id FROM items WHERE name='x'").fetchone()[0]
-        rt.update("UPDATE items SET name='y' WHERE id=:id", {"id": rid})
-        rt.delete("DELETE FROM items WHERE id=:id", {"id": rid})
-
-    check_component(rt, cb)
+    check_component(rt, lambda: rt.insert("INSERT INTO items(name) VALUES ('x')", {}))
+    rid = conn.execute("SELECT id FROM items WHERE name='x'").fetchone()[0]
+    check_component(rt, lambda: rt.update("UPDATE items SET name='y' WHERE id=:id", {"id": rid}))
+    check_component(rt, lambda: rt.delete("DELETE FROM items WHERE id=:id", {"id": rid}))
 
 
 def test_check_component_where():
@@ -1019,12 +1016,9 @@ def test_check_component_where():
     rt = ReactiveTable(conn, "items")
     w = Where(rt, "name = 'x'")
 
-    def cb():
-        rt.insert("INSERT INTO items(name) VALUES ('x')", {})
-        rid = conn.execute("SELECT id FROM items WHERE name='x'").fetchone()[0]
-        rt.update("UPDATE items SET name='z' WHERE id=:id", {"id": rid})
-
-    check_component(w, cb)
+    check_component(w, lambda: rt.insert("INSERT INTO items(name) VALUES ('x')", {}))
+    rid = conn.execute("SELECT id FROM items WHERE name='x'").fetchone()[0]
+    check_component(w, lambda: rt.update("UPDATE items SET name='z' WHERE id=:id", {"id": rid}))
 
 
 def test_get_dependencies_simple():
@@ -1108,15 +1102,12 @@ def fuzz_components(iterations=20, seed=None):
     components.append((Join(r1, r2, "a.name = b.name"), (r1, r2)))
 
     for comp, parents in components:
-        if isinstance(parents, tuple):
-            def cb():
-                for _ in range(iterations):
-                    _random_op(random.choice(parents))
-        else:
-            def cb():
-                for _ in range(iterations):
-                    _random_op(parents)
-        check_component(comp, cb)
+        for _ in range(iterations):
+            if isinstance(parents, tuple):
+                parent = random.choice(parents)
+            else:
+                parent = parents
+            check_component(comp, lambda p=parent: _random_op(p))
 
 
 def test_fuzz_components():

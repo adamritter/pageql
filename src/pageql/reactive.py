@@ -833,6 +833,8 @@ class Order(Signal):
         self.parent = parent
         self.order_sql = order_sql
         self.conn = self.parent.conn
+        extra_order = ", ".join(str(i + 1) for i in range(len(self.parent.columns)))
+        self.order_sql = f"{self.order_sql}, {extra_order}"
         self.sql = f"SELECT * FROM ({self.parent.sql}) ORDER BY {self.order_sql}"
         self.columns = self.parent.columns
         self.parent.listeners.append(self.onevent)

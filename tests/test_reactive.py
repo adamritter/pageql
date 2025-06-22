@@ -1060,3 +1060,21 @@ def test_order_events():
     rt.delete("DELETE FROM items WHERE id=2", {})
     assert seen == [[2, 0]]
     assert ordered.value == [(3, "c"), (4, "a")]
+
+
+def test_order_deterministic_sql():
+    conn = sqlite3.connect(":memory:")
+    conn.execute("CREATE TABLE items(id INTEGER PRIMARY KEY, name TEXT)")
+    rt = ReactiveTable(conn, "items")
+    ordered = Order(rt, "name")
+
+    assert (
+        ordered.sql
+        == "SELECT * FROM (SELECT * FROM items) ORDER BY name, 1, 2"
+    )
+
+    rt.insert("INSERT INTO items(id,name) VALUES (1,'b')", {})
+    rt.insert("INSERT INTO items(id,name) VALUES (2,'b')", {})
+    rt.insert("INSERT INTO items(id,name) VALUES (3,'a')", {})
+
+    assert ordered.value == [(3, "a"), (1, "b"), (2, "b")]

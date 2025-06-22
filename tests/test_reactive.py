@@ -62,6 +62,7 @@ from pageql.reactive import (
     Intersect,
     Join,
     Select,
+    Order,
     get_dependencies,
     ReadOnly,
 )
@@ -1030,3 +1031,32 @@ def fuzz_components(iterations=20, seed=None):
 
 def test_fuzz_components():
     fuzz_components(iterations=10, seed=123)
+
+
+def test_order_events():
+    conn = sqlite3.connect(":memory:")
+    conn.execute("CREATE TABLE items(id INTEGER PRIMARY KEY, name TEXT)")
+    rt = ReactiveTable(conn, "items")
+    ordered = Order(rt, "id")
+
+    seen = []
+    ordered.listeners.append(seen.append)
+
+    rt.insert("INSERT INTO items(id,name) VALUES (2,'b')", {})
+    rt.insert("INSERT INTO items(id,name) VALUES (1,'a')", {})
+    rt.insert("INSERT INTO items(id,name) VALUES (3,'c')", {})
+
+    assert seen == [
+        [1, 0, (2, "b")],
+        [1, 0, (1, "a")],
+        [1, 2, (3, "c")],
+    ]
+
+    seen.clear()
+    rt.update("UPDATE items SET id=4 WHERE id=1", {})
+    assert seen == [[3, 0, 2, (4, "a")]]
+
+    seen.clear()
+    rt.delete("DELETE FROM items WHERE id=2", {})
+    assert seen == [[2, 0]]
+    assert ordered.rows == [(3, "c"), (4, "a")]

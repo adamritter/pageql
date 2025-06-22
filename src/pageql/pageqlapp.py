@@ -3,6 +3,7 @@ import os, time
 import sqlite3
 import mimetypes
 import base64
+import markdown
 import html
 from urllib.parse import urlparse, parse_qs
 from watchfiles import awatch
@@ -259,7 +260,12 @@ class PageQLApp:
             return False
         content_type, _ = mimetypes.guess_type(path_cleaned)
         self._log(f"Serving static file: {path_cleaned} as {content_type}")
-        if content_type == 'text/html':
+        if path_cleaned.endswith('.md'):
+            content_type = 'text/html; charset=utf-8'
+            body = markdown.markdown(self.static_files[path_cleaned].decode('utf-8')).encode('utf-8')
+            if include_scripts and not self.static_html:
+                body = client_script(client_id).encode('utf-8') + body
+        elif content_type == 'text/html':
             content_type = 'text/html; charset=utf-8'
             body = self.static_files[path_cleaned]
             if include_scripts and not self.static_html:
@@ -564,9 +570,12 @@ class PageQLApp:
         if (
             path_cleaned == 'index'
             and 'index' not in self.pageql_engine._modules
-            and 'index.html' in self.static_files
+            and (
+                'index.html' in self.static_files or 'index.md' in self.static_files
+            )
         ):
-            await self._serve_static_file('index.html', include_scripts, client_id, send)
+            file_to_serve = 'index.html' if 'index.html' in self.static_files else 'index.md'
+            await self._serve_static_file(file_to_serve, include_scripts, client_id, send)
             return
 
         if await self._serve_static_file(path_cleaned, include_scripts, client_id, send):

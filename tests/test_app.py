@@ -228,6 +228,42 @@ def test_index_html_served_when_pageql_missing(tmp_path):
     assert status == 200
     assert "<h1>Home</h1>" in body
 
+
+def test_index_md_served_when_pageql_missing(tmp_path):
+    index_md = Path(tmp_path) / "index.md"
+    index_md.write_text("# Home", encoding="utf-8")
+
+    async def run_test():
+        server, task, port = await run_server_in_task(str(tmp_path))
+        status, _headers, body_bytes = await _http_get(
+            f"http://127.0.0.1:{port}/"
+        )
+        server.should_exit = True
+        await task
+        return status, body_bytes.decode()
+
+    status, body = asyncio.run(run_test())
+    assert status == 200
+    assert "<h1>Home</h1>" in body
+
+
+def test_markdown_static_file_served(tmp_path):
+    doc = Path(tmp_path) / "doc.md"
+    doc.write_text("# Hello", encoding="utf-8")
+
+    async def run_test():
+        server, task, port = await run_server_in_task(str(tmp_path))
+        status, _headers, body_bytes = await _http_get(
+            f"http://127.0.0.1:{port}/doc.md"
+        )
+        server.should_exit = True
+        await task
+        return status, body_bytes.decode()
+
+    status, body = asyncio.run(run_test())
+    assert status == 200
+    assert "<h1>Hello</h1>" in body
+
 def test_before_template_modifies_params(tmp_path):
     (tmp_path / "_before.pageql").write_text("{{#header X-Test 'hi'}}")
     (tmp_path / "hello.pageql").write_text("ok")

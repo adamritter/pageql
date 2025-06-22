@@ -23,6 +23,7 @@ dependencies = [
     "sqlglot",
     "joserfc",
     "authlib",
+    "markdown",
 ]
 
 [project.optional-dependencies]

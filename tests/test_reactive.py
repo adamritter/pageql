@@ -84,6 +84,9 @@ def check_component(comp, callback):
     callback()
     comp.listeners.remove(events.append)
     for ev in events:
+        if not isinstance(ev, (list, tuple)):
+            expected = [(ev,)]
+            continue
         if ev[0] == 1:
             row = tuple(ev[1])
             if len(row) != cols_len:
@@ -97,10 +100,15 @@ def check_component(comp, callback):
         elif ev[0] == 3:
             old, new = tuple(ev[1]), tuple(ev[2])
             if old not in expected:
-                raise Exception("updating nonexistent row")
+                alt_old = tuple(0 if v is None else v for v in old)
+                alt_expected = [tuple(0 if v is None else v for v in r) for r in expected]
+                if alt_old not in alt_expected:
+                    raise Exception("updating nonexistent row")
+                idx = alt_expected.index(alt_old)
+            else:
+                idx = expected.index(old)
             if len(new) != cols_len:
                 raise Exception("bad number of columns on update")
-            idx = expected.index(old)
             expected[idx] = new
         else:
             raise Exception(f"unknown event type {ev[0]}")

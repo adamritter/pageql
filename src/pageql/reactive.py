@@ -833,7 +833,11 @@ class Order(Signal):
         self.parent = parent
         self.order_sql = order_sql
         self.conn = self.parent.conn
-        self.sql = f"SELECT * FROM ({self.parent.sql}) ORDER BY {self.order_sql}"
+        cols_order = ", ".join(self.parent.columns)
+        self._full_order_sql = (
+            f"{order_sql}, {cols_order}" if order_sql else cols_order
+        )
+        self.sql = f"SELECT * FROM ({self.parent.sql}) ORDER BY {self._full_order_sql}"
         self.columns = self.parent.columns
         self.parent.listeners.append(self.onevent)
         self.deps = [self.parent]
@@ -842,7 +846,7 @@ class Order(Signal):
         placeholders = ", ".join([f'? as {c}' for c in self.columns])
         self._compare_sql = (
             f"SELECT idx FROM (SELECT 0 as idx, {placeholders} UNION ALL "
-            f"SELECT 1 as idx, {placeholders}) ORDER BY {self.order_sql} LIMIT 1"
+            f"SELECT 1 as idx, {placeholders}) ORDER BY {self._full_order_sql} LIMIT 1"
         )
 
         cur = execute(self.conn, self.sql, [])

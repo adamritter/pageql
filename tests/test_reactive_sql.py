@@ -177,3 +177,20 @@ def test_parse_recursive_cte_with_table_deps():
     comp = FallbackReactive(tables, sql, expr)
     assert_sql_equivalent(conn, sql, comp.sql)
     assert {d.table_name for d in comp.deps} == {"items"}
+
+
+def test_parse_group_by_aggregate():
+    conn = sqlite3.connect(":memory:")
+    conn.execute("CREATE TABLE nums(id INTEGER PRIMARY KEY, grp INTEGER, n INTEGER)")
+    tables = Tables(conn)
+    sql = "SELECT grp, COUNT(*), SUM(n) FROM nums GROUP BY grp"
+    expr = sqlglot.parse_one(sql, read="sqlite")
+    comp = parse_reactive(expr, tables, {})
+    assert isinstance(comp, Aggregate)
+    assert_sql_equivalent(conn, sql, comp.sql)
+
+    events = []
+    comp.listeners.append(events.append)
+    rt = tables._get("nums")
+    rt.insert("INSERT INTO nums(grp,n) VALUES (1,10)", {})
+    assert events[-1] == [1, (1, 1, 10)]

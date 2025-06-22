@@ -827,6 +827,65 @@ class Intersect(Signal):
             self.listeners = None
 
 
+class Order(Signal):
+    def __init__(self, parent, order_sql):
+        super().__init__(None)
+        self.parent = parent
+        self.order_sql = order_sql
+        self.conn = self.parent.conn
+        self.sql = f"SELECT * FROM ({self.parent.sql}) ORDER BY {self.order_sql}"
+        self.columns = self.parent.columns
+        self.parent.listeners.append(self.onevent)
+        self.deps = [self.parent]
+        self.update = self.onevent
+
+        cur = execute(self.conn, self.sql, [])
+        self.rows = list(cur.fetchall())
+        self.value = list(self.rows)
+
+    def _fetch_rows(self):
+        cur = execute(self.conn, self.sql, [])
+        return list(cur.fetchall())
+
+    def onevent(self, event):
+        if event[0] == 1:
+            row = event[1]
+            new_rows = self._fetch_rows()
+            idx = new_rows.index(row)
+            self.rows = new_rows
+            self.value = list(self.rows)
+            for l in self.listeners:
+                l([1, idx, row])
+        elif event[0] == 2:
+            row = event[1]
+            try:
+                idx = self.rows.index(row)
+            except ValueError:
+                idx = -1
+            new_rows = self._fetch_rows()
+            self.rows = new_rows
+            self.value = list(self.rows)
+            if idx != -1:
+                for l in self.listeners:
+                    l([2, idx])
+        else:
+            oldrow, newrow = event[1], event[2]
+            try:
+                old_idx = self.rows.index(oldrow)
+            except ValueError:
+                old_idx = -1
+            new_rows = self._fetch_rows()
+            try:
+                new_idx = new_rows.index(newrow)
+            except ValueError:
+                new_idx = -1
+            self.rows = new_rows
+            self.value = list(self.rows)
+            if old_idx != -1 and new_idx != -1:
+                for l in self.listeners:
+                    l([3, old_idx, new_idx, newrow])
+
+
 
 
 

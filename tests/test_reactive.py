@@ -1059,4 +1059,4 @@ def test_order_events():
     seen.clear()
     rt.delete("DELETE FROM items WHERE id=2", {})
     assert seen == [[2, 0]]
-    assert ordered.rows == [(3, "c"), (4, "a")]
+    assert ordered.value == [(3, "c"), (4, "a")]

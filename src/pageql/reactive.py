@@ -840,8 +840,7 @@ class Order(Signal):
         self.update = self.onevent
 
         cur = execute(self.conn, self.sql, [])
-        self.rows = list(cur.fetchall())
-        self.value = list(self.rows)
+        self.value = list(cur.fetchall())
 
     def _fetch_rows(self):
         cur = execute(self.conn, self.sql, [])
@@ -852,26 +851,23 @@ class Order(Signal):
             row = event[1]
             new_rows = self._fetch_rows()
             idx = new_rows.index(row)
-            self.rows = new_rows
-            self.value = list(self.rows)
+            self.value = new_rows
             for l in self.listeners:
                 l([1, idx, row])
         elif event[0] == 2:
             row = event[1]
             try:
-                idx = self.rows.index(row)
+                idx = self.value.index(row)
             except ValueError:
                 idx = -1
-            new_rows = self._fetch_rows()
-            self.rows = new_rows
-            self.value = list(self.rows)
             if idx != -1:
+                self.value.pop(idx)
                 for l in self.listeners:
                     l([2, idx])
         else:
             oldrow, newrow = event[1], event[2]
             try:
-                old_idx = self.rows.index(oldrow)
+                old_idx = self.value.index(oldrow)
             except ValueError:
                 old_idx = -1
             new_rows = self._fetch_rows()
@@ -879,8 +875,7 @@ class Order(Signal):
                 new_idx = new_rows.index(newrow)
             except ValueError:
                 new_idx = -1
-            self.rows = new_rows
-            self.value = list(self.rows)
+            self.value = new_rows
             if old_idx != -1 and new_idx != -1:
                 for l in self.listeners:
                     l([3, old_idx, new_idx, newrow])

@@ -1060,3 +1060,32 @@ def test_order_events():
     rt.delete("DELETE FROM items WHERE id=2", {})
     assert seen == [[2, 0]]
     assert ordered.value == [(3, "c"), (4, "a")]
+
+
+def test_order_bisect_desc():
+    conn = sqlite3.connect(":memory:")
+    conn.execute("CREATE TABLE items(id INTEGER PRIMARY KEY, name TEXT)")
+    rt = ReactiveTable(conn, "items")
+    ordered = Order(rt, "name DESC")
+
+    seen = []
+    ordered.listeners.append(seen.append)
+
+    rt.insert("INSERT INTO items(id,name) VALUES (1,'b')", {})
+    rt.insert("INSERT INTO items(id,name) VALUES (2,'c')", {})
+    rt.insert("INSERT INTO items(id,name) VALUES (3,'a')", {})
+
+    assert seen == [
+        [1, 0, (1, "b")],
+        [1, 0, (2, "c")],
+        [1, 2, (3, "a")],
+    ]
+
+    seen.clear()
+    rt.update("UPDATE items SET name='d' WHERE id=1", {})
+    assert seen == [[3, 1, 0, (1, "d")]]
+
+    seen.clear()
+    rt.delete("DELETE FROM items WHERE id=2", {})
+    assert seen == [[2, 1]]
+    assert ordered.value == [(1, "d"), (3, "a")]

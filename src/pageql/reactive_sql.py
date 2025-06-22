@@ -152,6 +152,18 @@ def build_reactive(expr, tables: Tables):
 
         if expr.args.get("where"):
             parent = Where(parent, expr.args["where"].this.sql(dialect=tables.dialect))
+
+        group_sql = None
+        group = expr.args.get("group")
+        if group is not None:
+            gcols = []
+            for g in group.expressions:
+                if alias_map and isinstance(g, exp.Column) and g.table in alias_map:
+                    gcols.append(g.name)
+                else:
+                    gcols.append(g.sql(dialect=tables.dialect))
+            group_sql = ", ".join(gcols)
+
         select_list = expr.args.get("expressions") or [exp.Star()]
         if len(select_list) == 1:
             col = select_list[0]
@@ -166,6 +178,27 @@ def build_reactive(expr, tables: Tables):
             if isinstance(col, exp.Avg):
                 expr_sql = col.sql(dialect=tables.dialect)
                 return Aggregate(parent, (expr_sql,))
+
+        if group_sql is not None:
+            agg_exprs = []
+            ok = True
+            for c in select_list:
+                e = c.this if isinstance(c, exp.Alias) else c
+                if isinstance(e, exp.Column):
+                    continue
+                if isinstance(e, exp.Count) and not e.args.get("distinct"):
+                    expr_sql = c.sql(dialect=tables.dialect)
+                elif isinstance(e, (exp.Sum, exp.Avg, exp.Min, exp.Max)):
+                    expr_sql = c.sql(dialect=tables.dialect)
+                else:
+                    ok = False
+                    break
+                if alias_map:
+                    for a in alias_map:
+                        expr_sql = expr_sql.replace(f"{a}.", "")
+                agg_exprs.append(expr_sql)
+            if ok and agg_exprs:
+                return Aggregate(parent, tuple(agg_exprs), group_by=group_sql)
 
         cols = []
         for c in select_list:

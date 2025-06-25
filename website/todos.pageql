@@ -1,33 +1,3 @@
-{{#partial post add}}
-  {{#param text maxlength=100}}
-  {{#let current_total = COUNT(*) from todos}}
-  {{#if :current_total < 20}}
-    {{#insert into todos(text) values (:text)}}
-  {{/if}}
-{{/partial}}
-
-{{#partial post :id/toggle}}
-  {{#update todos set completed = 1 - completed WHERE id = :id}}
-{{/partial}}
-
-{{#partial patch :id}}
-  {{#param text maxlength=100}}
-  {{#update todos set text = :text WHERE id = :id}}
-{{/partial}}
-
-{{#partial post toggle_all}}
-  {{#let active_count = COUNT(*) from todos WHERE completed = 0}}
-  {{#update todos set completed =  IIF(:active_count = 0, 0, 1)}}
-{{/partial}}
-
-{{#partial delete :id}}
-  {{#delete from todos WHERE id = :id}}
-{{/partial}}
-
-{{#partial post clear_completed}}
-  {{#delete from todos WHERE completed = 1}}
-{{/partial}}
-
 {{#param filter default='all' pattern="^(all|active|completed)$"}}
 
 {{!-- Ensure the table exists (harmless if already created) --}}
@@ -336,3 +306,32 @@
   </script>
 </body>
 </html>
+{{#partial post add}}
+  {{#param text maxlength=100}}
+  {{#let current_total = COUNT(*) from todos}}
+  {{#if :current_total < 20}}
+    {{#insert into todos(text) values (:text)}}
+  {{/if}}
+{{/partial}}
+
+{{#partial post :id/toggle}}
+  {{#update todos set completed = 1 - completed WHERE id = :id}}
+{{/partial}}
+
+{{#partial patch :id}}
+  {{#param text maxlength=100}}
+  {{#update todos set text = :text WHERE id = :id}}
+{{/partial}}
+
+{{#partial post toggle_all}}
+  {{#let active_count = COUNT(*) from todos WHERE completed = 0}}
+  {{#update todos set completed =  IIF(:active_count = 0, 0, 1)}}
+{{/partial}}
+
+{{#partial delete :id}}
+  {{#delete from todos WHERE id = :id}}
+{{/partial}}
+
+{{#partial post clear_completed}}
+  {{#delete from todos WHERE completed = 1}}
+{{/partial}}

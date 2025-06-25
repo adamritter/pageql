@@ -360,31 +360,6 @@ pageql data.db templates --create</code></pre>
             </button>
           </div>
 <pre><code class="language-html">
-{{#partial post add}}
-  {{#insert into todos(text) values (:text)}}
-{{/partial}}
-
-{{#partial post :id/toggle}}
-  {{#update todos set completed = 1 - completed WHERE id = :id}}
-{{/partial}}
-
-{{#partial patch :id}}
-  {{#update todos set text = :text WHERE id = :id}}
-{{/partial}}
-
-{{#partial post toggle_all}}
-  {{#let active_count = COUNT(*) from todos WHERE completed = 0}}
-  {{#update todos set completed =  IIF(:active_count = 0, 0, 1)}}
-{{/partial}}
-
-{{#partial delete :id}}
-  {{#delete from todos WHERE id = :id}}
-{{/partial}}
-
-{{#partial post clear_completed}}
-  {{#delete from todos WHERE completed = 1}}
-{{/partial}}
-
 {{#param edit_id optional}}
 {{#param filter default='all' pattern="^(all|active|completed)$"}}
 
@@ -450,9 +425,34 @@ pageql data.db templates --create</code></pre>
   &lt;a {{#if :filter == 'all'}}class="selected"{{/if}} href="/todos?filter=all"&gt;All&lt;/a&gt; |
   &lt;a {{#if :filter == 'active'}}class="selected"{{/if}} href="/todos?filter=active"&gt;Active&lt;/a&gt; |
   &lt;a {{#if :filter == 'completed'}}class="selected"{{/if}} href="/todos?filter=completed"&gt;Completed&lt;/a&gt;
-&lt;/div&gt;
-&lt;/body&gt;
-&lt;/html&gt;
+  &lt;/div&gt;
+  &lt;/body&gt;
+  &lt;/html&gt;
+
+{{#partial post add}}
+  {{#insert into todos(text) values (:text)}}
+{{/partial}}
+
+{{#partial post :id/toggle}}
+  {{#update todos set completed = 1 - completed WHERE id = :id}}
+{{/partial}}
+
+{{#partial patch :id}}
+  {{#update todos set text = :text WHERE id = :id}}
+{{/partial}}
+
+{{#partial post toggle_all}}
+  {{#let active_count = COUNT(*) from todos WHERE completed = 0}}
+  {{#update todos set completed =  IIF(:active_count = 0, 0, 1)}}
+{{/partial}}
+
+{{#partial delete :id}}
+  {{#delete from todos WHERE id = :id}}
+{{/partial}}
+
+{{#partial post clear_completed}}
+  {{#delete from todos WHERE completed = 1}}
+{{/partial}}
 </code></pre>
         </div>
       </div>

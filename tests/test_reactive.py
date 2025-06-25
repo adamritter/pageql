@@ -1124,3 +1124,30 @@ def test_order_limit_offset_events():
     seen.clear()
     rt.delete("DELETE FROM items WHERE id=1", {})
     assert seen == [[2, 0], [1, 1, (3, "c")]]
+
+
+def test_one_value_with_order():
+    conn = _db()
+    rt = ReactiveTable(conn, "items")
+
+    sel = Select(rt, "id")
+    ordered = Order(sel, "id", limit=1)
+    dv = OneValue(ordered)
+    seen = []
+    dv.listeners.append(seen.append)
+
+    rt.insert("INSERT INTO items(id,name) VALUES (2,'b')", {})
+    assert_eq(dv.value, 2)
+    assert_eq(seen[-1], 2)
+
+    rt.insert("INSERT INTO items(id,name) VALUES (1,'a')", {})
+    assert_eq(dv.value, 1)
+    assert_eq(seen[-1], 1)
+
+    rt.delete("DELETE FROM items WHERE id=1", {})
+    assert_eq(dv.value, 2)
+    assert_eq(seen[-1], 2)
+
+    rt.update("UPDATE items SET id=0 WHERE id=2", {})
+    assert_eq(dv.value, 0)
+    assert_eq(seen[-1], 0)

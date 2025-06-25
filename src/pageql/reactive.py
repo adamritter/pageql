@@ -625,12 +625,16 @@ class OneValue(Signal):
             self.listeners = None
 
     def onevent(self, event):
-        if event[0] == 1:
-            value = event[1][0]
-        elif event[0] == 2:
-            value = None
+        if isinstance(self.parent, Order):
+            row = self.parent.value[0] if self.parent.value else None
+            value = row[0] if row is not None else None
         else:
-            value = event[2][0]
+            if event[0] == 1:
+                value = event[1][0]
+            elif event[0] == 2:
+                value = None
+            else:
+                value = event[2][0]
         self.set_value(value)
 
 

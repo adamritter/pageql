@@ -861,6 +861,27 @@ class Order(Signal):
         self._rows = list(cur.fetchall())
         self.value = self._rows[self.offset : self.offset + self.limit if self.limit is not None else None]
 
+    def set_limit(self, limit):
+        if limit == self.limit:
+            return
+
+        old_value = list(self.value)
+
+        self.limit = limit
+        self.sql = self._all_sql
+        if self.limit is not None:
+            self.sql += f" LIMIT {self.limit}"
+        if self.offset:
+            self.sql += f" OFFSET {self.offset}"
+
+        self.value = self._apply_limit_offset(self._rows)
+        new_value = self.value
+
+        events = self._diff_patch(old_value, new_value)
+        for ev in events:
+            for l in self.listeners:
+                l(ev)
+
     def _fetch_rows(self):
         cur = execute(self.conn, self.sql, [])
         return list(cur.fetchall())

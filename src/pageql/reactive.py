@@ -571,7 +571,10 @@ class OneValue(Signal):
         if len(cols) != 1:
             raise ValueError("OneValue parent must have exactly one column")
         self.columns = cols[0]
-        row = execute(self.conn, self.sql, []).fetchone()
+        if isinstance(parent, Order):
+            row = parent.value[0] if parent.value else None
+        else:
+            row = execute(self.conn, self.sql, []).fetchone()
         super().__init__(row[0] if row else None)
         self.parent.listeners.append(self.onevent)
 
@@ -599,7 +602,10 @@ class OneValue(Signal):
         parent.listeners.append(self.onevent)
         self.deps = [parent]
 
-        row = execute(self.conn, self.sql, []).fetchone()
+        if isinstance(parent, Order):
+            row = parent.value[0] if parent.value else None
+        else:
+            row = execute(self.conn, self.sql, []).fetchone()
         value = row[0] if row else None
 
         self.set_value(value)
@@ -625,12 +631,16 @@ class OneValue(Signal):
             self.listeners = None
 
     def onevent(self, event):
-        if event[0] == 1:
-            value = event[1][0]
-        elif event[0] == 2:
-            value = None
+        if isinstance(self.parent, Order):
+            row = self.parent.value[0] if self.parent.value else None
+            value = row[0] if row else None
         else:
-            value = event[2][0]
+            if event[0] == 1:
+                value = event[1][0]
+            elif event[0] == 2:
+                value = None
+            else:
+                value = event[2][0]
         self.set_value(value)
 
 

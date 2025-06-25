@@ -1148,3 +1148,32 @@ def test_order_set_limit():
     ordered.set_limit(None)
     assert ordered.value == [(1, "a"), (2, "b"), (3, "c")]
     assert seen == [[1, 1, (2, "b")], [1, 1, (3, "c")]]
+
+
+def test_one_value_with_order():
+    conn = sqlite3.connect(":memory:")
+    conn.execute("CREATE TABLE items(id INTEGER PRIMARY KEY, name TEXT)")
+    rt = ReactiveTable(conn, "items")
+    sel = Select(rt, "id")
+    ordered = Order(sel, "id", limit=1)
+    ov = OneValue(ordered)
+
+    seen = []
+    ov.listeners.append(seen.append)
+
+    rt.insert("INSERT INTO items(id,name) VALUES (2,'b')", {})
+    rt.insert("INSERT INTO items(id,name) VALUES (1,'a')", {})
+    rt.insert("INSERT INTO items(id,name) VALUES (3,'c')", {})
+
+    assert seen == [2, 1]
+    assert ov.value == 1
+
+    seen.clear()
+    rt.update("UPDATE items SET id=0 WHERE id=1", {})
+    assert seen == [0]
+    assert ov.value == 0
+
+    seen.clear()
+    rt.delete("DELETE FROM items WHERE id=0", {})
+    assert seen == [2]
+    assert ov.value == 2

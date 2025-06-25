@@ -1124,3 +1124,27 @@ def test_order_limit_offset_events():
     seen.clear()
     rt.delete("DELETE FROM items WHERE id=1", {})
     assert seen == [[2, 0], [1, 1, (3, "c")]]
+
+
+def test_order_set_limit():
+    conn = sqlite3.connect(":memory:")
+    conn.execute("CREATE TABLE items(id INTEGER PRIMARY KEY, name TEXT)")
+    rt = ReactiveTable(conn, "items")
+    rt.insert("INSERT INTO items(id,name) VALUES (1,'a')", {})
+    rt.insert("INSERT INTO items(id,name) VALUES (2,'b')", {})
+    rt.insert("INSERT INTO items(id,name) VALUES (3,'c')", {})
+
+    ordered = Order(rt, "id", limit=2)
+    assert ordered.value == [(1, "a"), (2, "b")]
+
+    seen = []
+    ordered.listeners.append(seen.append)
+
+    ordered.set_limit(1)
+    assert ordered.value == [(1, "a")]
+    assert seen == [[2, 1]]
+
+    seen.clear()
+    ordered.set_limit(None)
+    assert ordered.value == [(1, "a"), (2, "b"), (3, "c")]
+    assert seen == [[1, 1, (2, "b")], [1, 1, (3, "c")]]

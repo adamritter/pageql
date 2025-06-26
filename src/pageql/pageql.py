@@ -101,6 +101,49 @@ def format_unknown_directive(directive: str) -> str:
     return "\n".join(lines) + "</pre>"
 
 
+def _unwrap(value):
+    if isinstance(value, ReadOnly):
+        return value.value, None
+    if isinstance(value, Signal):
+        return value.value, value
+    return value, None
+
+
+def _render_value(ctx, value, signal, reactive, escape=True, force=False):
+    txt = html.escape(str(value)) if escape else str(value)
+    if ctx.reactiveelement is not None:
+        ctx.out.append(txt)
+        if signal:
+            ctx.reactiveelement.append(signal)
+    elif reactive and (signal is not None or force):
+        mid = ctx.marker_id()
+        ctx.append_script(f"pstart({mid})")
+        ctx.out.append(txt)
+        ctx.append_script(f"pend({mid})")
+
+        if signal is not None:
+            def listener(_=None, *, sig=signal, mid=mid, ctx=ctx, esc=escape):
+                if esc:
+                    val = json.dumps(html.escape(str(sig.value)))
+                else:
+                    val = embed_html_in_js(str(sig.value))
+                ctx.append_script(f"pset({mid},{val})")
+
+            ctx.add_listener(signal, listener)
+    else:
+        ctx.out.append(txt)
+    return reactive
+
+
+def _run_sql(exec_func, node_type, content, params):
+    try:
+        exec_func(node_type[1:] + " " + content, params)
+    except sqlite3.Error as e:
+        raise ValueError(
+            f"Error executing {node_type[1:]} {content} with params {params}: {e}"
+        )
+
+
 
 
 
@@ -324,99 +367,24 @@ class PageQL:
         ctx,
     ):
         result = evalone(self.db, node_content, params, reactive, self.tables)
-        if isinstance(result, ReadOnly):
-            signal = None
-            result = result.value
-        elif isinstance(result, Signal):
-            signal = result
-            result = result.value
-        else:
-            signal = None
-        value = html.escape(str(result))
-        if ctx.reactiveelement is not None:
-            ctx.out.append(value)
-            if signal:
-                ctx.reactiveelement.append(signal)
-        elif reactive and signal is not None:
-            mid = ctx.marker_id()
-            ctx.append_script(f"pstart({mid})")
-            ctx.out.append(value)
-            ctx.append_script(f"pend({mid})")
-
-            def listener(v=None, *, sig=signal, mid=mid, ctx=ctx):
-                ctx.append_script(
-                    f"pset({mid},{json.dumps(html.escape(str(sig.value)))})",
-                )
-
-            ctx.add_listener(signal, listener)
-        else:
-            ctx.out.append(value)
-        return reactive
+        value, signal = _unwrap(result)
+        return _render_value(ctx, value, signal, reactive, True)
 
     def _process_render_param_node(self, node_content, params, path, includes,
                                    http_verb, reactive, ctx):
         try:
             val = params[node_content]
-            if isinstance(val, ReadOnly):
-                ctx.out.append(html.escape(str(val.value)))
-            else:
-                signal = val if isinstance(val, Signal) else None
-                if isinstance(val, Signal):
-                    val = val.value
-                value = html.escape(str(val))
-                if ctx.reactiveelement is not None:
-                    ctx.out.append(value)
-                    if signal:
-                        ctx.reactiveelement.append(signal)
-                elif reactive:
-                    mid = ctx.marker_id()
-                    ctx.append_script(f"pstart({mid})")
-                    ctx.out.append(value)
-                    ctx.append_script(f"pend({mid})")
-                    if signal:
-
-                        def listener(v=None, *, sig=signal, mid=mid, ctx=ctx):
-                            ctx.append_script(
-                                f"pset({mid},{json.dumps(html.escape(str(sig.value)))})",
-                            )
-
-                        ctx.add_listener(signal, listener)
-                else:
-                    ctx.out.append(value)
         except KeyError:
             raise ValueError(f"Parameter `{node_content}` not found in params `{params}`")
-        return reactive
+        value, signal = _unwrap(val)
+        force = signal is None and not isinstance(val, ReadOnly)
+        return _render_value(ctx, value, signal, reactive, True, force)
 
     def _process_render_raw_node(self, node_content, params, path, includes,
                                  http_verb, reactive, ctx):
         result = evalone(self.db, node_content, params, reactive, self.tables)
-        if isinstance(result, ReadOnly):
-            signal = None
-            result = result.value
-        elif isinstance(result, Signal):
-            signal = result
-            result = result.value
-        else:
-            signal = None
-        value = str(result)
-        if ctx.reactiveelement is not None:
-            ctx.out.append(value)
-            if signal:
-                ctx.reactiveelement.append(signal)
-        elif reactive and signal is not None:
-            mid = ctx.marker_id()
-            ctx.append_script(f"pstart({mid})")
-            ctx.out.append(value)
-            ctx.append_script(f"pend({mid})")
-
-            def listener(v=None, *, sig=signal, mid=mid, ctx=ctx):
-                safe_json = embed_html_in_js(str(sig.value))
-                ctx.append_script(f"pset({mid},{safe_json})")
-
-            ctx.add_listener(signal, listener)
-        else:
-            ctx.out.append(value)
-        return reactive
+        value, signal = _unwrap(result)
+        return _render_value(ctx, value, signal, reactive, False)
 
     def _process_param_directive(self, node_content, params, path, includes,
                                  http_verb, reactive, ctx):
@@ -656,22 +624,12 @@ class PageQL:
 
     def _process_update_directive(self, node_content, params, path, includes,
                                   http_verb, reactive, ctx,  node_type):
-        try:
-            self.tables.executeone(node_type[1:] + " " + node_content, params)
-        except sqlite3.Error as e:
-            raise ValueError(
-                f"Error executing {node_type[1:]} {node_content} with params {params}: {e}"
-            )
+        _run_sql(self.tables.executeone, node_type, node_content, params)
         return reactive
 
     def _process_schema_directive(self, node_content, params, path, includes,
                                   http_verb, reactive, ctx, node_type):
-        try:
-            db_execute_dot(self.db, node_type[1:] + " " + node_content, params)
-        except sqlite3.Error as e:
-            raise ValueError(
-                f"Error executing {node_type[1:]} {node_content} with params {params}: {e}"
-            )
+        _run_sql(lambda sql, p: db_execute_dot(self.db, sql, p), node_type, node_content, params)
         return reactive
 
     def _process_import_directive(self, node_content, params, path, includes,

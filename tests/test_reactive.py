@@ -1177,3 +1177,19 @@ def test_one_value_with_order():
     rt.delete("DELETE FROM items WHERE id=0", {})
     assert seen == [2]
     assert ov.value == 2
+
+
+def test_order_update_row_outside_limit():
+    conn = sqlite3.connect(":memory:")
+    conn.execute("CREATE TABLE items(id INTEGER PRIMARY KEY, name TEXT)")
+    rt = ReactiveTable(conn, "items")
+
+    rt.insert("INSERT INTO items(id,name) VALUES (1,'a')", {})
+    rt.insert("INSERT INTO items(id,name) VALUES (2,'b')", {})
+    rt.insert("INSERT INTO items(id,name) VALUES (3,'c')", {})
+
+    ordered = Order(rt, "id", limit=2)
+    assert ordered.value == [(1, "a"), (2, "b")]
+
+    rt.update("UPDATE items SET id=4 WHERE id=2", {})
+    assert ordered.value == [(1, "a"), (3, "c")]

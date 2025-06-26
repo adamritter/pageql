@@ -756,3 +756,52 @@ def test_nested_if_reactive_bug():
         "<script>pset(0,\"3\")</script><script>pset(2,\"greater than 2\")</script>"
     )
     assert result.body == expected
+
+
+def test_order_by_update_reorders_rows():
+    r = PageQL(":memory:")
+    r.db.execute("CREATE TABLE items(id INTEGER PRIMARY KEY, text TEXT)")
+    r.db.executemany("INSERT INTO items(text) VALUES (?)", [("b",), ("a",)])
+    r.load_module(
+        "m",
+        "{{#reactive on}}{{#from items ORDER BY text}}[{{id}}:{{text}}]{{/from}}{{#update items set text='c' where id=2}}",
+    )
+    result = r.render("/m", reactive=False)
+
+    h1 = _row_hash((1, "b"))
+    h2_old = _row_hash((2, "a"))
+    h2_new = _row_hash((2, "c"))
+    expected = (
+        f"<script>pstart(0)</script>"
+        f"<script>pstart('0_{h2_old}')</script>[2:a]<script>pend('0_{h2_old}')</script>\n"
+        f"<script>pstart('0_{h1}')</script>[1:b]<script>pend('0_{h1}')</script>\n"
+        f"<script>pend(0)</script>"
+        f"<script>pupdate('0_{h2_old}','0_{h2_new}',\"[2:c]\")</script>"
+        f"<script>porderupdate(0,0,1)</script>"
+    )
+    assert result.body == expected
+
+
+def test_order_by_update_with_limit_reorders_rows():
+    r = PageQL(":memory:")
+    r.db.execute("CREATE TABLE items(id INTEGER PRIMARY KEY, val INTEGER)")
+    r.db.executemany("INSERT INTO items(val) VALUES (?)", [(1,), (2,), (3,)])
+    r.load_module(
+        "m",
+        "{{#reactive on}}{{#from items ORDER BY val LIMIT 2}}[{{id}}:{{val}}]{{/from}}{{#update items set val=0 where id=3}}",
+    )
+    result = r.render("/m", reactive=False)
+
+    h1 = _row_hash((1, 1))
+    h2 = _row_hash((2, 2))
+    h3_new = _row_hash((3, 0))
+    expected = (
+        f"<script>pstart(0)</script>"
+        f"<script>pstart('0_{h1}')</script>[1:1]<script>pend('0_{h1}')</script>\n"
+        f"<script>pstart('0_{h2}')</script>[2:2]<script>pend('0_{h2}')</script>\n"
+        f"<script>pend(0)</script>"
+        f"<script>pinsert('0_{h3_new}',\"[3:0]\")</script>"
+        f"<script>porderupdate(0,0,1)</script>"
+        f"<script>pdelete('0_{h2}')</script>"
+    )
+    assert result.body == expected

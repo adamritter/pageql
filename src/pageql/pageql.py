@@ -144,6 +144,13 @@ def _run_sql(exec_func, node_type, content, params):
         )
 
 
+def _normalize_param_name(name: str) -> str:
+    """Convert :foo.bar to foo__bar"""
+    if name.startswith(":"):
+        name = name[1:]
+    return name.replace(".", "__")
+
+
 
 
 
@@ -356,6 +363,10 @@ class PageQL:
         ctx.out.append(node_content)
         return reactive
 
+    def _eval_and_render(self, expr, params, ctx, reactive, escape=True):
+        value, signal = _unwrap(evalone(self.db, expr, params, reactive, self.tables))
+        return _render_value(ctx, value, signal, reactive, escape)
+
     def _process_render_expression_node(
         self,
         node_content,
@@ -366,9 +377,7 @@ class PageQL:
         reactive,
         ctx,
     ):
-        result = evalone(self.db, node_content, params, reactive, self.tables)
-        value, signal = _unwrap(result)
-        return _render_value(ctx, value, signal, reactive, True)
+        return self._eval_and_render(node_content, params, ctx, reactive, True)
 
     def _process_render_param_node(self, node_content, params, path, includes,
                                    http_verb, reactive, ctx):
@@ -382,9 +391,7 @@ class PageQL:
 
     def _process_render_raw_node(self, node_content, params, path, includes,
                                  http_verb, reactive, ctx):
-        result = evalone(self.db, node_content, params, reactive, self.tables)
-        value, signal = _unwrap(result)
-        return _render_value(ctx, value, signal, reactive, False)
+        return self._eval_and_render(node_content, params, ctx, reactive, False)
 
     def _process_param_directive(self, node_content, params, path, includes,
                                  http_verb, reactive, ctx):
@@ -395,9 +402,7 @@ class PageQL:
     def _process_let_directive(self, node_content, params, path, includes,
                                http_verb, reactive, ctx):
         var, sql, expr = node_content
-        if var[0] == ':':
-            var = var[1:]
-        var = var.replace('.', '__')
+        var = _normalize_param_name(var)
         if var in params:
             raise ValueError(f"Parameter '{var}' is already set")
         if isinstance(params.get(var), ReadOnly):
@@ -535,9 +540,7 @@ class PageQL:
     def _process_fetch_directive(self, node_content, params, path, includes,
                                  http_verb, reactive, ctx):
         var, expr, is_async, header_exprs, method_expr, body_expr = node_content
-        if var.startswith(":"):
-            var = var[1:]
-        var = var.replace(".", "__")
+        var = _normalize_param_name(var)
         url = evalone(self.db, expr, params, reactive, self.tables)
         if isinstance(url, Signal):
             url = url.value
@@ -808,35 +811,24 @@ class PageQL:
                 i += 1
         return reactive
 
-    def _process_ifdef_directive(self, node, params, path, includes,
-                                 http_verb, reactive, ctx):
-        param_name = node[1].strip()
+    def _process_ifdef_common(self, node, params, path, includes,
+                              http_verb, reactive, ctx, invert=False):
+        param_name = _normalize_param_name(node[1].strip())
         then_body = node[2]
         else_body = node[3] if len(node) > 3 else None
-
-        if param_name.startswith(':'):
-            param_name = param_name[1:]
-        param_name = param_name.replace('.', '__')
-
-        body = then_body if param_name in params else else_body
+        cond = param_name in params
+        body = then_body if cond ^ invert else else_body
         if body:
             reactive = self.process_nodes(body, params, path, includes, http_verb, reactive, ctx)
         return reactive
+
+    def _process_ifdef_directive(self, node, params, path, includes,
+                                 http_verb, reactive, ctx):
+        return self._process_ifdef_common(node, params, path, includes, http_verb, reactive, ctx)
 
     def _process_ifndef_directive(self, node, params, path, includes,
                                   http_verb, reactive, ctx):
-        param_name = node[1].strip()
-        then_body = node[2]
-        else_body = node[3] if len(node) > 3 else None
-
-        if param_name.startswith(':'):
-            param_name = param_name[1:]
-        param_name = param_name.replace('.', '__')
-
-        body = then_body if param_name not in params else else_body
-        if body:
-            reactive = self.process_nodes(body, params, path, includes, http_verb, reactive, ctx)
-        return reactive
+        return self._process_ifdef_common(node, params, path, includes, http_verb, reactive, ctx, True)
 
     def _process_from_directive(self, node, params, path, includes,
                                 http_verb, reactive, ctx):
@@ -971,12 +963,8 @@ class PageQL:
 
     def _process_each_directive(self, node, params, path, includes,
                                 http_verb, reactive, ctx):
-        param_name = node[1].strip()
+        param_name = _normalize_param_name(node[1].strip())
         body = node[2]
-
-        if param_name.startswith(':'):
-            param_name = param_name[1:]
-        param_name = param_name.replace('.', '__')
 
         count_val = params.get(f"{param_name}__count")
         if isinstance(count_val, ReadOnly):

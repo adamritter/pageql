@@ -867,9 +867,8 @@ class Order(Signal):
             f"SELECT 1 as idx, {placeholders}) ORDER BY {self._full_order_sql} LIMIT 1"
         )
 
-        cur = execute(self.conn, self._all_sql, [])
-        self._rows = list(cur.fetchall())
-        self.value = self._rows[self.offset : self.offset + self.limit if self.limit is not None else None]
+        cur = execute(self.conn, self.sql, [])
+        self.value = list(cur.fetchall())
 
     def set_limit(self, limit):
         if limit == self.limit:
@@ -884,7 +883,8 @@ class Order(Signal):
         if self.offset:
             self.sql += f" OFFSET {self.offset}"
 
-        self.value = self._apply_limit_offset(self._rows)
+        cur = execute(self.conn, self.sql, [])
+        self.value = list(cur.fetchall())
         new_value = self.value
 
         events = self._diff_patch(old_value, new_value)
@@ -912,10 +912,34 @@ class Order(Signal):
                 lo = mid + 1
         return lo
 
-    def _apply_limit_offset(self, rows):
-        if self.limit is None:
-            return rows[self.offset :]
-        return rows[self.offset : self.offset + self.limit]
+    def _fetch_row(self, idx):
+        cur = execute(self.conn, f"{self._all_sql} LIMIT 1 OFFSET {idx}", [])
+        return cur.fetchone()
+
+    def _handle_insert(self, row, cur_value):
+        idx = self._bisect(row, cur_value)
+        if idx == 0 and self.offset:
+            return self._fetch_rows()
+        if self.limit is not None and idx >= self.limit:
+            return cur_value
+        new_value = cur_value[:]
+        new_value.insert(idx, row)
+        if self.limit is not None and len(new_value) > self.limit:
+            new_value.pop()
+        return new_value
+
+    def _handle_delete(self, row, cur_value, *, fetch_next=True):
+        if row in cur_value:
+            idx = cur_value.index(row)
+            new_value = cur_value[:idx] + cur_value[idx + 1 :]
+            if fetch_next and (self.limit is None or len(new_value) < self.limit):
+                candidate = self._fetch_row(self.offset + len(new_value))
+                if candidate is not None:
+                    new_value.append(candidate)
+            return new_value
+        if self.offset and cur_value and self._compare(row, cur_value[0]):
+            return self._fetch_rows()
+        return cur_value
 
     def _diff_patch(self, old, new):
         sm = SequenceMatcher(None, old, new)
@@ -943,22 +967,15 @@ class Order(Signal):
 
     def onevent(self, event):
         old_value = list(self.value)
-        if event[0] == 1:
-            row = event[1]
-            idx = self._bisect(row, self._rows)
-            self._rows.insert(idx, row)
-        elif event[0] == 2:
-            row = event[1]
-            idx = self._rows.index(row)
-            self._rows.pop(idx)
-        else:
-            oldrow, newrow = event[1], event[2]
-            idx = self._rows.index(oldrow)
-            self._rows.pop(idx)
-            new_idx = self._bisect(newrow, self._rows)
-            self._rows.insert(new_idx, newrow)
 
-        self.value = self._apply_limit_offset(self._rows)
+        if event[0] == 1:
+            self.value = self._handle_insert(event[1], self.value)
+        elif event[0] == 2:
+            self.value = self._handle_delete(event[1], self.value)
+        else:
+            self.value = self._handle_delete(event[1], self.value, fetch_next=False)
+            self.value = self._handle_insert(event[2], self.value)
+
         new_value = self.value
 
         if event[0] == 3:

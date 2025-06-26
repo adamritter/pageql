@@ -65,7 +65,7 @@
           WHERE (:filter == 'all')
                 OR (:filter == 'active'    AND completed = 0)
                 OR (:filter == 'completed' AND completed = 1)
-          ORDER BY id}}
+          }}
             <li {{#if completed}}class="completed"{{/if}}>
                 <input hx-post="/todos/{{id}}/toggle" class="toggle" type="checkbox" {{#if completed}}checked{{/if}}>
                 <label

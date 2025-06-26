@@ -973,8 +973,10 @@ class Order(Signal):
         elif event[0] == 2:
             self.value = self._handle_delete(event[1], self.value)
         else:
-            self.value = self._handle_delete(event[1], self.value, fetch_next=False)
-            self.value = self._handle_insert(event[2], self.value)
+            fetch_next = self.limit is not None
+            self.value = self._handle_delete(event[1], self.value, fetch_next=fetch_next)
+            if event[2] not in self.value:
+                self.value = self._handle_insert(event[2], self.value)
 
         new_value = self.value
 

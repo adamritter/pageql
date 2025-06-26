@@ -13,6 +13,7 @@ from .reactive import (
     Signal,
     ReadOnly,
     Join,
+    Order,
     execute,
 )
 
@@ -49,6 +50,39 @@ def _replace_placeholders(
         else:
             lit = exp.Literal.string(str(val))
         ph.replace(lit)
+
+
+def _apply_order_limit_offset(node, expr, tables: Tables):
+    """Attach an :class:`Order` component if needed."""
+
+    order = expr.args.get("order")
+    limit_expr = expr.args.get("limit")
+    offset_expr = expr.args.get("offset")
+
+    if not any((order, limit_expr, offset_expr)):
+        return node
+
+    order_sql = ""
+    if order is not None:
+        order_sql = order.sql(dialect=tables.dialect)[len("ORDER BY ") :]
+
+    limit_val = None
+    if limit_expr is not None and limit_expr.expression is not None:
+        lit = limit_expr.expression
+        try:
+            limit_val = int(getattr(lit, "this", getattr(lit, "name", lit)))
+        except Exception:
+            limit_val = int(lit.sql(dialect=tables.dialect))
+
+    offset_val = 0
+    if offset_expr is not None and offset_expr.this is not None:
+        lit = offset_expr.this
+        try:
+            offset_val = int(getattr(lit, "this", getattr(lit, "name", lit)))
+        except Exception:
+            offset_val = int(lit.sql(dialect=tables.dialect))
+
+    return Order(node, order_sql, limit=limit_val, offset=offset_val)
 
 
 class FallbackReactive(Signal):
@@ -168,16 +202,19 @@ def build_reactive(expr, tables: Tables):
         if len(select_list) == 1:
             col = select_list[0]
             if isinstance(col, exp.Star):
-                return parent
+                return _apply_order_limit_offset(parent, expr, tables)
             if isinstance(col, exp.Count) and not col.args.get("distinct"):
                 expr_sql = col.sql(dialect=tables.dialect)
-                return Aggregate(parent, (expr_sql,))
+                node = Aggregate(parent, (expr_sql,))
+                return _apply_order_limit_offset(node, expr, tables)
             if isinstance(col, exp.Sum):
                 expr_sql = col.sql(dialect=tables.dialect)
-                return Aggregate(parent, (expr_sql,))
+                node = Aggregate(parent, (expr_sql,))
+                return _apply_order_limit_offset(node, expr, tables)
             if isinstance(col, exp.Avg):
                 expr_sql = col.sql(dialect=tables.dialect)
-                return Aggregate(parent, (expr_sql,))
+                node = Aggregate(parent, (expr_sql,))
+                return _apply_order_limit_offset(node, expr, tables)
 
         if group_sql is not None:
             agg_exprs = []
@@ -198,7 +235,8 @@ def build_reactive(expr, tables: Tables):
                         expr_sql = expr_sql.replace(f"{a}.", "")
                 agg_exprs.append(expr_sql)
             if ok and agg_exprs:
-                return Aggregate(parent, tuple(agg_exprs), group_by=group_sql)
+                node = Aggregate(parent, tuple(agg_exprs), group_by=group_sql)
+                return _apply_order_limit_offset(node, expr, tables)
 
         cols = []
         for c in select_list:
@@ -207,7 +245,8 @@ def build_reactive(expr, tables: Tables):
             else:
                 cols.append(c.sql(dialect=tables.dialect))
         select_sql = ", ".join(cols)
-        return Select(parent, select_sql)
+        node = Select(parent, select_sql)
+        return _apply_order_limit_offset(node, expr, tables)
     if isinstance(expr, exp.Table):
         return tables._get(expr.name)
     raise NotImplementedError(f"Unsupported expression type: {type(expr)}")

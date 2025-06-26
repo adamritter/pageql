@@ -34,6 +34,7 @@ from pageql.reactive import (
     Tables,
     ReadOnly,
     _convert_dot_sql,
+    Order,
 )
 from pageql.render_context import (
     RenderContext,
@@ -875,6 +876,7 @@ class PageQL:
             col_names = [col[0] for col in cursor.description]
 
         rows = cursor.fetchall()
+        order_rows = list(rows) if reactive and isinstance(comp, Order) else None
         mid = None
         if ctx and reactive:
             mid = ctx.marker_id()
@@ -921,46 +923,95 @@ class PageQL:
                            body=body, col_names=col_names, path=path,
                            includes=includes, http_verb=http_verb,
                            saved_params=saved_params,
-                           extra_cache_key=extra_cache_key):
-                if ev[0] == 2:
-                    row_id = f"{mid}_{_row_hash(ev[1])}"
-                    ctx.append_script(f"pdelete('{row_id}')")
-                elif ev[0] == 1:
-                    row_id = f"{mid}_{_row_hash(ev[1])}"
-                    cache_key = (id(comp), 1, extra_cache_key, tuple(ev[1]))
-                    row_content = _ONEVENT_CACHE.get(cache_key)
-                    if row_content is None:
-                        row_params = saved_params.copy()
-                        for i, col_name in enumerate(col_names):
-                            row_params[col_name] = ReadOnly(ev[1][i])
-                        row_buf = []
-                        prev = ctx.rendering
-                        ctx.rendering = True
-                        self.process_nodes(body, row_params, path, includes, http_verb, True, ctx, out=row_buf)
-                        ctx.rendering = prev
-                        row_content = ''.join(row_buf).strip()
-                        _ONEVENT_CACHE[cache_key] = row_content
-                    safe_json = embed_html_in_js(row_content)
-                    ctx.append_script(f"pinsert('{row_id}',{safe_json})")
-                elif ev[0] == 3:
-                    old_id = f"{mid}_{_row_hash(ev[1])}"
-                    new_id = f"{mid}_{_row_hash(ev[2])}"
-                    cache_key = (id(comp), 3, extra_cache_key, tuple(ev[2]))
-                    row_content = _ONEVENT_CACHE.get(cache_key)
-                    if row_content is None:
-                        row_params = saved_params.copy()
-                        for i, col_name in enumerate(col_names):
-                            row_params[col_name] = ReadOnly(ev[2][i])
-                        row_buf = []
-                        #print("processing node for update", body)
-                        prev = ctx.rendering
-                        ctx.rendering = True
-                        self.process_nodes(body, row_params, path, includes, http_verb, True, ctx, out=row_buf)
-                        ctx.rendering = prev
-                        row_content = ''.join(row_buf).strip()
-                        _ONEVENT_CACHE[cache_key] = row_content
-                    safe_json = embed_html_in_js(row_content)
-                    ctx.append_script(f"pupdate('{old_id}','{new_id}',{safe_json})")
+                           extra_cache_key=extra_cache_key,
+                           order_rows=order_rows):
+                if isinstance(comp, Order):
+                    if ev[0] == 2:
+                        row = order_rows.pop(ev[1])
+                        row_id = f"{mid}_{_row_hash(row)}"
+                        ctx.append_script(f"pdelete('{row_id}')")
+                    elif ev[0] == 1:
+                        idx, row = ev[1], ev[2]
+                        order_rows.insert(idx, row)
+                        row_id = f"{mid}_{_row_hash(row)}"
+                        cache_key = (id(comp), 1, extra_cache_key, tuple(row))
+                        row_content = _ONEVENT_CACHE.get(cache_key)
+                        if row_content is None:
+                            row_params = saved_params.copy()
+                            for i, col_name in enumerate(col_names):
+                                row_params[col_name] = ReadOnly(row[i])
+                            row_buf = []
+                            prev = ctx.rendering
+                            ctx.rendering = True
+                            self.process_nodes(body, row_params, path, includes, http_verb, True, ctx, out=row_buf)
+                            ctx.rendering = prev
+                            row_content = ''.join(row_buf).strip()
+                            _ONEVENT_CACHE[cache_key] = row_content
+                        safe_json = embed_html_in_js(row_content)
+                        ctx.append_script(f"pinsert('{row_id}',{safe_json})")
+                        ctx.append_script(f"porderupdate({mid},{len(order_rows)-1},{idx})")
+                    else:
+                        old_idx, new_idx, row = ev[1], ev[2], ev[3]
+                        old_row = order_rows.pop(old_idx)
+                        order_rows.insert(new_idx, row)
+                        old_id = f"{mid}_{_row_hash(old_row)}"
+                        new_id = f"{mid}_{_row_hash(row)}"
+                        cache_key = (id(comp), 3, extra_cache_key, tuple(row))
+                        row_content = _ONEVENT_CACHE.get(cache_key)
+                        if row_content is None:
+                            row_params = saved_params.copy()
+                            for i, col_name in enumerate(col_names):
+                                row_params[col_name] = ReadOnly(row[i])
+                            row_buf = []
+                            prev = ctx.rendering
+                            ctx.rendering = True
+                            self.process_nodes(body, row_params, path, includes, http_verb, True, ctx, out=row_buf)
+                            ctx.rendering = prev
+                            row_content = ''.join(row_buf).strip()
+                            _ONEVENT_CACHE[cache_key] = row_content
+                        safe_json = embed_html_in_js(row_content)
+                        ctx.append_script(f"pupdate('{old_id}','{new_id}',{safe_json})")
+                        ctx.append_script(f"porderupdate({mid},{old_idx},{new_idx})")
+                else:
+                    if ev[0] == 2:
+                        row_id = f"{mid}_{_row_hash(ev[1])}"
+                        ctx.append_script(f"pdelete('{row_id}')")
+                    elif ev[0] == 1:
+                        row_id = f"{mid}_{_row_hash(ev[1])}"
+                        cache_key = (id(comp), 1, extra_cache_key, tuple(ev[1]))
+                        row_content = _ONEVENT_CACHE.get(cache_key)
+                        if row_content is None:
+                            row_params = saved_params.copy()
+                            for i, col_name in enumerate(col_names):
+                                row_params[col_name] = ReadOnly(ev[1][i])
+                            row_buf = []
+                            prev = ctx.rendering
+                            ctx.rendering = True
+                            self.process_nodes(body, row_params, path, includes, http_verb, True, ctx, out=row_buf)
+                            ctx.rendering = prev
+                            row_content = ''.join(row_buf).strip()
+                            _ONEVENT_CACHE[cache_key] = row_content
+                        safe_json = embed_html_in_js(row_content)
+                        ctx.append_script(f"pinsert('{row_id}',{safe_json})")
+                    elif ev[0] == 3:
+                        old_id = f"{mid}_{_row_hash(ev[1])}"
+                        new_id = f"{mid}_{_row_hash(ev[2])}"
+                        cache_key = (id(comp), 3, extra_cache_key, tuple(ev[2]))
+                        row_content = _ONEVENT_CACHE.get(cache_key)
+                        if row_content is None:
+                            row_params = saved_params.copy()
+                            for i, col_name in enumerate(col_names):
+                                row_params[col_name] = ReadOnly(ev[2][i])
+                            row_buf = []
+                            #print("processing node for update", body)
+                            prev = ctx.rendering
+                            ctx.rendering = True
+                            self.process_nodes(body, row_params, path, includes, http_verb, True, ctx, out=row_buf)
+                            ctx.rendering = prev
+                            row_content = ''.join(row_buf).strip()
+                            _ONEVENT_CACHE[cache_key] = row_content
+                        safe_json = embed_html_in_js(row_content)
+                        ctx.append_script(f"pupdate('{old_id}','{new_id}',{safe_json})")
 
             ctx.add_listener(comp, on_event)
 

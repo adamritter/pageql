@@ -151,6 +151,13 @@ def _normalize_param_name(name: str) -> str:
     return name.replace(".", "__")
 
 
+def _row_hash(row) -> str:
+    """Return a stable short hash for a result row."""
+    return base64.b64encode(
+        hashlib.sha256(repr(tuple(row)).encode()).digest()
+    )[:8].decode()
+
+
 
 
 
@@ -899,7 +906,7 @@ class PageQL:
             self.process_nodes(body, row_params, path, includes, http_verb, reactive, ctx, out=row_buffer)
             row_content = ''.join(row_buffer).strip()
             if ctx and reactive:
-                row_id = f"{mid}_{base64.b64encode(hashlib.sha256(repr(tuple(row)).encode()).digest())[:8].decode()}"
+                row_id = f"{mid}_{_row_hash(row)}"
                 ctx.append_script(f"pstart('{row_id}')")
                 ctx.out.append(row_content)
                 ctx.append_script(f"pend('{row_id}')")
@@ -916,10 +923,10 @@ class PageQL:
                            saved_params=saved_params,
                            extra_cache_key=extra_cache_key):
                 if ev[0] == 2:
-                    row_id = f"{mid}_{base64.b64encode(hashlib.sha256(repr(tuple(ev[1])).encode()).digest())[:8].decode()}"
+                    row_id = f"{mid}_{_row_hash(ev[1])}"
                     ctx.append_script(f"pdelete('{row_id}')")
                 elif ev[0] == 1:
-                    row_id = f"{mid}_{base64.b64encode(hashlib.sha256(repr(tuple(ev[1])).encode()).digest())[:8].decode()}"
+                    row_id = f"{mid}_{_row_hash(ev[1])}"
                     cache_key = (id(comp), 1, extra_cache_key, tuple(ev[1]))
                     row_content = _ONEVENT_CACHE.get(cache_key)
                     if row_content is None:
@@ -936,8 +943,8 @@ class PageQL:
                     safe_json = embed_html_in_js(row_content)
                     ctx.append_script(f"pinsert('{row_id}',{safe_json})")
                 elif ev[0] == 3:
-                    old_id = f"{mid}_{base64.b64encode(hashlib.sha256(repr(tuple(ev[1])).encode()).digest())[:8].decode()}"
-                    new_id = f"{mid}_{base64.b64encode(hashlib.sha256(repr(tuple(ev[2])).encode()).digest())[:8].decode()}"
+                    old_id = f"{mid}_{_row_hash(ev[1])}"
+                    new_id = f"{mid}_{_row_hash(ev[2])}"
                     cache_key = (id(comp), 3, extra_cache_key, tuple(ev[2]))
                     row_content = _ONEVENT_CACHE.get(cache_key)
                     if row_content is None:

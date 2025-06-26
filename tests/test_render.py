@@ -1,13 +1,12 @@
 import sys
 from pathlib import Path
-import base64
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
 import types
 sys.modules.setdefault("watchfiles", types.ModuleType("watchfiles"))
 sys.modules["watchfiles"].awatch = lambda *args, **kwargs: None
 
-from pageql.pageql import PageQL, RenderContext
+from pageql.pageql import PageQL, RenderContext, _row_hash
 from pageql.reactive import DerivedSignal
 
 
@@ -110,9 +109,8 @@ def test_from_reactive_uses_parse(monkeypatch):
     r.load_module("m", "{{#reactive on}}{{#from items}}[{{id}}]{{/from}}")
     result = r.render("/m", reactive=False)
     assert seen == ["SELECT * FROM items"]
-    import hashlib
-    h1 = base64.b64encode(hashlib.sha256(repr((1,"a",)).encode()).digest())[:8].decode()
-    h2 = base64.b64encode(hashlib.sha256(repr((2,"b",)).encode()).digest())[:8].decode()
+    h1 = _row_hash((1, "a"))
+    h2 = _row_hash((2, "b"))
     expected = (
         ""
         f"<script>pstart(0)</script>"
@@ -253,9 +251,8 @@ def test_from_reactive_delete_event():
     r.db.executemany("INSERT INTO items(name) VALUES (?)", [("a",), ("b",)])
     r.load_module("m", "{{#reactive on}}{{#from items}}[{{id}}]{{/from}}{{#delete from items where id=1}}")
     result = r.render("/m", reactive=False)
-    import hashlib
-    h1 = base64.b64encode(hashlib.sha256(repr((1,"a",)).encode()).digest())[:8].decode()
-    h2 = base64.b64encode(hashlib.sha256(repr((2,"b",)).encode()).digest())[:8].decode()
+    h1 = _row_hash((1, "a"))
+    h2 = _row_hash((2, "b"))
     expected = (
         ""
         f"<script>pstart(0)</script>"
@@ -276,11 +273,10 @@ def test_from_reactive_update_event():
         "{{#reactive on}}{{#from items}}[{{name}}]{{/from}}{{#update items set name='c' where id=1}}",
     )
     result = r.render("/m", reactive=False)
-    import hashlib
 
-    h1_old = base64.b64encode(hashlib.sha256(repr((1, "a",)).encode()).digest())[:8].decode()
-    h1_new = base64.b64encode(hashlib.sha256(repr((1, "c",)).encode()).digest())[:8].decode()
-    h2 = base64.b64encode(hashlib.sha256(repr((2, "b",)).encode()).digest())[:8].decode()
+    h1_old = _row_hash((1, "a"))
+    h1_new = _row_hash((1, "c"))
+    h2 = _row_hash((2, "b"))
     expected = (
         f"<script>pstart(0)</script>"
         f"<script>pstart('0_{h1_old}')</script>[a]<script>pend('0_{h1_old}')</script>\n"
@@ -299,11 +295,10 @@ def test_from_reactive_insert_event():
         "{{#reactive on}}{{#from items}}[{{name}}]{{/from}}{{#insert into items(name) values ('c')}}",
     )
     result = r.render("/m", reactive=False)
-    import hashlib
 
-    h1 = base64.b64encode(hashlib.sha256(repr((1, "a",)).encode()).digest())[:8].decode()
-    h2 = base64.b64encode(hashlib.sha256(repr((2, "b",)).encode()).digest())[:8].decode()
-    h3 = base64.b64encode(hashlib.sha256(repr((3, "c",)).encode()).digest())[:8].decode()
+    h1 = _row_hash((1, "a"))
+    h2 = _row_hash((2, "b"))
+    h3 = _row_hash((3, "c"))
     expected = (
         f"<script>pstart(0)</script>"
         f"<script>pstart('0_{h1}')</script>[a]<script>pend('0_{h1}')</script>\n"
@@ -323,10 +318,9 @@ def test_from_nonreactive_delete_event():
         "{{#reactive on}}{{#from items}}[{{id}}]{{/from}}{{#reactive off}}{{#delete from items where id=1}}",
     )
     result = r.render("/m")
-    import hashlib
 
-    h1 = base64.b64encode(hashlib.sha256(repr((1, "a",)).encode()).digest())[:8].decode()
-    h2 = base64.b64encode(hashlib.sha256(repr((2, "b",)).encode()).digest())[:8].decode()
+    h1 = _row_hash((1, "a"))
+    h2 = _row_hash((2, "b"))
     expected = (
         ""
         f"<script>pstart(0)</script>"
@@ -347,11 +341,10 @@ def test_from_nonreactive_update_event():
         "{{#reactive on}}{{#from items}}[{{name}}]{{/from}}{{#reactive off}}{{#update items set name='c' where id=1}}",
     )
     result = r.render("/m")
-    import hashlib
 
-    h1_old = base64.b64encode(hashlib.sha256(repr((1, "a",)).encode()).digest())[:8].decode()
-    h1_new = base64.b64encode(hashlib.sha256(repr((1, "c",)).encode()).digest())[:8].decode()
-    h2 = base64.b64encode(hashlib.sha256(repr((2, "b",)).encode()).digest())[:8].decode()
+    h1_old = _row_hash((1, "a"))
+    h1_new = _row_hash((1, "c"))
+    h2 = _row_hash((2, "b"))
     expected = (
         f"<script>pstart(0)</script>"
         f"<script>pstart('0_{h1_old}')</script>[a]<script>pend('0_{h1_old}')</script>\n"
@@ -371,11 +364,10 @@ def test_from_nonreactive_insert_event():
         "{{#reactive on}}{{#from items}}[{{name}}]{{/from}}{{#reactive off}}{{#insert into items(name) values ('c')}}",
     )
     result = r.render("/m")
-    import hashlib
 
-    h1 = base64.b64encode(hashlib.sha256(repr((1, "a",)).encode()).digest())[:8].decode()
-    h2 = base64.b64encode(hashlib.sha256(repr((2, "b",)).encode()).digest())[:8].decode()
-    h3 = base64.b64encode(hashlib.sha256(repr((3, "c",)).encode()).digest())[:8].decode()
+    h1 = _row_hash((1, "a"))
+    h2 = _row_hash((2, "b"))
+    h3 = _row_hash((3, "c"))
     expected = (
         f"<script>pstart(0)</script>"
         f"<script>pstart('0_{h1}')</script>[a]<script>pend('0_{h1}')</script>\n"

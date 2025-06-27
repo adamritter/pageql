@@ -892,6 +892,13 @@ class Order(Signal):
             for l in self.listeners:
                 l(ev)
 
+    def remove_listener(self, listener):
+        if listener in self.listeners:
+            self.listeners.remove(listener)
+        if not self.listeners:
+            self.parent.remove_listener(self.onevent)
+            self.listeners = None
+
     def _fetch_rows(self):
         cur = execute(self.conn, self.sql, [])
         return list(cur.fetchall())

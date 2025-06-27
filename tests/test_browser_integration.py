@@ -386,3 +386,33 @@ async def test_pset_with_script_tags(setup):
         server.should_exit = True
         await task
 
+
+@pytest.mark.filterwarnings("ignore:.*:DeprecationWarning")
+async def test_todos_add_without_page_visit_returns_500(setup):
+    """Posting directly to /todos/add should succeed but currently returns 500."""
+
+    post_status = None
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        src = Path(__file__).resolve().parent.parent / "website" / "todos.pageql"
+        Path(tmpdir, "todos.pageql").write_text(src.read_text(), encoding="utf-8")
+        Path(tmpdir, "hello.pageql").write_text("hello", encoding="utf-8")
+
+        async def after(page, port, app: PageQLApp):
+            nonlocal post_status
+            resp = await page.context.request.post(
+                f"http://127.0.0.1:{port}/todos/add",
+                data="text=hello",
+                headers={"Content-Type": "application/x-www-form-urlencoded"},
+            )
+            post_status = resp.status
+
+        server, task, port, app = await start_server(tmpdir, reload=True)
+        result = await _load_page_async(port, "hello", app, after, browser=setup)
+        if result is None:
+            pytest.skip("Chromium not available for Playwright")
+
+        assert post_status == 200
+        server.should_exit = True
+        await task
+

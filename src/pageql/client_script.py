@@ -1,5 +1,5 @@
 _CLIENT_SCRIPT_TEMPLATE = """<!doctype html>
-<script src="/htmx.min.js"></script>
+<script src="/htmx.js"></script>
 <script>
   htmx.config.defaultSwapStyle = 'none';
   window.pageqlMarkers={};

@@ -192,6 +192,11 @@ class PageQLApp:
                 self.static_headers["htmx.min.js"] = [
                     (b"Cache-Control", b"public, max-age=31536000, immutable")
                 ]
+            with resources.files(__package__).joinpath("static/htmx.js").open("rb") as f:
+                self.static_files["htmx.js"] = f.read()
+                self.static_headers["htmx.js"] = [
+                    (b"Cache-Control", b"public, max-age=31536000, immutable")
+                ]
         except FileNotFoundError:
             # Optional dependency; ignore if missing
             pass
@@ -262,7 +267,9 @@ class PageQLApp:
         self._log(f"Serving static file: {path_cleaned} as {content_type}")
         if path_cleaned.endswith('.md'):
             content_type = 'text/html; charset=utf-8'
-            body = markdown.markdown(self.static_files[path_cleaned].decode('utf-8')).encode('utf-8')
+            body = markdown.markdown(
+                self.static_files[path_cleaned].decode('utf-8'),
+                extensions=['extra', 'smarty', 'codehilite']).encode('utf-8')
             if include_scripts and not self.static_html:
                 body = client_script(client_id).encode('utf-8') + body
         elif content_type == 'text/html':

@@ -678,6 +678,14 @@ def test_porderupdate_in_base_script():
     assert 'function porderupdate' in script
 
 
+def test_order_functions_in_base_script():
+    from pageql.client_script import client_script
+    script = client_script("cid")
+    assert 'function orderdelete' in script
+    assert 'function orderinsert' in script
+    assert 'function orderupdate' in script
+
+
 def test_pinsert_escapes_script_tag():
     r = PageQL(":memory:")
     r.db.execute("CREATE TABLE todos(id INTEGER PRIMARY KEY, completed INTEGER)")

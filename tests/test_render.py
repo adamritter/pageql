@@ -801,7 +801,7 @@ def test_order_by_update_with_limit_reorders_rows():
         f"<script>pstart('0_{h2}')</script>[2:2]<script>pend('0_{h2}')</script>\n"
         f"<script>pend(0)</script>"
         f"<script>pinsert('0_{h3_new}',\"[3:0]\")</script>"
-        f"<script>porderupdate(0,0,1)</script>"
+        f"<script>porderupdate(0,2,0)</script>"
         f"<script>pdelete('0_{h2}')</script>"
     )
     assert result.body == expected

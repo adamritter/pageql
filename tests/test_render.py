@@ -672,10 +672,10 @@ def test_client_script_get_body_function():
     assert 'get body text content' in script
 
 
-def test_porderupdate_in_base_script():
+def test_no_porderupdate_in_base_script():
     from pageql.client_script import client_script
     script = client_script("cid")
-    assert 'function porderupdate' in script
+    assert 'function porderupdate' not in script
 
 
 def test_order_functions_in_base_script():
@@ -782,7 +782,6 @@ def test_order_by_update_reorders_rows():
         f"<script>pstart(1)</script>[1:b]<script>pend(1)</script>\n"
         f"<script>pend(0)</script>"
         f"<script>orderupdate(1,0,1,\"[2:c]\")</script>"
-        f"<script>porderupdate(1,0,1)</script>"
     )
     assert result.body == expected
 

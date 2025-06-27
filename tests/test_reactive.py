@@ -1193,3 +1193,20 @@ def test_order_update_row_outside_limit():
 
     rt.update("UPDATE items SET id=4 WHERE id=2", {})
     assert ordered.value == [(1, "a"), (3, "c")]
+
+
+def test_order_event_after_last_listener_removed():
+    conn = sqlite3.connect(":memory:")
+    conn.execute("CREATE TABLE items(id INTEGER PRIMARY KEY, name TEXT)")
+    rt = ReactiveTable(conn, "items")
+    ordered = Order(rt, "id")
+
+    cb = lambda _=None: None
+    ordered.listeners.append(cb)
+    ordered.remove_listener(cb)
+
+    assert ordered.listeners is None
+    assert ordered.onevent not in (rt.listeners or [])
+
+    rt.insert("INSERT INTO items(name) VALUES ('x')", {})
+    assert ordered.value == []

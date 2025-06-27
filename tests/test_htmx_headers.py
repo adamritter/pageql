@@ -29,7 +29,7 @@ def test_htmx_none_mode_omits_js_headers():
 
             body = b"".join(m.get("body", b"") for m in sent if m["type"] == "http.response.body").decode()
             assert "hello" in body
-            assert "/htmx.min.js" not in body
+            assert "/htmx.js" not in body
             assert "reload-request-ws" not in body
 
     asyncio.run(run())
@@ -58,7 +58,7 @@ def test_htmx_request_omits_js_headers():
 
             body = b"".join(m.get("body", b"") for m in sent if m["type"] == "http.response.body").decode()
             assert "hello" in body
-            assert "/htmx.min.js" not in body
+            assert "/htmx.js" not in body
             assert "reload-request-ws" not in body
 
     asyncio.run(run())
@@ -89,14 +89,14 @@ def test_static_html_flag_disables_client_script():
             await app.pageql_handler(scope, receive, send)
 
             body = b"".join(m.get("body", b"") for m in sent if m["type"] == "http.response.body").decode()
-            assert "/htmx.min.js" in body
+            assert "/htmx.js" in body
 
             sent.clear()
             app.static_html = True
             await app.pageql_handler(scope, receive, send)
 
             body = b"".join(m.get("body", b"") for m in sent if m["type"] == "http.response.body").decode()
-            assert "/htmx.min.js" not in body
+            assert "/htmx.js" not in body
             assert "reload-request-ws" not in body
 
     asyncio.run(run())

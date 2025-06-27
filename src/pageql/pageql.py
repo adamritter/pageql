@@ -974,7 +974,7 @@ class PageQL:
                             row_content = ''.join(row_buf).strip()
                             _ONEVENT_CACHE[cache_key] = row_content
                         safe_json = embed_html_in_js(row_content)
-                        ctx.append_script(f"orderupdate({order_mid},{new_idx},{safe_json})")
+                        ctx.append_script(f"orderupdate({order_mid},{old_idx},{new_idx},{safe_json})")
                         if old_idx != new_idx:
                             ctx.append_script(f"porderupdate({order_mid},{old_idx},{new_idx})")
                 else:

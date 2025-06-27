@@ -781,7 +781,7 @@ def test_order_by_update_reorders_rows():
         f"<script>pstart(1)</script>[2:a]<script>pend(1)</script>\n"
         f"<script>pstart(1)</script>[1:b]<script>pend(1)</script>\n"
         f"<script>pend(0)</script>"
-        f"<script>orderupdate(1,1,\"[2:c]\")</script>"
+        f"<script>orderupdate(1,0,1,\"[2:c]\")</script>"
         f"<script>porderupdate(1,0,1)</script>"
     )
     assert result.body == expected

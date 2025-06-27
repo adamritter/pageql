@@ -878,9 +878,12 @@ class PageQL:
         rows = cursor.fetchall()
         order_rows = list(rows) if reactive and isinstance(comp, Order) else None
         mid = None
+        order_mid = None
         if ctx and reactive:
             mid = ctx.marker_id()
             ctx.append_script(f"pstart({mid})")
+            if isinstance(comp, Order):
+                order_mid = ctx.marker_id()
         saved_params = params.copy()
         extra_cache_key = ""
         if ctx and reactive:
@@ -908,10 +911,15 @@ class PageQL:
             self.process_nodes(body, row_params, path, includes, http_verb, reactive, ctx, out=row_buffer)
             row_content = ''.join(row_buffer).strip()
             if ctx and reactive:
-                row_id = f"{mid}_{_row_hash(row)}"
-                ctx.append_script(f"pstart('{row_id}')")
-                ctx.out.append(row_content)
-                ctx.append_script(f"pend('{row_id}')")
+                if isinstance(comp, Order):
+                    ctx.append_script(f"pstart({order_mid})")
+                    ctx.out.append(row_content)
+                    ctx.append_script(f"pend({order_mid})")
+                else:
+                    row_id = f"{mid}_{_row_hash(row)}"
+                    ctx.append_script(f"pstart('{row_id}')")
+                    ctx.out.append(row_content)
+                    ctx.append_script(f"pend('{row_id}')")
             else:
                 ctx.out.append(row_content)
             ctx.out.append('\n')
@@ -924,16 +932,15 @@ class PageQL:
                            includes=includes, http_verb=http_verb,
                            saved_params=saved_params,
                            extra_cache_key=extra_cache_key,
-                           order_rows=order_rows):
+                           order_rows=order_rows,
+                           order_mid=order_mid):
                 if isinstance(comp, Order):
                     if ev[0] == 2:
-                        row = order_rows.pop(ev[1])
-                        row_id = f"{mid}_{_row_hash(row)}"
-                        ctx.append_script(f"pdelete('{row_id}')")
+                        order_rows.pop(ev[1])
+                        ctx.append_script(f"orderdelete({order_mid},{ev[1]})")
                     elif ev[0] == 1:
                         idx, row = ev[1], ev[2]
                         order_rows.insert(idx, row)
-                        row_id = f"{mid}_{_row_hash(row)}"
                         cache_key = (id(comp), 1, extra_cache_key, tuple(row))
                         row_content = _ONEVENT_CACHE.get(cache_key)
                         if row_content is None:
@@ -948,14 +955,11 @@ class PageQL:
                             row_content = ''.join(row_buf).strip()
                             _ONEVENT_CACHE[cache_key] = row_content
                         safe_json = embed_html_in_js(row_content)
-                        ctx.append_script(f"pinsert('{row_id}',{safe_json})")
-                        ctx.append_script(f"porderupdate({mid},{len(order_rows)-1},{idx})")
+                        ctx.append_script(f"orderinsert({order_mid},{idx},{safe_json})")
                     else:
                         old_idx, new_idx, row = ev[1], ev[2], ev[3]
-                        old_row = order_rows.pop(old_idx)
+                        order_rows.pop(old_idx)
                         order_rows.insert(new_idx, row)
-                        old_id = f"{mid}_{_row_hash(old_row)}"
-                        new_id = f"{mid}_{_row_hash(row)}"
                         cache_key = (id(comp), 3, extra_cache_key, tuple(row))
                         row_content = _ONEVENT_CACHE.get(cache_key)
                         if row_content is None:
@@ -970,8 +974,9 @@ class PageQL:
                             row_content = ''.join(row_buf).strip()
                             _ONEVENT_CACHE[cache_key] = row_content
                         safe_json = embed_html_in_js(row_content)
-                        ctx.append_script(f"pupdate('{old_id}','{new_id}',{safe_json})")
-                        ctx.append_script(f"porderupdate({mid},{old_idx},{new_idx})")
+                        ctx.append_script(f"orderupdate({order_mid},{new_idx},{safe_json})")
+                        if old_idx != new_idx:
+                            ctx.append_script(f"porderupdate({order_mid},{old_idx},{new_idx})")
                 else:
                     if ev[0] == 2:
                         row_id = f"{mid}_{_row_hash(ev[1])}"

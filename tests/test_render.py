@@ -776,16 +776,13 @@ def test_order_by_update_reorders_rows():
     )
     result = r.render("/m", reactive=False)
 
-    h1 = _row_hash((1, "b"))
-    h2_old = _row_hash((2, "a"))
-    h2_new = _row_hash((2, "c"))
     expected = (
         f"<script>pstart(0)</script>"
-        f"<script>pstart('0_{h2_old}')</script>[2:a]<script>pend('0_{h2_old}')</script>\n"
-        f"<script>pstart('0_{h1}')</script>[1:b]<script>pend('0_{h1}')</script>\n"
+        f"<script>pstart(1)</script>[2:a]<script>pend(1)</script>\n"
+        f"<script>pstart(1)</script>[1:b]<script>pend(1)</script>\n"
         f"<script>pend(0)</script>"
-        f"<script>pupdate('0_{h2_old}','0_{h2_new}',\"[2:c]\")</script>"
-        f"<script>porderupdate(0,0,1)</script>"
+        f"<script>orderupdate(1,1,\"[2:c]\")</script>"
+        f"<script>porderupdate(1,0,1)</script>"
     )
     assert result.body == expected
 
@@ -800,16 +797,12 @@ def test_order_by_update_with_limit_reorders_rows():
     )
     result = r.render("/m", reactive=False)
 
-    h1 = _row_hash((1, 1))
-    h2 = _row_hash((2, 2))
-    h3_new = _row_hash((3, 0))
     expected = (
         f"<script>pstart(0)</script>"
-        f"<script>pstart('0_{h1}')</script>[1:1]<script>pend('0_{h1}')</script>\n"
-        f"<script>pstart('0_{h2}')</script>[2:2]<script>pend('0_{h2}')</script>\n"
+        f"<script>pstart(1)</script>[1:1]<script>pend(1)</script>\n"
+        f"<script>pstart(1)</script>[2:2]<script>pend(1)</script>\n"
         f"<script>pend(0)</script>"
-        f"<script>pinsert('0_{h3_new}',\"[3:0]\")</script>"
-        f"<script>porderupdate(0,2,0)</script>"
-        f"<script>pdelete('0_{h2}')</script>"
+        f"<script>orderinsert(1,0,\"[3:0]\")</script>"
+        f"<script>orderdelete(1,2)</script>"
     )
     assert result.body == expected

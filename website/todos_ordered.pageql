@@ -105,48 +105,6 @@
 </div>
   <h2 style="color:rgb(50, 56, 86); margin-top: 2rem; margin-bottom: 0.5rem;">Source code</h2>
 {{#showsource}}
-
-  <script>
-    function copySourceCode(button) {
-      const codeBlock = button.parentElement.querySelector('pre');
-      const textToCopy = codeBlock.textContent;
-      
-      navigator.clipboard.writeText(textToCopy).then(() => {
-        const originalHTML = button.innerHTML;
-        button.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"></path></svg>';
-        button.style.background = 'rgba(56, 161, 105, 0.5)';
-        
-        setTimeout(() => {
-          button.innerHTML = originalHTML;
-          button.style.background = 'rgba(255,255,255,0.15)';
-        }, 2000);
-      });
-    }
-
-    function makeCodeClickable() {
-      const codeBlock = document.querySelector('.highlight pre');
-      if (codeBlock) {
-        codeBlock.style.cursor = 'pointer';
-        codeBlock.addEventListener('click', () => {
-          const text = codeBlock.textContent;
-          navigator.clipboard.writeText(text).then(() => {
-            const copyButton = document.querySelector('button[onclick*="copySourceCode"]');
-            const originalHTML = copyButton.innerHTML;
-            copyButton.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"></path></svg>';
-            copyButton.style.background = 'rgba(56, 161, 105, 0.5)';
-            
-            setTimeout(() => {
-              copyButton.innerHTML = originalHTML;
-              copyButton.style.background = 'rgba(255,255,255,0.15)';
-            }, 2000);
-          });
-        });
-      }
-    }
-
-    // Initialize when DOM is loaded
-    document.addEventListener('DOMContentLoaded', makeCodeClickable);
-  </script>
 </body>
 </html>
 {{#partial post add}}

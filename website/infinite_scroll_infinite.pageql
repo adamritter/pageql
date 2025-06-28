@@ -10,3 +10,17 @@
   {{n}}<br>
 {{/from}}
 </div>
+
+<script>
+let canLoadMore = true;
+function maybeLoadMore() {
+  if (!canLoadMore) return;
+  const scrollPosition = window.scrollY + window.innerHeight;
+  const threshold = document.documentElement.scrollHeight - 150;
+  if (scrollPosition >= threshold) {
+    console.log('load more');
+    canLoadMore = false;
+  }
+}
+window.addEventListener('scroll', maybeLoadMore);
+</script>

@@ -685,6 +685,12 @@ def test_order_functions_in_base_script():
     assert 'function orderinsert' in script
     assert 'function orderupdate' in script
 
+def test_maybe_load_more_in_client_script():
+    from pageql.client_script import client_script
+    script = client_script("cid")
+    assert 'function maybe_load_more' in script
+    assert 'infinite_load_more' in script
+
 
 def test_pinsert_escapes_script_tag():
     r = PageQL(":memory:")

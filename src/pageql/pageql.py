@@ -937,6 +937,8 @@ class PageQL:
 
         if ctx and reactive:
             ctx.append_script(f"pend({mid})")
+            if len(node) > 4 and node[4]:
+                ctx.append_script(f"console.log('infinite ' + {mid})")
 
             def on_event(ev, *, mid=mid, ctx=ctx,
                            body=body, col_names=col_names, path=path,

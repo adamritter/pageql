@@ -489,7 +489,7 @@ def ast_param_dependencies(ast):
                 deps.update(get_dependencies(_convert_dot_sql(c)))
             elif t == "#let":
                 deps.update(get_dependencies(_convert_dot_sql(c[1])))
-            elif t in {"#update", "#insert", "#delete", "#merge", "#create", "#redirect", "#statuscode", "#error"}:
+            elif t in {"#update", "#insert", "#delete", "#merge", "#create", "#attach", "#redirect", "#statuscode", "#error"}:
                 deps.update(get_dependencies(_convert_dot_sql(c)))
             elif t == "#respond":
                 status_expr, body_expr = c

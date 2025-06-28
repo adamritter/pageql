@@ -78,6 +78,7 @@ DIRECTIVE_HELP: dict[str, str] = {
     "#insert into <table> (cols) values (vals)": "execute an SQL INSERT",
     "#log <message>": "log a message",
     "#merge <sql>": "execute an SQL MERGE",
+    "#attach database <db> as <name>": "attach a SQLite database",
     "#param <name> [type] [attrs]": "declare and validate a request parameter",
     "#partial <name>": "define a reusable partial block",
     "#reactive on|off": "toggle reactive rendering mode",
@@ -643,6 +644,16 @@ class PageQL:
         _run_sql(lambda sql, p: db_execute_dot(self.db, sql, p), node_type, node_content, params)
         return reactive
 
+    def _process_attach_directive(self, node_content, params, path, includes,
+                                  http_verb, reactive, ctx):
+        _run_sql(
+            lambda sql, p: db_execute_dot(self.db, sql, p),
+            "#attach",
+            node_content,
+            params,
+        )
+        return reactive
+
     def _process_import_directive(self, node_content, params, path, includes,
                                   http_verb, reactive, ctx):
         parts = node_content.split()
@@ -1101,6 +1112,8 @@ class PageQL:
                 return self._process_cookie_directive(node_content, params, path, includes, http_verb, reactive, ctx)
             elif node_type == '#fetch':
                 return self._process_fetch_directive(node_content, params, path, includes, http_verb, reactive, ctx)
+            elif node_type == '#attach':
+                return self._process_attach_directive(node_content, params, path, includes, http_verb, reactive, ctx)
             elif node_type in ('#update', '#insert', '#delete'):
                 return self._process_update_directive(node_content, params, path, includes, http_verb, reactive, ctx, node_type)
             elif node_type in ('#create', '#merge'):

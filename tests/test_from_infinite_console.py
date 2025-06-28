@@ -14,6 +14,6 @@ def test_infinite_from_logs_mid_after_pend():
     expected = (
         f"<script>pstart(0)</script>"
         f"<script>pstart('0_{h}')</script>1<script>pend('0_{h}')</script>\n"
-        f"<script>pend(0)</script><script>console.log('infinite ' + 0)</script>"
+        f"<script>pend(0)</script><script>maybe_load_more(document.body, 0)</script>"
     )
     assert result.body == expected

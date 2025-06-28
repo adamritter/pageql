@@ -41,6 +41,7 @@ class RenderContext:
         self.reactiveelement = None
         self.headers: list[tuple[str, str]] = []
         self.cookies: list[tuple[str, str, dict]] = []
+        self.infinites: dict[int, object] = {}
 
     def marker_id(self) -> int:
         mid = self.next_id

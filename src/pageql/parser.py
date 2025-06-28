@@ -161,7 +161,13 @@ def _read_block(node_list, i, stop, partials, dialect, tests=None):
         # ----------------------------------------------------------- #from ...
         if ntype == "#from":
             from_terms = {"/from"}
-            query = ncontent
+            content = ncontent
+            infinite = False
+            m = re.search(r"\s+infinite\s*$", content, re.IGNORECASE)
+            if m:
+                content = content[: m.start()].rstrip()
+                infinite = True
+            query = content
             try:
                 expr = sqlglot.parse_one(
                     _convert_dot_sql("SELECT * FROM " + query), read=dialect
@@ -175,7 +181,7 @@ def _read_block(node_list, i, stop, partials, dialect, tests=None):
             i += 1
             deps = ast_param_dependencies(loop_body)
             deps.discard("__first_row")
-            body.append(["#from", (query, expr), deps, loop_body])
+            body.append(["#from", (query, expr), deps, loop_body, infinite])
             continue
 
         if ntype == "#each":
@@ -396,6 +402,8 @@ def _apply_add_reactive(n):
                 res.append(add_reactive_elements(n[3]))
             return res
         if name == "#from":
+            if len(n) == 5:
+                return [name, n[1], n[2], add_reactive_elements(n[3]), n[4]]
             if len(n) == 4:
                 return [name, n[1], n[2], add_reactive_elements(n[3])]
             return [name, n[1], add_reactive_elements(n[2])]
@@ -557,10 +565,8 @@ def ast_param_dependencies(ast):
                     walk_nodes(node[3])
             elif name == "#from":
                 deps.update(get_dependencies(_convert_dot_sql("SELECT * FROM " + node[1][0])))
-                if len(node) == 4:
-                    walk_nodes(node[3])
-                else:
-                    walk_nodes(node[2])
+                body_index = 3 if len(node) >= 4 else 2
+                walk_nodes(node[body_index])
             elif name == "#each":
                 param = node[1].strip()
                 if param.startswith(":"):

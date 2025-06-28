@@ -852,8 +852,8 @@ class PageQL:
     def _process_from_directive(self, node, params, path, includes,
                                 http_verb, reactive, ctx):
         query, expr = node[1]
-        if len(node) == 4:
-            _, _, deps, body = node
+        if len(node) >= 4 and isinstance(node[2], set):
+            _, _, deps, body = node[:4]
         else:
             body = node[2]
 
@@ -898,7 +898,7 @@ class PageQL:
         saved_params = params.copy()
         extra_cache_key = ""
         if ctx and reactive:
-            dep_set = deps if len(node) == 4 else set()
+            dep_set = deps if len(node) >= 4 and isinstance(node[2], set) else set()
             extra_params = sorted(d for d in dep_set if d not in col_names)
             if extra_params:
                 extra_cache_values = {}

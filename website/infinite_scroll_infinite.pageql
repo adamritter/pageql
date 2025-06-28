@@ -1,13 +1,12 @@
 {{#showsource}}
 
 <div id="list">
-{{#let f = 100}}
 {{#from (
   WITH RECURSIVE numbers AS (
     Select 1 as n
     UNION ALL SELECT n+1 FROM numbers WHERE n < 1000
   ) SELECT n FROM numbers
-) limit :f,100 infinite}}
+) limit 100 infinite}}
   {{n}}<br>
 {{/from}}
 </div>

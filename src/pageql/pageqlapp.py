@@ -341,6 +341,18 @@ class PageQLApp:
                         fut_waiter = self._body_waiters.pop(client_id)
                         if not fut_waiter.done():
                             fut_waiter.set_result(result.get("text", ""))
+                    if client_id:
+                        text = result.get("text", "")
+                        if text.startswith("infinite_load_more"):
+                            try:
+                                mid = int(text.split()[1])
+                            except Exception:
+                                mid = None
+                            if mid is not None:
+                                for ctx in self.render_contexts.get(client_id, []):
+                                    comp = ctx.infinites.get(mid)
+                                    if comp is not None and comp.limit is not None:
+                                        comp.set_limit(comp.limit + 100)
                     receive_task = asyncio.create_task(receive())
                     continue
                 if isinstance(result, dict) and result.get("type") == "websocket.disconnect":

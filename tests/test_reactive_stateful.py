@@ -1,6 +1,7 @@
 import sqlite3
 import sys
 import types
+import pytest
 from pathlib import Path
 from hypothesis.stateful import RuleBasedStateMachine, rule, run_state_machine_as_test
 from hypothesis import strategies as st, assume
@@ -9,6 +10,9 @@ from hypothesis import strategies as st, assume
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 sys.modules.setdefault("watchfiles", types.ModuleType("watchfiles"))
 sys.modules["watchfiles"].awatch = lambda *args, **kwargs: None
+
+if sys.platform == "darwin":
+    pytest.skip("unsupported platform", allow_module_level=True)
 
 from pageql.reactive import (
     ReactiveTable,

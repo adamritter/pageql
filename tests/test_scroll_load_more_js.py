@@ -1,6 +1,25 @@
+import types, sys
+sys.modules.setdefault("watchfiles", types.ModuleType("watchfiles"))
+sys.modules["watchfiles"].awatch = lambda *args, **kwargs: None
+sys.path.insert(0, "src")
+
 from pathlib import Path
+from pageql.parser import tokenize, build_ast
+
+
+def _has_infinite_from(nodes):
+    for node in nodes:
+        if isinstance(node, list):
+            if node[0] == "#from" and len(node) > 4 and node[4] is True:
+                return True
+            for item in node:
+                if isinstance(item, list) and _has_infinite_from([item]):
+                    return True
+    return False
 
 
 def test_scroll_script_calls_helper():
     src = Path("website/infinite_scroll_infinite.pageql").read_text()
-    assert "maybe_load_more(document.body, 0)" in src
+    tokens = tokenize(src)
+    body, _ = build_ast(tokens, dialect="sqlite")
+    assert _has_infinite_from(body)

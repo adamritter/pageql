@@ -68,7 +68,6 @@ _CLIENT_SCRIPT_TEMPLATE = """<!doctype html>
         socket.onerror = () => {
           setTimeout(forceReload, 100);
         };
-        maybe_load_more(document.body, 0);
       }
     if (document.body) {
       setup();

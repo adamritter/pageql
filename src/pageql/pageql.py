@@ -852,7 +852,7 @@ class PageQL:
     def _process_from_directive(self, node, params, path, includes,
                                 http_verb, reactive, ctx):
         query, expr = node[1]
-        infinite = node[4] if len(node) > 4 else False
+        infinite = node[4] 
         if len(node) >= 4 and isinstance(node[2], set):
             _, _, deps, body = node[:4]
         else:
@@ -903,8 +903,6 @@ class PageQL:
             ctx.append_script(f"pstart({mid})")
             if isinstance(comp, Order):
                 order_mid = ctx.marker_id()
-            if infinite and isinstance(comp, Order):
-                ctx.infinites[mid] = comp
         saved_params = params.copy()
         extra_cache_key = ""
         if ctx and reactive:
@@ -951,6 +949,10 @@ class PageQL:
                 ctx.append_script(
                     f"maybe_load_more(document.body, {mid})"
                 )
+                if not isinstance(comp, Order):
+                    print(f"Error: infinite_load_more: {mid} not an Order")
+                else:
+                    ctx.infinites[mid] = comp
 
             def on_event(ev, *, mid=mid, ctx=ctx,
                            body=body, col_names=col_names, path=path,

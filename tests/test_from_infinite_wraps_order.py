@@ -25,3 +25,21 @@ def test_infinite_from_wraps_order_limit_100():
     order = list(ctx.infinites.values())[0]
     assert isinstance(order, Order)
     assert order.limit == 100
+
+def test_infinite_from_readonly_is_wrapped():
+    page = """
+    <div>
+    {{#from (SELECT 2 AS n UNION ALL SELECT 1 AS n) order by n limit 1 infinite}}
+      {{n}}
+    {{/from}}
+    </div>
+    """
+    r = PageQL(":memory:")
+    r.load_module("test_ro", page)
+    result = r.render("/test_ro")
+    ctx = result.context
+    assert len(ctx.infinites) == 1
+    order = list(ctx.infinites.values())[0]
+    assert isinstance(order, Order)
+    assert order.limit == 100
+    assert order.conn is None

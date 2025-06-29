@@ -18,7 +18,7 @@ def _has_infinite_from(nodes):
     return False
 
 
-def test_scroll_script_calls_helper():
+def test_scroll_page_has_no_helper_call():
     src = Path("website/infinite_scroll_infinite.pageql").read_text()
     tokens = tokenize(src)
     body, _ = build_ast(tokens, dialect="sqlite")

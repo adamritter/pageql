@@ -67,6 +67,8 @@ from pageql.reactive import (
     ReadOnly,
 )
 from pageql.pageql import RenderContext, Tables
+from pageql.reactive_sql import parse_reactive
+import sqlglot
 from pageql.database import evalone
 
 
@@ -1210,3 +1212,13 @@ def test_order_event_after_last_listener_removed():
 
     rt.insert("INSERT INTO items(name) VALUES ('x')", {})
     assert ordered.value == []
+
+
+def test_order_on_readonly_array():
+    conn = sqlite3.connect(":memory:")
+    tables = Tables(conn)
+    expr = sqlglot.parse_one("SELECT 2 AS n UNION ALL SELECT 1 AS n", read="sqlite")
+    comp = parse_reactive(expr, tables, {})
+    assert isinstance(comp, ReadOnly)
+    ordered = Order(comp, "n")
+    assert ordered.value == [(1,), (2,)]

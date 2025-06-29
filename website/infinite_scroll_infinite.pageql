@@ -10,7 +10,3 @@
   {{n}}<br>
 {{/from}}
 </div>
-
-<script>
-maybe_load_more(document.body, 0);
-</script>

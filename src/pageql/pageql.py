@@ -873,7 +873,7 @@ class PageQL:
             cache_allowed = "randomblob" not in cache_key.lower()
             comp = self._from_cache.get(cache_key) if cache_allowed else None
             if comp is None or not comp.listeners:
-                comp = parse_reactive(expr, self.tables, params)
+                comp = parse_reactive(expr, self.tables, params, force_reactive=infinite)
                 if cache_allowed:
                     self._from_cache[cache_key] = comp
             if infinite and not isinstance(comp, Order) and hasattr(comp, "conn"):

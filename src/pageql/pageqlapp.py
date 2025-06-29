@@ -354,7 +354,7 @@ class PageQLApp:
                                 for ctx in self.render_contexts.get(client_id, []):
                                     comp = ctx.infinites.get(mid)
                                     if not comp:
-                                        print(f"Error: infinite_load_more: {client_id} mid: {mid} not found")
+                                        print(f"Error: infinite_load_more: {client_id} mid: {mid} not found, possible infinites: {ctx.infinites.keys()}")
                                         continue
                                     if comp is not None and comp.limit is not None:
                                         if self.log_level == "debug":

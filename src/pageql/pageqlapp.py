@@ -5,6 +5,7 @@ import mimetypes
 import base64
 import markdown
 import html
+import json
 from urllib.parse import urlparse, parse_qs
 from watchfiles import awatch
 import uuid
@@ -348,17 +349,34 @@ class PageQLApp:
                                 mid = int(text.split()[1])
                             except Exception:
                                 mid = None
+                                err = (
+                                    f"Error: infinite_load_more: {client_id} invalid message '{text}'"
+                                )
+                                print(err)
+                                queue_ws_script(
+                                    send, f"console.error({json.dumps(err)})", self.log_level
+                                )
                             if self.log_level == "debug":
                                 print(f"infinite_load_more: {client_id} mid: {mid}")
                             if mid is not None:
                                 for ctx in self.render_contexts.get(client_id, []):
                                     comp = ctx.infinites.get(mid)
                                     if not comp:
-                                        print(f"Error: infinite_load_more: {client_id} mid: {mid} not found, possible infinites: {ctx.infinites.keys()}")
+                                        err = (
+                                            f"Error: infinite_load_more: {client_id} mid: {mid} not found, possible infinites: {ctx.infinites.keys()}"
+                                        )
+                                        print(err)
+                                        queue_ws_script(
+                                            send,
+                                            f"console.error({json.dumps(err)})",
+                                            self.log_level,
+                                        )
                                         continue
                                     if comp is not None and comp.limit is not None:
                                         if self.log_level == "debug":
-                                            print(f"infinite_load_more set_limit: {client_id} mid: {mid} limit: {comp.limit}")
+                                            print(
+                                                f"infinite_load_more set_limit: {client_id} mid: {mid} limit: {comp.limit}"
+                                            )
                                         comp.set_limit(comp.limit + 100)
                     receive_task = asyncio.create_task(receive())
                     continue

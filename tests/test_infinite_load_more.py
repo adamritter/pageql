@@ -68,3 +68,42 @@ def test_pageqlapp_handles_infinite_load_more(tmp_path):
     asyncio.run(run_ws())
 
     assert order.limit == 101
+
+
+def test_infinite_load_more_error_sends_ws(tmp_path):
+    app = pageql.pageqlapp.PageQLApp(
+        ":memory:", tmp_path, create_db=True, should_reload=False
+    )
+
+    ctx = RenderContext()
+    app.render_contexts["cid"].append(ctx)
+
+    messages = [
+        {"type": "websocket.connect"},
+        {"type": "websocket.receive", "text": "infinite_load_more 123"},
+        {"type": "websocket.disconnect"},
+    ]
+
+    sent = []
+
+    async def send(msg):
+        sent.append(msg)
+
+    async def receive():
+        return messages.pop(0)
+
+    scope = {
+        "type": "websocket",
+        "path": "/reload-request-ws",
+        "query_string": b"clientId=cid",
+    }
+
+    async def run_ws():
+        await app._handle_reload_websocket(scope, receive, send)
+
+    asyncio.run(run_ws())
+
+    assert any(
+        m.get("type") == "websocket.send" and "console.error" in m.get("text", "")
+        for m in sent
+    )

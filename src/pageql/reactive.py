@@ -996,14 +996,14 @@ class Order(Signal):
                 offset -= i2 - i1
             elif tag == "insert":
                 for idx in range(j1, j2):
-                    events.append([1, i1 + offset, new[idx]])
+                    events.append([1, i1 + offset + (idx - j1), new[idx]])
                 offset += j2 - j1
             else:
                 for idx in range(i1, i2):
                     events.append([2, idx + offset])
                 offset -= i2 - i1
                 for idx in range(j1, j2):
-                    events.append([1, i1 + offset, new[idx]])
+                    events.append([1, i1 + offset + (idx - j1), new[idx]])
                 offset += j2 - j1
         return events
 

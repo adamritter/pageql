@@ -690,6 +690,7 @@ def test_maybe_load_more_in_client_script():
     script = client_script("cid")
     assert 'function maybe_load_more' in script
     assert 'infinite_load_more' in script
+    assert '-1500' in script
 
 
 def test_pinsert_escapes_script_tag():

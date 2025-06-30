@@ -1149,7 +1149,7 @@ def test_order_set_limit():
     seen.clear()
     ordered.set_limit(None)
     assert ordered.value == [(1, "a"), (2, "b"), (3, "c")]
-    assert seen == [[1, 1, (2, "b")], [1, 1, (3, "c")]]
+    assert seen == [[1, 1, (2, "b")], [1, 2, (3, "c")]]
 
 
 def test_one_value_with_order():

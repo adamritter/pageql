@@ -876,20 +876,23 @@ class PageQL:
                 comp = parse_reactive(expr, self.tables, params)
                 if cache_allowed:
                     self._from_cache[cache_key] = comp
-            if infinite and not isinstance(comp, Order) and hasattr(comp, "conn"):
+            if infinite and not isinstance(comp, Order):
                 comp = Order(comp, "", limit=100)
-            try:
-                cursor = self.db.execute(comp.sql, converted_params)
-            except sqlite3.Error as e:
-                raise ValueError(
-                    f"Error executing SQL `{comp.sql}` with params {converted_params}: {e}"
-                )
+            if comp.sql is not None:
+                try:
+                    cursor = self.db.execute(comp.sql, converted_params)
+                except sqlite3.Error as e:
+                    raise ValueError(
+                        f"Error executing SQL `{comp.sql}` with params {converted_params}: {e}"
+                    )
+                rows = cursor.fetchall()
+            else:
+                rows = list(comp.value)
             col_names = comp.columns if not isinstance(comp.columns, str) else [comp.columns]
         else:
             cursor = db_execute_dot(self.db, "select * from " + query, params)
             col_names = [col[0] for col in cursor.description]
-
-        rows = cursor.fetchall()
+            rows = cursor.fetchall()
         order_rows = list(rows) if reactive and isinstance(comp, Order) else None
         mid = None
         order_mid = None

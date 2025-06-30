@@ -845,30 +845,58 @@ class Order(Signal):
         self.order_sql = order_sql
         self.limit = limit
         self.offset = offset
-        self.conn = self.parent.conn
-        cols_order = ", ".join(self.parent.columns)
-        self._full_order_sql = (
-            f"{order_sql}, {cols_order}" if order_sql else cols_order
-        )
-        self._all_sql = f"SELECT * FROM ({self.parent.sql}) ORDER BY {self._full_order_sql}"
-        self.sql = self._all_sql
-        if self.limit is not None:
-            self.sql += f" LIMIT {self.limit}"
-        if self.offset:
-            self.sql += f" OFFSET {self.offset}"
-        self.columns = self.parent.columns
-        self.parent.listeners.append(self.onevent)
+
         self.deps = [self.parent]
         self.update = self.onevent
 
-        placeholders = ", ".join([f'? as {c}' for c in self.columns])
-        self._compare_sql = (
-            f"SELECT idx FROM (SELECT 0 as idx, {placeholders} UNION ALL "
-            f"SELECT 1 as idx, {placeholders}) ORDER BY {self._full_order_sql} LIMIT 1"
-        )
+        if hasattr(self.parent, "conn"):
+            self.conn = self.parent.conn
+            cols_order = ", ".join(self.parent.columns)
+            self._full_order_sql = (
+                f"{order_sql}, {cols_order}" if order_sql else cols_order
+            )
+            self._all_sql = f"SELECT * FROM ({self.parent.sql}) ORDER BY {self._full_order_sql}"
+            self.sql = self._all_sql
+            if self.limit is not None:
+                self.sql += f" LIMIT {self.limit}"
+            if self.offset:
+                self.sql += f" OFFSET {self.offset}"
+            self.columns = self.parent.columns
+            self.parent.listeners.append(self.onevent)
 
-        cur = execute(self.conn, self.sql, [])
-        self.value = list(cur.fetchall())
+            placeholders = ", ".join([f'? as {c}' for c in self.columns])
+            self._compare_sql = (
+                f"SELECT idx FROM (SELECT 0 as idx, {placeholders} UNION ALL "
+                f"SELECT 1 as idx, {placeholders}) ORDER BY {self._full_order_sql} LIMIT 1"
+            )
+
+            cur = execute(self.conn, self.sql, [])
+            self.value = list(cur.fetchall())
+            self._all_rows = None
+        else:
+            self.conn = None
+            self.columns = self.parent.columns
+            data = list(self.parent.value)
+            if self.order_sql:
+                directives = [d.strip() for d in self.order_sql.split(",") if d.strip()]
+                for term in reversed(directives):
+                    parts = term.split()
+                    col = parts[0]
+                    try:
+                        idx = self.columns.index(col)
+                    except ValueError:
+                        idx = int(col)
+                    desc = len(parts) > 1 and parts[1].upper() == "DESC"
+                    data.sort(key=lambda r, i=idx: r[i], reverse=desc)
+            self._all_rows = data
+            if self.offset:
+                data = data[self.offset:]
+            if self.limit is not None:
+                data = data[: self.limit]
+            self.sql = None
+            self.parent.listeners.append(self.onevent)
+            self.value = data
+            self._compare_sql = None
 
     def set_limit(self, limit):
         if limit == self.limit:
@@ -877,15 +905,22 @@ class Order(Signal):
         old_value = list(self.value)
 
         self.limit = limit
-        self.sql = self._all_sql
-        if self.limit is not None:
-            self.sql += f" LIMIT {self.limit}"
-        if self.offset:
-            self.sql += f" OFFSET {self.offset}"
+        if self.conn is not None:
+            self.sql = self._all_sql
+            if self.limit is not None:
+                self.sql += f" LIMIT {self.limit}"
+            if self.offset:
+                self.sql += f" OFFSET {self.offset}"
 
-        cur = execute(self.conn, self.sql, [])
-        self.value = list(cur.fetchall())
-        new_value = self.value
+            cur = execute(self.conn, self.sql, [])
+            self.value = list(cur.fetchall())
+            new_value = self.value
+        else:
+            if self.limit is None:
+                new_value = self._all_rows[self.offset :]
+            else:
+                new_value = self._all_rows[self.offset : self.offset + self.limit]
+            self.value = list(new_value)
 
         events = self._diff_patch(old_value, new_value)
         for ev in events:

@@ -70,6 +70,54 @@ def test_pageqlapp_handles_infinite_load_more(tmp_path):
     assert order.limit == 101
 
 
+def test_pageqlapp_sends_maybe_load_more(tmp_path):
+    app = pageql.pageqlapp.PageQLApp(
+        ":memory:", tmp_path, create_db=True, should_reload=False
+    )
+
+    conn = sqlite3.connect(":memory:")
+    conn.execute("CREATE TABLE items(id INTEGER)")
+    conn.executemany("INSERT INTO items(id) VALUES (?)", [(1,), (2,), (3,)])
+    rt = ReactiveTable(conn, "items")
+    order = Order(rt, "id", limit=1)
+
+    ctx = RenderContext()
+    mid = ctx.marker_id()
+    ctx.infinites[mid] = order
+    app.render_contexts["cid"].append(ctx)
+
+    messages = [
+        {"type": "websocket.connect"},
+        {"type": "websocket.receive", "text": f"infinite_load_more {mid}"},
+        {"type": "websocket.disconnect"},
+    ]
+
+    sent = []
+
+    async def send(msg):
+        sent.append(msg)
+
+    async def receive():
+        return messages.pop(0)
+
+    scope = {
+        "type": "websocket",
+        "path": "/reload-request-ws",
+        "query_string": b"clientId=cid",
+    }
+
+    async def run_ws():
+        await app._handle_reload_websocket(scope, receive, send)
+        await asyncio.sleep(0)
+
+    asyncio.run(run_ws())
+
+    assert any(
+        m.get("type") == "websocket.send" and "maybe_load_more" in m.get("text", "")
+        for m in sent
+    )
+
+
 def test_infinite_load_more_error_sends_ws(tmp_path):
     app = pageql.pageqlapp.PageQLApp(
         ":memory:", tmp_path, create_db=True, should_reload=False

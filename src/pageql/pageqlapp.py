@@ -378,6 +378,11 @@ class PageQLApp:
                                                 f"infinite_load_more set_limit: {client_id} mid: {mid} limit: {comp.limit}"
                                             )
                                         comp.set_limit(comp.limit + 100)
+                                        queue_ws_script(
+                                            send,
+                                            f"maybe_load_more(document.body, {mid})",
+                                            self.log_level,
+                                        )
                     receive_task = asyncio.create_task(receive())
                     continue
                 if isinstance(result, dict) and result.get("type") == "websocket.disconnect":

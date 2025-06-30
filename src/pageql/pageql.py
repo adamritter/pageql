@@ -941,11 +941,9 @@ class PageQL:
         if ctx and reactive:
             ctx.append_script(f"pend({mid})")
             if len(node) > 4 and node[4]:
-                ctx.append_script(
-                    f"maybe_load_more(document.body, {mid})"
-                )
+                ctx.append_script(f"maybe_load_more(document.body, {mid})")
                 if not isinstance(comp, Order):
-                    print(f"Error: infinite_load_more: {mid} not an Order")
+                    raise ValueError(f"Error: infinite_load_more: {comp.__class__.__name__}: {comp} not an Order")
                 else:
                     ctx.infinites[mid] = comp
 

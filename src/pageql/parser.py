@@ -125,6 +125,9 @@ def tokenize(source):
             inner = _strip_sql_line_comments(inner).strip()
             for seg in _split_directives(inner):
                 first, rest = parsefirstword(seg)
+                if first == 'end' and rest:
+                    second, rest = parsefirstword(rest)
+                    first = f'end{second}'
                 if first == 'param' and rest:
                     pn, attrs = parsefirstword(rest)
                     pn = pn.replace('.', '__')

@@ -60,13 +60,13 @@ def tokenize(source):
         [('text', 'Hello '), ('render_param', 'name')]
         >>> tokenize("Count: {{{1+1}}}")
         [('text', 'Count: '), ('render_raw', '1+1')]
-        >>> tokenize("{{#if x > 5}}Big{{#endif}}")
+        >>> tokenize("{%if x > 5%}Big{%endif%}")
         [('#if', 'x > 5'), ('text', 'Big'), ('#endif', None)]
         >>> tokenize("{{!-- Comment --}}Visible")
         [('text', 'Visible')]
     """
     nodes = []
-    parts = re.split(r'({{!--.*?--}}|{{.*?}}}?)', source, flags=re.DOTALL)
+    parts = re.split(r'({{!--.*?--}}|{%.*?%}|{{.*?}}}?)', source, flags=re.DOTALL)
     for part in parts:
         if not part:  # Skip empty strings from split
             continue
@@ -76,6 +76,15 @@ def tokenize(source):
                 snippet = _shorten_error_token(inner)
                 raise SyntaxError(f"mismatched {{{{ in token: {snippet!r}")
             nodes.append(('render_raw', inner.strip()))
+        elif part.startswith('{%') and part.endswith('%}'):
+            inner = part[2:-2]
+            inner = inner.strip()
+            first, rest = parsefirstword(inner)
+            if first == 'param' and rest:
+                pn, attrs = parsefirstword(rest)
+                pn = pn.replace('.', '__')
+                rest = pn if not attrs else f"{pn} {attrs}"
+            nodes.append((f"#{first}", rest))
         elif part.startswith('{{') and part.endswith('}}'):
             inner = part[2:-2]
             inner = inner.strip()
@@ -133,7 +142,7 @@ def _read_block(node_list, i, stop, partials, dialect, tests=None):
                 k, c = node_list[i]
                 if k == "#elif":
                     if ntype != "#if":
-                        raise SyntaxError("{{#elif}} must be used with {{#if}}")
+                        raise SyntaxError("{%elif%} must be used with {%if%}")
                     i += 1
                     elif_body, i = _read_block(node_list, i, if_terms, partials, dialect, tests)
                     try:
@@ -153,7 +162,7 @@ def _read_block(node_list, i, stop, partials, dialect, tests=None):
                 if k == "#endif":
                     break
             if node_list[i][0] != "#endif":
-                raise SyntaxError("missing {{#endif}}")
+                raise SyntaxError("missing {%endif%}")
             i += 1
             body.append(r)
             continue
@@ -177,7 +186,7 @@ def _read_block(node_list, i, stop, partials, dialect, tests=None):
             i += 1
             loop_body, i = _read_block(node_list, i, from_terms, partials, dialect, tests)
             if node_list[i][0] != "#endfrom":
-                raise SyntaxError("missing {{#endfrom}}")
+                raise SyntaxError("missing {%endfrom%}")
             i += 1
             deps = ast_param_dependencies(loop_body)
             deps.discard("__first_row")
@@ -190,7 +199,7 @@ def _read_block(node_list, i, stop, partials, dialect, tests=None):
             i += 1
             loop_body, i = _read_block(node_list, i, each_terms, partials, dialect, tests)
             if node_list[i][0] != "#endeach":
-                raise SyntaxError("missing {{#endeach}}")
+                raise SyntaxError("missing {%endeach%}")
             i += 1
             body.append(["#each", param_name, loop_body])
             continue
@@ -296,7 +305,7 @@ def _read_block(node_list, i, stop, partials, dialect, tests=None):
             partial_partials = {}
             part_body, i = _read_block(node_list, i, part_terms, partial_partials, dialect, tests)
             if node_list[i][0] != "#endpartial":
-                raise SyntaxError("missing {{#endpartial}}")
+                raise SyntaxError("missing {%endpartial%}")
             i += 1
             split_name = name.split('/')
             dest_partials = partials
@@ -332,7 +341,7 @@ def _read_block(node_list, i, stop, partials, dialect, tests=None):
             dummy_partials = {}
             test_body, i = _read_block(node_list, i, test_terms, dummy_partials, dialect, tests)
             if node_list[i][0] != "#endtest":
-                raise SyntaxError("missing {{#endtest}}")
+                raise SyntaxError("missing {%endtest%}")
             i += 1
             if tests is not None:
                 tests[test_name] = test_body

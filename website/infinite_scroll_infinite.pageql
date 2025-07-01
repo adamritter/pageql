@@ -1,12 +1,12 @@
-{{#showsource}}
+{%showsource%}
 
 <div id="list">
-{{#from (
+{%from (
   WITH RECURSIVE numbers AS (
     Select 1 as n
     UNION ALL SELECT n+1 FROM numbers WHERE n < 1000
   ) SELECT n FROM numbers
-) infinite}}
+) infinite%}
   {{n}}<br>
-{{#endfrom}}
+{%endfrom%}
 </div>

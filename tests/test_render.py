@@ -41,7 +41,7 @@ def test_append_script_send_script():
 
 def test_reactive_toggle():
     r = PageQL(":memory:")
-    r.load_module("reactive", "{{reactive}} {{#reactive on}}{{reactive}} {{#reactive off}}{{reactive}}")
+    r.load_module("reactive", "{{reactive}} {%reactive on%}{{reactive}} {%reactive off%}{{reactive}}")
     result = r.render("/reactive")
     expected = (
         "<script>pstart(0)</script>True"
@@ -55,18 +55,18 @@ def test_reactive_toggle():
 def test_reactive_count_with_param_dependency():
     r = PageQL(":memory:")
     snippet = (
-        "{{#create table nums(value INTEGER)}}"
-        "{{#insert into nums(value) values (1)}}"
-        "{{#insert into nums(value) values (2)}}"
-        "{{#insert into nums(value) values (3)}}"
-        "{{#create table vars(val INTEGER)}}"
-        "{{#insert into vars(val) values (1)}}"
-        "{{#reactive on}}"
-        "{{#let a = (select val from vars)}}"
-        "{{#let cnt = count(*) from nums where value > :a}}"
+        "{%create table nums(value INTEGER)%}"
+        "{%insert into nums(value) values (1)%}"
+        "{%insert into nums(value) values (2)%}"
+        "{%insert into nums(value) values (3)%}"
+        "{%create table vars(val INTEGER)%}"
+        "{%insert into vars(val) values (1)%}"
+        "{%reactive on%}"
+        "{%let a = (select val from vars)%}"
+        "{%let cnt = count(*) from nums where value > :a%}"
         "{{cnt}}"
-        "{{#update vars set val = 2}}"
-        "{{#delete from nums where value = 3}}"
+        "{%update vars set val = 2%}"
+        "{%delete from nums where value = 3%}"
     )
     r.load_module("m", snippet)
     result = r.render("/m", reactive=False)
@@ -106,7 +106,7 @@ def test_from_reactive_uses_parse(monkeypatch):
     r = PageQL(":memory:")
     r.db.execute("CREATE TABLE items(id INTEGER PRIMARY KEY, name TEXT)")
     r.db.executemany("INSERT INTO items(name) VALUES (?)", [("a",), ("b",)])
-    r.load_module("m", "{{#reactive on}}{{#from items}}[{{id}}]{{#endfrom}}")
+    r.load_module("m", "{%reactive on%}{%from items%}[{{id}}]{%endfrom%}")
     result = r.render("/m", reactive=False)
     assert seen == ["SELECT * FROM items"]
     h1 = _row_hash((1, "a"))
@@ -141,10 +141,10 @@ def test_from_reactive_caches_queries(monkeypatch):
     r.db.execute("CREATE TABLE items(id INTEGER PRIMARY KEY, name TEXT)")
     r.db.executemany("INSERT INTO items(name) VALUES (?)", [("a",), ("b",)])
     snippet = (
-        "{{#reactive on}}"
-        "{{#let v = 1}}"
-        "{{#from items where id=:v}}[{{id}}]{{#endfrom}}"
-        "{{#from items where id=:v}}[{{id}}]{{#endfrom}}"
+        "{%reactive on%}"
+        "{%let v = 1%}"
+        "{%from items where id=:v%}[{{id}}]{%endfrom%}"
+        "{%from items where id=:v%}[{{id}}]{%endfrom%}"
     )
     r.load_module("m", snippet)
     r.render("/m")
@@ -169,9 +169,9 @@ def test_randomblob_expression_not_cached(monkeypatch):
 
     r = PageQL(":memory:")
     snippet = (
-        "{{#reactive on}}"
-        "{{#let t1 = lower(hex(randomblob(4)))}}"
-        "{{#let t2 = lower(hex(randomblob(4)))}}"
+        "{%reactive on%}"
+        "{%let t1 = lower(hex(randomblob(4)))%}"
+        "{%let t2 = lower(hex(randomblob(4)))%}"
     )
     r.load_module("m", snippet)
     r.render("/m")
@@ -198,9 +198,9 @@ def test_from_reactive_reparses_after_cleanup(monkeypatch):
     r.db.execute("CREATE TABLE items(id INTEGER PRIMARY KEY, name TEXT)")
     r.db.executemany("INSERT INTO items(name) VALUES (?)", [("a",), ("b",)])
     snippet = (
-        "{{#reactive on}}"
-        "{{#from items}}[{{id}}]{{#endfrom}}"
-        "{{#reactive off}}"
+        "{%reactive on%}"
+        "{%from items%}[{{id}}]{%endfrom%}"
+        "{%reactive off%}"
     )
     r.load_module("m", snippet)
 
@@ -213,21 +213,21 @@ def test_from_reactive_reparses_after_cleanup(monkeypatch):
 
 
 def test_reactive_set_comments():
-    snippet = """{{#reactive on}}
-{{#create table vals(name TEXT, value INTEGER)}}
-{{#insert into vals(name, value) values ('a', 1)}}
-{{#insert into vals(name, value) values ('b', 3)}}
-{{#let a = (select value from vals where name = 'a')}}
+    snippet = """{%reactive on%}
+{%create table vals(name TEXT, value INTEGER)%}
+{%insert into vals(name, value) values ('a', 1)%}
+{%insert into vals(name, value) values ('b', 3)%}
+{%let a = (select value from vals where name = 'a')%}
 {{a}}
 {{:a + :a}}
-{{#let b = (select value from vals where name = 'b')}}
+{%let b = (select value from vals where name = 'b')%}
 <p>{{:a + :b}} = 4</p>
-{{#let c = :a+:b}}
+{%let c = :a+:b%}
 <p>{{:c}} = c = 4</p>
-{{#update vals set value = 2 where name = 'a'}}
+{%update vals set value = 2 where name = 'a'%}
 <p>{{:a + :b}} = 5</p>
 <p>{{:c}} = c = 5</p>
-{{#reactive off}}"""
+{%reactive off%}"""
 
     r = PageQL(":memory:")
     r.load_module("m", snippet)
@@ -249,7 +249,7 @@ def test_from_reactive_delete_event():
     r = PageQL(":memory:")
     r.db.execute("CREATE TABLE items(id INTEGER PRIMARY KEY, name TEXT)")
     r.db.executemany("INSERT INTO items(name) VALUES (?)", [("a",), ("b",)])
-    r.load_module("m", "{{#reactive on}}{{#from items}}[{{id}}]{{#endfrom}}{{#delete from items where id=1}}")
+    r.load_module("m", "{%reactive on%}{%from items%}[{{id}}]{%endfrom%}{%delete from items where id=1%}")
     result = r.render("/m", reactive=False)
     h1 = _row_hash((1, "a"))
     h2 = _row_hash((2, "b"))
@@ -270,7 +270,7 @@ def test_from_reactive_update_event():
     r.db.executemany("INSERT INTO items(name) VALUES (?)", [("a",), ("b",)])
     r.load_module(
         "m",
-        "{{#reactive on}}{{#from items}}[{{name}}]{{#endfrom}}{{#update items set name='c' where id=1}}",
+        "{%reactive on%}{%from items%}[{{name}}]{%endfrom%}{%update items set name='c' where id=1%}",
     )
     result = r.render("/m", reactive=False)
 
@@ -292,7 +292,7 @@ def test_from_reactive_insert_event():
     r.db.executemany("INSERT INTO items(name) VALUES (?)", [("a",), ("b",)])
     r.load_module(
         "m",
-        "{{#reactive on}}{{#from items}}[{{name}}]{{#endfrom}}{{#insert into items(name) values ('c')}}",
+        "{%reactive on%}{%from items%}[{{name}}]{%endfrom%}{%insert into items(name) values ('c')%}",
     )
     result = r.render("/m", reactive=False)
 
@@ -315,7 +315,7 @@ def test_from_nonreactive_delete_event():
     r.db.executemany("INSERT INTO items(name) VALUES (?)", [("a",), ("b",)])
     r.load_module(
         "m",
-        "{{#reactive on}}{{#from items}}[{{id}}]{{#endfrom}}{{#reactive off}}{{#delete from items where id=1}}",
+        "{%reactive on%}{%from items%}[{{id}}]{%endfrom%}{%reactive off%}{%delete from items where id=1%}",
     )
     result = r.render("/m")
 
@@ -338,7 +338,7 @@ def test_from_nonreactive_update_event():
     r.db.executemany("INSERT INTO items(name) VALUES (?)", [("a",), ("b",)])
     r.load_module(
         "m",
-        "{{#reactive on}}{{#from items}}[{{name}}]{{#endfrom}}{{#reactive off}}{{#update items set name='c' where id=1}}",
+        "{%reactive on%}{%from items%}[{{name}}]{%endfrom%}{%reactive off%}{%update items set name='c' where id=1%}",
     )
     result = r.render("/m")
 
@@ -361,7 +361,7 @@ def test_from_nonreactive_insert_event():
     r.db.executemany("INSERT INTO items(name) VALUES (?)", [("a",), ("b",)])
     r.load_module(
         "m",
-        "{{#reactive on}}{{#from items}}[{{name}}]{{#endfrom}}{{#reactive off}}{{#insert into items(name) values ('c')}}",
+        "{%reactive on%}{%from items%}[{{name}}]{%endfrom%}{%reactive off%}{%insert into items(name) values ('c')%}",
     )
     result = r.render("/m")
 
@@ -382,8 +382,8 @@ def test_if_inside_from():
     r.db.execute("CREATE TABLE todos(id INTEGER PRIMARY KEY, text TEXT)")
     r.db.executemany("INSERT INTO todos(id, text) VALUES (?, ?)", [(1, "a"), (2, "b")])
     snippet = (
-        "{{#from todos ORDER BY id}}"
-        "\n      <li>\n          <input class=\"toggle\" type=\"checkbox\" {{#if 1}}checked{{#endif}}>\n      text\n      </li>\n    {{#endfrom}}"
+        "{%from todos ORDER BY id%}"
+        "\n      <li>\n          <input class=\"toggle\" type=\"checkbox\" {%if 1%}checked{%endif%}>\n      text\n      </li>\n    {%endfrom%}"
     )
     r.load_module("m", snippet)
     result = r.render("/m", reactive=False)
@@ -397,9 +397,9 @@ def test_if_inside_from():
 def test_reactive_if_update():
     r = PageQL(":memory:")
     snippet = (
-        "{{#create table vals(name TEXT, value INTEGER)}}"
-        "{{#insert into vals(name, value) values ('a', 1)}}"
-        "{{#reactive on}}{{#let a = value from vals where name = 'a'}}{{#if :a}}T{{#else}}F{{#endif}}{{#update vals set value = 0 where name = 'a'}}{{#update vals set value = 1 where name = 'a'}}"
+        "{%create table vals(name TEXT, value INTEGER)%}"
+        "{%insert into vals(name, value) values ('a', 1)%}"
+        "{%reactive on%}{%let a = value from vals where name = 'a'%}{%if :a%}T{%else%}F{%endif%}{%update vals set value = 0 where name = 'a'%}{%update vals set value = 1 where name = 'a'%}"
     )
     r.load_module("m", snippet)
     result = r.render("/m")
@@ -416,12 +416,12 @@ def test_reactive_if_elif_chain():
     r.db.execute("CREATE TABLE vals(name TEXT, value INTEGER)")
     r.db.executemany("INSERT INTO vals(name, value) VALUES (?, ?)", [("a", 1)])
     snippet = (
-        "{{#reactive on}}"
-        "{{#let a = value from vals where name = 'a'}}"
-        "{{#if :a == 1}}A{{#elif :a == 2}}B{{#else}}C{{#endif}}"
-        "{{#update vals set value = 2 where name = 'a'}}"
-        "{{#update vals set value = 3 where name = 'a'}}"
-        "{{#update vals set value = 1 where name = 'a'}}"
+        "{%reactive on%}"
+        "{%let a = value from vals where name = 'a'%}"
+        "{%if :a == 1%}A{%elif :a == 2%}B{%else%}C{%endif%}"
+        "{%update vals set value = 2 where name = 'a'%}"
+        "{%update vals set value = 3 where name = 'a'%}"
+        "{%update vals set value = 1 where name = 'a'%}"
     )
     r.load_module("m", snippet)
     result = r.render("/m")
@@ -438,13 +438,13 @@ def test_reactive_if_elif_chain():
 def test_reactive_if_table_dependency():
     r = PageQL(":memory:")
     snippet = (
-        "{{#create table items(value INTEGER)}}"
-        "{{#insert into items(value) values (1)}}"
-        "{{#reactive on}}"
-        "{{#if count(*) from items}}Y{{#else}}N{{#endif}}"
-        "{{#delete from items}}"
-        "{{#insert into items(value) values (2)}}"
-        "{{#delete from items}}"
+        "{%create table items(value INTEGER)%}"
+        "{%insert into items(value) values (1)%}"
+        "{%reactive on%}"
+        "{%if count(*) from items%}Y{%else%}N{%endif%}"
+        "{%delete from items%}"
+        "{%insert into items(value) values (2)%}"
+        "{%delete from items%}"
     )
     r.load_module("m", snippet)
     result = r.render("/m")
@@ -460,16 +460,16 @@ def test_reactive_if_table_dependency():
 def test_reactive_if_variable_and_table_dependency():
     r = PageQL(":memory:")
     snippet = (
-        "{{#create table items(value INTEGER)}}"
-        "{{#create table vals(name TEXT, value INTEGER)}}"
-        "{{#insert into vals(name, value) values ('threshold', 1)}}"
-        "{{#reactive on}}"
-        "{{#let threshold = value from vals where name = 'threshold'}}"
-        "{{#insert into items(value) values (1)}}"
-        "{{#if (select count(*) from items) > :threshold}}MORE{{#else}}LESS{{#endif}}"
-        "{{#update vals set value = 0 where name = 'threshold'}}"
-        "{{#insert into items(value) values (2)}}"
-        "{{#delete from items}}"
+        "{%create table items(value INTEGER)%}"
+        "{%create table vals(name TEXT, value INTEGER)%}"
+        "{%insert into vals(name, value) values ('threshold', 1)%}"
+        "{%reactive on%}"
+        "{%let threshold = value from vals where name = 'threshold'%}"
+        "{%insert into items(value) values (1)%}"
+        "{%if (select count(*) from items) > :threshold%}MORE{%else%}LESS{%endif%}"
+        "{%update vals set value = 0 where name = 'threshold'%}"
+        "{%insert into items(value) values (2)%}"
+        "{%delete from items%}"
     )
     r.load_module("m", snippet)
     result = r.render("/m")
@@ -487,9 +487,9 @@ def test_reactiveelement_adds_pprevioustag_script():
     r.db.execute("CREATE TABLE vals(name TEXT, value INTEGER)")
     r.db.executemany("INSERT INTO vals(name, value) VALUES (?, ?)", [("c", 1)])
     snippet = (
-        "{{#reactive on}}"
-        "{{#let c = value from vals where name = 'c'}}"
-        "<div {{#if :c}}class='x'{{#endif}}></div>"
+        "{%reactive on%}"
+        "{%let c = value from vals where name = 'c'%}"
+        "<div {%if :c%}class='x'{%endif%}></div>"
     )
     r.load_module("m", snippet)
     result = r.render("/m")
@@ -498,14 +498,14 @@ def test_reactiveelement_adds_pprevioustag_script():
 
 def test_reactiveelement_constant_no_script():
     r = PageQL(":memory:")
-    r.load_module("m", "{{#reactive on}}<div {{#if 1}}class='x'{{#endif}}></div>")
+    r.load_module("m", "{%reactive on%}<div {%if 1%}class='x'{%endif%}></div>")
     result = r.render("/m")
     assert result.body == "<div class='x'></div>"
 
 
 def test_reactiveelement_nonreactive_no_script():
     r = PageQL(":memory:")
-    r.load_module("m", "<div {{#if 1}}class='x'{{#endif}}></div>")
+    r.load_module("m", "<div {%if 1%}class='x'{%endif%}></div>")
     result = r.render("/m", reactive=False)
     assert result.body == "<div class='x'></div>"
 
@@ -514,11 +514,11 @@ def test_reactiveelement_updates_node():
     r.db.execute("CREATE TABLE vals(name TEXT, value INTEGER)")
     r.db.executemany("INSERT INTO vals(name, value) VALUES (?, ?)", [("c", 1)])
     snippet = (
-        "{{#reactive on}}"
-        "{{#let c = value from vals where name = 'c'}}"
-        "<div {{#if :c}}class='x'{{#else}}class='y'{{#endif}}></div>"
-        "{{#update vals set value = 0 where name = 'c'}}"
-        "{{#update vals set value = 1 where name = 'c'}}"
+        "{%reactive on%}"
+        "{%let c = value from vals where name = 'c'%}"
+        "<div {%if :c%}class='x'{%else%}class='y'{%endif%}></div>"
+        "{%update vals set value = 0 where name = 'c'%}"
+        "{%update vals set value = 1 where name = 'c'%}"
     )
     r.load_module("m", snippet)
     result = r.render("/m")
@@ -534,10 +534,10 @@ def test_reactiveelement_input_value():
     r.db.execute("CREATE TABLE vals(name TEXT, value INTEGER)")
     r.db.executemany("INSERT INTO vals(name, value) VALUES (?, ?)", [("c", 1)])
     snippet = (
-        "{{#reactive on}}"
-        "{{#let c = value from vals where name = 'c'}}"
+        "{%reactive on%}"
+        "{%let c = value from vals where name = 'c'%}"
         "<input type='text' value='{{c}}'>"
-        "{{#update vals set value = 2 where name = 'c'}}"
+        "{%update vals set value = 2 where name = 'c'%}"
     )
     r.load_module("m", snippet)
     result = r.render("/m")
@@ -551,12 +551,12 @@ def test_reactiveelement_input_value():
 def test_reactiveelement_self_closing_input():
     r = PageQL(":memory:")
     snippet = (
-        "{{#create table vals(name TEXT, value INTEGER)}}"
-        "{{#insert into vals(name, value) values ('c', 1)}}"
-        "{{#reactive on}}"
-        "{{#let c = value from vals where name = 'c'}}"
+        "{%create table vals(name TEXT, value INTEGER)%}"
+        "{%insert into vals(name, value) values ('c', 1)%}"
+        "{%reactive on%}"
+        "{%let c = value from vals where name = 'c'%}"
         "<input type='text' value='{{c}}' />"
-        "{{#update vals set value = 2 where name = 'c'}}"
+        "{%update vals set value = 2 where name = 'c'%}"
     )
     r.load_module("m", snippet)
     result = r.render("/m")
@@ -572,10 +572,10 @@ def test_reactiveelement_if_with_table_insert_updates_input():
         "CREATE TABLE todos(id INTEGER PRIMARY KEY, text TEXT, completed INTEGER)"
     )
     snippet = (
-        "{{#reactive on}}"
-        "{{#let active_count = count(*) from todos}}"
-        "<p>Active count is 1: <input type='checkbox' {{#if :active_count == 1}}checked{{#endif}}></p>"
-        "{{#insert into todos(text, completed) values ('test', 0)}}"
+        "{%reactive on%}"
+        "{%let active_count = count(*) from todos%}"
+        "<p>Active count is 1: <input type='checkbox' {%if :active_count == 1%}checked{%endif%}></p>"
+        "{%insert into todos(text, completed) values ('test', 0)%}"
     )
     r.load_module("m", snippet)
     result = r.render("/m")
@@ -589,13 +589,13 @@ def test_reactiveelement_if_with_table_insert_updates_input():
 def test_reactiveelement_if_variable_updates_checked():
     r = PageQL(":memory:")
     snippet = (
-        "{{#create table vals(name TEXT, value INTEGER)}}"
-        "{{#insert into vals(name, value) values ('flag', 1)}}"
-        "{{#reactive on}}"
-        "{{#let flag = value from vals where name = 'flag'}}"
-        "<input type='checkbox' {{#if :flag}}checked{{#endif}}>"
-        "{{#update vals set value = 0 where name = 'flag'}}"
-        "{{#update vals set value = 1 where name = 'flag'}}"
+        "{%create table vals(name TEXT, value INTEGER)%}"
+        "{%insert into vals(name, value) values ('flag', 1)%}"
+        "{%reactive on%}"
+        "{%let flag = value from vals where name = 'flag'%}"
+        "<input type='checkbox' {%if :flag%}checked{%endif%}>"
+        "{%update vals set value = 0 where name = 'flag'%}"
+        "{%update vals set value = 1 where name = 'flag'%}"
     )
     r.load_module("m", snippet)
     result = r.render("/m")
@@ -613,11 +613,11 @@ def test_reactiveelement_delete_and_insert_updates_input_and_text():
         "CREATE TABLE todos(id INTEGER PRIMARY KEY, text TEXT, completed INTEGER)"
     )
     snippet = (
-        "{{#reactive on}}"
-        "{{#delete from todos where completed = 0}}"
-        "{{#let active_count = COUNT(*) from todos WHERE completed = 0}}"
-        '<p><input class="toggle{{3}}" type="checkbox" {{#if 1}}checked{{#endif}}><input type="text" value="{{active_count}}"></p>'
-        "{{#insert into todos(text, completed) values ('test', 0)}}"
+        "{%reactive on%}"
+        "{%delete from todos where completed = 0%}"
+        "{%let active_count = COUNT(*) from todos WHERE completed = 0%}"
+        '<p><input class="toggle{{3}}" type="checkbox" {%if 1%}checked{%endif%}><input type="text" value="{{active_count}}"></p>'
+        "{%insert into todos(text, completed) values ('test', 0)%}"
     )
     r.load_module("m", snippet)
     result = r.render("/m")
@@ -631,11 +631,11 @@ def test_reactiveelement_delete_and_insert_updates_input_and_text():
 def test_reactive_text_updates_with_table_count():
     r = PageQL(":memory:")
     snippet = (
-        "{{#create table items(value INTEGER)}}"
-        "{{#reactive on}}"
+        "{%create table items(value INTEGER)%}"
+        "{%reactive on%}"
         "<p>Count: {{count(*) from items}}</p>"
-        "{{#insert into items(value) values (1)}}"
-        "{{#delete from items}}"
+        "{%insert into items(value) values (1)%}"
+        "{%delete from items%}"
     )
     r.load_module("m", snippet)
     result = r.render("/m")
@@ -698,9 +698,9 @@ def test_pinsert_escapes_script_tag():
     r.db.execute("CREATE TABLE todos(id INTEGER PRIMARY KEY, completed INTEGER)")
     r.db.executemany("INSERT INTO todos(completed) VALUES (?)", [(0,), (1,)])
     snippet = (
-        "{{#reactive on}}"
-        "{{#from todos}}<li><input type='checkbox' {{#if completed}}checked{{#endif}}><script>hi()</script></li>{{#endfrom}}"
-        "{{#insert into todos(completed) values (0)}}"
+        "{%reactive on%}"
+        "{%from todos%}<li><input type='checkbox' {%if completed%}checked{%endif%}><script>hi()</script></li>{%endfrom%}"
+        "{%insert into todos(completed) values (0)%}"
     )
     r.load_module("m", snippet)
     result = r.render("/m")
@@ -712,8 +712,8 @@ def test_pinsert_does_not_send_marker_scripts():
     r = PageQL(":memory:")
     r.db.execute("CREATE TABLE items(id INTEGER PRIMARY KEY, value INTEGER)")
     snippet = (
-        "{{#reactive on}}"
-        "{{#from items}}<li>{{#let a = 1}}{{#if :a}}X{{#endif}}</li>{{#endfrom}}"
+        "{%reactive on%}"
+        "{%from items%}<li>{%let a = 1%}{%if :a%}X{%endif%}</li>{%endfrom%}"
     )
     r.load_module("m", snippet)
     result = r.render("/m")
@@ -731,8 +731,8 @@ def test_pinsert_does_not_send_marker_scripts():
 def test_let_null_literal():
     r = PageQL(":memory:")
     snippet = (
-        "{{#let v = NULL}}"
-        "{{#if :v IS NULL}}null{{#else}}not null{{#endif}}"
+        "{%let v = NULL%}"
+        "{%if :v IS NULL%}null{%else%}not null{%endif%}"
     )
     r.load_module("m", snippet)
     result = r.render("/m")
@@ -741,24 +741,24 @@ def test_let_null_literal():
 def test_nested_if_reactive_bug():
     r = PageQL(":memory:")
     snippet = (
-        "{{#create table if not exists todos (id integer primary key autoincrement, text text)}}\n"
-        "{{#delete from todos}}\n"
-        "{{#insert into todos (text) values ('Hello, world!')}}\n"
-        "{{#let todos_count = (select count(*) from todos)}}\n"
+        "{%create table if not exists todos (id integer primary key autoincrement, text text)%}\n"
+        "{%delete from todos%}\n"
+        "{%insert into todos (text) values ('Hello, world!')%}\n"
+        "{%let todos_count = (select count(*) from todos)%}\n"
         "{{todos_count}}\n"
-        "{{#if :todos_count > 1}}\n"
+        "{%if :todos_count > 1%}\n"
         "greater than 1\n"
-        "{{#if :todos_count > 2}}\n"
+        "{%if :todos_count > 2%}\n"
         "greater than 2\n"
-        "{{#else}}\n"
+        "{%else%}\n"
         "less or equal to 2\n"
-        "{{#endif}}\n"
-        "{{#else}}\n"
+        "{%endif%}\n"
+        "{%else%}\n"
         "less or equal to 1\n"
-        "{{#endif}}\n"
+        "{%endif%}\n"
         "\n"
-        "{{#insert into todos (text) values ('Hello, world!')}}\n"
-        "{{#insert into todos (text) values ('Hello, world!')}}"
+        "{%insert into todos (text) values ('Hello, world!')%}\n"
+        "{%insert into todos (text) values ('Hello, world!')%}"
     )
     r.load_module("m", snippet)
     result = r.render("/m")
@@ -779,7 +779,7 @@ def test_order_by_update_reorders_rows():
     r.db.executemany("INSERT INTO items(text) VALUES (?)", [("b",), ("a",)])
     r.load_module(
         "m",
-        "{{#reactive on}}{{#from items ORDER BY text}}[{{id}}:{{text}}]{{#endfrom}}{{#update items set text='c' where id=2}}",
+        "{%reactive on%}{%from items ORDER BY text%}[{{id}}:{{text}}]{%endfrom%}{%update items set text='c' where id=2%}",
     )
     result = r.render("/m", reactive=False)
 
@@ -799,7 +799,7 @@ def test_order_by_update_with_limit_reorders_rows():
     r.db.executemany("INSERT INTO items(val) VALUES (?)", [(1,), (2,), (3,)])
     r.load_module(
         "m",
-        "{{#reactive on}}{{#from items ORDER BY val LIMIT 2}}[{{id}}:{{val}}]{{#endfrom}}{{#update items set val=0 where id=3}}",
+        "{%reactive on%}{%from items ORDER BY val LIMIT 2%}[{{id}}:{{val}}]{%endfrom%}{%update items set val=0 where id=3%}",
     )
     result = r.render("/m", reactive=False)
 

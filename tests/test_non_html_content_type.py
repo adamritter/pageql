@@ -7,7 +7,7 @@ from pageql.pageqlapp import PageQLApp
 def test_non_html_content_type_omits_wrappers():
     async def run():
         with tempfile.TemporaryDirectory() as tmpdir:
-            Path(tmpdir, "data.pageql").write_text("{{#header Content-Type 'application/json'}}{\"foo\": 1}", encoding="utf-8")
+            Path(tmpdir, "data.pageql").write_text("{%header Content-Type 'application/json'%}{\"foo\": 1}", encoding="utf-8")
             app = PageQLApp(":memory:", tmpdir, create_db=True, should_reload=False)
             sent = []
 

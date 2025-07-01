@@ -265,7 +265,7 @@ def test_markdown_static_file_served(tmp_path):
     assert "<h1>Hello</h1>" in body
 
 def test_before_template_modifies_params(tmp_path):
-    (tmp_path / "_before.pageql").write_text("{{#header X-Test 'hi'}}")
+    (tmp_path / "_before.pageql").write_text("{%header X-Test 'hi'%}")
     (tmp_path / "hello.pageql").write_text("ok")
 
     async def run_test():
@@ -281,7 +281,7 @@ def test_before_template_modifies_params(tmp_path):
 
 
 def test_before_template_stops_render_on_error(tmp_path):
-    (tmp_path / "_before.pageql").write_text("{{#respond 401 body='no'}}")
+    (tmp_path / "_before.pageql").write_text("{%respond 401 body='no'%}")
     (tmp_path / "hello.pageql").write_text("ok")
 
     async def run_test():

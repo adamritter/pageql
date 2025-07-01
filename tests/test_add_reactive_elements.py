@@ -72,12 +72,12 @@ def test_input_if_inside_paragraph():
 
 def test_delete_insert_input_and_text():
     snippet = (
-        "{{#reactive on}}"
-        "{{#delete from todos where completed = 0}}"
-        "{{#let active_count = COUNT(*) from todos WHERE completed = 0}}"
-        '<p><input class="toggle{{3}}" type="checkbox" {{#if 1}}checked{{#endif}}>'
+        "{%reactive on%}"
+        "{%delete from todos where completed = 0%}"
+        "{%let active_count = COUNT(*) from todos WHERE completed = 0%}"
+        '<p><input class="toggle{{3}}" type="checkbox" {%if 1%}checked{%endif%}>'
         '<input type="text" value="{{active_count}}"></p>'
-        "{{#insert into todos(text, completed) values ('test', 0)}}"
+        "{%insert into todos(text, completed) values ('test', 0)%}"
     )
     tokens = tokenize(snippet)
     body, _ = build_ast(tokens, dialect="sqlite")
@@ -117,7 +117,7 @@ def test_delete_insert_input_and_text():
 
 def test_wrap_inside_else_branch():
     snippet = (
-        "<div>{{#if 1}}<span>hi</span>{{#else}}<input value='{{x}}'>{{#endif}}</div>"
+        "<div>{%if 1%}<span>hi</span>{%else%}<input value='{{x}}'>{%endif%}</div>"
     )
     tokens = tokenize(snippet)
     body, _ = build_ast(tokens, dialect="sqlite")

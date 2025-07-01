@@ -5,8 +5,8 @@ from playwright_helpers import run_server_in_task
 
 
 def test_content_type_header_overrides(tmp_path):
-    (tmp_path / "_before.pageql").write_text("{{#header Content-Type 'text/html'}}")
-    (tmp_path / "data.pageql").write_text("{{#header Content-Type 'application/json'}}[1]")
+    (tmp_path / "_before.pageql").write_text("{%header Content-Type 'text/html'%}")
+    (tmp_path / "data.pageql").write_text("{%header Content-Type 'application/json'%}[1]")
 
     async def run_test():
         server, task, port = await run_server_in_task(str(tmp_path))

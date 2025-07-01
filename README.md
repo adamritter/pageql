@@ -129,7 +129,7 @@ reachable from outside the container.
     *   **Public Access:** Using `public` (or specifying `GET`) makes the partial reachable via an HTTP GET request at `/<filename>/<partial_name>` (where `<filename>` is the template file name without the `.pageql` extension). Other verbs restrict access to that specific HTTP method.
     *   **Base File Access:** Requests to the base URL path corresponding to the file (`/<filename>`) render the *top-level content* outside any named `#partial` block.
     *   **Parameters:** For all public/verb-specific accesses, URL query parameters are available via the standard parameter binding mechanism (e.g., `:param_name`).
-    *   **Example:** `{{#partial DELETE :id}}...{{#endpartial}}` can only be requested with an HTTP `DELETE` and must be rendered using `#render DELETE some_module/:id`.
+    *   **Example:** `{%partial DELETE :id%}...{%endpartial%}` can only be requested with an HTTP `DELETE` and must be rendered using `#render DELETE some_module/:id`.
 *   `#import <module> [as <alias>]`: Imports modules relative to the template root directory, optionally assigning an alias. Assumes `.pageql` extension (e.g., `#import "components/button"` loads `components/button.pageql`).
 
 **Variable Manipulation:**
@@ -147,12 +147,12 @@ reachable from outside the container.
 *   `#fetch async <var> from <url_expression> [header=<expr>] [method=<expr>] [body=<expr>]`: Fetches an external URL in the background while rendering. `<var>.status_code`, `<var>.body`, and `<var>.headers` start as `NULL` but automatically update when the request completes. `header=` may be used multiple times to supply request headers as mappings or strings. The `method` expression chooses the HTTP verb (default `GET`). The `body` expression sends a request payload encoded as bytes if provided. Relative URLs require a `base_url` to be specified.
 
     ```pageql
-    {{#fetch async horse from "https://t3.ftcdn.net/jpg/03/26/50/04/360_F_326500445_ZD1zFSz2cMT1qOOjDy7C5xCD4shawQfM.jpg"}}
-        {{#if :horse.status_code == 200 }}
+    {%fetch async horse from "https://t3.ftcdn.net/jpg/03/26/50/04/360_F_326500445_ZD1zFSz2cMT1qOOjDy7C5xCD4shawQfM.jpg"%}
+        {%if :horse.status_code == 200 %}
         <img src="data:image/jpeg;base64,{{base64_encode(:horse.body)}}" alt="Horse">
-        {{#else}}
+        {%else%}
           <p>Loading horse image...</p>
-        {{#endif}}
+        {%endif%}
     {{/fetch}}
     ```
 
@@ -266,54 +266,54 @@ The first and third forms are stripped from the rendered output. The HTML commen
 {{!-- ============================================= --}}
 
 {{!-- Add a new Todo --}}
-{{#partial POST add}}
-  {{#param text required minlength=0}}
-  {{#insert into todos (text, completed) values (:text, 0)}}
-  {{#redirect '/todos?filter=' || :filter}} {{!-- Redirect to base path --}}
-{{#endpartial}}
+{%partial POST add%}
+  {%param text required minlength=0%}
+  {%insert into todos (text, completed) values (:text, 0)%}
+  {%redirect '/todos?filter=' || :filter%} {{!-- Redirect to base path --}}
+{%endpartial%}
 
 {{!-- Delete a Todo --}}
-{{#partial POST delete}}
-  {{#param id required type=integer min=1}}
-  {{#delete from todos WHERE id = :id}}
-  {{#redirect '/todos?filter=' || :filter}} {{!-- Redirect to base path --}}
-{{#endpartial}}
+{%partial POST delete%}
+  {%param id required type=integer min=1%}
+  {%delete from todos WHERE id = :id%}
+  {%redirect '/todos?filter=' || :filter%} {{!-- Redirect to base path --}}
+{%endpartial%}
 
 {{!-- Toggle a single Todo's completion status --}}
-{{#partial POST toggle}}
-  {{#param id required type=integer min=1}}
-  {{#update todos set completed = 1 - completed WHERE id = :id}}
-  {{#redirect '/todos?filter=' || :filter}} {{!-- Redirect to base path --}}
-{{#endpartial}}
+{%partial POST toggle%}
+  {%param id required type=integer min=1%}
+  {%update todos set completed = 1 - completed WHERE id = :id%}
+  {%redirect '/todos?filter=' || :filter%} {{!-- Redirect to base path --}}
+{%endpartial%}
 
 {{!-- Save edited Todo text --}}
-{{#partial POST save}}
-  {{#param id required type=integer min=1}}
-  {{#param text required minlength=1}}
-  {{#param filter default='all'}} {{!-- Preserve filter for redirect --}}
-  {{#update todos set text = :text WHERE id = :id}}
-  {{#redirect '/todos?filter=' || :filter}} {{!-- Redirect to base path --}}
-{{#endpartial}}
+{%partial POST save%}
+  {%param id required type=integer min=1%}
+  {%param text required minlength=1%}
+  {%param filter default='all'%} {{!-- Preserve filter for redirect --}}
+  {%update todos set text = :text WHERE id = :id%}
+  {%redirect '/todos?filter=' || :filter%} {{!-- Redirect to base path --}}
+{%endpartial%}
 
 {{!-- Delete all completed Todos --}}
-{{#partial POST clear_completed}}
-  {{#param filter default='all'}} {{!-- Preserve filter for redirect --}}
-  {{#delete from todos WHERE completed = 1}}
-  {{#redirect '/todos?filter=' || :filter}} {{!-- Redirect to base path --}}
-{{#endpartial}}
+{%partial POST clear_completed%}
+  {%param filter default='all'%} {{!-- Preserve filter for redirect --}}
+  {%delete from todos WHERE completed = 1%}
+  {%redirect '/todos?filter=' || :filter%} {{!-- Redirect to base path --}}
+{%endpartial%}
 
 {{!-- Toggle all Todos' completion status --}}
-{{#partial POST toggle_all}}
-  {{#param filter default='all'}} {{!-- Preserve filter for redirect --}}
+{%partial POST toggle_all%}
+  {%param filter default='all'%} {{!-- Preserve filter for redirect --}}
   {{!-- Check if all are currently complete to decide toggle direction --}}
-  {{#let :active_count = COUNT(*) from todos WHERE completed = 0}}
-  {{#let :new_status = 1}} {{!-- Default to marking all complete --}}
-  {{#if :active_count == 0}} {{!-- If none active, mark all incomplete --}}
-    {{#let :new_status = 0}}
-  {{#endif}}
-  {{#update todos set completed = :new_status}}
-  {{#redirect '/todos?filter=' || :filter}} {{!-- Redirect to base path --}}
-{{#endpartial}}
+  {%let :active_count = COUNT(*) from todos WHERE completed = 0%}
+  {%let :new_status = 1%} {{!-- Default to marking all complete --}}
+  {%if :active_count == 0%} {{!-- If none active, mark all incomplete --}}
+    {%let :new_status = 0%}
+  {%endif%}
+  {%update todos set completed = :new_status%}
+  {%redirect '/todos?filter=' || :filter%} {{!-- Redirect to base path --}}
+{%endpartial%}
 
 
 {{!-- ============================================= --}}
@@ -321,23 +321,23 @@ The first and third forms are stripped from the rendered output. The HTML commen
 {{!-- ============================================= --}}
 
 {{!-- Ensure the 'todos' table exists before proceeding --}}
-{{#create table if not exists todos (
+{%create table if not exists todos (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     text TEXT NOT NULL,
     completed INTEGER DEFAULT 0 CHECK(completed IN (0, 1))
-)}}
+)%}
 
 
 {{!-- Default view (maps to /todos), displays the list and handles edit state --}}
-{{#param filter default='all' pattern="^(all|active|completed)$" optional}}
-{{#param edit_id type=integer optional}}
+{%param filter default='all' pattern="^(all|active|completed)$" optional%}
+{%param edit_id type=integer optional%}
 
 
 {{!-- Get counts for footer and toggle-all logic --}}
-{{#let active_count = COUNT(*) from todos WHERE completed = 0}}
-{{#let completed_count = COUNT(*) from todos WHERE completed = 1}}
-{{#let total_count  = COUNT(*) from todos}}
-{{#let all_complete = (:active_count == 0 AND :total_count > 0)}}
+{%let active_count = COUNT(*) from todos WHERE completed = 0%}
+{%let completed_count = COUNT(*) from todos WHERE completed = 1%}
+{%let total_count  = COUNT(*) from todos%}
+{%let all_complete = (:active_count == 0 AND :total_count > 0)%}
 
 <!doctype html>
 <html lang="en">
@@ -362,35 +362,35 @@ The first and third forms are stripped from the rendered output. The HTML commen
     </header>
 
     {{!-- This section should be hidden if there are no todos --}}
-    {{#if :total_count > 0}}
+    {%if :total_count > 0%}
     <section class="main">
         <form method="POST" action="/todos/toggle_all" id="toggle-all-form" style="display: block;">
             <input type="hidden" name="filter" value="{{filter}}">
-            <input id="toggle-all" class="toggle-all" type="checkbox" {{#if all_complete}}checked{{#endif}} onchange="document.getElementById('toggle-all-form').submit();">
+            <input id="toggle-all" class="toggle-all" type="checkbox" {%if all_complete%}checked{%endif%} onchange="document.getElementById('toggle-all-form').submit();">
             <label for="toggle-all">Mark all as complete</label>
         </form>
 
         <ul class="todo-list">
 
-        {{#from todos WHERE (:filter == 'all') OR (:filter == 'active' AND completed = 0) OR (:filter == 'completed' AND completed == 1) ORDER BY id}}
+        {%from todos WHERE (:filter == 'all') OR (:filter == 'active' AND completed = 0) OR (:filter == 'completed' AND completed == 1) ORDER BY id%}
             {{!-- TODO:  completed isn't part of the sql expression here. There shouldn't be difference between param and column I guess,
                  we need to shallow dup params for all rows for now. New rule: : is optional only for 1 word expressions, in that case sql eval is skipped, just direct --}}
-            <li {{#if completed}}class="completed"{{#endif}} {{#if :edit_id == :id}}class="editing"{{#endif}}>
+            <li {%if completed%}class="completed"{%endif%} {%if :edit_id == :id%}class="editing"{%endif%}>
 
-            {{#if :edit_id == :id}}
+            {%if :edit_id == :id%}
                 {{!-- Edit State --}}
                 <form method="POST" action="/todos/save" style="margin: 0; padding: 0; display: inline;">
                 <input type="hidden" name="id" value="{{id}}">
                 <input type="hidden" name="filter" value="{{filter}}">
                 <input class="edit" name="text" value="{{text}}" autofocus>
                 </form>
-            {{#else}}
+            {%else%}
                 {{!-- View State --}}
                 <div class="view">
                 <form method="POST" action="/todos/toggle" style="display: inline;">
                     <input type="hidden" name="id" value="{{id}}">
                     <input type="hidden" name="filter" value="{{filter}}">
-                    <input class="toggle" type="checkbox" {{#if completed}}checked{{#endif}} onchange="this.form.submit();">
+                    <input class="toggle" type="checkbox" {%if completed%}checked{%endif%} onchange="this.form.submit();">
                 </form>
                 {{!-- Edit link points to base path --}}
                 <label ondblclick="window.location.href='/todos?filter={{filter}}&edit_id={{id}}'">{{text}}</label>
@@ -400,33 +400,33 @@ The first and third forms are stripped from the rendered output. The HTML commen
                     <button class="destroy"></button>
                 </form>
                 </div>
-            {{#endif}}
+            {%endif%}
 
             </li>
-        {{#endfrom}}
+        {%endfrom%}
         </ul>
     </section>
 
     {{!-- This footer should be hidden if there are no todos --}}
     <footer class="footer">
-        <span class="todo-count"><strong>{{active_count}}</strong> item{{#if :active_count != 1}}s{{#endif}} left
-         {{#if :total_count > :active_count}}from {{ total_count}}{{#endif}}</span>
+        <span class="todo-count"><strong>{{active_count}}</strong> item{%if :active_count != 1%}s{%endif%} left
+         {%if :total_count > :active_count%}from {{ total_count}}{%endif%}</span>
        
         <ul class="filters">
             {{!-- Filter links point to base path --}}
-        <li><a {{#if :filter == 'all'}}class="selected"{{#endif}} href="/todos?filter=all">All</a></li>
-        <li><a {{#if :filter == 'active'}}class="selected"{{#endif}} href="/todos?filter=active">Active</a></li>
-        <li><a {{#if :filter == 'completed'}}class="selected"{{#endif}} href="/todos?filter=completed">Completed</a></li>
+        <li><a {%if :filter == 'all'%}class="selected"{%endif%} href="/todos?filter=all">All</a></li>
+        <li><a {%if :filter == 'active'%}class="selected"{%endif%} href="/todos?filter=active">Active</a></li>
+        <li><a {%if :filter == 'completed'%}class="selected"{%endif%} href="/todos?filter=completed">Completed</a></li>
         </ul>
         {{!-- This should be hidden if there are no completed todos --}}
-        {{#if :completed_count > 0}}
+        {%if :completed_count > 0%}
         <form method="POST" action="/todos/clear_completed" style="display: inline;">
             <input type="hidden" name="filter" value="{{filter}}">
             <button class="clear-completed">Clear completed</button>
         </form>
-        {{#endif}}
+        {%endif%}
     </footer>
-    {{#endif}} {{!-- End total_count > 0 --}}
+    {%endif%} {{!-- End total_count > 0 --}}
 
 </section>
 <footer class="info">

@@ -125,3 +125,25 @@ def test_cli_static_html(monkeypatch, tmp_path):
     assert created["static_html"] is True
 
 
+def test_cli_parse_command(monkeypatch, tmp_path):
+    (tmp_path / "a.pageql").write_text("hello")
+    argv = ["pageql", str(tmp_path), "db", "--parse"]
+    monkeypatch.setattr(sys, "argv", argv)
+    monkeypatch.setattr(cli.uvicorn, "run", lambda *a, **kw: (_ for _ in ()).throw(AssertionError("server started")))
+    with pytest.raises(SystemExit) as exc:
+        cli.main()
+    assert exc.value.code == 0
+
+
+def test_cli_parse_command_error(monkeypatch, tmp_path, capsys):
+    (tmp_path / "bad.pageql").write_text("{{")
+    argv = ["pageql", str(tmp_path), "db", "--parse"]
+    monkeypatch.setattr(sys, "argv", argv)
+    monkeypatch.setattr(cli.uvicorn, "run", lambda *a, **kw: (_ for _ in ()).throw(AssertionError("server started")))
+    with pytest.raises(SystemExit) as exc:
+        cli.main()
+    assert exc.value.code == 1
+    out = capsys.readouterr().out
+    assert "Error parsing module bad" in out
+
+

@@ -46,7 +46,7 @@ _HTML_ATTR = "#92c5f8;"
 _HTML_TAG = "#569cd6; font-weight: bold;"
 
 _TOKEN_SPLIT_RE = re.compile(
-    r"({{!--.*?--}}|{{{.*?}}}|{{.*?}}|<[^>\"']*(?:\"[^\"]*\"|'[^']*'|[^>\"']*)*>)",
+    r"({{!--.*?--}}|{{{.*?}}}|{{.*?}}|{%.*?%}|<[^>\"']*(?:\"[^\"]*\"|'[^']*'|[^>\"']*)*>)",
     re.DOTALL,
 )
 
@@ -141,6 +141,9 @@ def _highlight_pageql(token: str) -> str:
     if token.startswith('{{{'):
         inner = token[3:-3]
         return f"&#123;&#123;&#123;{_highlight_pageql_expr(inner)}&#125;&#125;&#125;"
+    if token.startswith('{%'):
+        inner = token[2:-2]
+        return f"&#123;%{_highlight_pageql_expr(inner)}%&#125;"
     inner = token[2:-2]
     return f"&#123;&#123;{_highlight_pageql_expr(inner)}&#125;&#125;"
 
@@ -214,7 +217,7 @@ def highlight(source: str) -> str:
         if m.start() > pos:
             result.append(_highlight_text(source[pos:m.start()]))
         token = m.group(0)
-        if token.startswith('{{'):
+        if token.startswith('{{') or token.startswith('{%'):
             result.append(_highlight_pageql(token))
         elif token.startswith('<'):
             result.append(_highlight_html_tag(token))

@@ -11,11 +11,12 @@ from pageql.parser import tokenize
 
 
 def test_unmatched_braces():
-    with pytest.raises(SyntaxError) as exc:
-        tokenize(
-            "something like {%a\n{%let active_count =    COUNT(*) from todos WHERE completed = 0%}"
-        )
-    assert "mismatched {{ in token" in str(exc.value)
+    assert tokenize(
+        "something like {%a\n{%let active_count =    COUNT(*) from todos WHERE completed = 0%}"
+    ) == [
+        ("text", "something like "),
+        ("#a", "{%let active_count =    COUNT(*) from todos WHERE completed = 0"),
+    ]
 
 
 def test_tokenize_skip_comments():

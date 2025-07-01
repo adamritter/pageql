@@ -8,7 +8,7 @@ from pageql.pageql import PageQL
 
 
 def test_build_ast_collects_tests():
-    tokens = tokenize("{{#test t1}}hi {{#render x}}{{/test}}")
+    tokens = tokenize("{{#test t1}}hi {{#render x}}{{#endtest}}")
     tests = {}
     body, partials = build_ast(tokens, dialect="sqlite", tests=tests)
     assert body == []
@@ -18,7 +18,7 @@ def test_build_ast_collects_tests():
 
 def test_load_module_stores_tests():
     r = PageQL(":memory:")
-    src = "{{#test t2}}ok{{/test}}"
+    src = "{{#test t2}}ok{{#endtest}}"
     r.load_module("m", src)
     assert "m" in r.tests
     assert r.tests["m"] == {"t2": [("text", "ok")]}

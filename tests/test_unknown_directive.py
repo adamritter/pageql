@@ -20,7 +20,7 @@ def test_unknown_directive_raises():
 
 def test_from_directive_with_zero_width_space():
     r = PageQL(":memory:")
-    bad = "{{#from\u200b todos}}{{/from}}"
+    bad = "{{#from\u200b todos}}{{#endfrom}}"
     r.load_module("bad_space", bad)
     with pytest.raises(ValueError) as exc:
         r.render("/bad_space")

@@ -208,7 +208,7 @@ async def test_insert_via_execute_after_click(setup):
         Path(tmpdir, "msgs.pageql").write_text(
             "{{#create table if not exists msgs(text TEXT)}}"
             "{{#reactive on}}"
-            "{{#from msgs}}{{text}}{{/from}}",
+            "{{#from msgs}}{{text}}{{#endfrom}}",
             encoding="utf-8",
         )
 
@@ -312,7 +312,7 @@ async def test_fetch_async_healthz_in_browser(setup):
             "{{#fetch async d2 from '/healthz'}}"
             "{{d2__body}}"
             "{{/fetch}}"
-            "{{#else}}Loading...{{/if}}"
+            "{{#else}}Loading...{{#endif}}"
             "{{/fetch}}",
             encoding="utf-8",
         )
@@ -371,7 +371,7 @@ async def test_pset_with_script_tags(setup):
                 "{{#let todos_count = (select count(*) from todos)}}"
                 "{{#if :todos_count > 0}}"
                 "{{todos_count}}"
-                "{{/if}}"
+                "{{#endif}}"
                 "{{#insert into todos (text) values ('Hello, world!')}}"
             ),
             encoding="utf-8",

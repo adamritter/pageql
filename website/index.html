@@ -392,8 +392,8 @@ pageql data.db templates --create</code></pre>
         OR (:filter == 'active'    AND completed = 0)
         OR (:filter == 'completed' AND completed = 1)
   ORDER BY id}}
-    &lt;li {{#if completed}}class="completed"{{/if}}&gt;
-        &lt;input hx-post="/todos/{{id}}/toggle" class="toggle" type="checkbox" {{#if completed}}checked{{/if}}&gt;
+    &lt;li {{#if completed}}class="completed"{{#endif}}&gt;
+        &lt;input hx-post="/todos/{{id}}/toggle" class="toggle" type="checkbox" {{#if completed}}checked{{#endif}}&gt;
         &lt;label
           contenteditable="false"
           onclick="this.contentEditable=true;this.focus();"
@@ -406,53 +406,53 @@ pageql data.db templates --create</code></pre>
         &gt;{{text}}&lt;/label&gt;
         &lt;button hx-delete="/todos/{{id}}" class="destroy" style="cursor:pointer; background:none; border:none; color:#ac4a1a;"&gt;✕&lt;/button&gt;
     &lt;/li&gt;
-{{/from}}
+{{#endfrom}}
   &lt;/ul&gt;
 
-  &lt;input id="toggle-all" class="toggle-all" type="checkbox" {{#if all_complete}}checked{{/if}} hx-post="/todos/toggle_all"&gt;
+  &lt;input id="toggle-all" class="toggle-all" type="checkbox" {{#if all_complete}}checked{{#endif}} hx-post="/todos/toggle_all"&gt;
   &lt;label for="toggle-all"&gt;Mark all as complete&lt;/label&gt;
 
 &lt;span class="todo-count"&gt;
   &lt;strong&gt;{{active_count}}&lt;/strong&gt;
-  item{{#if :active_count != 1}}s{{/if}} left
+  item{{#if :active_count != 1}}s{{#endif}} left
 &lt;/span&gt;
 
 
 {{#if :completed_count &gt; 0}}
   &lt;button class="clear-completed" hx-post="/todos/clear_completed"&gt;Clear completed&lt;/button&gt;
-{{/if}}
+{{#endif}}
 &lt;div class="filters"&gt;
-  &lt;a {{#if :filter == 'all'}}class="selected"{{/if}} href="/todos?filter=all"&gt;All&lt;/a&gt; |
-  &lt;a {{#if :filter == 'active'}}class="selected"{{/if}} href="/todos?filter=active"&gt;Active&lt;/a&gt; |
-  &lt;a {{#if :filter == 'completed'}}class="selected"{{/if}} href="/todos?filter=completed"&gt;Completed&lt;/a&gt;
+  &lt;a {{#if :filter == 'all'}}class="selected"{{#endif}} href="/todos?filter=all"&gt;All&lt;/a&gt; |
+  &lt;a {{#if :filter == 'active'}}class="selected"{{#endif}} href="/todos?filter=active"&gt;Active&lt;/a&gt; |
+  &lt;a {{#if :filter == 'completed'}}class="selected"{{#endif}} href="/todos?filter=completed"&gt;Completed&lt;/a&gt;
   &lt;/div&gt;
   &lt;/body&gt;
   &lt;/html&gt;
 
 {{#partial post add}}
   {{#insert into todos(text) values (:text)}}
-{{/partial}}
+{{#endpartial}}
 
 {{#partial post :id/toggle}}
   {{#update todos set completed = 1 - completed WHERE id = :id}}
-{{/partial}}
+{{#endpartial}}
 
 {{#partial patch :id}}
   {{#update todos set text = :text WHERE id = :id}}
-{{/partial}}
+{{#endpartial}}
 
 {{#partial post toggle_all}}
   {{#let active_count = COUNT(*) from todos WHERE completed = 0}}
   {{#update todos set completed =  IIF(:active_count = 0, 0, 1)}}
-{{/partial}}
+{{#endpartial}}
 
 {{#partial delete :id}}
   {{#delete from todos WHERE id = :id}}
-{{/partial}}
+{{#endpartial}}
 
 {{#partial post clear_completed}}
   {{#delete from todos WHERE completed = 1}}
-{{/partial}}
+{{#endpartial}}
 </code></pre>
         </div>
       </div>

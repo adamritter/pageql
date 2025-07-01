@@ -430,8 +430,8 @@
            &#123;&#123;<span class="keyword">#if</span> completed&#125;&#125;checked&#123;&#123;/<span class="keyword">if</span>&#125;&#125;&gt;
   &lt;<span class="keyword">label</span> <span class="attribute">hx-get</span>=<span class="string">"/?edit_id=&#123;&#123;id&#125;&#125;"</span>&gt;&#123;&#123;text&#125;&#125;&lt;/<span class="keyword">label</span>&gt;
 &lt;/<span class="keyword">li</span>&gt;
-</code><div class="clean-code">&lt;li {{#if completed}}class="completed"{{/if}}&gt;
-  &lt;input hx-post="/todos/{{id}}/toggle" class="toggle" type="checkbox" {{#if completed}}checked{{/if}}&gt;
+</code><div class="clean-code">&lt;li {{#if completed}}class="completed"{{#endif}}&gt;
+  &lt;input hx-post="/todos/{{id}}/toggle" class="toggle" type="checkbox" {{#if completed}}checked{{#endif}}&gt;
   &lt;label hx-get="/?edit_id={{id}}"&gt;{{text}}&lt;/label&gt;
 &lt;/li&gt;</div></pre>
 
@@ -464,7 +464,7 @@
   &lt;/li&gt;
 {{#else}}
   …view version from 2.2…
-{{/if}}</div></pre>
+{{#endif}}</div></pre>
 
   <p>This conditional section demonstrates how PageQL handles more complex expressions. Notice that when comparing variables (<code>:edit_id == :id</code>), the colon prefix is required on both sides because we're using a complex expression rather than a simple variable check.</p>
   
@@ -487,13 +487,13 @@
 &lt;/<span class="keyword">span</span>&gt;
 </code><div class="clean-code">&lt;form hx-post="/todos/toggle_all" id="toggle-all-form" style="display:block"&gt;
   &lt;input id="toggle-all" class="toggle-all" type="checkbox"
-         {{#if all_complete}}checked{{/if}}&gt;
+         {{#if all_complete}}checked{{#endif}}&gt;
   &lt;label for="toggle-all"&gt;Mark all as complete&lt;/label&gt;
 &lt;/form&gt;
 
 &lt;span class="todo-count"&gt;
   &lt;strong&gt;{{active_count}}&lt;/strong&gt;
-  item{{#if :active_count != 1}}s{{/if}} left
+  item{{#if :active_count != 1}}s{{#endif}} left
 &lt;/span&gt;</div></pre>
 
   <p>This section showcases how PageQL variables can be used to:</p>
@@ -529,20 +529,20 @@
   {{#param id required type=integer min=1}}
   {{#update todos set completed = 1 - completed WHERE id = :id}}
   {{#redirect '/todos'}}
-{{/partial}}
+{{#endpartial}}
 
 {{#partial public save}}
   {{#param id required type=integer min=1}}
   {{#param text required minlength=1}}
   {{#update todos set text = :text WHERE id = :id}}
   {{#redirect '/todos'}}
-{{/partial}}
+{{#endpartial}}
 
 {{#partial public toggle_all}}
   {{#let active_count = COUNT(*) from todos WHERE completed = 0}}
   {{#update todos set completed = IIF(:active_count = 0, 0, 1)}}
   {{#redirect '/todos'}}
-{{/partial}}</div></pre>
+{{#endpartial}}</div></pre>
 
   <p>These partials define server-side endpoints that handle data modifications. The <code>public</code> keyword exposes them directly via HTTP POST requests, making them accessible at paths like <code>/todos/toggle</code>.</p>
   

@@ -47,7 +47,7 @@ def test_cli_fallback_url(monkeypatch, tmp_path):
 
 def test_cli_test_command(monkeypatch, tmp_path, capsys):
     (tmp_path / "t.pageql").write_text(
-        "{{#test a}}{{#create table t(x int)}}{{#insert into t values (1)}}{{count(*) from t}}{{/test}}"
+        "{{#test a}}{{#create table t(x int)}}{{#insert into t values (1)}}{{count(*) from t}}{{#endtest}}"
     )
     argv = ["pageql", str(tmp_path), "db.sqlite", "--test"]
     monkeypatch.setattr(sys, "argv", argv)

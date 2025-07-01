@@ -12,7 +12,7 @@ from pathlib import Path
 
 def test_each_basic():
     r = PageQL(":memory:")
-    r.load_module("m", "{{#each items}}[{{items}}]{{/each}}")
+    r.load_module("m", "{{#each items}}[{{items}}]{{#endeach}}")
     params = {
         "items__count": 3,
         "items__0": "a",
@@ -24,7 +24,7 @@ def test_each_basic():
 
 
 def test_each_ast_dependencies():
-    snippet = "{{#each nums}}{{/each}}"
+    snippet = "{{#each nums}}{{#endeach}}"
     tokens = tokenize(snippet)
     ast = build_ast(tokens)
     deps = ast_param_dependencies(ast)
@@ -32,7 +32,7 @@ def test_each_ast_dependencies():
 
 
 def test_each_array_in_params(tmp_path):
-    (tmp_path / "loop.pageql").write_text("{{#each items}}{{items}}{{/each}}", encoding="utf-8")
+    (tmp_path / "loop.pageql").write_text("{{#each items}}{{items}}{{#endeach}}", encoding="utf-8")
 
     async def run():
         app = PageQLApp(":memory:", tmp_path, create_db=True, should_reload=False)

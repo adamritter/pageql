@@ -8,5 +8,5 @@
   ) SELECT n FROM numbers
 ) infinite}}
   {{n}}<br>
-{{/from}}
+{{#endfrom}}
 </div>

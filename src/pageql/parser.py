@@ -46,8 +46,8 @@ def tokenize(source):
         * ``render_param`` - simple parameter substitution such as ``{{name}}``
         * ``render_expression`` - expression evaluation within ``{{expr}}``
         * ``render_raw`` - raw output of an expression like ``{{{expr}}}``
-        * directive tokens (strings beginning with ``#`` or ``/``), e.g.
-          ``#if``/``/if``, ``#from``/``/from`` and ``#partial``/``/partial``
+        * directive tokens (strings beginning with ``#``), e.g.
+          ``#if``/``#endif``, ``#from``/``#endfrom`` and ``#partial``/``#endpartial``
 
     Args:
         source: The PageQL template source code as a string
@@ -60,8 +60,8 @@ def tokenize(source):
         [('text', 'Hello '), ('render_param', 'name')]
         >>> tokenize("Count: {{{1+1}}}")
         [('text', 'Count: '), ('render_raw', '1+1')]
-        >>> tokenize("{{#if x > 5}}Big{{/if}}")
-        [('#if', 'x > 5'), ('text', 'Big'), ('/if', None)]
+        >>> tokenize("{{#if x > 5}}Big{{#endif}}")
+        [('#if', 'x > 5'), ('text', 'Big'), ('#endif', None)]
         >>> tokenize("{{!-- Comment --}}Visible")
         [('text', 'Visible')]
     """
@@ -117,7 +117,7 @@ def _read_block(node_list, i, stop, partials, dialect, tests=None):
 
         # ------------------------------------------------------------- #if ...
         if ntype == "#if" or ntype == "#ifdef" or ntype == "#ifndef":
-            if_terms = {"#elif", "#else", "/if", "/ifdef", "/ifndef"}  # inline terminators for this IF
+            if_terms = {"#elif", "#else", "#endif"}  # inline terminators for this IF
             if ntype == "#if":
                 try:
                     cond_expr = sqlglot.parse_one(
@@ -150,17 +150,17 @@ def _read_block(node_list, i, stop, partials, dialect, tests=None):
                     else_body, i = _read_block(node_list, i, if_terms, partials, dialect, tests)
                     r.append(else_body)
                     break
-                if k == "/if" or k == "/ifdef" or k == "/ifndef":
+                if k == "#endif":
                     break
-            if node_list[i][0] != "/if" and node_list[i][0] != "/ifdef" and node_list[i][0] != "/ifndef":
-                raise SyntaxError("missing {{/if}}")
+            if node_list[i][0] != "#endif":
+                raise SyntaxError("missing {{#endif}}")
             i += 1
             body.append(r)
             continue
 
         # ----------------------------------------------------------- #from ...
         if ntype == "#from":
-            from_terms = {"/from"}
+            from_terms = {"#endfrom"}
             content = ncontent
             infinite = False
             m = re.search(r"\s+infinite\s*$", content, re.IGNORECASE)
@@ -176,8 +176,8 @@ def _read_block(node_list, i, stop, partials, dialect, tests=None):
                 raise SyntaxError(f"bad SQL in #from: {e}")
             i += 1
             loop_body, i = _read_block(node_list, i, from_terms, partials, dialect, tests)
-            if node_list[i][0] != "/from":
-                raise SyntaxError("missing {{/from}}")
+            if node_list[i][0] != "#endfrom":
+                raise SyntaxError("missing {{#endfrom}}")
             i += 1
             deps = ast_param_dependencies(loop_body)
             deps.discard("__first_row")
@@ -185,12 +185,12 @@ def _read_block(node_list, i, stop, partials, dialect, tests=None):
             continue
 
         if ntype == "#each":
-            each_terms = {"/each"}
+            each_terms = {"#endeach"}
             param_name = ncontent.strip()
             i += 1
             loop_body, i = _read_block(node_list, i, each_terms, partials, dialect, tests)
-            if node_list[i][0] != "/each":
-                raise SyntaxError("missing {{/each}}")
+            if node_list[i][0] != "#endeach":
+                raise SyntaxError("missing {{#endeach}}")
             i += 1
             body.append(["#each", param_name, loop_body])
             continue
@@ -280,7 +280,7 @@ def _read_block(node_list, i, stop, partials, dialect, tests=None):
 
         # -------------------------------------------------------- #partial ...
         if ntype == "#partial":
-            part_terms = {"/partial"}
+            part_terms = {"#endpartial"}
             first, rest = parsefirstword(ncontent)
 
             # Check if first token is a verb or 'public' (case-insensitive)
@@ -295,8 +295,8 @@ def _read_block(node_list, i, stop, partials, dialect, tests=None):
             i += 1
             partial_partials = {}
             part_body, i = _read_block(node_list, i, part_terms, partial_partials, dialect, tests)
-            if node_list[i][0] != "/partial":
-                raise SyntaxError("missing {{/partial}}")
+            if node_list[i][0] != "#endpartial":
+                raise SyntaxError("missing {{#endpartial}}")
             i += 1
             split_name = name.split('/')
             dest_partials = partials
@@ -326,13 +326,13 @@ def _read_block(node_list, i, stop, partials, dialect, tests=None):
             continue
 
         if ntype == "#test":
-            test_terms = {"/test"}
+            test_terms = {"#endtest"}
             test_name = ncontent.strip()
             i += 1
             dummy_partials = {}
             test_body, i = _read_block(node_list, i, test_terms, dummy_partials, dialect, tests)
-            if node_list[i][0] != "/test":
-                raise SyntaxError("missing {{/test}}")
+            if node_list[i][0] != "#endtest":
+                raise SyntaxError("missing {{#endtest}}")
             i += 1
             if tests is not None:
                 tests[test_name] = test_body
@@ -353,16 +353,16 @@ def build_ast(node_list, dialect="sqlite", tests=None):
     Returns:
         Tuple of (body, partials) where body is the AST and partials is a dict of partial definitions
         
-    >>> nodes = [('text', 'hello'), ('#partial', 'test'), ('text', 'world'), ('/partial', '')]
+    >>> nodes = [('text', 'hello'), ('#partial', 'test'), ('text', 'world'), ('#endpartial', '')]
     >>> build_ast(nodes)
     ([('text', 'hello')], {('test', None): [[('text', 'world')], {}]})
-    >>> nodes = [('#partial', 'a/b'), ('text', 'world'), ('/partial', '')]
+    >>> nodes = [('#partial', 'a/b'), ('text', 'world'), ('#endpartial', '')]
     >>> build_ast(nodes)
     ([], {('a', None): [[], {('b', None): [[('text', 'world')], {}]}]})
-    >>> nodes = [('#partial', ':a/b'), ('text', 'world'), ('/partial', '')]
+    >>> nodes = [('#partial', ':a/b'), ('text', 'world'), ('#endpartial', '')]
     >>> build_ast(nodes)
     ([], {(':', None): [':a', [], {('b', None): [[('text', 'world')], {}]}]})
-    >>> nodes = [('#partial', ':a'), ('text', 'world'), ('/partial', '')]
+    >>> nodes = [('#partial', ':a'), ('text', 'world'), ('#endpartial', '')]
     >>> build_ast(nodes)
     ([], {(':', None): [':a', [('text', 'world')], {}]})
     """

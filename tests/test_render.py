@@ -106,7 +106,7 @@ def test_from_reactive_uses_parse(monkeypatch):
     r = PageQL(":memory:")
     r.db.execute("CREATE TABLE items(id INTEGER PRIMARY KEY, name TEXT)")
     r.db.executemany("INSERT INTO items(name) VALUES (?)", [("a",), ("b",)])
-    r.load_module("m", "{{#reactive on}}{{#from items}}[{{id}}]{{/from}}")
+    r.load_module("m", "{{#reactive on}}{{#from items}}[{{id}}]{{#endfrom}}")
     result = r.render("/m", reactive=False)
     assert seen == ["SELECT * FROM items"]
     h1 = _row_hash((1, "a"))
@@ -143,8 +143,8 @@ def test_from_reactive_caches_queries(monkeypatch):
     snippet = (
         "{{#reactive on}}"
         "{{#let v = 1}}"
-        "{{#from items where id=:v}}[{{id}}]{{/from}}"
-        "{{#from items where id=:v}}[{{id}}]{{/from}}"
+        "{{#from items where id=:v}}[{{id}}]{{#endfrom}}"
+        "{{#from items where id=:v}}[{{id}}]{{#endfrom}}"
     )
     r.load_module("m", snippet)
     r.render("/m")
@@ -199,7 +199,7 @@ def test_from_reactive_reparses_after_cleanup(monkeypatch):
     r.db.executemany("INSERT INTO items(name) VALUES (?)", [("a",), ("b",)])
     snippet = (
         "{{#reactive on}}"
-        "{{#from items}}[{{id}}]{{/from}}"
+        "{{#from items}}[{{id}}]{{#endfrom}}"
         "{{#reactive off}}"
     )
     r.load_module("m", snippet)
@@ -249,7 +249,7 @@ def test_from_reactive_delete_event():
     r = PageQL(":memory:")
     r.db.execute("CREATE TABLE items(id INTEGER PRIMARY KEY, name TEXT)")
     r.db.executemany("INSERT INTO items(name) VALUES (?)", [("a",), ("b",)])
-    r.load_module("m", "{{#reactive on}}{{#from items}}[{{id}}]{{/from}}{{#delete from items where id=1}}")
+    r.load_module("m", "{{#reactive on}}{{#from items}}[{{id}}]{{#endfrom}}{{#delete from items where id=1}}")
     result = r.render("/m", reactive=False)
     h1 = _row_hash((1, "a"))
     h2 = _row_hash((2, "b"))
@@ -270,7 +270,7 @@ def test_from_reactive_update_event():
     r.db.executemany("INSERT INTO items(name) VALUES (?)", [("a",), ("b",)])
     r.load_module(
         "m",
-        "{{#reactive on}}{{#from items}}[{{name}}]{{/from}}{{#update items set name='c' where id=1}}",
+        "{{#reactive on}}{{#from items}}[{{name}}]{{#endfrom}}{{#update items set name='c' where id=1}}",
     )
     result = r.render("/m", reactive=False)
 
@@ -292,7 +292,7 @@ def test_from_reactive_insert_event():
     r.db.executemany("INSERT INTO items(name) VALUES (?)", [("a",), ("b",)])
     r.load_module(
         "m",
-        "{{#reactive on}}{{#from items}}[{{name}}]{{/from}}{{#insert into items(name) values ('c')}}",
+        "{{#reactive on}}{{#from items}}[{{name}}]{{#endfrom}}{{#insert into items(name) values ('c')}}",
     )
     result = r.render("/m", reactive=False)
 
@@ -315,7 +315,7 @@ def test_from_nonreactive_delete_event():
     r.db.executemany("INSERT INTO items(name) VALUES (?)", [("a",), ("b",)])
     r.load_module(
         "m",
-        "{{#reactive on}}{{#from items}}[{{id}}]{{/from}}{{#reactive off}}{{#delete from items where id=1}}",
+        "{{#reactive on}}{{#from items}}[{{id}}]{{#endfrom}}{{#reactive off}}{{#delete from items where id=1}}",
     )
     result = r.render("/m")
 
@@ -338,7 +338,7 @@ def test_from_nonreactive_update_event():
     r.db.executemany("INSERT INTO items(name) VALUES (?)", [("a",), ("b",)])
     r.load_module(
         "m",
-        "{{#reactive on}}{{#from items}}[{{name}}]{{/from}}{{#reactive off}}{{#update items set name='c' where id=1}}",
+        "{{#reactive on}}{{#from items}}[{{name}}]{{#endfrom}}{{#reactive off}}{{#update items set name='c' where id=1}}",
     )
     result = r.render("/m")
 
@@ -361,7 +361,7 @@ def test_from_nonreactive_insert_event():
     r.db.executemany("INSERT INTO items(name) VALUES (?)", [("a",), ("b",)])
     r.load_module(
         "m",
-        "{{#reactive on}}{{#from items}}[{{name}}]{{/from}}{{#reactive off}}{{#insert into items(name) values ('c')}}",
+        "{{#reactive on}}{{#from items}}[{{name}}]{{#endfrom}}{{#reactive off}}{{#insert into items(name) values ('c')}}",
     )
     result = r.render("/m")
 
@@ -383,7 +383,7 @@ def test_if_inside_from():
     r.db.executemany("INSERT INTO todos(id, text) VALUES (?, ?)", [(1, "a"), (2, "b")])
     snippet = (
         "{{#from todos ORDER BY id}}"
-        "\n      <li>\n          <input class=\"toggle\" type=\"checkbox\" {{#if 1}}checked{{/if}}>\n      text\n      </li>\n    {{/from}}"
+        "\n      <li>\n          <input class=\"toggle\" type=\"checkbox\" {{#if 1}}checked{{#endif}}>\n      text\n      </li>\n    {{#endfrom}}"
     )
     r.load_module("m", snippet)
     result = r.render("/m", reactive=False)
@@ -399,7 +399,7 @@ def test_reactive_if_update():
     snippet = (
         "{{#create table vals(name TEXT, value INTEGER)}}"
         "{{#insert into vals(name, value) values ('a', 1)}}"
-        "{{#reactive on}}{{#let a = value from vals where name = 'a'}}{{#if :a}}T{{#else}}F{{/if}}{{#update vals set value = 0 where name = 'a'}}{{#update vals set value = 1 where name = 'a'}}"
+        "{{#reactive on}}{{#let a = value from vals where name = 'a'}}{{#if :a}}T{{#else}}F{{#endif}}{{#update vals set value = 0 where name = 'a'}}{{#update vals set value = 1 where name = 'a'}}"
     )
     r.load_module("m", snippet)
     result = r.render("/m")
@@ -418,7 +418,7 @@ def test_reactive_if_elif_chain():
     snippet = (
         "{{#reactive on}}"
         "{{#let a = value from vals where name = 'a'}}"
-        "{{#if :a == 1}}A{{#elif :a == 2}}B{{#else}}C{{/if}}"
+        "{{#if :a == 1}}A{{#elif :a == 2}}B{{#else}}C{{#endif}}"
         "{{#update vals set value = 2 where name = 'a'}}"
         "{{#update vals set value = 3 where name = 'a'}}"
         "{{#update vals set value = 1 where name = 'a'}}"
@@ -441,7 +441,7 @@ def test_reactive_if_table_dependency():
         "{{#create table items(value INTEGER)}}"
         "{{#insert into items(value) values (1)}}"
         "{{#reactive on}}"
-        "{{#if count(*) from items}}Y{{#else}}N{{/if}}"
+        "{{#if count(*) from items}}Y{{#else}}N{{#endif}}"
         "{{#delete from items}}"
         "{{#insert into items(value) values (2)}}"
         "{{#delete from items}}"
@@ -466,7 +466,7 @@ def test_reactive_if_variable_and_table_dependency():
         "{{#reactive on}}"
         "{{#let threshold = value from vals where name = 'threshold'}}"
         "{{#insert into items(value) values (1)}}"
-        "{{#if (select count(*) from items) > :threshold}}MORE{{#else}}LESS{{/if}}"
+        "{{#if (select count(*) from items) > :threshold}}MORE{{#else}}LESS{{#endif}}"
         "{{#update vals set value = 0 where name = 'threshold'}}"
         "{{#insert into items(value) values (2)}}"
         "{{#delete from items}}"
@@ -489,7 +489,7 @@ def test_reactiveelement_adds_pprevioustag_script():
     snippet = (
         "{{#reactive on}}"
         "{{#let c = value from vals where name = 'c'}}"
-        "<div {{#if :c}}class='x'{{/if}}></div>"
+        "<div {{#if :c}}class='x'{{#endif}}></div>"
     )
     r.load_module("m", snippet)
     result = r.render("/m")
@@ -498,14 +498,14 @@ def test_reactiveelement_adds_pprevioustag_script():
 
 def test_reactiveelement_constant_no_script():
     r = PageQL(":memory:")
-    r.load_module("m", "{{#reactive on}}<div {{#if 1}}class='x'{{/if}}></div>")
+    r.load_module("m", "{{#reactive on}}<div {{#if 1}}class='x'{{#endif}}></div>")
     result = r.render("/m")
     assert result.body == "<div class='x'></div>"
 
 
 def test_reactiveelement_nonreactive_no_script():
     r = PageQL(":memory:")
-    r.load_module("m", "<div {{#if 1}}class='x'{{/if}}></div>")
+    r.load_module("m", "<div {{#if 1}}class='x'{{#endif}}></div>")
     result = r.render("/m", reactive=False)
     assert result.body == "<div class='x'></div>"
 
@@ -516,7 +516,7 @@ def test_reactiveelement_updates_node():
     snippet = (
         "{{#reactive on}}"
         "{{#let c = value from vals where name = 'c'}}"
-        "<div {{#if :c}}class='x'{{#else}}class='y'{{/if}}></div>"
+        "<div {{#if :c}}class='x'{{#else}}class='y'{{#endif}}></div>"
         "{{#update vals set value = 0 where name = 'c'}}"
         "{{#update vals set value = 1 where name = 'c'}}"
     )
@@ -574,7 +574,7 @@ def test_reactiveelement_if_with_table_insert_updates_input():
     snippet = (
         "{{#reactive on}}"
         "{{#let active_count = count(*) from todos}}"
-        "<p>Active count is 1: <input type='checkbox' {{#if :active_count == 1}}checked{{/if}}></p>"
+        "<p>Active count is 1: <input type='checkbox' {{#if :active_count == 1}}checked{{#endif}}></p>"
         "{{#insert into todos(text, completed) values ('test', 0)}}"
     )
     r.load_module("m", snippet)
@@ -593,7 +593,7 @@ def test_reactiveelement_if_variable_updates_checked():
         "{{#insert into vals(name, value) values ('flag', 1)}}"
         "{{#reactive on}}"
         "{{#let flag = value from vals where name = 'flag'}}"
-        "<input type='checkbox' {{#if :flag}}checked{{/if}}>"
+        "<input type='checkbox' {{#if :flag}}checked{{#endif}}>"
         "{{#update vals set value = 0 where name = 'flag'}}"
         "{{#update vals set value = 1 where name = 'flag'}}"
     )
@@ -616,7 +616,7 @@ def test_reactiveelement_delete_and_insert_updates_input_and_text():
         "{{#reactive on}}"
         "{{#delete from todos where completed = 0}}"
         "{{#let active_count = COUNT(*) from todos WHERE completed = 0}}"
-        '<p><input class="toggle{{3}}" type="checkbox" {{#if 1}}checked{{/if}}><input type="text" value="{{active_count}}"></p>'
+        '<p><input class="toggle{{3}}" type="checkbox" {{#if 1}}checked{{#endif}}><input type="text" value="{{active_count}}"></p>'
         "{{#insert into todos(text, completed) values ('test', 0)}}"
     )
     r.load_module("m", snippet)
@@ -699,7 +699,7 @@ def test_pinsert_escapes_script_tag():
     r.db.executemany("INSERT INTO todos(completed) VALUES (?)", [(0,), (1,)])
     snippet = (
         "{{#reactive on}}"
-        "{{#from todos}}<li><input type='checkbox' {{#if completed}}checked{{/if}}><script>hi()</script></li>{{/from}}"
+        "{{#from todos}}<li><input type='checkbox' {{#if completed}}checked{{#endif}}><script>hi()</script></li>{{#endfrom}}"
         "{{#insert into todos(completed) values (0)}}"
     )
     r.load_module("m", snippet)
@@ -713,7 +713,7 @@ def test_pinsert_does_not_send_marker_scripts():
     r.db.execute("CREATE TABLE items(id INTEGER PRIMARY KEY, value INTEGER)")
     snippet = (
         "{{#reactive on}}"
-        "{{#from items}}<li>{{#let a = 1}}{{#if :a}}X{{/if}}</li>{{/from}}"
+        "{{#from items}}<li>{{#let a = 1}}{{#if :a}}X{{#endif}}</li>{{#endfrom}}"
     )
     r.load_module("m", snippet)
     result = r.render("/m")
@@ -732,7 +732,7 @@ def test_let_null_literal():
     r = PageQL(":memory:")
     snippet = (
         "{{#let v = NULL}}"
-        "{{#if :v IS NULL}}null{{#else}}not null{{/if}}"
+        "{{#if :v IS NULL}}null{{#else}}not null{{#endif}}"
     )
     r.load_module("m", snippet)
     result = r.render("/m")
@@ -752,10 +752,10 @@ def test_nested_if_reactive_bug():
         "greater than 2\n"
         "{{#else}}\n"
         "less or equal to 2\n"
-        "{{/if}}\n"
+        "{{#endif}}\n"
         "{{#else}}\n"
         "less or equal to 1\n"
-        "{{/if}}\n"
+        "{{#endif}}\n"
         "\n"
         "{{#insert into todos (text) values ('Hello, world!')}}\n"
         "{{#insert into todos (text) values ('Hello, world!')}}"
@@ -779,7 +779,7 @@ def test_order_by_update_reorders_rows():
     r.db.executemany("INSERT INTO items(text) VALUES (?)", [("b",), ("a",)])
     r.load_module(
         "m",
-        "{{#reactive on}}{{#from items ORDER BY text}}[{{id}}:{{text}}]{{/from}}{{#update items set text='c' where id=2}}",
+        "{{#reactive on}}{{#from items ORDER BY text}}[{{id}}:{{text}}]{{#endfrom}}{{#update items set text='c' where id=2}}",
     )
     result = r.render("/m", reactive=False)
 
@@ -799,7 +799,7 @@ def test_order_by_update_with_limit_reorders_rows():
     r.db.executemany("INSERT INTO items(val) VALUES (?)", [(1,), (2,), (3,)])
     r.load_module(
         "m",
-        "{{#reactive on}}{{#from items ORDER BY val LIMIT 2}}[{{id}}:{{val}}]{{/from}}{{#update items set val=0 where id=3}}",
+        "{{#reactive on}}{{#from items ORDER BY val LIMIT 2}}[{{id}}:{{val}}]{{#endfrom}}{{#update items set val=0 where id=3}}",
     )
     result = r.render("/m", reactive=False)
 

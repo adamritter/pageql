@@ -7,7 +7,7 @@ from pageql.parser import tokenize, build_ast
 
 
 def test_from_node_has_dependencies():
-    tokens = tokenize("{{#from items where id=:x}}{{#if :y}}ok{{#endif}}{{#endfrom}}")
+    tokens = tokenize("{%from items where id=:x%}{%if :y%}ok{%endif%}{%endfrom%}")
     body, _ = build_ast(tokens, dialect="sqlite")
     from_node = body[0]
     assert from_node[0] == "#from"

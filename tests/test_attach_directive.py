@@ -9,13 +9,13 @@ import sqlite3
 
 
 def test_attach_directive_parsed():
-    tokens = tokenize("{{#attach database 'file.db' as other}}")
+    tokens = tokenize("{%attach database 'file.db' as other%}")
     body, _ = build_ast(tokens, dialect="sqlite")
     assert body == [("#attach", "database 'file.db' as other")]
 
 
 def test_attach_directive_dependencies():
-    tokens = tokenize("{{#attach database :p as other}}")
+    tokens = tokenize("{%attach database :p as other%}")
     ast = build_ast(tokens, dialect="sqlite")
     deps = ast_param_dependencies(ast)
     assert deps == {"p"}
@@ -30,7 +30,7 @@ def test_attach_directive_render(tmp_path):
     conn.close()
 
     r = PageQL(":memory:")
-    r.load_module("m", "{{#attach database :p as other}}{{count(*) from other.t}}")
+    r.load_module("m", "{%attach database :p as other%}{{count(*) from other.t}}")
     out = r.render("/m", {"p": str(other)}, reactive=False).body.strip()
     assert out == "1"
 

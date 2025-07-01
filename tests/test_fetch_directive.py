@@ -10,46 +10,46 @@ import pytest
 
 
 def test_fetch_directive_parsed():
-    tokens = tokenize("{{#fetch file from 'http://ex'}}")
+    tokens = tokenize("{%fetch file from 'http://ex'%}")
     body, _ = build_ast(tokens, dialect="sqlite")
     assert body == [("#fetch", ("file", "'http://ex'", False, [], None, None))]
 
 
 def test_fetch_async_directive_parsed():
-    tokens = tokenize("{{#fetch async file from 'http://ex'}}")
+    tokens = tokenize("{%fetch async file from 'http://ex'%}")
     body, _ = build_ast(tokens, dialect="sqlite")
     assert body == [("#fetch", ("file", "'http://ex'", True, [], None, None))]
 
 
 def test_fetch_directive_dependencies():
-    tokens = tokenize("{{#fetch dst from :url}}")
+    tokens = tokenize("{%fetch dst from :url%}")
     ast = build_ast(tokens, dialect="sqlite")
     deps = ast_param_dependencies(ast)
     assert deps == {"url"}
 
 
 def test_fetch_async_directive_dependencies():
-    tokens = tokenize("{{#fetch async dst from :url}}")
+    tokens = tokenize("{%fetch async dst from :url%}")
     ast = build_ast(tokens, dialect="sqlite")
     deps = ast_param_dependencies(ast)
     assert deps == {"url"}
 
 
 def test_fetch_header_directive_parsed():
-    tokens = tokenize("{{#fetch file from 'http://ex' header=:hdr}}")
+    tokens = tokenize("{%fetch file from 'http://ex' header=:hdr%}")
     body, _ = build_ast(tokens, dialect="sqlite")
     assert body == [("#fetch", ("file", "'http://ex'", False, [":hdr"], None, None))]
 
 
 def test_fetch_header_directive_dependencies():
-    tokens = tokenize("{{#fetch dst from :url header=:hdr}}")
+    tokens = tokenize("{%fetch dst from :url header=:hdr%}")
     ast = build_ast(tokens, dialect="sqlite")
     deps = ast_param_dependencies(ast)
     assert deps == {"url", "hdr"}
 
 
 def test_fetch_multiple_headers_parsed():
-    tokens = tokenize("{{#fetch file from 'http://ex' header=:h1 header=:h2}}")
+    tokens = tokenize("{%fetch file from 'http://ex' header=:h1 header=:h2%}")
     body, _ = build_ast(tokens, dialect="sqlite")
     assert body == [
         ("#fetch", ("file", "'http://ex'", False, [":h1", ":h2"], None, None))
@@ -57,20 +57,20 @@ def test_fetch_multiple_headers_parsed():
 
 
 def test_fetch_body_directive_dependencies():
-    tokens = tokenize("{{#fetch dst from :url body=:data}}")
+    tokens = tokenize("{%fetch dst from :url body=:data%}")
     ast = build_ast(tokens, dialect="sqlite")
     deps = ast_param_dependencies(ast)
     assert deps == {"url", "data"}
 
 
 def test_fetch_method_directive_parsed():
-    tokens = tokenize("{{#fetch file from 'http://ex' method='POST'}}")
+    tokens = tokenize("{%fetch file from 'http://ex' method='POST'%}")
     body, _ = build_ast(tokens, dialect="sqlite")
     assert body == [("#fetch", ("file", "'http://ex'", False, [], "'POST'", None))]
 
 
 def test_fetch_body_directive_parsed():
-    tokens = tokenize("{{#fetch file from 'http://ex' body='hi'}}")
+    tokens = tokenize("{%fetch file from 'http://ex' body='hi'%}")
     body, _ = build_ast(tokens, dialect="sqlite")
     assert body == [("#fetch", ("file", "'http://ex'", False, [], None, "'hi'"))]
 
@@ -87,7 +87,7 @@ def test_fetch_directive_render():
     pql_mod.fetch_sync = fetch
     try:
         r = PageQL(":memory:")
-        r.load_module("m", "{{#fetch data from 'http://x'}}{{data__a}} {{data__b}}")
+        r.load_module("m", "{%fetch data from 'http://x'%}{{data__a}} {{data__b}}")
         out = r.render("/m", reactive=False).body
     finally:
         pql_mod.fetch_sync = old_fetch
@@ -117,7 +117,7 @@ def test_fetch_directive_defaults_to_http_get():
         r = PageQL(":memory:")
         r.load_module(
             "m",
-            "{{#fetch d from 'http://127.0.0.1:'||:port}}{{d__status_code}} {{d__body}}",
+            "{%fetch d from 'http://127.0.0.1:'||:port%}{{d__status_code}} {{d__body}}",
         )
         out = r.render("/m", {"port": port}, reactive=False).body.strip()
         assert out == "200 hi"
@@ -155,7 +155,7 @@ def test_fetch_directive_custom_method():
         r = PageQL(":memory:")
         r.load_module(
             "m",
-            "{{#fetch d from 'http://127.0.0.1:'||:port method='POST'}}{{d__status_code}} {{d__body}}",
+            "{%fetch d from 'http://127.0.0.1:'||:port method='POST'%}{{d__status_code}} {{d__body}}",
         )
         out = r.render("/m", {"port": port}, reactive=False).body.strip()
         assert out == "201 post"
@@ -178,7 +178,7 @@ def test_fetch_commits_before_call(tmp_path):
         r = PageQL(str(db_file))
         r.load_module(
             "m",
-            """{{#create table t(x int)}}{{#insert into t values (1)}}{{#fetch d from 'x'}}{{d__cnt}}""",
+            """{%create table t(x int)%}{%insert into t values (1)%}{%fetch d from 'x'%}{{d__cnt}}""",
         )
         out = r.render("/m", reactive=False).body.strip()
     finally:
@@ -198,7 +198,7 @@ def test_fetch_header_directive_render():
     pql_mod.fetch_sync = fetch
     try:
         r = PageQL(":memory:")
-        r.load_module("m", "{{#fetch data from 'http://x' header=:hdr}}{{data__a}}")
+        r.load_module("m", "{%fetch data from 'http://x' header=:hdr%}{{data__a}}")
         out = r.render("/m", {"hdr": "X: v"}, reactive=False).body
     finally:
         pql_mod.fetch_sync = old_fetch
@@ -220,7 +220,7 @@ def test_fetch_multiple_headers_render():
         r = PageQL(":memory:")
         r.load_module(
             "m",
-            "{{#fetch data from 'http://x' header=:h1 header=:h2}}{{data__a}}",
+            "{%fetch data from 'http://x' header=:h1 header=:h2%}{{data__a}}",
         )
         out = r.render("/m", {"h1": "X: v1", "h2": "Y: v2"}, reactive=False).body
     finally:
@@ -241,7 +241,7 @@ def test_fetch_body_directive_render():
     pql_mod.fetch_sync = fetch
     try:
         r = PageQL(":memory:")
-        r.load_module("m", "{{#fetch data from 'http://x' body='hi'}}{{data__a}}")
+        r.load_module("m", "{%fetch data from 'http://x' body='hi'%}{{data__a}}")
         out = r.render("/m", reactive=False).body
     finally:
         pql_mod.fetch_sync = old_fetch
@@ -271,7 +271,7 @@ def test_fetch_directive_handles_http_error():
         r = PageQL(":memory:")
         r.load_module(
             "m",
-            "{{#fetch d from 'http://127.0.0.1:'||:port}}{{d__status_code}}",
+            "{%fetch d from 'http://127.0.0.1:'||:port%}{{d__status_code}}",
         )
         out = r.render("/m", {"port": port}, reactive=False).body.strip()
         assert out == "400"
@@ -302,7 +302,7 @@ def test_fetch_directive_relative_url():
     t.start()
     try:
         r = PageQL(":memory:")
-        r.load_module("m", "{{#fetch d from '/healthz'}}{{d__body}}")
+        r.load_module("m", "{%fetch d from '/healthz'%}{{d__body}}")
         out = r.render(
             "/m",
             {"headers": {"host": f"127.0.0.1:{port}"}, "path": "/m"},

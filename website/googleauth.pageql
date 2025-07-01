@@ -1,42 +1,42 @@
-{{#let payload json_set('{}', '$.ongoing', 1, '$.path', :path)}}
-{{#let state jws_serialize_compact(:payload)}}
-{{#let client_id = env.GOOGLE_CLIENT_ID}}
-{{#let redirect_uri = 'https://'||:headers.host||replace(:path, '"', '')||'/callback'}}
+{%let payload json_set('{}', '$.ongoing', 1, '$.path', :path)%}
+{%let state jws_serialize_compact(:payload)%}
+{%let client_id = env.GOOGLE_CLIENT_ID%}
+{%let redirect_uri = 'https://'||:headers.host||replace(:path, '"', '')||'/callback'%}
 <a href="https://accounts.google.com/o/oauth2/v2/auth?client_id={{client_id}}&redirect_uri={{redirect_uri}}&response_type=code&scope=openid%20email%20profile&state={{state}}">
   <button>Login with Google</button>
 </a>
 
-{{#partial GET callback}}
-  {{#param code required}}
-  {{#param state required}}
-  {{#let payload jws_deserialize_compact(:state)}}
-  {{#let payload_path = json_extract(:payload, '$.path')}}
+{%partial GET callback%}
+  {%param code required%}
+  {%param state required%}
+  {%let payload jws_deserialize_compact(:state)%}
+  {%let payload_path = json_extract(:payload, '$.path')%}
   <p>Payload: {{:payload}}</p>
   <p>Payload path: {{:payload_path}}</p>
-  {{#let client_id = env.GOOGLE_CLIENT_ID}}
+  {%let client_id = env.GOOGLE_CLIENT_ID%}
 
-  {{#let redirect_uri = 'https://'||:headers.host||replace(:payload_path, '"', '')||'/callback'}}
+  {%let redirect_uri = 'https://'||:headers.host||replace(:payload_path, '"', '')||'/callback'%}
 
-  {{#let client_secret = env.GOOGLE_CLIENT_SECRET}}
-  {{#let token_url = 'https://oauth2.googleapis.com/token'}}
-  {{#let token_body = 'client_id='||:client_id||'&client_secret='||:client_secret||'&code='||:code||'&redirect_uri='||:redirect_uri||'&grant_type=authorization_code&state='||:state}}
-  {{#let token_hdr = 'Content-Type: application/x-www-form-urlencoded'}}
-  {{#fetch async token from :token_url method='POST' header=:token_hdr body=:token_body}}
-    {{#if :token.status_code == 200}}
-      {{#let access_token = query_param(:token.body, 'access_token')}}
+  {%let client_secret = env.GOOGLE_CLIENT_SECRET%}
+  {%let token_url = 'https://oauth2.googleapis.com/token'%}
+  {%let token_body = 'client_id='||:client_id||'&client_secret='||:client_secret||'&code='||:code||'&redirect_uri='||:redirect_uri||'&grant_type=authorization_code&state='||:state%}
+  {%let token_hdr = 'Content-Type: application/x-www-form-urlencoded'%}
+  {%fetch async token from :token_url method='POST' header=:token_hdr body=:token_body%}
+    {%if :token.status_code == 200%}
+      {%let access_token = query_param(:token.body, 'access_token')%}
       <p>Extracted access token: {{access_token}}</p>
-      {{#let header = 'Authorization: Bearer '||:access_token}}
-      {{#fetch async user from 'https://www.googleapis.com/oauth2/v3/userinfo' header=:header}}
-        {{#if :user.status_code == 200}}
+      {%let header = 'Authorization: Bearer '||:access_token%}
+      {%fetch async user from 'https://www.googleapis.com/oauth2/v3/userinfo' header=:header%}
+        {%if :user.status_code == 200%}
           {{user.body}}
-        {{#elif :user.status_code IS NOT NULL}}
+        {%elif :user.status_code IS NOT NULL%}
           <p>Error: {{:user.status_code}} {{:user.body}}</p>
-        {{#else}}
+        {%else%}
           <p>Loading user...</p>
-        {{#endif}}
+        {%endif%}
       {{/fetch}}
-    {{#else}}
+    {%else%}
       <p>Loading token...</p>
-    {{#endif}}
+    {%endif%}
   {{/fetch}}
-{{#endpartial}}
+{%endpartial%}

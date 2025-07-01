@@ -8,25 +8,25 @@ from pageql.pageql import PageQL
 
 
 def test_respond_directive_default():
-    tokens = tokenize("{{#respond}}")
+    tokens = tokenize("{%respond%}")
     body, _ = build_ast(tokens, dialect="sqlite")
     assert body == [("#respond", ("200", None))]
 
 
 def test_respond_directive_status_and_body():
-    tokens = tokenize("{{#respond 202 body='ok'}}")
+    tokens = tokenize("{%respond 202 body='ok'%}")
     body, _ = build_ast(tokens, dialect="sqlite")
     assert body == [("#respond", ("202", "'ok'"))]
 
 
 def test_respond_directive_body_only():
-    tokens = tokenize("{{#respond body='hey'}}")
+    tokens = tokenize("{%respond body='hey'%}")
     body, _ = build_ast(tokens, dialect="sqlite")
     assert body == [("#respond", ("200", "'hey'"))]
 
 
 def test_respond_directive_dependencies():
-    tokens = tokenize("{{#respond :code body=:msg}}")
+    tokens = tokenize("{%respond :code body=:msg%}")
     ast = build_ast(tokens, dialect="sqlite")
     deps = ast_param_dependencies(ast)
     assert deps == {"code", "msg"}
@@ -34,7 +34,7 @@ def test_respond_directive_dependencies():
 
 def test_respond_runtime_status_only():
     r = PageQL(":memory:")
-    r.load_module("m", "a{{#respond 201}}b")
+    r.load_module("m", "a{%respond 201%}b")
     res = r.render("/m", reactive=False)
     assert res.status_code == 201
     assert res.body == "a"
@@ -42,7 +42,7 @@ def test_respond_runtime_status_only():
 
 def test_respond_runtime_with_body():
     r = PageQL(":memory:")
-    r.load_module("m", "a{{#respond 404 body='err'}}b")
+    r.load_module("m", "a{%respond 404 body='err'%}b")
     res = r.render("/m", reactive=False)
     assert res.status_code == 404
     assert res.body == "err"

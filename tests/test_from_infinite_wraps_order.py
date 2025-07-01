@@ -9,12 +9,12 @@ from pageql.reactive import Order
 
 def test_infinite_from_wraps_order_limit_100():
     page = """
-    {{#create table items(id INTEGER)}}
-    {{#insert into items(id) values (1)}}
+    {%create table items(id INTEGER)%}
+    {%insert into items(id) values (1)%}
     <div>
-    {{#from items infinite}}
+    {%from items infinite%}
       {{id}}
-    {{#endfrom}}
+    {%endfrom%}
     </div>
     """
     r = PageQL(":memory:")
@@ -29,9 +29,9 @@ def test_infinite_from_wraps_order_limit_100():
 def test_infinite_from_readonly_is_wrapped():
     page = """
     <div>
-    {{#from (SELECT 2 AS n UNION ALL SELECT 1 AS n) order by n limit 1 infinite}}
+    {%from (SELECT 2 AS n UNION ALL SELECT 1 AS n) order by n limit 1 infinite%}
       {{n}}
-    {{#endfrom}}
+    {%endfrom%}
     </div>
     """
     r = PageQL(":memory:")

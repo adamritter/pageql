@@ -24,8 +24,8 @@ def test_jwt_round_trip_load_render(tmp_path):
         lambda token: jws_deserialize_compact(token, key_path=str(key_path)).decode(),
     )
     src = """
-{{#let payload json_set('{}', '$.uid', 42)}}
-{{#let token jws_serialize_compact(:payload)}}
+{%let payload json_set('{}', '$.uid', 42)%}
+{%let token jws_serialize_compact(:payload)%}
 {{ cast(json_extract(jws_deserialize_compact(:token), '$.uid') as integer) }}
 """
     r.load_module("jwt", src)

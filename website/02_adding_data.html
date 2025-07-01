@@ -380,7 +380,7 @@
 
   <h1>Adding Data <small>(reactive)</small></h1>
 
-  <p><strong>Goal:</strong> Let visitors add new Todos through an HTML form. You'll meet <code>#partial public</code>, <code>#param</code>, and <code>#insert</code>—the minimum write path. <code>hx-post</code> handles the submission.</p>
+  <p><strong>Goal:</strong> Let visitors add new Todos through an HTML form. You'll meet <code>partial public</code>, <code>param</code>, and <code>insert</code>—the minimum write path. <code>hx-post</code> handles the submission.</p>
 
   <blockquote>
     <p><em>Estimated time: 15 minutes.</em></p>
@@ -405,14 +405,14 @@
   hx-post="/todos/add" hx-trigger="keyup[key=='Enter']" hx-on:htmx:after-on-load="this.value=''"&gt;</div></pre>
 
   <pre class="code-block"><span class="comment">&lt;!-- Add this partial at the top of the file --&gt;</span>
-&#123;&#123;<span class="keyword">#partial</span> <span class="attribute">POST</span> <span class="function">add</span>&#125;&#125;
-  &#123;&#123;<span class="keyword">#param</span> <span class="variable">text</span> <span class="attribute">required minlength</span>=1&#125;&#125;
-  &#123;&#123;<span class="keyword">#insert</span> <span class="keyword">into</span> todos(text, completed) <span class="keyword">values</span> (:<span class="variable">text</span>, 0)&#125;&#125;
-&#123;&#123;/<span class="keyword">partial</span>&#125;&#125;</code>
-<div class="clean-code">&#123;&#123;#partial POST add&#125;&#125;
-  &#123;&#123;#param text required minlength=1&#125;&#125;
-  &#123;&#123;#insert into todos(text, completed) values (:text, 0)&#125;&#125;
-&#123;&#123;/partial&#125;&#125;</div></pre>
+{%partial POST add%}
+  {%param text required minlength=1%}
+  {%insert into todos(text, completed) values (:text, 0)%}
+{%end partial%}</code>
+<div class="clean-code">{%partial POST add%}
+  {%param text required minlength=1%}
+  {%insert into todos(text, completed) values (:text, 0)%}
+{%end partial%}</div></pre>
 
   <p>Save the file—your dev server is still running from Part 1 and reloads the page automatically.</p>
 
@@ -431,19 +431,19 @@
         <td>Sends an AJAX <strong>POST</strong> to the <code>add</code> partial when you press Enter.</td>
       </tr>
       <tr>
-        <td><code><span class="keyword">#partial</span> <span class="attribute">public</span> <span class="function">add</span></code></td>
+        <td><code><span class="keyword">partial</span> <span class="attribute">public</span> <span class="function">add</span></code></td>
         <td>Turns a template block into an HTTP endpoint at <code>/todos/add</code>.</td>
       </tr>
       <tr>
-        <td><code><span class="keyword">#partial</span> <span class="attribute">POST</span> <span class="function">add</span></code></td>
+        <td><code><span class="keyword">partial</span> <span class="attribute">POST</span> <span class="function">add</span></code></td>
         <td>Turns a template block into an HTTP endpoint at <code>/todos/add</code>.</td>
       </tr>
       <tr>
-        <td><code><span class="keyword">#param</span> <span class="variable">text</span> <span class="attribute">required minlength</span>=1</code></td>
+        <td><code><span class="keyword">param</span> <span class="variable">text</span> <span class="attribute">required minlength</span>=1</code></td>
         <td>Validates and binds request parameters. Stops processing with a clear error if validation fails.</td>
       </tr>
       <tr>
-        <td><code><a href="https://www.sqlite.org/lang_insert.html" target="_blank" rel="noopener" style="color: var(--code-text);"><span class="keyword">#insert</span> <span class="keyword">into</span></a></code></td>
+        <td><code><a href="https://www.sqlite.org/lang_insert.html" target="_blank" rel="noopener" style="color: var(--code-text);"><span class="keyword">insert</span> <span class="keyword">into</span></a></code></td>
         <td>Executes <code><a href="https://www.sqlite.org/lang_insert.html" target="_blank" rel="noopener">INSERT INTO</a> todos …</code> safely with bound params.</td>
       </tr>
     </tbody>
@@ -479,7 +479,7 @@
 
   <ul>
     <li><strong>Public partials = endpoints.</strong> They keep GET pages slim by moving mutations out.</li>
-    <li><strong><code>#insert</code> is SQL, not magic.</strong> Every column and param is explicit and bound.</li>
+    <li><strong><code>insert</code> is SQL, not magic.</strong> Every column and param is explicit and bound.</li>
     <li><strong>hx-post</strong> triggers AJAX submissions and the list updates automatically.</li>
     <li>The dev server pushes changes over a <strong>WebSocket</strong>. Open the Network tab in your browser’s inspector and watch the <em>WS</em> frames appear.</li>
   </ul>

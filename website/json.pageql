@@ -1,10 +1,12 @@
-{%reactive off%}
-{%header Content-Type 'application/json'%}
-{%create table if not exists todos (
+{%
+reactive off;
+header Content-Type 'application/json';
+create table if not exists todos (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     text TEXT NOT NULL,
     completed INTEGER DEFAULT 0 CHECK(completed IN (0,1))
-)%}
+)
+%}
 
 [
 {{{COALESCE(json_group_array(

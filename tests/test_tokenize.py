@@ -35,7 +35,10 @@ def test_tokenize_skip_block_comments_with_braces():
 
 def test_tokenize_sql_comment_in_directive():
     assert tokenize("{%let x=1 -- comment\n%}") == [
-        ("#let", "x=1")
+        ("#let", "x=1"),
+    ]
+
+
 def test_tokenize_joined_directives():
     assert tokenize("{%param a; param b%}") == [
         ("#param", "a"),

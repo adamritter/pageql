@@ -42,3 +42,11 @@ def test_highlight_block_wraps_highlight():
 def test_highlight_closing_tag_slash():
     result = highlight("</h1>")
     assert '<span style="color: #808080;">/</span>' in result
+
+
+def test_highlight_sql_comment():
+    source = "{%let x=1 -- comment\n%}"
+    result = highlight(source)
+    assert '-- comment' in result
+    assert '#6a9955' in result
+    assert _remove_color_spans(result) == source

@@ -37,6 +37,29 @@ def _shorten_error_token(value: str) -> str:
     return value.strip()
 
 
+def _strip_sql_line_comments(text: str) -> str:
+    """Return *text* with ``--`` comments removed."""
+    out_lines = []
+    for line in text.splitlines():
+        quote: str | None = None
+        i = 0
+        while i < len(line):
+            ch = line[i]
+            if quote:
+                if ch == quote:
+                    quote = None
+                elif ch == "\\" and i + 1 < len(line):
+                    i += 1
+            else:
+                if ch in ('\"', "'"):
+                    quote = ch
+                elif ch == '-' and i + 1 < len(line) and line[i + 1] == '-':
+                    line = line[:i]
+                    break
+            i += 1
+        out_lines.append(line)
+    return "\n".join(out_lines)
+
 def _split_directives(text: str) -> list[str]:
     """Split semicolon-separated directives while respecting quotes."""
     parts: list[str] = []
@@ -99,7 +122,7 @@ def tokenize(source):
             nodes.append(('render_raw', inner.strip()))
         elif part.startswith('{%') and part.endswith('%}'):
             inner = part[2:-2]
-            inner = inner.strip()
+            inner = _strip_sql_line_comments(inner).strip()
             for seg in _split_directives(inner):
                 first, rest = parsefirstword(seg)
                 if first == 'param' and rest:

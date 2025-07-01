@@ -27,7 +27,7 @@ def test_tokenize_skip_comments():
 
 
 def test_tokenize_skip_block_comments_with_braces():
-    assert tokenize("Hello {{!-- comment with }} braces --}}World") == [
+    assert tokenize("Hello {%-- comment with }} braces --%}World") == [
         ("text", "Hello "),
         ("text", "World"),
     ]

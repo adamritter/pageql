@@ -1,13 +1,17 @@
-{%create table if not exists uploads (
+{%
+create table if not exists uploads (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     filename TEXT,
     data BLOB
-)%}
+)
+%}
 
-{%partial post add%}
-  {%insert into uploads(filename, data) values (:file.filename, :file.body)%}
-  {%redirect '/upload'%}
-{%endpartial%}
+{%
+partial post add;
+  insert into uploads(filename, data) values (:file.filename, :file.body);
+  redirect '/upload';
+endpartial
+%}
 
 <form method="POST" action="/upload/add" enctype="multipart/form-data">
   <input type="file" name="file" required>

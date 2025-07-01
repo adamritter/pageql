@@ -147,3 +147,17 @@ def test_cli_parse_command_error(monkeypatch, tmp_path, capsys):
     assert "Error parsing module bad" in out
 
 
+def test_cli_parse_website(monkeypatch):
+    website = Path(__file__).resolve().parent.parent / "website"
+    argv = ["pageql", str(website), "db", "--parse"]
+    monkeypatch.setattr(sys, "argv", argv)
+    monkeypatch.setattr(
+        cli.uvicorn,
+        "run",
+        lambda *a, **kw: (_ for _ in ()).throw(AssertionError("server started")),
+    )
+    with pytest.raises(SystemExit) as exc:
+        cli.main()
+    assert exc.value.code == 0
+
+

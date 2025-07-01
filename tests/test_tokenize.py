@@ -31,3 +31,9 @@ def test_tokenize_skip_block_comments_with_braces():
         ("text", "Hello "),
         ("text", "World"),
     ]
+
+
+def test_tokenize_sql_comment_in_directive():
+    assert tokenize("{%let x=1 -- comment\n%}") == [
+        ("#let", "x=1")
+    ]

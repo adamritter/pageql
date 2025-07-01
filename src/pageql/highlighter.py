@@ -66,6 +66,13 @@ def _highlight_pageql_expr(text: str) -> str:
             out.append(ch)
             i += 1
             continue
+        if ch == '-' and i + 1 < len(text) and text[i + 1] == '-':
+            j = text.find('\n', i)
+            if j == -1:
+                j = len(text)
+            out.append(_span(escape(text[i:j]), _COMMENT_COLOR))
+            i = j
+            continue
         if ch in ('\"', "'"):
             quote = ch
             j = i + 1

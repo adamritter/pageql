@@ -40,10 +40,10 @@ let redirect_uri = 'http://'||:headers.host||replace(:path, '"', '')||'/callback
           <p>Error: {{:user.status_code}} {{:user.body}}</p>
         {%else%}
           <p>Loading user...</p>
-        {%endif%}
+        {%end if%}
       {{/fetch}}
     {%else%}
       <p>Loading token...</p>
-    {%endif%}
+    {%end if%}
   {{/fetch}}
-{%endpartial%}
+{%end partial%}

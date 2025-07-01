@@ -58,15 +58,15 @@
       {%if :total_count < 20%}
       <input name="text" placeholder="What needs to be done?" maxlength="100" autofocus autocomplete="off"
         hx-post="/todos/add" hx-trigger="keyup[key=='Enter']" hx-on:htmx:after-on-load="this.value=''">
-      {%endif%}
+      {%end if%}
       <ul>
         {%from todos
           WHERE (:filter == 'all')
                 OR (:filter == 'active'    AND completed = 0)
                 OR (:filter == 'completed' AND completed = 1)
           %}
-            <li {%if completed%}class="completed"{%endif%}>
-                <input hx-post="/todos/{{id}}/toggle" class="toggle" type="checkbox" {%if completed%}checked{%endif%}>
+            <li {%if completed%}class="completed"{%end if%}>
+                <input hx-post="/todos/{{id}}/toggle" class="toggle" type="checkbox" {%if completed%}checked{%end if%}>
                 <label
                   contenteditable="false"
                   onclick="this.contentEditable=true;this.focus();"
@@ -81,25 +81,25 @@
 
                 <button hx-delete="/todos/{{id}}" class="destroy" style="cursor:pointer; background:none; border:none; color:#ac4a1a;">✕</button>
             </li>
-        {%endfrom%}
+        {%end from%}
       </ul>
 
-  <input id="toggle-all" class="toggle-all" type="checkbox" {%if all_complete%}checked{%endif%} hx-post="/todos/toggle_all">
+  <input id="toggle-all" class="toggle-all" type="checkbox" {%if all_complete%}checked{%end if%} hx-post="/todos/toggle_all">
   <label for="toggle-all">Mark all as complete</label>
 
 <span class="todo-count">
   <strong>{{active_count}}</strong>
-  item{%if :active_count != 1%}s{%endif%} left
+  item{%if :active_count != 1%}s{%end if%} left
 </span>
 
 
 {%if :completed_count > 0%}
   <button class="clear-completed" hx-post="/todos/clear_completed">Clear completed</button>
-{%endif%}
+{%end if%}
 <div class="filters">
-  <a {%if :filter == 'all'%}class="selected"{%endif%} href="/todos?filter=all">All</a> |
-  <a {%if :filter == 'active'%}class="selected"{%endif%} href="/todos?filter=active">Active</a> |
-  <a {%if :filter == 'completed'%}class="selected"{%endif%} href="/todos?filter=completed">Completed</a>
+  <a {%if :filter == 'all'%}class="selected"{%end if%} href="/todos?filter=all">All</a> |
+  <a {%if :filter == 'active'%}class="selected"{%end if%} href="/todos?filter=active">Active</a> |
+  <a {%if :filter == 'completed'%}class="selected"{%end if%} href="/todos?filter=completed">Completed</a>
 </div>
 </div>
   <h2 style="color:rgb(50, 56, 86); margin-top: 2rem; margin-bottom: 0.5rem;">Source code</h2>
@@ -112,30 +112,30 @@ partial post add;
    let current_total = COUNT(*) from todos;
    if :current_total < 20;
      insert into todos(text) values (:text);
-   endif;
-endpartial;
+   end if;
+end partial;
 
 partial post :id/toggle;
   update todos set completed = 1 - completed WHERE id = :id;
-endpartial;
+end partial;
 
 partial patch :id;
   param text maxlength=100;
   -- Update todo text
   update todos set text = :text WHERE id = :id;
-endpartial;
+end partial;
 
 partial post toggle_all;
   let active_count = COUNT(*) from todos WHERE completed = 0;
     -- Set all todos completed state based on active count
     update todos set completed =  IIF(:active_count = 0, 0, 1);
-endpartial;
+end partial;
 
 partial delete :id;
   delete from todos WHERE id = :id;
-endpartial;
+end partial;
 
 partial post clear_completed;
   delete from todos WHERE completed = 1;
-endpartial
+end partial
 %}

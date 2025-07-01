@@ -23,7 +23,7 @@ let username = username from users where id=:user_id;
 <p>Logged in as {{username}}. <a href="/basic_auth/profile">Profile</a> <a href="/basic_auth/logout">Logout</a></p>
 {%else%}
 <p>You are not logged in. <a href="/basic_auth/login">Login</a></p>
-{%endif%}
+{%end if%}
 
 {%partial POST login%}
 {%
@@ -40,8 +40,8 @@ let username = username from users where id=:user_id;
     {%redirect '/basic_auth'%}
   {%else%}
     <p>Invalid credentials</p>
-  {%endif%}
-{%endpartial%}
+  {%end if%}
+{%end partial%}
 
 {%partial GET login%}
 {%
@@ -56,7 +56,7 @@ let username = username from users where id=:user_id;
     <input name="password" type="password" placeholder="Password">
     <button type="submit">Login</button>
   </form>
-{%endpartial%}
+{%end partial%}
 
 {%partial GET profile%}
 {%
@@ -70,8 +70,8 @@ let username = username from users where id=:user_id;
     <p><a href="/basic_auth/logout">Logout</a></p>
   {%else%}
     {%redirect '/basic_auth/login'%}
-  {%endif%}
-{%endpartial%}
+  {%end if%}
+{%end partial%}
 
 {%partial public logout%}
 {%
@@ -80,4 +80,4 @@ let username = username from users where id=:user_id;
   cookie session '' path='/' expires='Thu, 01 Jan 1970 00:00:00 GMT';
   redirect '/basic_auth';
 %}
-{%endpartial%}
+{%end partial%}

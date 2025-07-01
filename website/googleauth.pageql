@@ -13,7 +13,7 @@ let redirect_uri = 'https://'||:headers.host||replace(:path, '"', '')||'/callbac
   param code required;
   param state required;
   let payload jws_deserialize_compact(:state);
-  let payload_path = json_extract(:payload, '$.path')
+  let payload_path = json_extract(:payload, '$.path');
 %}
   <p>Payload: {{:payload}}</p>
   <p>Payload path: {{:payload_path}}</p>
@@ -23,13 +23,13 @@ let redirect_uri = 'https://'||:headers.host||replace(:path, '"', '')||'/callbac
   let client_secret = env.GOOGLE_CLIENT_SECRET;
   let token_url = 'https://oauth2.googleapis.com/token';
   let token_body = 'client_id='||:client_id||'&client_secret='||:client_secret||'&code='||:code||'&redirect_uri='||:redirect_uri||'&grant_type=authorization_code&state='||:state;
-  let token_hdr = 'Content-Type: application/x-www-form-urlencoded'
+  let token_hdr = 'Content-Type: application/x-www-form-urlencoded';
 %}
   {%fetch async token from :token_url method='POST' header=:token_hdr body=:token_body%}
     {%if :token.status_code == 200%}
       {%
         let access_token = query_param(:token.body, 'access_token');
-        let header = 'Authorization: Bearer '||:access_token
+        let header = 'Authorization: Bearer '||:access_token;
       %}
       <p>Extracted access token: {{access_token}}</p>
       {%fetch async user from 'https://www.googleapis.com/oauth2/v3/userinfo' header=:header%}

@@ -5,7 +5,7 @@ create table if not exists todos (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     text TEXT NOT NULL,
     completed INTEGER DEFAULT 0 CHECK(completed IN (0,1))
-)
+);
 %}
 
 [

@@ -3,14 +3,12 @@ create table if not exists uploads (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     filename TEXT,
     data BLOB
-)
-%}
+);
 
-{%
 partial post add;
   insert into uploads(filename, data) values (:file.filename, :file.body);
   redirect '/upload';
-endpartial
+endpartial;
 %}
 
 <form method="POST" action="/upload/add" enctype="multipart/form-data">

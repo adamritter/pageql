@@ -7,7 +7,7 @@ from pageql.parser import tokenize, build_ast
 
 
 def test_from_parses_infinite_keyword():
-    tokens = tokenize("{{#from items infinite}}{{/from}}")
+    tokens = tokenize("{{#from items infinite}}{{#endfrom}}")
     body, _ = build_ast(tokens, dialect="sqlite")
     node = body[0]
     assert node[0] == "#from"

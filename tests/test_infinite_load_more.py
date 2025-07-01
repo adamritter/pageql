@@ -19,7 +19,7 @@ def test_infinite_from_adds_order_to_context():
     <div>
     {{#from items order by id limit 1 infinite}}
       {{id}}
-    {{/from}}
+    {{#endfrom}}
     </div>
     """
     r = PageQL(":memory:")

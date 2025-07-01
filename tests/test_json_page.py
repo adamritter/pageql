@@ -20,9 +20,9 @@ SNIPPET = (
     ","
     "["
     "{{#from todos order by id}}"
-    "{{#if NOT :__first_row}},{{/if}}"
+    "{{#if NOT :__first_row}},{{#endif}}"
     "{\"id\":{{id}},\"text\":\"{{text}}\",\"completed\":{{completed}} }"
-    "{{/from}}"
+    "{{#endfrom}}"
     "]"
     "]"
 )

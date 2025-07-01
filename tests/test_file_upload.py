@@ -7,7 +7,7 @@ from pageql.pageqlapp import PageQLApp
 async def _run_upload_test(data: bytes):
     with tempfile.TemporaryDirectory() as tmpdir:
         Path(tmpdir, "u.pageql").write_text(
-            "{{#partial post upload}} {{length(:file.body)}} {{/partial}}",
+            "{{#partial post upload}} {{length(:file.body)}} {{#endpartial}}",
             encoding="utf-8",
         )
         app = PageQLApp(

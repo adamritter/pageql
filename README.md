@@ -129,7 +129,7 @@ reachable from outside the container.
     *   **Public Access:** Using `public` (or specifying `GET`) makes the partial reachable via an HTTP GET request at `/<filename>/<partial_name>` (where `<filename>` is the template file name without the `.pageql` extension). Other verbs restrict access to that specific HTTP method.
     *   **Base File Access:** Requests to the base URL path corresponding to the file (`/<filename>`) render the *top-level content* outside any named `#partial` block.
     *   **Parameters:** For all public/verb-specific accesses, URL query parameters are available via the standard parameter binding mechanism (e.g., `:param_name`).
-    *   **Example:** `{{#partial DELETE :id}}...{{/partial}}` can only be requested with an HTTP `DELETE` and must be rendered using `#render DELETE some_module/:id`.
+    *   **Example:** `{{#partial DELETE :id}}...{{#endpartial}}` can only be requested with an HTTP `DELETE` and must be rendered using `#render DELETE some_module/:id`.
 *   `#import <module> [as <alias>]`: Imports modules relative to the template root directory, optionally assigning an alias. Assumes `.pageql` extension (e.g., `#import "components/button"` loads `components/button.pageql`).
 
 **Variable Manipulation:**
@@ -152,7 +152,7 @@ reachable from outside the container.
         <img src="data:image/jpeg;base64,{{base64_encode(:horse.body)}}" alt="Horse">
         {{#else}}
           <p>Loading horse image...</p>
-        {{/if}}
+        {{#endif}}
     {{/fetch}}
     ```
 
@@ -270,21 +270,21 @@ The first and third forms are stripped from the rendered output. The HTML commen
   {{#param text required minlength=0}}
   {{#insert into todos (text, completed) values (:text, 0)}}
   {{#redirect '/todos?filter=' || :filter}} {{!-- Redirect to base path --}}
-{{/partial}}
+{{#endpartial}}
 
 {{!-- Delete a Todo --}}
 {{#partial POST delete}}
   {{#param id required type=integer min=1}}
   {{#delete from todos WHERE id = :id}}
   {{#redirect '/todos?filter=' || :filter}} {{!-- Redirect to base path --}}
-{{/partial}}
+{{#endpartial}}
 
 {{!-- Toggle a single Todo's completion status --}}
 {{#partial POST toggle}}
   {{#param id required type=integer min=1}}
   {{#update todos set completed = 1 - completed WHERE id = :id}}
   {{#redirect '/todos?filter=' || :filter}} {{!-- Redirect to base path --}}
-{{/partial}}
+{{#endpartial}}
 
 {{!-- Save edited Todo text --}}
 {{#partial POST save}}
@@ -293,14 +293,14 @@ The first and third forms are stripped from the rendered output. The HTML commen
   {{#param filter default='all'}} {{!-- Preserve filter for redirect --}}
   {{#update todos set text = :text WHERE id = :id}}
   {{#redirect '/todos?filter=' || :filter}} {{!-- Redirect to base path --}}
-{{/partial}}
+{{#endpartial}}
 
 {{!-- Delete all completed Todos --}}
 {{#partial POST clear_completed}}
   {{#param filter default='all'}} {{!-- Preserve filter for redirect --}}
   {{#delete from todos WHERE completed = 1}}
   {{#redirect '/todos?filter=' || :filter}} {{!-- Redirect to base path --}}
-{{/partial}}
+{{#endpartial}}
 
 {{!-- Toggle all Todos' completion status --}}
 {{#partial POST toggle_all}}
@@ -310,10 +310,10 @@ The first and third forms are stripped from the rendered output. The HTML commen
   {{#let :new_status = 1}} {{!-- Default to marking all complete --}}
   {{#if :active_count == 0}} {{!-- If none active, mark all incomplete --}}
     {{#let :new_status = 0}}
-  {{/if}}
+  {{#endif}}
   {{#update todos set completed = :new_status}}
   {{#redirect '/todos?filter=' || :filter}} {{!-- Redirect to base path --}}
-{{/partial}}
+{{#endpartial}}
 
 
 {{!-- ============================================= --}}
@@ -366,7 +366,7 @@ The first and third forms are stripped from the rendered output. The HTML commen
     <section class="main">
         <form method="POST" action="/todos/toggle_all" id="toggle-all-form" style="display: block;">
             <input type="hidden" name="filter" value="{{filter}}">
-            <input id="toggle-all" class="toggle-all" type="checkbox" {{#if all_complete}}checked{{/if}} onchange="document.getElementById('toggle-all-form').submit();">
+            <input id="toggle-all" class="toggle-all" type="checkbox" {{#if all_complete}}checked{{#endif}} onchange="document.getElementById('toggle-all-form').submit();">
             <label for="toggle-all">Mark all as complete</label>
         </form>
 
@@ -375,7 +375,7 @@ The first and third forms are stripped from the rendered output. The HTML commen
         {{#from todos WHERE (:filter == 'all') OR (:filter == 'active' AND completed = 0) OR (:filter == 'completed' AND completed == 1) ORDER BY id}}
             {{!-- TODO:  completed isn't part of the sql expression here. There shouldn't be difference between param and column I guess,
                  we need to shallow dup params for all rows for now. New rule: : is optional only for 1 word expressions, in that case sql eval is skipped, just direct --}}
-            <li {{#if completed}}class="completed"{{/if}} {{#if :edit_id == :id}}class="editing"{{/if}}>
+            <li {{#if completed}}class="completed"{{#endif}} {{#if :edit_id == :id}}class="editing"{{#endif}}>
 
             {{#if :edit_id == :id}}
                 {{!-- Edit State --}}
@@ -390,7 +390,7 @@ The first and third forms are stripped from the rendered output. The HTML commen
                 <form method="POST" action="/todos/toggle" style="display: inline;">
                     <input type="hidden" name="id" value="{{id}}">
                     <input type="hidden" name="filter" value="{{filter}}">
-                    <input class="toggle" type="checkbox" {{#if completed}}checked{{/if}} onchange="this.form.submit();">
+                    <input class="toggle" type="checkbox" {{#if completed}}checked{{#endif}} onchange="this.form.submit();">
                 </form>
                 {{!-- Edit link points to base path --}}
                 <label ondblclick="window.location.href='/todos?filter={{filter}}&edit_id={{id}}'">{{text}}</label>
@@ -400,23 +400,23 @@ The first and third forms are stripped from the rendered output. The HTML commen
                     <button class="destroy"></button>
                 </form>
                 </div>
-            {{/if}}
+            {{#endif}}
 
             </li>
-        {{/from}}
+        {{#endfrom}}
         </ul>
     </section>
 
     {{!-- This footer should be hidden if there are no todos --}}
     <footer class="footer">
-        <span class="todo-count"><strong>{{active_count}}</strong> item{{#if :active_count != 1}}s{{/if}} left
-         {{#if :total_count > :active_count}}from {{ total_count}}{{/if}}</span>
+        <span class="todo-count"><strong>{{active_count}}</strong> item{{#if :active_count != 1}}s{{#endif}} left
+         {{#if :total_count > :active_count}}from {{ total_count}}{{#endif}}</span>
        
         <ul class="filters">
             {{!-- Filter links point to base path --}}
-        <li><a {{#if :filter == 'all'}}class="selected"{{/if}} href="/todos?filter=all">All</a></li>
-        <li><a {{#if :filter == 'active'}}class="selected"{{/if}} href="/todos?filter=active">Active</a></li>
-        <li><a {{#if :filter == 'completed'}}class="selected"{{/if}} href="/todos?filter=completed">Completed</a></li>
+        <li><a {{#if :filter == 'all'}}class="selected"{{#endif}} href="/todos?filter=all">All</a></li>
+        <li><a {{#if :filter == 'active'}}class="selected"{{#endif}} href="/todos?filter=active">Active</a></li>
+        <li><a {{#if :filter == 'completed'}}class="selected"{{#endif}} href="/todos?filter=completed">Completed</a></li>
         </ul>
         {{!-- This should be hidden if there are no completed todos --}}
         {{#if :completed_count > 0}}
@@ -424,9 +424,9 @@ The first and third forms are stripped from the rendered output. The HTML commen
             <input type="hidden" name="filter" value="{{filter}}">
             <button class="clear-completed">Clear completed</button>
         </form>
-        {{/if}}
+        {{#endif}}
     </footer>
-    {{/if}} {{!-- End total_count > 0 --}}
+    {{#endif}} {{!-- End total_count > 0 --}}
 
 </section>
 <footer class="info">

@@ -21,7 +21,7 @@
 <p>Logged in as {{username}}. <a href="/basic_auth/profile">Profile</a> <a href="/basic_auth/logout">Logout</a></p>
 {{#else}}
 <p>You are not logged in. <a href="/basic_auth/login">Login</a></p>
-{{/if}}
+{{#endif}}
 
 {{#partial POST login}}
   {{#param username required}}
@@ -36,8 +36,8 @@
     {{#redirect '/basic_auth'}}
   {{#else}}
     <p>Invalid credentials</p>
-  {{/if}}
-{{/partial}}
+  {{#endif}}
+{{#endpartial}}
 
 {{#partial GET login}}
   {{#param session optional}}
@@ -50,7 +50,7 @@
     <input name="password" type="password" placeholder="Password">
     <button type="submit">Login</button>
   </form>
-{{/partial}}
+{{#endpartial}}
 
 {{#partial GET profile}}
   {{#param session optional}}
@@ -62,12 +62,12 @@
     <p><a href="/basic_auth/logout">Logout</a></p>
   {{#else}}
     {{#redirect '/basic_auth/login'}}
-  {{/if}}
-{{/partial}}
+  {{#endif}}
+{{#endpartial}}
 
 {{#partial public logout}}
   {{#param session optional}}
   {{#delete from sessions where token=:session}}
   {{#cookie session '' path='/' expires='Thu, 01 Jan 1970 00:00:00 GMT'}}
   {{#redirect '/basic_auth'}}
-{{/partial}}
+{{#endpartial}}

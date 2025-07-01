@@ -16,7 +16,7 @@ def setup_items(r):
 def test_onevent_global_cache(monkeypatch):
     r = PageQL(":memory:")
     setup_items(r)
-    r.load_module("m", "{{#reactive on}}{{#from items}}[{{name}}]{{/from}}")
+    r.load_module("m", "{{#reactive on}}{{#from items}}[{{name}}]{{#endfrom}}")
 
     calls = []
     original = PageQL.process_nodes

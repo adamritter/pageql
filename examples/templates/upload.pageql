@@ -7,7 +7,7 @@
 {{#partial post add}}
   {{#insert into uploads(filename, data) values (:file.filename, :file.body)}}
   {{#redirect '/upload'}}
-{{/partial}}
+{{#endpartial}}
 
 <form method="POST" action="/upload/add" enctype="multipart/form-data">
   <input type="file" name="file" required>
@@ -20,5 +20,5 @@
     {{filename}} - {{length(:data)}} bytes<br>
     <img src="data:image;base64,{{base64_encode(:data)}}" width="150"/>
   </li>
-{{/from}}
+{{#endfrom}}
 </ul>

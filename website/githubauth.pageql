@@ -29,10 +29,10 @@
           <p>Error: {{:user.status_code}} {{:user.body}}</p>
         {{#else}}
           <p>Loading user...</p>
-        {{/if}}
+        {{#endif}}
       {{/fetch}}
     {{#else}}
       <p>Loading token...</p>
-    {{/if}}
+    {{#endif}}
   {{/fetch}}
-{{/partial}}
+{{#endpartial}}

@@ -413,12 +413,12 @@
 
   <pre class="code-block"><code class="language-diff">
 &lt;<span class="keyword">li</span> &#123;&#123;<span class="keyword">#if</span> completed&#125;&#125;<span class="attribute">class</span>=<span class="string">"completed"</span>&#123;&#123;/<span class="keyword">if</span>&#125;&#125;&gt;
-  &lt;<span class="keyword">input</span> hx-post="/todos/{{id}}/toggle" class="toggle" type="checkbox" {%if completed%}checked{%endif%}&gt;
+  &lt;<span class="keyword">input</span> hx-post="/todos/{{id}}/toggle" class="toggle" type="checkbox" {%if completed%}checked{%end if%}&gt;
   &lt;<span class="keyword">label</span> hx-get="/?edit_id={{id}}"&gt;{{text}}&lt;/<span class="keyword">label</span>&gt;
   &lt;<span class="keyword">button</span> hx-delete="/todos/{{id}}" class="destroy" style="cursor:pointer; background:none; border:none; color:#ac4a1a;"&gt;✕&lt;/<span class="keyword">button</span>&gt;
 &lt;/<span class="keyword">li</span>&gt;
-</code><div class="clean-code">&lt;li {%if completed%}class="completed"{%endif%}&gt;
-  &lt;input hx-post="/todos/{{id}}/toggle" class="toggle" type="checkbox" {%if completed%}checked{%endif%}&gt;
+</code><div class="clean-code">&lt;li {%if completed%}class="completed"{%end if%}&gt;
+  &lt;input hx-post="/todos/{{id}}/toggle" class="toggle" type="checkbox" {%if completed%}checked{%end if%}&gt;
   &lt;label hx-get="/?edit_id={{id}}"&gt;{{text}}&lt;/label&gt;
   &lt;button hx-delete="/todos/{{id}}" class="destroy" style="cursor:pointer; background:none; border:none; color:#ac4a1a;"&gt;✕&lt;/button&gt;
 &lt;/li&gt;</div></pre>
@@ -435,7 +435,7 @@
 &#123;&#123;/<span class="keyword">if</span>&#125;&#125;
 </code><div class="clean-code">{%if :completed_count > 0%}
   &lt;button class="clear-completed" hx-post="/todos/clear_completed"&gt;Clear completed&lt;/button&gt;
-{%endif%}</div></pre>
+{%end if%}</div></pre>
 
   <!-- 3 -->
   <h2>3 New public partials</h2>
@@ -452,11 +452,11 @@
 &#123;&#123;/<span class="keyword">partial</span>&#125;&#125;
 </code><div class="clean-code">{%partial delete :id%}
   {%delete from todos WHERE id = :id%}
-{%endpartial%}
+{%end partial%}
 
 {%partial post clear_completed%}
   {%delete from todos WHERE completed = 1%}
-{%endpartial%}</div></pre>
+{%end partial%}</div></pre>
 
   <p><em>Notice:</em> there is <strong>no</strong> explicit <code>BEGIN</code>/<code>COMMIT</code>. If an error occurs during the partial, PageQL aborts the whole request and rolls back the delete.</p>
 

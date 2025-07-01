@@ -22,7 +22,7 @@ let sess_username = username from users where id=:uid;
 <p>Logged in as {{sess_username}}. <a href="/basic_auth_sessionless/profile">Profile</a> <a href="/basic_auth_sessionless/logout">Logout</a></p>
 {%else%}
 <p>You are not logged in. <a href="/basic_auth_sessionless/login">Login</a> or <a href="/basic_auth_sessionless/register">Register</a></p>
-{%endif%}
+{%end if%}
 
 {%partial POST login%}
 {%
@@ -38,8 +38,8 @@ let sess_username = username from users where id=:uid;
     {%redirect '/basic_auth_sessionless'%}
   {%else%}
     <p>Invalid credentials</p>
-  {%endif%}
-{%endpartial%}
+  {%end if%}
+{%end partial%}
 
 {%partial GET login%}
   <h1>Login</h1>
@@ -49,7 +49,7 @@ let sess_username = username from users where id=:uid;
     <button type="submit">Login</button>
   </form>
   <p><a href="/basic_auth_sessionless/register">Register</a></p>
-{%endpartial%}
+{%end partial%}
 
 {%partial POST register%}
 {%
@@ -67,8 +67,8 @@ let sess_username = username from users where id=:uid;
     {%let token jws_serialize_compact(:payload)%}
     {%cookie session :token path='/' httponly%}
     {%redirect '/basic_auth_sessionless'%}
-  {%endif%}
-{%endpartial%}
+  {%end if%}
+{%end partial%}
 
 {%partial GET register%}
   <h1>Register</h1>
@@ -78,7 +78,7 @@ let sess_username = username from users where id=:uid;
     <button type="submit">Register</button>
   </form>
   <p><a href="/basic_auth_sessionless/login">Login</a></p>
-{%endpartial%}
+{%end partial%}
 
 {%partial GET profile%}
 {%
@@ -95,12 +95,12 @@ let sess_username = username from users where id=:uid;
     <p><a href="/basic_auth_sessionless/logout">Logout</a></p>
   {%else%}
     {%redirect '/basic_auth_sessionless/login'%}
-  {%endif%}
-{%endpartial%}
+  {%end if%}
+{%end partial%}
 
 {%
 partial public logout;
   cookie session '' path='/' expires='Thu, 01 Jan 1970 00:00:00 GMT';
   redirect '/basic_auth_sessionless';
-endpartial;
+end partial;
 %}

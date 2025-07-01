@@ -420,15 +420,15 @@ pageql data.db templates --create</code></pre>
       {%if :total_count &lt; 20%}
       &lt;input name=&quot;text&quot; placeholder=&quot;What needs to be done?&quot; maxlength=&quot;100&quot; autofocus autocomplete=&quot;off&quot;
         hx-post=&quot;/todos/add&quot; hx-trigger=&quot;keyup[key==&#x27;Enter&#x27;]&quot; hx-on:htmx:after-on-load=&quot;this.value=&#x27;&#x27;&quot;&gt;
-      {%endif%}
+      {%end if%}
       &lt;ul&gt;
         {%from todos
           WHERE (:filter == &#x27;all&#x27;)
                 OR (:filter == &#x27;active&#x27;    AND completed = 0)
                 OR (:filter == &#x27;completed&#x27; AND completed = 1)
           %}
-            &lt;li {%if completed%}class=&quot;completed&quot;{%endif%}&gt;
-                &lt;input hx-post=&quot;/todos/{{id}}/toggle&quot; class=&quot;toggle&quot; type=&quot;checkbox&quot; {%if completed%}checked{%endif%}&gt;
+            &lt;li {%if completed%}class=&quot;completed&quot;{%end if%}&gt;
+                &lt;input hx-post=&quot;/todos/{{id}}/toggle&quot; class=&quot;toggle&quot; type=&quot;checkbox&quot; {%if completed%}checked{%end if%}&gt;
                 &lt;label
                   contenteditable=&quot;false&quot;
                   onclick=&quot;this.contentEditable=true;this.focus();&quot;
@@ -443,25 +443,25 @@ pageql data.db templates --create</code></pre>
 
                 &lt;button hx-delete=&quot;/todos/{{id}}&quot; class=&quot;destroy&quot; style=&quot;cursor:pointer; background:none; border:none; color:#ac4a1a;&quot;&gt;✕&lt;/button&gt;
             &lt;/li&gt;
-        {%endfrom%}
+        {%end from%}
       &lt;/ul&gt;
 
-  &lt;input id=&quot;toggle-all&quot; class=&quot;toggle-all&quot; type=&quot;checkbox&quot; {%if all_complete%}checked{%endif%} hx-post=&quot;/todos/toggle_all&quot;&gt;
+  &lt;input id=&quot;toggle-all&quot; class=&quot;toggle-all&quot; type=&quot;checkbox&quot; {%if all_complete%}checked{%end if%} hx-post=&quot;/todos/toggle_all&quot;&gt;
   &lt;label for=&quot;toggle-all&quot;&gt;Mark all as complete&lt;/label&gt;
 
 &lt;span class=&quot;todo-count&quot;&gt;
   &lt;strong&gt;{{active_count}}&lt;/strong&gt;
-  item{%if :active_count != 1%}s{%endif%} left
+  item{%if :active_count != 1%}s{%end if%} left
 &lt;/span&gt;
 
 
 {%if :completed_count &gt; 0%}
   &lt;button class=&quot;clear-completed&quot; hx-post=&quot;/todos/clear_completed&quot;&gt;Clear completed&lt;/button&gt;
-{%endif%}
+{%end if%}
 &lt;div class=&quot;filters&quot;&gt;
-  &lt;a {%if :filter == &#x27;all&#x27;%}class=&quot;selected&quot;{%endif%} href=&quot;/todos?filter=all&quot;&gt;All&lt;/a&gt; |
-  &lt;a {%if :filter == &#x27;active&#x27;%}class=&quot;selected&quot;{%endif%} href=&quot;/todos?filter=active&quot;&gt;Active&lt;/a&gt; |
-  &lt;a {%if :filter == &#x27;completed&#x27;%}class=&quot;selected&quot;{%endif%} href=&quot;/todos?filter=completed&quot;&gt;Completed&lt;/a&gt;
+  &lt;a {%if :filter == &#x27;all&#x27;%}class=&quot;selected&quot;{%end if%} href=&quot;/todos?filter=all&quot;&gt;All&lt;/a&gt; |
+  &lt;a {%if :filter == &#x27;active&#x27;%}class=&quot;selected&quot;{%end if%} href=&quot;/todos?filter=active&quot;&gt;Active&lt;/a&gt; |
+  &lt;a {%if :filter == &#x27;completed&#x27;%}class=&quot;selected&quot;{%end if%} href=&quot;/todos?filter=completed&quot;&gt;Completed&lt;/a&gt;
 &lt;/div&gt;
 &lt;/div&gt;
   &lt;h2 style=&quot;color:rgb(50, 56, 86); margin-top: 2rem; margin-bottom: 0.5rem;&quot;&gt;Source code&lt;/h2&gt;
@@ -474,32 +474,32 @@ partial post add;
    let current_total = COUNT(*) from todos;
    if :current_total &lt; 20;
      insert into todos(text) values (:text);
-   endif;
-endpartial;
+   end if;
+end partial;
 
 partial post :id/toggle;
   update todos set completed = 1 - completed WHERE id = :id;
-endpartial;
+end partial;
 
 partial patch :id;
   param text maxlength=100;
   -- Update todo text
   update todos set text = :text WHERE id = :id;
-endpartial;
+end partial;
 
 partial post toggle_all;
   let active_count = COUNT(*) from todos WHERE completed = 0;
     -- Set all todos completed state based on active count
     update todos set completed =  IIF(:active_count = 0, 0, 1);
-endpartial;
+end partial;
 
 partial delete :id;
   delete from todos WHERE id = :id;
-endpartial;
+end partial;
 
 partial post clear_completed;
   delete from todos WHERE completed = 1;
-endpartial
+end partial
 %}
 </code></pre>
         </div>

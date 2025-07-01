@@ -8,7 +8,7 @@ create table if not exists uploads (
 partial post add;
   insert into uploads(filename, data) values (:file.filename, :file.body);
   redirect '/upload';
-endpartial;
+end partial;
 %}
 
 <form method="POST" action="/upload/add" enctype="multipart/form-data">
@@ -22,5 +22,5 @@ endpartial;
     {{filename}} - {{length(:data)}} bytes<br>
     <img src="data:image;base64,{{base64_encode(:data)}}" width="150"/>
   </li>
-{%endfrom%}
+{%end from%}
 </ul>

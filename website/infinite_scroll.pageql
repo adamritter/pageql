@@ -18,11 +18,11 @@ if :f < 1000;
     ) SELECT n FROM numbers
   ) limit :f,100%}
     {{n}}<br>
-  {%endfrom%}
+  {%end from%}
 </span>
 {%
-endif;
-endpartial;
+end if;
+end partial;
 %}
 
 <div id="list">

@@ -14,9 +14,9 @@ create table if not exists todos (
 ), '[]') from todos}}},
 [
 {%from todos order by id%}
-{%if NOT :__first_row%},{%endif%}
+{%if NOT :__first_row%},{%end if%}
 {"id":{{id}},"text":"{{text}}","completed":{{completed}} }
-{%endfrom%}
+{%end from%}
 ]
 ]
 

@@ -53,7 +53,14 @@
   </style>
 </head>
 <body>
-  <div class="back-link"><a href="/">&larr; PageQL</a> <span style="font-size: 1.8rem; font-weight: bold; color:rgb(40, 170, 190);">TODOMVC</span></div>
+  <div class="back-link">
+    <a href="/">&larr; PageQL</a>
+    <span
+      style="font-size: 1.8rem; font-weight: bold; color:rgb(40, 170, 190);"
+    >
+      TODOMVC
+    </span>
+  </div>
   <div>
       {%if :total_count < 20%}
       <input name="text" placeholder="What needs to be done?" maxlength="100" autofocus autocomplete="off"
@@ -79,12 +86,22 @@
                   hx-swap="none"
                 >{{text}}</label>
 
-                <button hx-delete="/todos/{{id}}" class="destroy" style="cursor:pointer; background:none; border:none; color:#ac4a1a;">✕</button>
+                <button
+                  hx-delete="/todos/{{id}}"
+                  class="destroy"
+                  style="cursor:pointer; background:none; border:none; color:#ac4a1a;"
+                >✕</button>
             </li>
         {%end from%}
       </ul>
 
-  <input id="toggle-all" class="toggle-all" type="checkbox" {%if all_complete%}checked{%end if%} hx-post="/todos/toggle_all">
+  <input
+    id="toggle-all"
+    class="toggle-all"
+    type="checkbox"
+    {%if all_complete%}checked{%end if%}
+    hx-post="/todos/toggle_all"
+  >
   <label for="toggle-all">Mark all as complete</label>
 
 <span class="todo-count">

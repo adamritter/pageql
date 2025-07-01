@@ -80,6 +80,7 @@ async def _load_page_async(
         body = None
 
     status = response.status if response is not None else None
-    body = strip_not_none(await app.get_text_body(client_id))
+    if body is None and client_id:
+        body = strip_not_none(await app.get_text_body(client_id))
 
     return status, body, client_id

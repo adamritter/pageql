@@ -113,28 +113,29 @@ partial post add;
    if :current_total < 20;
      insert into todos(text) values (:text);
    endif
-endpartial
+endpartial;
 
 partial post :id/toggle
   update todos set completed = 1 - completed WHERE id = :id
-endpartial
+endpartial;
 
 partial patch :id
   param text maxlength=100;
   -- Update todo text
   update todos set text = :text WHERE id = :id
-endpartial
+endpartial;
 
 partial post toggle_all
   let active_count = COUNT(*) from todos WHERE completed = 0;
     -- Set all todos completed state based on active count
     update todos set completed =  IIF(:active_count = 0, 0, 1);
-endpartial
+endpartial;
 
-partial delete :id; delete from todos WHERE id = :id;
-endpartial
+partial delete :id;
+  delete from todos WHERE id = :id;
+endpartial;
 
 partial post clear_completed;
-delete from todos WHERE completed = 1;
+  delete from todos WHERE completed = 1;
 endpartial
 %}

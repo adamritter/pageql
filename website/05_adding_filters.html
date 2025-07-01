@@ -413,7 +413,7 @@
 
   <pre class="code-block"><code class="language-html">
 &#123;&#123;<span class="keyword">#param</span> <span class="variable">filter</span> <span class="attribute">default</span>=<span class="string">'all'</span> <span class="attribute">pattern</span>=<span class="string">"^(all|active|completed)$"</span> <span class="attribute">optional</span>&#125;&#125;
-</code><div class="clean-code">{{#param filter default='all' pattern="^(all|active|completed)$" optional}}</div></pre>
+</code><div class="clean-code">{%param filter default='all' pattern="^(all|active|completed)$" optional%}</div></pre>
 
   <p><em><code>optional</code> means the page also works without the query string.</em></p>
 
@@ -430,13 +430,13 @@
   <span class="keyword">ORDER BY</span> id&#125;&#125;
   … list‑item markup …
 &#123;&#123;/<span class="keyword">from</span>&#125;&#125;
-</code><div class="clean-code">{{#from todos
+</code><div class="clean-code">{%from todos
   WHERE (:filter == 'all')
         OR (:filter == 'active'     AND completed = 0)
         OR (:filter == 'completed'  AND completed = 1)
-  ORDER BY id}}
+  ORDER BY id%}
   … list‑item markup …
-{{#endfrom}}</div></pre>
+{%endfrom%}</div></pre>
 
   <p>The entire boolean expression is <strong>sent to SQLite</strong>; <code>:filter</code> is safely bound.</p>
 
@@ -452,9 +452,9 @@
   &lt;<span class="keyword">a</span> &#123;&#123;<span class="keyword">#if</span> :<span class="variable">filter</span> == <span class="string">'completed'</span>&#125;&#125;<span class="attribute">class</span>=<span class="string">"selected"</span>&#123;&#123;/<span class="keyword">if</span>&#125;&#125; <span class="attribute">href</span>=<span class="string">"/todos?filter=completed"</span>&gt;Completed&lt;/<span class="keyword">a</span>&gt;
 &lt;/<span class="keyword">div</span>&gt;
 </code><div class="clean-code">&lt;div class="filters"&gt;
-  &lt;a {{#if :filter == 'all'}}class="selected"{{#endif}} href="/todos?filter=all"&gt;All&lt;/a&gt; |
-  &lt;a {{#if :filter == 'active'}}class="selected"{{#endif}} href="/todos?filter=active"&gt;Active&lt;/a&gt; |
-  &lt;a {{#if :filter == 'completed'}}class="selected"{{#endif}} href="/todos?filter=completed"&gt;Completed&lt;/a&gt;
+  &lt;a {%if :filter == 'all'%}class="selected"{%endif%} href="/todos?filter=all"&gt;All&lt;/a&gt; |
+  &lt;a {%if :filter == 'active'%}class="selected"{%endif%} href="/todos?filter=active"&gt;Active&lt;/a&gt; |
+  &lt;a {%if :filter == 'completed'%}class="selected"{%endif%} href="/todos?filter=completed"&gt;Completed&lt;/a&gt;
 &lt;/div&gt;</div></pre>
 
   <p>The CSS from TodoMVC highlights the link that carries <code>class="selected"</code>.</p>

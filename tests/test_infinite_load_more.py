@@ -14,12 +14,12 @@ from pageql.reactive import ReactiveTable, Order
 
 def test_infinite_from_adds_order_to_context():
     page = """
-    {{#create table items(id INTEGER)}}
-    {{#insert into items(id) values (1)}}
+    {%create table items(id INTEGER)%}
+    {%insert into items(id) values (1)%}
     <div>
-    {{#from items order by id limit 1 infinite}}
+    {%from items order by id limit 1 infinite%}
       {{id}}
-    {{#endfrom}}
+    {%endfrom%}
     </div>
     """
     r = PageQL(":memory:")

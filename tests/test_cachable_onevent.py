@@ -19,7 +19,7 @@ def test_from_cachable_true_with_column_param():
     setup_items(r)
     r.load_module(
         "m",
-        "{{#reactive on}}{{#from items}}{{#if :name}}x{{#endif}}{{#endfrom}}",
+        "{%reactive on%}{%from items%}{%if :name%}x{%endif%}{%endfrom%}",
     )
     result = r.render("/m")
     listener = result.context.listeners[0][1]
@@ -31,7 +31,7 @@ def test_from_cachable_false_with_external_param():
     setup_items(r)
     r.load_module(
         "m",
-        "{{#reactive on}}{{#from items}}{{#if :other}}x{{#endif}}{{#endfrom}}",
+        "{%reactive on%}{%from items%}{%if :other%}x{%endif%}{%endfrom%}",
     )
     result = r.render("/m", params={"other": 1})
     listener = result.context.listeners[0][1]

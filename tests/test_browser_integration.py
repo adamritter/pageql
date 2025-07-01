@@ -45,7 +45,7 @@ async def test_hello_world_in_browser(setup):
 
     with tempfile.TemporaryDirectory() as tmpdir:
         Path(tmpdir, "hello.pageql").write_text(
-            "{{#header X-Test 'v'}}Hello world!", encoding="utf-8"
+            "{%header X-Test 'v'%}Hello world!", encoding="utf-8"
         )
 
         server, task, port, app = await start_server(tmpdir)
@@ -68,7 +68,7 @@ async def test_set_variable_in_browser(setup):
     """Ensure directives work when rendered through the ASGI app."""
 
     with tempfile.TemporaryDirectory() as tmpdir:
-        Path(tmpdir, "greet.pageql").write_text("{{#let :a = 'world'}}Hello {{a}}", encoding="utf-8")
+        Path(tmpdir, "greet.pageql").write_text("{%let :a = 'world'%}Hello {{a}}", encoding="utf-8")
 
         server, task, port, app = await start_server(tmpdir)
         result = await _load_page_async(port, "greet", app, browser=setup)
@@ -91,12 +91,12 @@ async def test_reactive_set_variable_in_browser(setup):
 
     with tempfile.TemporaryDirectory() as tmpdir:
         Path(tmpdir, "react.pageql").write_text(
-            "{{#create table vars(val TEXT)}}"
-            "{{#insert into vars(val) values ('ww')}}"
-            "{{#reactive on}}"
-            "{{#let a = (select val from vars)}}"
+            "{%create table vars(val TEXT)%}"
+            "{%insert into vars(val) values ('ww')%}"
+            "{%reactive on%}"
+            "{%let a = (select val from vars)%}"
             "hello {{a}}"
-            "{{#update vars set val = 'world'}}",
+            "{%update vars set val = 'world'%}",
             encoding="utf-8",
         )
 
@@ -120,11 +120,11 @@ async def test_reactive_count_insert_in_browser(setup):
 
     with tempfile.TemporaryDirectory() as tmpdir:
         Path(tmpdir, "count.pageql").write_text(
-            "{{#create table nums(value INTEGER)}}"
-            "{{#reactive on}}"
-            "{{#let a = count(*) from nums}}"
+            "{%create table nums(value INTEGER)%}"
+            "{%reactive on%}"
+            "{%let a = count(*) from nums%}"
             "{{a}}"
-            "{{#insert into nums(value) values (1)}}",
+            "{%insert into nums(value) values (1)%}",
             encoding="utf-8",
         )
 
@@ -150,9 +150,9 @@ async def test_reactive_count_insert_via_execute(setup):
 
     with tempfile.TemporaryDirectory() as tmpdir:
         Path(tmpdir, "count_after.pageql").write_text(
-            "{{#create table if not exists nums(value INTEGER)}}"
-            "{{#reactive on}}"
-            "{{#let a = count(*) from nums}}"
+            "{%create table if not exists nums(value INTEGER)%}"
+            "{%reactive on%}"
+            "{%let a = count(*) from nums%}"
             "{{a}}",
             encoding="utf-8",
         )
@@ -178,10 +178,10 @@ async def test_reactive_count_delete_via_execute(setup):
 
     with tempfile.TemporaryDirectory() as tmpdir:
         Path(tmpdir, "count_after_delete.pageql").write_text(
-            "{{#create table if not exists nums(value INTEGER)}}"
-            "{{#insert into nums(value) values (1)}}"
-            "{{#reactive on}}"
-            "{{#let a = count(*) from nums}}"
+            "{%create table if not exists nums(value INTEGER)%}"
+            "{%insert into nums(value) values (1)%}"
+            "{%reactive on%}"
+            "{%let a = count(*) from nums%}"
             "{{a}}",
             encoding="utf-8",
         )
@@ -206,9 +206,9 @@ async def test_insert_via_execute_after_click(setup):
 
     with tempfile.TemporaryDirectory() as tmpdir:
         Path(tmpdir, "msgs.pageql").write_text(
-            "{{#create table if not exists msgs(text TEXT)}}"
-            "{{#reactive on}}"
-            "{{#from msgs}}{{text}}{{#endfrom}}",
+            "{%create table if not exists msgs(text TEXT)%}"
+            "{%reactive on%}"
+            "{%from msgs%}{{text}}{%endfrom%}",
             encoding="utf-8",
         )
 
@@ -288,7 +288,7 @@ async def test_fetch_async_directive_in_browser(setup):
     with tempfile.TemporaryDirectory() as tmpdir:
         Path(tmpdir, "data.pageql").write_text("hello", encoding="utf-8")
         Path(tmpdir, "fetch.pageql").write_text(
-            "{{#fetch async d from 'http://127.0.0.1:'||:port||'/data'}}{{d__body}}",
+            "{%fetch async d from 'http://127.0.0.1:'||:port||'/data'%}{{d__body}}",
             encoding="utf-8",
         )
 
@@ -307,12 +307,12 @@ async def test_fetch_async_healthz_in_browser(setup):
     """Async fetch should resolve relative URLs using the request host."""
     with tempfile.TemporaryDirectory() as tmpdir:
         Path(tmpdir, "fetchrel.pageql").write_text(
-            "{{#fetch async d from '/healthz'}}"
-            "{{#if :d.status_code == 200}}"
-            "{{#fetch async d2 from '/healthz'}}"
+            "{%fetch async d from '/healthz'%}"
+            "{%if :d.status_code == 200%}"
+            "{%fetch async d2 from '/healthz'%}"
             "{{d2__body}}"
             "{{/fetch}}"
-            "{{#else}}Loading...{{#endif}}"
+            "{%else%}Loading...{%endif%}"
             "{{/fetch}}",
             encoding="utf-8",
         )
@@ -366,13 +366,13 @@ async def test_pset_with_script_tags(setup):
     with tempfile.TemporaryDirectory() as tmpdir:
         Path(tmpdir, "pset.pageql").write_text(
             (
-                "{{#create table if not exists todos (id integer primary key autoincrement, text text)}}"
-                "{{#delete from todos}}"
-                "{{#let todos_count = (select count(*) from todos)}}"
-                "{{#if :todos_count > 0}}"
+                "{%create table if not exists todos (id integer primary key autoincrement, text text)%}"
+                "{%delete from todos%}"
+                "{%let todos_count = (select count(*) from todos)%}"
+                "{%if :todos_count > 0%}"
                 "{{todos_count}}"
-                "{{#endif}}"
-                "{{#insert into todos (text) values ('Hello, world!')}}"
+                "{%endif%}"
+                "{%insert into todos (text) values ('Hello, world!')%}"
             ),
             encoding="utf-8",
         )

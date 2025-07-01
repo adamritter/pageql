@@ -1,13 +1,13 @@
-{{#create table if not exists uploads (
+{%create table if not exists uploads (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     filename TEXT,
     data BLOB
-)}}
+)%}
 
-{{#partial post add}}
-  {{#insert into uploads(filename, data) values (:file.filename, :file.body)}}
-  {{#redirect '/upload'}}
-{{#endpartial}}
+{%partial post add%}
+  {%insert into uploads(filename, data) values (:file.filename, :file.body)%}
+  {%redirect '/upload'%}
+{%endpartial%}
 
 <form method="POST" action="/upload/add" enctype="multipart/form-data">
   <input type="file" name="file" required>
@@ -15,10 +15,10 @@
 </form>
 
 <ul>
-{{#from uploads order by id desc}}
+{%from uploads order by id desc%}
   <li>
     {{filename}} - {{length(:data)}} bytes<br>
     <img src="data:image;base64,{{base64_encode(:data)}}" width="150"/>
   </li>
-{{#endfrom}}
+{%endfrom%}
 </ul>

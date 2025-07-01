@@ -430,8 +430,8 @@
            &#123;&#123;<span class="keyword">#if</span> completed&#125;&#125;checked&#123;&#123;/<span class="keyword">if</span>&#125;&#125;&gt;
   &lt;<span class="keyword">label</span> <span class="attribute">hx-get</span>=<span class="string">"/?edit_id=&#123;&#123;id&#125;&#125;"</span>&gt;&#123;&#123;text&#125;&#125;&lt;/<span class="keyword">label</span>&gt;
 &lt;/<span class="keyword">li</span>&gt;
-</code><div class="clean-code">&lt;li {{#if completed}}class="completed"{{#endif}}&gt;
-  &lt;input hx-post="/todos/{{id}}/toggle" class="toggle" type="checkbox" {{#if completed}}checked{{#endif}}&gt;
+</code><div class="clean-code">&lt;li {%if completed%}class="completed"{%endif%}&gt;
+  &lt;input hx-post="/todos/{{id}}/toggle" class="toggle" type="checkbox" {%if completed%}checked{%endif%}&gt;
   &lt;label hx-get="/?edit_id={{id}}"&gt;{{text}}&lt;/label&gt;
 &lt;/li&gt;</div></pre>
 
@@ -440,7 +440,7 @@
     <li>To conditionally add a CSS class when a todo is completed</li>
     <li>To check the checkbox for completed todos</li>
   </ol>
-  <p>In simple variable cases like <code>{{#if completed}}</code>, PageQL allows omitting the colon prefix. Inside the <code>#from</code> loop (not shown here), <code>completed</code>, <code>id</code>, and <code>text</code> become available as variables from the query results.</p>
+  <p>In simple variable cases like <code>{%if completed%}</code>, PageQL allows omitting the colon prefix. Inside the <code>#from</code> loop (not shown here), <code>completed</code>, <code>id</code>, and <code>text</code> become available as variables from the query results.</p>
   <p>The <code>hx-get</code> attribute loads the same page with an <code>edit_id</code> parameter, triggering edit mode.</p>
 
   <h3>2.3 Edit mode (conditional)</h3>
@@ -455,16 +455,16 @@
 &#123;&#123;<span class="keyword">#else</span>&#125;&#125;
   …view version from 2.2…
 &#123;&#123;/<span class="keyword">if</span>&#125;&#125;
-</code><div class="clean-code">{{#if :edit_id == :id}}
+</code><div class="clean-code">{%if :edit_id == :id%}
   &lt;li class="editing"&gt;
     &lt;form hx-post="/todos/save" style="margin:0"&gt;
       &lt;input type="hidden" name="id" value="{{id}}"&gt;
       &lt;input class="edit" name="text" value="{{text}}" autofocus&gt;
     &lt;/form&gt;
   &lt;/li&gt;
-{{#else}}
+{%else%}
   …view version from 2.2…
-{{#endif}}</div></pre>
+{%endif%}</div></pre>
 
   <p>This conditional section demonstrates how PageQL handles more complex expressions. Notice that when comparing variables (<code>:edit_id == :id</code>), the colon prefix is required on both sides because we're using a complex expression rather than a simple variable check.</p>
   
@@ -487,13 +487,13 @@
 &lt;/<span class="keyword">span</span>&gt;
 </code><div class="clean-code">&lt;form hx-post="/todos/toggle_all" id="toggle-all-form" style="display:block"&gt;
   &lt;input id="toggle-all" class="toggle-all" type="checkbox"
-         {{#if all_complete}}checked{{#endif}}&gt;
+         {%if all_complete%}checked{%endif%}&gt;
   &lt;label for="toggle-all"&gt;Mark all as complete&lt;/label&gt;
 &lt;/form&gt;
 
 &lt;span class="todo-count"&gt;
   &lt;strong&gt;{{active_count}}&lt;/strong&gt;
-  item{{#if :active_count != 1}}s{{#endif}} left
+  item{%if :active_count != 1%}s{%endif%} left
 &lt;/span&gt;</div></pre>
 
   <p>This section showcases how PageQL variables can be used to:</p>
@@ -525,24 +525,24 @@
   &#123;&#123;<span class="keyword">#update</span> todos <span class="keyword">set</span> completed = <span class="keyword">IIF</span>(:<span class="variable">active_count</span> = 0, 0, 1)&#125;&#125;
   &#123;&#123;<span class="keyword">#redirect</span> <span class="string">'/todos'</span>&#125;&#125;
 &#123;&#123;/<span class="keyword">partial</span>&#125;&#125;
-</code><div class="clean-code">{{#partial post :id/toggle}}
-  {{#param id required type=integer min=1}}
-  {{#update todos set completed = 1 - completed WHERE id = :id}}
-  {{#redirect '/todos'}}
-{{#endpartial}}
+</code><div class="clean-code">{%partial post :id/toggle%}
+  {%param id required type=integer min=1%}
+  {%update todos set completed = 1 - completed WHERE id = :id%}
+  {%redirect '/todos'%}
+{%endpartial%}
 
-{{#partial public save}}
-  {{#param id required type=integer min=1}}
-  {{#param text required minlength=1}}
-  {{#update todos set text = :text WHERE id = :id}}
-  {{#redirect '/todos'}}
-{{#endpartial}}
+{%partial public save%}
+  {%param id required type=integer min=1%}
+  {%param text required minlength=1%}
+  {%update todos set text = :text WHERE id = :id%}
+  {%redirect '/todos'%}
+{%endpartial%}
 
-{{#partial public toggle_all}}
-  {{#let active_count = COUNT(*) from todos WHERE completed = 0}}
-  {{#update todos set completed = IIF(:active_count = 0, 0, 1)}}
-  {{#redirect '/todos'}}
-{{#endpartial}}</div></pre>
+{%partial public toggle_all%}
+  {%let active_count = COUNT(*) from todos WHERE completed = 0%}
+  {%update todos set completed = IIF(:active_count = 0, 0, 1)%}
+  {%redirect '/todos'%}
+{%endpartial%}</div></pre>
 
   <p>These partials define server-side endpoints that handle data modifications. The <code>public</code> keyword exposes them directly via HTTP POST requests, making them accessible at paths like <code>/todos/toggle</code>.</p>
   

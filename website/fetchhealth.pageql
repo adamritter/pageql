@@ -1,13 +1,13 @@
-{{#fetch async outer from '/healthz'}}
-  {{#if :outer.status_code == 200}}
-    {{#fetch async inner from '/healthz'}}
-      {{#if :inner.status_code == 200}}
+{%fetch async outer from '/healthz'%}
+  {%if :outer.status_code == 200%}
+    {%fetch async inner from '/healthz'%}
+      {%if :inner.status_code == 200%}
         Fetched twice
-      {{#else}}
+      {%else%}
         Loading inner... {{inner__body}}
-      {{#endif}}
+      {%endif%}
     {{/fetch}}
-  {{#else}}
+  {%else%}
     Loading outer... {{outer__body}}
-  {{#endif}}
+  {%endif%}
 {{/fetch}}

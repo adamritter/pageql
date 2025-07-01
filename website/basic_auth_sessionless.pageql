@@ -1,42 +1,42 @@
-{{#create table if not exists users (
+{%create table if not exists users (
     id INTEGER PRIMARY KEY,
     username TEXT UNIQUE,
     password TEXT
-)}}
+)%}
 
-{{#insert or ignore into users(id, username, password) values (1, 'alice', 'password')}}
-{{#insert or ignore into users(id, username, password) values (2, 'bob', 'pass')}}
+{%insert or ignore into users(id, username, password) values (1, 'alice', 'password')%}
+{%insert or ignore into users(id, username, password) values (2, 'bob', 'pass')%}
 
 {{!-- Load JWT from session cookie --}}
-{{#param cookies.session optional}}
-{{#let payload = jws_deserialize_compact(:cookies.session)}}
-{{#let uid = cast(json_extract(:payload, '$.uid') as integer)}}
-{{#let expiry = cast(json_extract(:payload, '$.exp') as integer)}}
-{{#let jwt_valid = (:expiry > cast(strftime('%s','now') as integer))}}
-{{#let sess_username = username from users where id=:uid}}
+{%param cookies.session optional%}
+{%let payload = jws_deserialize_compact(:cookies.session)%}
+{%let uid = cast(json_extract(:payload, '$.uid') as integer)%}
+{%let expiry = cast(json_extract(:payload, '$.exp') as integer)%}
+{%let jwt_valid = (:expiry > cast(strftime('%s','now') as integer))%}
+{%let sess_username = username from users where id=:uid%}
 
-{{#if :uid and :jwt_valid}}
+{%if :uid and :jwt_valid%}
 <p>Logged in as {{sess_username}}. <a href="/basic_auth_sessionless/profile">Profile</a> <a href="/basic_auth_sessionless/logout">Logout</a></p>
-{{#else}}
+{%else%}
 <p>You are not logged in. <a href="/basic_auth_sessionless/login">Login</a> or <a href="/basic_auth_sessionless/register">Register</a></p>
-{{#endif}}
+{%endif%}
 
-{{#partial POST login}}
-  {{#param username required}}
-  {{#param password required}}
-  {{#let uid id from users where username=:username and password=:password}}
-  {{#if uid}}
-    {{#let expiry (cast(strftime('%s','now') as integer) + 3600)}}
-    {{#let payload json_set('{"role":"member"}', '$.exp', :expiry, '$.uid', :uid)}}
-    {{#let token jws_serialize_compact(:payload)}}
-    {{#cookie session :token path='/' httponly}}
-    {{#redirect '/basic_auth_sessionless'}}
-  {{#else}}
+{%partial POST login%}
+  {%param username required%}
+  {%param password required%}
+  {%let uid id from users where username=:username and password=:password%}
+  {%if uid%}
+    {%let expiry (cast(strftime('%s','now') as integer) + 3600)%}
+    {%let payload json_set('{"role":"member"}', '$.exp', :expiry, '$.uid', :uid)%}
+    {%let token jws_serialize_compact(:payload)%}
+    {%cookie session :token path='/' httponly%}
+    {%redirect '/basic_auth_sessionless'%}
+  {%else%}
     <p>Invalid credentials</p>
-  {{#endif}}
-{{#endpartial}}
+  {%endif%}
+{%endpartial%}
 
-{{#partial GET login}}
+{%partial GET login%}
   <h1>Login</h1>
   <form method="POST" action="/basic_auth_sessionless/login">
     <input name="username" placeholder="Username">
@@ -44,26 +44,26 @@
     <button type="submit">Login</button>
   </form>
   <p><a href="/basic_auth_sessionless/register">Register</a></p>
-{{#endpartial}}
+{%endpartial%}
 
-{{#partial POST register}}
-  {{#param username required}}
-  {{#param password required}}
-  {{#let existing id from users where username=:username}}
-  {{#if existing}}
+{%partial POST register%}
+  {%param username required%}
+  {%param password required%}
+  {%let existing id from users where username=:username%}
+  {%if existing%}
     <p>User already exists</p>
-  {{#else}}
-    {{#insert into users(username, password) values(:username, :password)}}
-    {{#let uid last_insert_rowid()}}
-    {{#let expiry (cast(strftime('%s','now') as integer) + 3600)}}
-    {{#let payload json_set('{"role":"member"}', '$.exp', :expiry, '$.uid', :uid)}}
-    {{#let token jws_serialize_compact(:payload)}}
-    {{#cookie session :token path='/' httponly}}
-    {{#redirect '/basic_auth_sessionless'}}
-  {{#endif}}
-{{#endpartial}}
+  {%else%}
+    {%insert into users(username, password) values(:username, :password)%}
+    {%let uid last_insert_rowid()%}
+    {%let expiry (cast(strftime('%s','now') as integer) + 3600)%}
+    {%let payload json_set('{"role":"member"}', '$.exp', :expiry, '$.uid', :uid)%}
+    {%let token jws_serialize_compact(:payload)%}
+    {%cookie session :token path='/' httponly%}
+    {%redirect '/basic_auth_sessionless'%}
+  {%endif%}
+{%endpartial%}
 
-{{#partial GET register}}
+{%partial GET register%}
   <h1>Register</h1>
   <form method="POST" action="/basic_auth_sessionless/register">
     <input name="username" placeholder="Username">
@@ -71,25 +71,25 @@
     <button type="submit">Register</button>
   </form>
   <p><a href="/basic_auth_sessionless/login">Login</a></p>
-{{#endpartial}}
+{%endpartial%}
 
-{{#partial GET profile}}
-  {{#param cookies.session optional}}
-  {{#let payload jws_deserialize_compact(:cookies.session)}}
-  {{#let uid cast(json_extract(:payload, '$.uid') as integer)}}
-  {{#let expiry cast(json_extract(:payload, '$.exp') as integer)}}
-  {{#let jwt_valid (:expiry > cast(strftime('%s','now') as integer))}}
-  {{#let sess_username username from users where id=:uid}}
+{%partial GET profile%}
+  {%param cookies.session optional%}
+  {%let payload jws_deserialize_compact(:cookies.session)%}
+  {%let uid cast(json_extract(:payload, '$.uid') as integer)%}
+  {%let expiry cast(json_extract(:payload, '$.exp') as integer)%}
+  {%let jwt_valid (:expiry > cast(strftime('%s','now') as integer))%}
+  {%let sess_username username from users where id=:uid%}
 
-  {{#if :uid and :jwt_valid}}
+  {%if :uid and :jwt_valid%}
     <h1>Hello {{sess_username}}</h1>
     <p><a href="/basic_auth_sessionless/logout">Logout</a></p>
-  {{#else}}
-    {{#redirect '/basic_auth_sessionless/login'}}
-  {{#endif}}
-{{#endpartial}}
+  {%else%}
+    {%redirect '/basic_auth_sessionless/login'%}
+  {%endif%}
+{%endpartial%}
 
-{{#partial public logout}}
-  {{#cookie session '' path='/' expires='Thu, 01 Jan 1970 00:00:00 GMT'}}
-  {{#redirect '/basic_auth_sessionless'}}
-{{#endpartial}}
+{%partial public logout%}
+  {%cookie session '' path='/' expires='Thu, 01 Jan 1970 00:00:00 GMT'%}
+  {%redirect '/basic_auth_sessionless'%}
+{%endpartial%}

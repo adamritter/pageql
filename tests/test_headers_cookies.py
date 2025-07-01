@@ -8,7 +8,7 @@ from pageql.pageql import PageQL
 
 def test_header_cookie_in_render_result():
     r = PageQL(":memory:")
-    r.load_module("mod", "{{#header X-Test 'v'}}{{#cookie sess 'val' path='/'}}ok")
+    r.load_module("mod", "{%header X-Test 'v'%}{%cookie sess 'val' path='/'%}ok")
     res = r.render("/mod")
     assert ("X-Test", "v") in res.headers
     assert ("sess", "val", {"path": "/"}) in res.cookies
@@ -18,7 +18,7 @@ def test_header_cookie_sent():
     async def run():
         with tempfile.TemporaryDirectory() as tmpdir:
             Path(tmpdir, "h.pageql").write_text(
-                "{{#header X-Mode 'on'}}{{#cookie cid 'c123' path='/' httponly}}hi",
+                "{%header X-Mode 'on'%}{%cookie cid 'c123' path='/' httponly%}hi",
                 encoding="utf-8",
             )
             app = PageQLApp(":memory:", tmpdir, create_db=True, should_reload=False)

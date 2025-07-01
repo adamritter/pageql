@@ -7,7 +7,7 @@
 {%insert or ignore into users(id, username, password) values (1, 'alice', 'password')%}
 {%insert or ignore into users(id, username, password) values (2, 'bob', 'pass')%}
 
-{{!-- Load JWT from session cookie --}}
+{%-- Load JWT from session cookie --%}
 {%param cookies.session optional%}
 {%let payload = jws_deserialize_compact(:cookies.session)%}
 {%let uid = cast(json_extract(:payload, '$.uid') as integer)%}

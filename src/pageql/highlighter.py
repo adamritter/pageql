@@ -46,7 +46,7 @@ _HTML_ATTR = "#92c5f8;"
 _HTML_TAG = "#569cd6; font-weight: bold;"
 
 _TOKEN_SPLIT_RE = re.compile(
-    r"({{!--.*?--}}|{{{.*?}}}|{{.*?}}|{%.*?%}|<[^>\"']*(?:\"[^\"]*\"|'[^']*'|[^>\"']*)*>)",
+    r"({%--.*?--%}|{{!--.*?--}}|{{{.*?}}}|{{.*?}}|{%.*?%}|<[^>\"']*(?:\"[^\"]*\"|'[^']*'|[^>\"']*)*>)",
     re.DOTALL,
 )
 
@@ -142,6 +142,9 @@ def _highlight_pageql_expr(text: str) -> str:
 
 
 def _highlight_pageql(token: str) -> str:
+    if token.startswith('{%--'):
+        content = escape(token[4:-4])
+        return f"&#123;%{_span('--' + content + '--', _COMMENT_COLOR)}%&#125;"
     if token.startswith('{{!--'):
         content = escape(token[5:-4])
         return f"&#123;&#123;{_span('!--' + content + '--', _COMMENT_COLOR)}&#125;&#125;"

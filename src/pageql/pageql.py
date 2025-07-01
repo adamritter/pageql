@@ -221,7 +221,7 @@ class PageQL:
             >>> r = PageQL(":memory:")
             >>> source_with_comment = '''
             ... Start Text.
-            ... {{!-- This is a comment --}}
+            ... {%-- This is a comment --%}
             ... End Text.
             ... '''
             >>> # Verify loading doesn't raise an error

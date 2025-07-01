@@ -26,7 +26,7 @@ __doc__ = """
 >>> source_with_comment = '''
 ... {%let :ww = 3+3%}
 ... Start Text.
-... {{!-- This is a comment --}}
+... {%-- This is a comment --%}
 ... {{ :hello }}
 ... {{ :ww + 4 }}
 ... {%partial public add%}

@@ -1,6 +1,6 @@
 {%param filter default='all' pattern="^(all|active|completed)$"%}
 
-{{!-- Ensure the table exists (harmless if already created) --}}
+{%-- Ensure the table exists (harmless if already created) --%}
 {%create table if not exists todos (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     text TEXT NOT NULL,

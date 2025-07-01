@@ -106,11 +106,11 @@ def tokenize(source):
         [('text', 'Count: '), ('render_raw', '1+1')]
         >>> tokenize("{%if x > 5%}Big{%endif%}")
         [('#if', 'x > 5'), ('text', 'Big'), ('#endif', None)]
-        >>> tokenize("{{!-- Comment --}}Visible")
+        >>> tokenize("{%-- Comment --%}Visible")
         [('text', 'Visible')]
     """
     nodes = []
-    parts = re.split(r'({{!--.*?--}}|{%.*?%}|{{.*?}}}?)', source, flags=re.DOTALL)
+    parts = re.split(r'({%--.*?--%}|{{!--.*?--}}|{%.*?%}|{{.*?}}}?)', source, flags=re.DOTALL)
     for part in parts:
         if not part:  # Skip empty strings from split
             continue

@@ -1,4 +1,5 @@
-{%param filter default='all' pattern="^(all|active|completed)$";
+{%
+  param filter default='all' pattern="^(all|active|completed)$";
   -- Ensure the table exists (harmless if already created)
   create table if not exists todos (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -10,7 +11,6 @@
   let total_count     = COUNT(*) from todos;
   let all_complete    = (:active_count == 0 AND :total_count > 0)
 %}
-
 
 <!doctype html>
 <html lang="en">
@@ -106,31 +106,35 @@
 {%showsource%}
 </body>
 </html>
-{%partial post add%}
-  {%param text maxlength=100; let current_total = COUNT(*) from todos;
-    -- Only add a todo if we're below the limit
-    if :current_total < 20; insert into todos(text) values (:text); endif%}
-{%endpartial%}
+{%
+partial post add;
+   param text maxlength=100;
+   let current_total = COUNT(*) from todos;
+   if :current_total < 20;
+     insert into todos(text) values (:text);
+   endif
+endpartial
 
-{%partial post :id/toggle%}
-  {%update todos set completed = 1 - completed WHERE id = :id%}
-{%endpartial%}
+partial post :id/toggle
+  update todos set completed = 1 - completed WHERE id = :id
+endpartial
 
-{%partial patch :id%}
-  {%param text maxlength=100; -- Update todo text
-    update todos set text = :text WHERE id = :id%}
-{%endpartial%}
+partial patch :id
+  param text maxlength=100;
+  -- Update todo text
+  update todos set text = :text WHERE id = :id
+endpartial
 
-{%partial post toggle_all%}
-  {%let active_count = COUNT(*) from todos WHERE completed = 0;
+partial post toggle_all
+  let active_count = COUNT(*) from todos WHERE completed = 0;
     -- Set all todos completed state based on active count
-    update todos set completed =  IIF(:active_count = 0, 0, 1)%}
-{%endpartial%}
+    update todos set completed =  IIF(:active_count = 0, 0, 1);
+endpartial
 
-{%partial delete :id%}
-  {%delete from todos WHERE id = :id%}
-{%endpartial%}
+partial delete :id; delete from todos WHERE id = :id;
+endpartial
 
-{%partial post clear_completed%}
-  {%delete from todos WHERE completed = 1%}
-{%endpartial%}
+partial post clear_completed;
+delete from todos WHERE completed = 1;
+endpartial
+%}

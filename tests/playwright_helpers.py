@@ -44,7 +44,7 @@ async def _load_page_async(
     app: PageQLApp,
     after: Optional[Callable[["async_playwright.Page", int, PageQLApp], None]] = None,
     browser=None,
-) -> Optional[Tuple[int, str]]:
+) -> Tuple[Optional[int], Optional[str], Optional[str]]:
 
     pg = await browser.new_page()
     response = await pg.goto(f"http://127.0.0.1:{port}/{page}")
@@ -65,21 +65,19 @@ async def _load_page_async(
         else:
             after(pg, port, app)
 
-    body: Optional[str]
-    if client_id:
-        # ``after`` may navigate again, creating a new WebSocket with a new id
-        ids = [client_id]
-        ids.extend(cid for cid in app.websockets.keys() if cid != client_id)
-        body = None
-        for cid in ids:
-            body = await app.get_text_body(cid)
-            if body is not None:
-                body = body.strip()
-                break
-    else:
-        body = None
+    chosen_id = client_id
+    body: Optional[str] = None
+    ids = [client_id] if client_id else []
+    ids.extend(cid for cid in app.websockets.keys() if cid not in ids)
+    for cid in ids:
+        b = await app.get_text_body(cid)
+        if b is not None:
+            chosen_id = cid
+            body = b.strip()
+            break
+
+    body = strip_not_none(await app.get_text_body(chosen_id))
 
     status = response.status if response is not None else None
-    body = strip_not_none(await app.get_text_body(client_id))
 
-    return status, body, client_id
+    return status, body, chosen_id

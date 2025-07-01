@@ -60,6 +60,26 @@ def _strip_sql_line_comments(text: str) -> str:
         out_lines.append(line)
     return "\n".join(out_lines)
 
+def _split_directives(text: str) -> list[str]:
+    """Split semicolon-separated directives while respecting quotes."""
+    parts: list[str] = []
+    quote = None
+    start = 0
+    for i, ch in enumerate(text):
+        if quote:
+            if ch == quote:
+                quote = None
+        else:
+            if ch in ("'", '"'):
+                quote = ch
+            elif ch == ';':
+                parts.append(text[start:i].strip())
+                start = i + 1
+    tail = text[start:].strip()
+    if tail:
+        parts.append(tail)
+    return parts
+
 
 def tokenize(source):
     """
@@ -103,12 +123,13 @@ def tokenize(source):
         elif part.startswith('{%') and part.endswith('%}'):
             inner = part[2:-2]
             inner = _strip_sql_line_comments(inner).strip()
-            first, rest = parsefirstword(inner)
-            if first == 'param' and rest:
-                pn, attrs = parsefirstword(rest)
-                pn = pn.replace('.', '__')
-                rest = pn if not attrs else f"{pn} {attrs}"
-            nodes.append((f"#{first}", rest))
+            for seg in _split_directives(inner):
+                first, rest = parsefirstword(seg)
+                if first == 'param' and rest:
+                    pn, attrs = parsefirstword(rest)
+                    pn = pn.replace('.', '__')
+                    rest = pn if not attrs else f"{pn} {attrs}"
+                nodes.append((f"#{first}", rest))
         elif part.startswith('{{') and part.endswith('}}'):
             inner = part[2:-2]
             inner = inner.strip()

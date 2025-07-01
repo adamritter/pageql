@@ -31,3 +31,10 @@ def test_tokenize_skip_block_comments_with_braces():
         ("text", "Hello "),
         ("text", "World"),
     ]
+
+
+def test_tokenize_joined_directives():
+    assert tokenize("{%param a; param b%}") == [
+        ("#param", "a"),
+        ("#param", "b"),
+    ]

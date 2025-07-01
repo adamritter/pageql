@@ -107,11 +107,9 @@
 </body>
 </html>
 {%partial post add%}
-  {%param text maxlength=100%}
-  {%let current_total = COUNT(*) from todos%}
-  {%if :current_total < 20%}
-    {%insert into todos(text) values (:text)%}
-  {%endif%}
+  {%param text maxlength=100; let current_total = COUNT(*) from todos;
+    -- Only add a todo if we're below the limit
+    if :current_total < 20; insert into todos(text) values (:text); endif%}
 {%endpartial%}
 
 {%partial post :id/toggle%}
@@ -119,13 +117,14 @@
 {%endpartial%}
 
 {%partial patch :id%}
-  {%param text maxlength=100%}
-  {%update todos set text = :text WHERE id = :id%}
+  {%param text maxlength=100; -- Update todo text
+    update todos set text = :text WHERE id = :id%}
 {%endpartial%}
 
 {%partial post toggle_all%}
-  {%let active_count = COUNT(*) from todos WHERE completed = 0%}
-  {%update todos set completed =  IIF(:active_count = 0, 0, 1)%}
+  {%let active_count = COUNT(*) from todos WHERE completed = 0;
+    -- Set all todos completed state based on active count
+    update todos set completed =  IIF(:active_count = 0, 0, 1)%}
 {%endpartial%}
 
 {%partial delete :id%}

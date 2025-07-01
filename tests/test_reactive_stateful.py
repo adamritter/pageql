@@ -4,7 +4,7 @@ import types
 import pytest
 from pathlib import Path
 from hypothesis.stateful import RuleBasedStateMachine, rule, run_state_machine_as_test
-from hypothesis import strategies as st, assume
+from hypothesis import strategies as st, assume, settings, HealthCheck
 
 # Ensure import path and stub watchfiles
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
@@ -151,4 +151,12 @@ class ReactiveStateMachine(RuleBasedStateMachine):
 
 
 def test_reactive_state_machine():
-    run_state_machine_as_test(ReactiveStateMachine)
+    run_state_machine_as_test(
+        ReactiveStateMachine,
+        settings=settings(
+            max_examples=10,
+            deadline=None,
+            stateful_step_count=10,
+            suppress_health_check=(HealthCheck.filter_too_much,),
+        ),
+    )

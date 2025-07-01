@@ -42,6 +42,7 @@ async def start_server(tmpdir: str, reload: bool = False):
 
 
 @pytest.mark.filterwarnings("ignore:.*:DeprecationWarning")
+@pytest.mark.timeout(6)
 async def test_infinite_scroll_in_browser(setup):
     with tempfile.TemporaryDirectory() as tmpdir:
         src = Path(__file__).resolve().parent.parent / "website" / "infinite_scroll.pageql"

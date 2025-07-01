@@ -9,14 +9,14 @@ create table if not exists sessions (
     user_id INTEGER
 );
 insert or ignore into users(id, username, password) values (1, 'alice', 'password');
-insert or ignore into users(id, username, password) values (2, 'bob', 'pass')
+insert or ignore into users(id, username, password) values (2, 'bob', 'pass');
 %}
 
-{{!-- Helper to load the logged in user from session cookie --}}
 {%
+-- Helper to load the logged in user from session cookie
 param session optional;
 let user_id = user_id from sessions where token=:session;
-let username = username from users where id=:user_id
+let username = username from users where id=:user_id;
 %}
 
 {%if username%}
@@ -31,7 +31,7 @@ let username = username from users where id=:user_id
   param password required;
   param session optional;
   delete from sessions where token=:session;
-  let uid = id from users where username=:username and password=:password
+  let uid = id from users where username=:username and password=:password;
 %}
   {%if uid%}
     {%let token = lower(hex(randomblob(16)))%}
@@ -47,7 +47,7 @@ let username = username from users where id=:user_id
 {%
   param session optional;
   let user_id = user_id from sessions where token=:session;
-  let username = username from users where id=:user_id
+  let username = username from users where id=:user_id;
 %}
 
   <h1>Login</h1>
@@ -62,7 +62,7 @@ let username = username from users where id=:user_id
 {%
   param session optional;
   let user_id = user_id from sessions where token=:session;
-  let username = username from users where id=:user_id
+  let username = username from users where id=:user_id;
 %}
 
   {%if username%}
@@ -78,6 +78,6 @@ let username = username from users where id=:user_id
   param session optional;
   delete from sessions where token=:session;
   cookie session '' path='/' expires='Thu, 01 Jan 1970 00:00:00 GMT';
-  redirect '/basic_auth'
+  redirect '/basic_auth';
 %}
 {%endpartial%}

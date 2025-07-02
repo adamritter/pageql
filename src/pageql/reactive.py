@@ -167,18 +167,35 @@ def _normalize_params(params):
 
     normalized = {}
     for k, v in params.items():
+        nk = k.replace(".", "__")
         if isinstance(v, Signal):
-            normalized[k] = v.value
+            normalized[nk] = v.value
         else:
-            normalized[k] = v
+            normalized[nk] = v
     return normalized
 
 _DOT_PARAM_RE = re.compile(r":([A-Za-z0-9_]+(?:\.[A-Za-z0-9_]+)+)")
+_STR_COM_RE = re.compile(r"'(?:''|[^'])*'|\"(?:\"\"|[^\"])*\"|--.*?$|/\*.*?\*/", re.S | re.M)
+
 
 def _convert_dot_sql(sql: str) -> str:
-    """Return *sql* with ``:a.b`` placeholders rewritten as ``:a__b``."""
+    """Return *sql* with ``:a.b`` placeholders rewritten as ``:a__b``.
 
-    return _DOT_PARAM_RE.sub(lambda m: ":" + m.group(1).replace(".", "__"), sql)
+    Placeholders inside quoted strings or comments are left untouched.
+    """
+
+    parts = []
+    idx = 0
+    for m in _STR_COM_RE.finditer(sql):
+        segment = sql[idx : m.start()]
+        segment = _DOT_PARAM_RE.sub(lambda n: ":" + n.group(1).replace(".", "__"), segment)
+        parts.append(segment)
+        parts.append(m.group(0))
+        idx = m.end()
+    segment = sql[idx:]
+    segment = _DOT_PARAM_RE.sub(lambda n: ":" + n.group(1).replace(".", "__"), segment)
+    parts.append(segment)
+    return "".join(parts)
 
 class ReactiveTable(Signal):
     def __init__(self, conn, table_name):

@@ -1,11 +1,12 @@
 """Utilities and classes for managing rendering state."""
 
 import json
+import re
 
 
 def escape_script(content: str) -> str:
     """Escape closing ``</script>`` tags in *content* for safe embedding."""
-    return content.replace("</script>", "<\\/script>")
+    return re.sub(r"</script>", "<\\/script>", content, flags=re.IGNORECASE)
 
 
 def embed_html_in_js(content: str) -> str:

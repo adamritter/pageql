@@ -361,6 +361,29 @@ def test_update_without_where_clause():
     assert result == [('z',)]
 
 
+def test_convert_dot_sql_ignores_strings():
+    conn = _db()
+    rt = ReactiveTable(conn, "items")
+    rt.insert("INSERT INTO items(name) VALUES (':foo.bar')", {})
+    result = conn.execute("SELECT name FROM items").fetchall()
+    assert result == [(':foo.bar',)]
+
+
+def test_sql_with_dot_named_params():
+    conn = _db()
+    rt = ReactiveTable(conn, "items")
+    rt.insert(
+        "INSERT INTO items(id,name) VALUES (:item.id,:item.name)",
+        {"item.id": 1, "item.name": "a"},
+    )
+    rt.update(
+        "UPDATE items SET name=:new.name WHERE id=:item.id",
+        {"new.name": "b", "item.id": 1},
+    )
+    result = conn.execute("SELECT name FROM items WHERE id=1").fetchone()
+    assert result == ('b',)
+
+
 def test_unionall_mismatched_columns():
     conn = sqlite3.connect(":memory:")
     conn.execute("CREATE TABLE a(id INTEGER PRIMARY KEY, name TEXT)")

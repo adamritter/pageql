@@ -243,9 +243,6 @@ _ITEMS_SEQUENCE = [
     "UPDATE items SET name='z' WHERE id=5",
 ]
 
-_ITEMS_SEQUENCE_NO_NULL = [
-    q for q in _ITEMS_SEQUENCE if "NULL" not in q
-]
 
 _NUMS_SEQUENCE = [
     "INSERT INTO nums(id,n) VALUES (1,1)",
@@ -291,37 +288,36 @@ _INTERSECT_SEQUENCE = [
     "INSERT INTO b(name) VALUES ('x')",
 ]
 
+_AB_SEQUENCE = _UNION_SEQUENCE + _INTERSECT_SEQUENCE
+
+_SQL_CASE_GROUPS = [
+    (_ITEMS_SEQUENCE, _items_rt, [
+        "reactive_table_events", "reactive_table_delete_multiple_rows", "reactive_table_no_event_on_same_value_update"
+    ]),
+    (_ITEMS_SEQUENCE, _select_comp, ["select", "select_no_change_on_same_value_update"]),
+    (_ITEMS_SEQUENCE, _where_comp, ["where_remove", "where_no_event_on_same_value_update"]),
+    (_ITEMS_SEQUENCE, _agg_count_all, ["count_all"]),
+    (_ITEMS_SEQUENCE, _agg_count_name, ["count_expression"]),
+    (_ITEMS_SEQUENCE, _agg_countall_multi, ["countall_multiple_expressions"]),
+    (_NUMS_SEQUENCE, _agg_sum, ["sum_expression"]),
+    (_NUMS_SEQUENCE, _agg_avg, ["avg_expression"]),
+    (_GROUP_SEQUENCE, _agg_group_by, ["aggregate_group_by"]),
+    (_AB_SEQUENCE, _unionall_comp, ["unionall", "unionall_update"]),
+    (_AB_SEQUENCE, _union_comp, ["union", "union_update", "union_update_with_duplicate"]),
+    (_JOIN_SEQUENCE, _join_comp(), ["join_basic", "join_update", "join_delete"]),
+    (_JOIN_SEQUENCE, _join_no_change, ["join_update_no_change"]),
+    (_JOIN_SEQUENCE, _join_comp(left=True), ["left_outer_join_basic", "left_outer_join_update_delete"]),
+    (_JOIN_SEQUENCE, _join_comp(right=True), ["right_outer_join_basic", "right_outer_join_update_delete"]),
+    (_JOIN_SEQUENCE, _join_comp(left=True, right=True), [
+        "full_outer_join_left_then_right", "full_outer_join_right_then_left", "full_outer_join_update_delete"
+    ]),
+    (_AB_SEQUENCE, _intersect_comp, ["intersect_deduplication"]),
+]
+
 _SQL_CASES = [
-    ("reactive_table_events", _items_rt, _ITEMS_SEQUENCE),
-    ("reactive_table_delete_multiple_rows", _items_rt, _ITEMS_SEQUENCE),
-    ("count_all", _agg_count_all, _ITEMS_SEQUENCE),
-    ("count_expression", _agg_count_name, _ITEMS_SEQUENCE),
-    ("sum_expression", _agg_sum, _NUMS_SEQUENCE),
-    ("avg_expression", _agg_avg, _NUMS_SEQUENCE),
-    ("aggregate_group_by", _agg_group_by, _GROUP_SEQUENCE),
-    ("select", _select_comp, _ITEMS_SEQUENCE_NO_NULL),
-    ("countall_multiple_expressions", _agg_countall_multi, _ITEMS_SEQUENCE),
-    ("where_remove", _where_comp, _ITEMS_SEQUENCE),
-    ("select_no_change_on_same_value_update", _select_comp, _ITEMS_SEQUENCE_NO_NULL),
-    ("where_no_event_on_same_value_update", _where_comp, _ITEMS_SEQUENCE),
-    ("reactive_table_no_event_on_same_value_update", _items_rt, _ITEMS_SEQUENCE),
-    ("unionall", _unionall_comp, _UNION_SEQUENCE),
-    ("unionall_update", _unionall_comp, _UNION_SEQUENCE),
-    ("union", _union_comp, _UNION_SEQUENCE),
-    ("union_update", _union_comp, _UNION_SEQUENCE),
-    ("union_update_with_duplicate", _union_comp, _UNION_SEQUENCE),
-    ("join_basic", _join_comp(), _JOIN_SEQUENCE),
-    ("join_update", _join_comp(), _JOIN_SEQUENCE),
-    ("join_update_no_change", _join_no_change, _JOIN_SEQUENCE),
-    ("join_delete", _join_comp(), _JOIN_SEQUENCE),
-    ("left_outer_join_basic", _join_comp(left=True), _JOIN_SEQUENCE),
-    ("left_outer_join_update_delete", _join_comp(left=True), _JOIN_SEQUENCE),
-    ("right_outer_join_basic", _join_comp(right=True), _JOIN_SEQUENCE),
-    ("right_outer_join_update_delete", _join_comp(right=True), _JOIN_SEQUENCE),
-    ("full_outer_join_left_then_right", _join_comp(left=True, right=True), _JOIN_SEQUENCE),
-    ("full_outer_join_right_then_left", _join_comp(left=True, right=True), _JOIN_SEQUENCE),
-    ("full_outer_join_update_delete", _join_comp(left=True, right=True), _JOIN_SEQUENCE),
-    ("intersect_deduplication", _intersect_comp, _INTERSECT_SEQUENCE),
+    (name, factory, sql)
+    for sql, factory, names in _SQL_CASE_GROUPS
+    for name in names
 ]
 
 

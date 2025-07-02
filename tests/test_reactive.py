@@ -13,44 +13,30 @@ def test_update_null_row_should_raise_custom_exception():
     check_component(rt, lambda: rt.insert("INSERT INTO items(id,name) VALUES (1,NULL)", {}))
     check_component(rt, lambda: rt.update("UPDATE items SET name = 'z' WHERE id = :id", {"id": 1}))
 
-def test_where_delete_event_should_be_labeled_delete():
-    """
-    Deleting a row that *matches* the Where predicate should emit a
-    `[2, row]` delete event, not a plain projected row.
-    """
+def _delete_event_should_be_labeled_delete(factory):
     conn = _db()
     tables = Tables(conn)
     rt = tables._get("items")
-    w = Where(rt, "name = 'x'")
+    comp = factory(rt)
 
     test_sqls(
-        w,
+        comp,
         tables,
         [
             "INSERT INTO items(id,name) VALUES (1,'x')",
             "DELETE FROM items WHERE id = 1",
         ],
     )
+
+
+def test_where_delete_event_should_be_labeled_delete():
+    """Deleting a matching row should emit a delete event."""
+    _delete_event_should_be_labeled_delete(lambda rt: Where(rt, "name = 'x'"))
 
 
 def test_select_delete_event_should_be_labeled_delete():
-    """
-    Same symmetry check for Select: deleting a parent row that maps to a
-    projected value must be forwarded as `[2, value]`.
-    """
-    conn = _db()
-    tables = Tables(conn)
-    rt = tables._get("items")
-    sel = Select(rt, "name")
-
-    test_sqls(
-        sel,
-        tables,
-        [
-            "INSERT INTO items(id,name) VALUES (1,'x')",
-            "DELETE FROM items WHERE id = 1",
-        ],
-    )
+    """Deleting a parent row should emit a delete event for the projection."""
+    _delete_event_should_be_labeled_delete(lambda rt: Select(rt, "name"))
 import sqlite3
 from pageql.reactive import (
     ReactiveTable,
@@ -243,151 +229,99 @@ def _join_no_change():
     return Join(r1, r2, "a.id = b.a_id"), tables
 
 
+_ITEMS_SEQUENCE = [
+    "INSERT INTO items(id,name) VALUES (1,'a')",
+    "UPDATE items SET name='b' WHERE id=1",
+    "DELETE FROM items WHERE id=1",
+    "INSERT INTO items(id,name) VALUES (2,'x')",
+    "INSERT INTO items(id,name) VALUES (3,'x')",
+    "DELETE FROM items WHERE name='x'",
+    "INSERT INTO items(id,name) VALUES (4,NULL)",
+    "UPDATE items SET name='y' WHERE id=4",
+    "UPDATE items SET name=NULL WHERE id=4",
+    "INSERT INTO items(id,name) VALUES (5,'z')",
+    "UPDATE items SET name='z' WHERE id=5",
+]
+
+_ITEMS_SEQUENCE_NO_NULL = [
+    q for q in _ITEMS_SEQUENCE if "NULL" not in q
+]
+
+_NUMS_SEQUENCE = [
+    "INSERT INTO nums(id,n) VALUES (1,1)",
+    "INSERT INTO nums(id,n) VALUES (2,2)",
+    "UPDATE nums SET n=5 WHERE id=2",
+    "DELETE FROM nums WHERE id=2",
+    "INSERT INTO nums(id,n) VALUES (3,10)",
+    "UPDATE nums SET n=7 WHERE id=3",
+]
+
+_GROUP_SEQUENCE = [
+    "INSERT INTO nums(id,grp,n) VALUES (1,1,10)",
+    "INSERT INTO nums(id,grp,n) VALUES (2,1,5)",
+    "UPDATE nums SET grp=2 WHERE id=2",
+    "DELETE FROM nums WHERE id=1",
+    "INSERT INTO nums(id,grp,n) VALUES (3,2,7)",
+    "SELECT 1",
+]
+
+_UNION_SEQUENCE = [
+    "INSERT INTO a(id,name) VALUES (1,'x')",
+    "INSERT INTO b(id,name) VALUES (1,'x')",
+    "INSERT INTO b(id,name) VALUES (2,'y')",
+    "UPDATE a SET name='z' WHERE id=1",
+    "DELETE FROM b WHERE id=2",
+]
+
+_JOIN_SEQUENCE = [
+    "INSERT INTO a(id,name) VALUES (1,'x')",
+    "INSERT INTO b(id,a_id,title) VALUES (1,1,'t1')",
+    "INSERT INTO b(id,a_id,title) VALUES (2,1,'t2')",
+    "UPDATE b SET title='t3' WHERE id=1",
+    "UPDATE b SET title='t3' WHERE id=1",
+    "DELETE FROM b WHERE id=2",
+    "DELETE FROM a WHERE id=1",
+]
+
+_INTERSECT_SEQUENCE = [
+    "INSERT INTO a(name) VALUES ('x')",
+    "INSERT INTO a(name) VALUES ('x')",
+    "INSERT INTO b(name) VALUES ('y')",
+    "UPDATE b SET name='x' WHERE name='y'",
+    "INSERT INTO b(name) VALUES ('x')",
+]
+
 _SQL_CASES = [
-    ("reactive_table_events", _items_rt, [
-        "INSERT INTO items(id,name) VALUES (1,'a')",
-        "UPDATE items SET name='b' WHERE id=1",
-        "DELETE FROM items WHERE id=1",
-    ]),
-    ("reactive_table_delete_multiple_rows", _items_rt, [
-        "INSERT INTO items(id,name) VALUES (1,'x')",
-        "INSERT INTO items(id,name) VALUES (2,'x')",
-        "DELETE FROM items WHERE name='x'",
-    ]),
-    ("count_all", _agg_count_all, ["INSERT INTO items(id,name) VALUES (1,'x')"]),
-    ("count_expression", _agg_count_name, [
-        "INSERT INTO items(id,name) VALUES (1,'x')",
-        "INSERT INTO items(id,name) VALUES (2,NULL)",
-        "UPDATE items SET name='y' WHERE id=2",
-        "UPDATE items SET name=NULL WHERE id=2",
-    ]),
-    ("sum_expression", _agg_sum, [
-        "INSERT INTO nums(id,n) VALUES (1,1)",
-        "INSERT INTO nums(id,n) VALUES (2,2)",
-        "UPDATE nums SET n=5 WHERE id=2",
-        "DELETE FROM nums WHERE id=2",
-    ]),
-    ("avg_expression", _agg_avg, [
-        "INSERT INTO nums(id,n) VALUES (1,1)",
-        "INSERT INTO nums(id,n) VALUES (2,2)",
-        "UPDATE nums SET n=5 WHERE id=2",
-        "DELETE FROM nums WHERE id=2",
-    ]),
-    ("aggregate_group_by", _agg_group_by, [
-        "INSERT INTO nums(id,grp,n) VALUES (1,1,10)",
-        "INSERT INTO nums(id,grp,n) VALUES (2,1,5)",
-        "UPDATE nums SET grp=2 WHERE id=2",
-        "DELETE FROM nums WHERE id=1",
-        "SELECT 1",
-    ]),
-    ("select", _select_comp, [
-        "INSERT INTO items(id,name) VALUES (1,'x')",
-        "UPDATE items SET name='y' WHERE id=1",
-    ]),
-    ("countall_multiple_expressions", _agg_countall_multi, [
-        "INSERT INTO items(id,name) VALUES (1,'x')",
-        "INSERT INTO items(id,name) VALUES (2,NULL)",
-    ]),
-    ("where_remove", _where_comp, [
-        "INSERT INTO items(id,name) VALUES (1,'x')",
-        "UPDATE items SET name='y' WHERE id=1",
-    ]),
-    ("select_no_change_on_same_value_update", _select_comp, [
-        "INSERT INTO items(name) VALUES ('x')",
-        "UPDATE items SET name='x' WHERE id=1",
-    ]),
-    ("where_no_event_on_same_value_update", _where_comp, [
-        "INSERT INTO items(name) VALUES ('x')",
-        "UPDATE items SET name='x' WHERE id=1",
-    ]),
-    ("reactive_table_no_event_on_same_value_update", _items_rt, [
-        "INSERT INTO items(id,name) VALUES (1,'x')",
-        "UPDATE items SET name='x' WHERE id=1",
-    ]),
-    ("unionall", _unionall_comp, [
-        "INSERT INTO a(name) VALUES ('x')",
-        "INSERT INTO b(name) VALUES ('y')",
-    ]),
-    ("unionall_update", _unionall_comp, [
-        "INSERT INTO a(id,name) VALUES (1,'x')",
-        "UPDATE a SET name='y' WHERE id=1",
-    ]),
-    ("union", _union_comp, [
-        "INSERT INTO a(name) VALUES ('x')",
-        "INSERT INTO b(name) VALUES ('x')",
-        "INSERT INTO b(name) VALUES ('y')",
-    ]),
-    ("union_update", _union_comp, [
-        "INSERT INTO a(id,name) VALUES (1,'x')",
-        "UPDATE a SET name='y' WHERE id=1",
-    ]),
-    ("union_update_with_duplicate", _union_comp, [
-        "INSERT INTO a(id,name) VALUES (1,'x')",
-        "INSERT INTO b(id,name) VALUES (1,'x')",
-        "UPDATE a SET name='y' WHERE id=1",
-    ]),
-    ("join_basic", _join_comp(), [
-        "INSERT INTO a(id,name) VALUES (1,'x')",
-        "INSERT INTO b(id,a_id,title) VALUES (1,1,'t')",
-    ]),
-    ("join_update", _join_comp(), [
-        "INSERT INTO a(id,name) VALUES (1,'x')",
-        "INSERT INTO b(id,a_id,title) VALUES (1,1,'t1')",
-        "UPDATE b SET title='t2' WHERE id=1",
-    ]),
-    ("join_update_no_change", _join_no_change, [
-        "INSERT INTO a(id,name) VALUES (1,'x')",
-        "INSERT INTO b(id,a_id,title) VALUES (1,1,'t1')",
-        "UPDATE b SET title='t1' WHERE id=1",
-    ]),
-    ("join_delete", _join_comp(), [
-        "INSERT INTO a(id,name) VALUES (1,'x')",
-        "INSERT INTO b(id,a_id,title) VALUES (1,1,'t')",
-        "DELETE FROM b WHERE id=1",
-        "DELETE FROM a WHERE id=1",
-    ]),
-    ("left_outer_join_basic", _join_comp(left=True), [
-        "INSERT INTO a(id,name) VALUES (1,'x')",
-        "INSERT INTO b(id,a_id,title) VALUES (1,1,'t')",
-    ]),
-    ("left_outer_join_update_delete", _join_comp(left=True), [
-        "INSERT INTO a(id,name) VALUES (1,'x')",
-        "INSERT INTO b(id,a_id,title) VALUES (1,1,'t1')",
-        "UPDATE b SET title='t2' WHERE id=1",
-        "DELETE FROM b WHERE id=1",
-        "DELETE FROM a WHERE id=1",
-    ]),
-    ("right_outer_join_basic", _join_comp(right=True), [
-        "INSERT INTO b(id,a_id,title) VALUES (1,1,'t')",
-        "INSERT INTO a(id, name) VALUES (1, 'x')",
-    ]),
-    ("right_outer_join_update_delete", _join_comp(right=True), [
-        "INSERT INTO b(id,a_id,title) VALUES (1,1,'t1')",
-        "INSERT INTO a(id, name) VALUES (1, 'x')",
-        "UPDATE a SET name='y' WHERE id=1",
-        "DELETE FROM a WHERE id=1",
-        "DELETE FROM b WHERE id=1",
-    ]),
-    ("full_outer_join_left_then_right", _join_comp(left=True, right=True), [
-        "INSERT INTO a(id,name) VALUES (1,'x')",
-        "INSERT INTO b(id,a_id,title) VALUES (1,1,'t')",
-    ]),
-    ("full_outer_join_right_then_left", _join_comp(left=True, right=True), [
-        "INSERT INTO b(id,a_id,title) VALUES (1,1,'t1')",
-        "INSERT INTO a(id, name) VALUES (1, 'x')",
-    ]),
-    ("full_outer_join_update_delete", _join_comp(left=True, right=True), [
-        "INSERT INTO b(id,a_id,title) VALUES (1,1,'t1')",
-        "INSERT INTO a(id, name) VALUES (1, 'x')",
-        "UPDATE b SET title='t2' WHERE id=1",
-        "DELETE FROM a WHERE id=1",
-        "DELETE FROM b WHERE id=1",
-    ]),
-    ("intersect_deduplication", _intersect_comp, [
-        "INSERT INTO a(name) VALUES ('x')",
-        "INSERT INTO a(name) VALUES ('x')",
-        "INSERT INTO b(name) VALUES ('x')",
-    ]),
+    ("reactive_table_events", _items_rt, _ITEMS_SEQUENCE),
+    ("reactive_table_delete_multiple_rows", _items_rt, _ITEMS_SEQUENCE),
+    ("count_all", _agg_count_all, _ITEMS_SEQUENCE),
+    ("count_expression", _agg_count_name, _ITEMS_SEQUENCE),
+    ("sum_expression", _agg_sum, _NUMS_SEQUENCE),
+    ("avg_expression", _agg_avg, _NUMS_SEQUENCE),
+    ("aggregate_group_by", _agg_group_by, _GROUP_SEQUENCE),
+    ("select", _select_comp, _ITEMS_SEQUENCE_NO_NULL),
+    ("countall_multiple_expressions", _agg_countall_multi, _ITEMS_SEQUENCE),
+    ("where_remove", _where_comp, _ITEMS_SEQUENCE),
+    ("select_no_change_on_same_value_update", _select_comp, _ITEMS_SEQUENCE_NO_NULL),
+    ("where_no_event_on_same_value_update", _where_comp, _ITEMS_SEQUENCE),
+    ("reactive_table_no_event_on_same_value_update", _items_rt, _ITEMS_SEQUENCE),
+    ("unionall", _unionall_comp, _UNION_SEQUENCE),
+    ("unionall_update", _unionall_comp, _UNION_SEQUENCE),
+    ("union", _union_comp, _UNION_SEQUENCE),
+    ("union_update", _union_comp, _UNION_SEQUENCE),
+    ("union_update_with_duplicate", _union_comp, _UNION_SEQUENCE),
+    ("join_basic", _join_comp(), _JOIN_SEQUENCE),
+    ("join_update", _join_comp(), _JOIN_SEQUENCE),
+    ("join_update_no_change", _join_no_change, _JOIN_SEQUENCE),
+    ("join_delete", _join_comp(), _JOIN_SEQUENCE),
+    ("left_outer_join_basic", _join_comp(left=True), _JOIN_SEQUENCE),
+    ("left_outer_join_update_delete", _join_comp(left=True), _JOIN_SEQUENCE),
+    ("right_outer_join_basic", _join_comp(right=True), _JOIN_SEQUENCE),
+    ("right_outer_join_update_delete", _join_comp(right=True), _JOIN_SEQUENCE),
+    ("full_outer_join_left_then_right", _join_comp(left=True, right=True), _JOIN_SEQUENCE),
+    ("full_outer_join_right_then_left", _join_comp(left=True, right=True), _JOIN_SEQUENCE),
+    ("full_outer_join_update_delete", _join_comp(left=True, right=True), _JOIN_SEQUENCE),
+    ("intersect_deduplication", _intersect_comp, _INTERSECT_SEQUENCE),
 ]
 
 

@@ -19,13 +19,18 @@ def test_where_delete_event_should_be_labeled_delete():
     `[2, row]` delete event, not a plain projected row.
     """
     conn = _db()
-    rt = ReactiveTable(conn, "items")
-    w   = Where(rt, "name = 'x'")
-    events = []
-    w.listeners.append(events.append)
+    tables = Tables(conn)
+    rt = tables._get("items")
+    w = Where(rt, "name = 'x'")
 
-    check_component(w, lambda: rt.insert("INSERT INTO items(id,name) VALUES (1,'x')", {}))
-    check_component(w, lambda: rt.delete("DELETE FROM items WHERE id = :id", {"id": 1}))
+    test_sqls(
+        w,
+        tables,
+        [
+            "INSERT INTO items(id,name) VALUES (1,'x')",
+            "DELETE FROM items WHERE id = 1",
+        ],
+    )
 
 
 def test_select_delete_event_should_be_labeled_delete():
@@ -34,13 +39,18 @@ def test_select_delete_event_should_be_labeled_delete():
     projected value must be forwarded as `[2, value]`.
     """
     conn = _db()
-    rt   = ReactiveTable(conn, "items")
-    sel  = Select(rt, "name")
-    events = []
-    sel.listeners.append(events.append)
+    tables = Tables(conn)
+    rt = tables._get("items")
+    sel = Select(rt, "name")
 
-    check_component(sel, lambda: rt.insert("INSERT INTO items(id,name) VALUES (1,'x')", {}))
-    check_component(sel, lambda: rt.delete("DELETE FROM items WHERE id = :id", {"id": 1}))
+    test_sqls(
+        sel,
+        tables,
+        [
+            "INSERT INTO items(id,name) VALUES (1,'x')",
+            "DELETE FROM items WHERE id = 1",
+        ],
+    )
 import sqlite3
 from pageql.reactive import (
     ReactiveTable,
@@ -124,43 +134,42 @@ def _make_join(*, left=False, right=False):
     conn = sqlite3.connect(":memory:")
     conn.execute("CREATE TABLE a(id INTEGER PRIMARY KEY, name TEXT)")
     conn.execute("CREATE TABLE b(id INTEGER PRIMARY KEY, a_id INTEGER, title TEXT)")
-    r1, r2 = ReactiveTable(conn, "a"), ReactiveTable(conn, "b")
+    tables = Tables(conn)
+    r1, r2 = tables._get("a"), tables._get("b")
     j = Join(r1, r2, "a.id = b.a_id", left_outer=left, right_outer=right)
-    events = []
-    j.listeners.append(events.append)
-    return conn, r1, r2, j, events
+    return conn, tables, r1, r2, j
 
 
 def test_reactive_table_events():
     conn = _db()
-    rt = ReactiveTable(conn, "items")
-    events = []
-    rt.listeners.append(events.append)
+    tables = Tables(conn)
+    rt = tables._get("items")
 
-    # insert
-    check_component(rt, lambda: rt.insert("INSERT INTO items(id,name) VALUES (:id,:n)", {"id": 1, "n": "a"}))
-
-    # update
-    check_component(rt, lambda: rt.update("UPDATE items SET name = :n WHERE id = :id", {"n": "b", "id": 1}))
-
-    # delete
-    check_component(rt, lambda: rt.delete("DELETE FROM items WHERE id = :id", {"id": 1}))
+    test_sqls(
+        rt,
+        tables,
+        [
+            "INSERT INTO items(id,name) VALUES (1,'a')",
+            "UPDATE items SET name='b' WHERE id=1",
+            "DELETE FROM items WHERE id=1",
+        ],
+    )
 
 
 def test_reactive_table_delete_multiple_rows():
     conn = _db()
-    rt = ReactiveTable(conn, "items")
-    events = []
-    rt.listeners.append(events.append)
+    tables = Tables(conn)
+    rt = tables._get("items")
 
-    # insert two rows with the same name
-    check_component(rt, lambda: rt.insert("INSERT INTO items(id,name) VALUES (1,'x')", {}))
-    check_component(rt, lambda: rt.insert("INSERT INTO items(id,name) VALUES (2,'x')", {}))
-
-    events.clear()
-
-    # delete all rows matching the name predicate
-    check_component(rt, lambda: rt.delete("DELETE FROM items WHERE name = :name", {"name": "x"}))
+    test_sqls(
+        rt,
+        tables,
+        [
+            "INSERT INTO items(id,name) VALUES (1,'x')",
+            "INSERT INTO items(id,name) VALUES (2,'x')",
+            "DELETE FROM items WHERE name='x'",
+        ],
+    )
 
 
 def test_delete_propagates_renderresultexception():
@@ -181,127 +190,133 @@ def test_delete_propagates_renderresultexception():
 
 def test_count_all():
     conn = _db()
-    rt = ReactiveTable(conn, "items")
+    tables = Tables(conn)
+    rt = tables._get("items")
     cnt = Aggregate(rt)
-    events = []
-    cnt.listeners.append(events.append)
 
-    check_component(cnt, lambda: rt.insert("INSERT INTO items(id,name) VALUES (1,'x')", {}))
+    test_sqls(
+        cnt,
+        tables,
+        ["INSERT INTO items(id,name) VALUES (1,'x')"],
+    )
 
 
 def test_count_expression():
     conn = _db()
-    rt = ReactiveTable(conn, "items")
+    tables = Tables(conn)
+    rt = tables._get("items")
     cnt = Aggregate(rt, ("COUNT(name)",))
-    events = []
-    cnt.listeners.append(events.append)
 
-    check_component(cnt, lambda: rt.insert("INSERT INTO items(id,name) VALUES (1,'x')", {}))
-
-    check_component(cnt, lambda: rt.insert("INSERT INTO items(id,name) VALUES (2,NULL)", {}))
-
-    check_component(cnt, lambda: rt.update("UPDATE items SET name='y' WHERE id=:id", {"id": 2}))
-
-    check_component(cnt, lambda: rt.update("UPDATE items SET name=NULL WHERE id=:id", {"id": 2}))
+    test_sqls(
+        cnt,
+        tables,
+        [
+            "INSERT INTO items(id,name) VALUES (1,'x')",
+            "INSERT INTO items(id,name) VALUES (2,NULL)",
+            "UPDATE items SET name='y' WHERE id=2",
+            "UPDATE items SET name=NULL WHERE id=2",
+        ],
+    )
 
 
 def test_sum_expression():
     conn = sqlite3.connect(":memory:")
     conn.execute("CREATE TABLE nums(id INTEGER PRIMARY KEY, n INTEGER)")
-    rt = ReactiveTable(conn, "nums")
+    tables = Tables(conn)
+    rt = tables._get("nums")
     sm = Aggregate(rt, ("SUM(n)",))
-    events = []
-    sm.listeners.append(events.append)
 
-    check_component(sm, lambda: rt.insert("INSERT INTO nums(id,n) VALUES (1,1)", {}))
-
-    check_component(sm, lambda: rt.insert("INSERT INTO nums(id,n) VALUES (2,2)", {}))
-
-    check_component(sm, lambda: rt.update("UPDATE nums SET n=5 WHERE id=:id", {"id": 2}))
-
-    check_component(sm, lambda: rt.delete("DELETE FROM nums WHERE id=:id", {"id": 2}))
+    test_sqls(
+        sm,
+        tables,
+        [
+            "INSERT INTO nums(id,n) VALUES (1,1)",
+            "INSERT INTO nums(id,n) VALUES (2,2)",
+            "UPDATE nums SET n=5 WHERE id=2",
+            "DELETE FROM nums WHERE id=2",
+        ],
+    )
 
 
 def test_avg_expression():
     conn = sqlite3.connect(":memory:")
     conn.execute("CREATE TABLE nums(id INTEGER PRIMARY KEY, n INTEGER)")
-    rt = ReactiveTable(conn, "nums")
+    tables = Tables(conn)
+    rt = tables._get("nums")
     av = Aggregate(rt, ("AVG(n)",))
-    events = []
-    av.listeners.append(events.append)
 
-    check_component(av, lambda: rt.insert("INSERT INTO nums(id,n) VALUES (1,1)", {}))
-
-    check_component(av, lambda: rt.insert("INSERT INTO nums(id,n) VALUES (2,2)", {}))
-
-    check_component(av, lambda: rt.update("UPDATE nums SET n=5 WHERE id=:id", {"id": 2}))
-
-    check_component(av, lambda: rt.delete("DELETE FROM nums WHERE id=:id", {"id": 2}))
+    test_sqls(
+        av,
+        tables,
+        [
+            "INSERT INTO nums(id,n) VALUES (1,1)",
+            "INSERT INTO nums(id,n) VALUES (2,2)",
+            "UPDATE nums SET n=5 WHERE id=2",
+            "DELETE FROM nums WHERE id=2",
+        ],
+    )
 
 
 def test_min_max_expression():
     conn = sqlite3.connect(":memory:")
     conn.execute("CREATE TABLE nums(id INTEGER PRIMARY KEY, n INTEGER)")
-    rt = ReactiveTable(conn, "nums")
+    tables = Tables(conn)
+    rt = tables._get("nums")
     mn = Aggregate(rt, ("MIN(n)",))
     mx = Aggregate(rt, ("MAX(n)",))
-    mn_events, mx_events = [], []
-    mn.listeners.append(mn_events.append)
-    mx.listeners.append(mx_events.append)
 
-    check_component(mn, lambda: rt.insert("INSERT INTO nums(id,n) VALUES (1,5)", {}))
+    test_sqls(
+        mn,
+        tables,
+        [
+            "INSERT INTO nums(id,n) VALUES (1,5)",
+            "INSERT INTO nums(id,n) VALUES (2,2)",
+            "INSERT INTO nums(id,n) VALUES (3,10)",
+            "UPDATE nums SET n=7 WHERE id=2",
+            "UPDATE nums SET n=1 WHERE id=3",
+            "DELETE FROM nums WHERE id=2",
+            "DELETE FROM nums WHERE id=3",
+        ],
+    )
+
     assert_eq(mx.value, [5])
-
-    check_component(mn, lambda: rt.insert("INSERT INTO nums(id,n) VALUES (2,2)", {}))
-    assert_eq(mx.value, [5])
-
-    check_component(mn, lambda: rt.insert("INSERT INTO nums(id,n) VALUES (3,10)", {}))
-    assert_eq(mx.value, [10])
-
-    check_component(mn, lambda: rt.update("UPDATE nums SET n=7 WHERE id=:id", {"id": 2}))
-    assert_eq(mn.value, [5])
-
-    check_component(mn, lambda: rt.update("UPDATE nums SET n=1 WHERE id=:id", {"id": 3}))
-    assert_eq(mn.value, [1])
-    assert_eq(mx.value, [7])
-
-    check_component(mn, lambda: rt.delete("DELETE FROM nums WHERE id=:id", {"id": 2}))
-    assert_eq(mx.value, [5])
-
-    check_component(mn, lambda: rt.delete("DELETE FROM nums WHERE id=:id", {"id": 3}))
     assert_eq(mn.value, [5])
 
 
 def test_aggregate_constant_expression():
     conn = _db()
-    rt = ReactiveTable(conn, "items")
+    tables = Tables(conn)
+    rt = tables._get("items")
     ag = Aggregate(rt, ("COUNT(*)", "42"))
-    events = []
-    ag.listeners.append(events.append)
 
     assert_eq(ag.value, [0, 42])
 
-    check_component(ag, lambda: rt.insert("INSERT INTO items(name) VALUES ('x')", {}))
+    test_sqls(
+        ag,
+        tables,
+        ["INSERT INTO items(name) VALUES ('x')"],
+    )
     assert_eq(ag.value, [1, 42])
 
 
 def test_aggregate_group_by():
     conn = sqlite3.connect(":memory:")
     conn.execute("CREATE TABLE nums(id INTEGER PRIMARY KEY, grp INTEGER, n INTEGER)")
-    rt = ReactiveTable(conn, "nums")
+    tables = Tables(conn)
+    rt = tables._get("nums")
     ag = Aggregate(rt, ("COUNT(*)", "SUM(n)"), group_by="grp")
-    events = []
-    ag.listeners.append(events.append)
 
-    check_component(ag, lambda: rt.insert("INSERT INTO nums(id,grp,n) VALUES (1,1,10)", {}))
-
-    check_component(ag, lambda: rt.insert("INSERT INTO nums(id,grp,n) VALUES (2,1,5)", {}))
-
-    check_component(ag, lambda: rt.update("UPDATE nums SET grp=2 WHERE id=:id", {"id": 2}))
-
-    check_component(ag, lambda: rt.delete("DELETE FROM nums WHERE id=:id", {"id": 1}))
-
-    check_component(ag, lambda: None)
+    test_sqls(
+        ag,
+        tables,
+        [
+            "INSERT INTO nums(id,grp,n) VALUES (1,1,10)",
+            "INSERT INTO nums(id,grp,n) VALUES (2,1,5)",
+            "UPDATE nums SET grp=2 WHERE id=2",
+            "DELETE FROM nums WHERE id=1",
+            "SELECT 1",  # trigger check_component with no-op
+        ],
+    )
 
 
 def test_signal_and_derived():
@@ -339,120 +354,150 @@ def test_unionall():
     conn = sqlite3.connect(":memory:")
     for t in ("a", "b"):
         conn.execute(f"CREATE TABLE {t}(id INTEGER PRIMARY KEY, name TEXT)")
-    r1, r2 = ReactiveTable(conn, "a"), ReactiveTable(conn, "b")
+    tables = Tables(conn)
+    r1, r2 = tables._get("a"), tables._get("b")
     u = UnionAll(r1, r2)
-    seen = []
-    u.listeners.append(seen.append)
 
-    check_component(u, lambda: r1.insert("INSERT INTO a(name) VALUES ('x')", {}))
-    check_component(u, lambda: r2.insert("INSERT INTO b(name) VALUES ('y')", {}))
+    test_sqls(
+        u,
+        tables,
+        [
+            "INSERT INTO a(name) VALUES ('x')",
+            "INSERT INTO b(name) VALUES ('y')",
+        ],
+    )
 
 
 def test_select():
     conn, rt = _db(), None
-    rt = ReactiveTable(conn, "items")
+    tables = Tables(conn)
+    rt = tables._get("items")
     sel = Select(rt, "name")
-    seen = []
-    sel.listeners.append(seen.append)
 
-    check_component(sel, lambda: rt.insert("INSERT INTO items(id,name) VALUES (1,'x')", {}))
-
-    check_component(sel, lambda: rt.update("UPDATE items SET name='y' WHERE id=:id", {"id": 1}))
+    test_sqls(
+        sel,
+        tables,
+        [
+            "INSERT INTO items(id,name) VALUES (1,'x')",
+            "UPDATE items SET name='y' WHERE id=1",
+        ],
+    )
 
 
 # Additional tests
 def test_count_all_decrement():
     conn = _db()
-    rt = ReactiveTable(conn, "items")
+    tables = Tables(conn)
+    rt = tables._get("items")
     cnt = Aggregate(rt)
-    events = []
-    cnt.listeners.append(events.append)
 
-    # insert two rows
-    check_component(cnt, lambda: rt.insert("INSERT INTO items(id,name) VALUES (1,'x')", {}))
-    check_component(cnt, lambda: rt.insert("INSERT INTO items(id,name) VALUES (2,'y')", {}))
-    assert_eq(cnt.value, [2])
-
-    # delete one row
-    check_component(cnt, lambda: rt.delete("DELETE FROM items WHERE id = :id", {"id": 1}))
+    test_sqls(
+        cnt,
+        tables,
+        [
+            "INSERT INTO items(id,name) VALUES (1,'x')",
+            "INSERT INTO items(id,name) VALUES (2,'y')",
+            "DELETE FROM items WHERE id=1",
+        ],
+    )
     assert_eq(cnt.value, [1])
 
 
 def test_countall_multiple_expressions():
     conn = _db()
-    rt = ReactiveTable(conn, "items")
+    tables = Tables(conn)
+    rt = tables._get("items")
     cnt = Aggregate(rt, ("COUNT(*)", "COUNT(name)"))
-    events = []
-    cnt.listeners.append(events.append)
 
-    check_component(cnt, lambda: rt.insert("INSERT INTO items(id,name) VALUES (1,'x')", {}))
-
-    check_component(cnt, lambda: rt.insert("INSERT INTO items(id,name) VALUES (2,NULL)", {}))
+    test_sqls(
+        cnt,
+        tables,
+        [
+            "INSERT INTO items(id,name) VALUES (1,'x')",
+            "INSERT INTO items(id,name) VALUES (2,NULL)",
+        ],
+    )
 
 
 def test_where_remove():
     conn = _db()
-    rt = ReactiveTable(conn, "items")
+    tables = Tables(conn)
+    rt = tables._get("items")
     w = Where(rt, "name = 'x'")
-    events = []
-    w.listeners.append(events.append)
 
-    # insert a matching row
-    check_component(w, lambda: rt.insert("INSERT INTO items(id,name) VALUES (1,'x')", {}))
-    # update it so it no longer matches the predicate
-    check_component(w, lambda: rt.update("UPDATE items SET name='y' WHERE id=:id", {"id": 1}))
+    test_sqls(
+        w,
+        tables,
+        [
+            "INSERT INTO items(id,name) VALUES (1,'x')",
+            "UPDATE items SET name='y' WHERE id=1",
+        ],
+    )
 
 
 def test_select_no_change_on_same_value_update():
     conn = _db()
-    rt = ReactiveTable(conn, "items")
+    tables = Tables(conn)
+    rt = tables._get("items")
     sel = Select(rt, "name")
-    events = []
-    sel.listeners.append(events.append)
 
-    check_component(sel, lambda: rt.insert("INSERT INTO items(name) VALUES ('x')", {}))
-    initial_event_count = len(events)
-
-    # update without changing the selected value
-    check_component(sel, lambda: rt.update("UPDATE items SET name='x' WHERE id=:id", {"id": 1}))
+    test_sqls(
+        sel,
+        tables,
+        [
+            "INSERT INTO items(name) VALUES ('x')",
+            "UPDATE items SET name='x' WHERE id=1",
+        ],
+    )
 
 
 def test_where_no_event_on_same_value_update():
     conn = _db()
-    rt = ReactiveTable(conn, "items")
+    tables = Tables(conn)
+    rt = tables._get("items")
     w = Where(rt, "name = 'x'")
-    events = []
-    w.listeners.append(events.append)
 
-    check_component(w, lambda: rt.insert("INSERT INTO items(name) VALUES ('x')", {}))
-    initial_len = len(events)
-
-    check_component(w, lambda: rt.update("UPDATE items SET name='x' WHERE id=:id", {"id": 1}))
+    test_sqls(
+        w,
+        tables,
+        [
+            "INSERT INTO items(name) VALUES ('x')",
+            "UPDATE items SET name='x' WHERE id=1",
+        ],
+    )
 
 
 def test_reactive_table_no_event_on_same_value_update():
     conn = _db()
-    rt = ReactiveTable(conn, "items")
-    events = []
-    rt.listeners.append(events.append)
+    tables = Tables(conn)
+    rt = tables._get("items")
 
-    check_component(rt, lambda: rt.insert("INSERT INTO items(id,name) VALUES (1,'x')", {}))
-    initial_len = len(events)
-
-    check_component(rt, lambda: rt.update("UPDATE items SET name='x' WHERE id=:id", {"id": 1}))
+    test_sqls(
+        rt,
+        tables,
+        [
+            "INSERT INTO items(id,name) VALUES (1,'x')",
+            "UPDATE items SET name='x' WHERE id=1",
+        ],
+    )
 
 
 def test_unionall_update():
     conn = sqlite3.connect(":memory:")
     for t in ("a", "b"):
         conn.execute(f"CREATE TABLE {t}(id INTEGER PRIMARY KEY, name TEXT)")
-    r1, r2 = ReactiveTable(conn, "a"), ReactiveTable(conn, "b")
+    tables = Tables(conn)
+    r1, r2 = tables._get("a"), tables._get("b")
     u = UnionAll(r1, r2)
-    events = []
-    u.listeners.append(events.append)
 
-    check_component(u, lambda: r1.insert("INSERT INTO a(id,name) VALUES (1,'x')", {}))
-    check_component(u, lambda: r1.update("UPDATE a SET name='y' WHERE id=:id", {"id": 1}))
+    test_sqls(
+        u,
+        tables,
+        [
+            "INSERT INTO a(id,name) VALUES (1,'x')",
+            "UPDATE a SET name='y' WHERE id=1",
+        ],
+    )
 
 
 def test_update_without_where_clause():
@@ -481,42 +526,56 @@ def test_union():
     conn = sqlite3.connect(":memory:")
     for t in ("a", "b"):
         conn.execute(f"CREATE TABLE {t}(id INTEGER PRIMARY KEY, name TEXT)")
-    r1, r2 = ReactiveTable(conn, "a"), ReactiveTable(conn, "b")
+    tables = Tables(conn)
+    r1, r2 = tables._get("a"), tables._get("b")
     u = Union(r1, r2)
-    events = []
-    u.listeners.append(events.append)
 
-    check_component(u, lambda: r1.insert("INSERT INTO a(name) VALUES ('x')", {}))
-    check_component(u, lambda: r2.insert("INSERT INTO b(name) VALUES ('x')", {}))  # duplicate
-    check_component(u, lambda: r2.insert("INSERT INTO b(name) VALUES ('y')", {}))
+    test_sqls(
+        u,
+        tables,
+        [
+            "INSERT INTO a(name) VALUES ('x')",
+            "INSERT INTO b(name) VALUES ('x')",
+            "INSERT INTO b(name) VALUES ('y')",
+        ],
+    )
 
 
 def test_union_update():
     conn = sqlite3.connect(":memory:")
     for t in ("a", "b"):
         conn.execute(f"CREATE TABLE {t}(id INTEGER PRIMARY KEY, name TEXT)")
-    r1, r2 = ReactiveTable(conn, "a"), ReactiveTable(conn, "b")
+    tables = Tables(conn)
+    r1, r2 = tables._get("a"), tables._get("b")
     u = Union(r1, r2)
-    events = []
-    u.listeners.append(events.append)
 
-    check_component(u, lambda: r1.insert("INSERT INTO a(id,name) VALUES (1,'x')", {}))
-    check_component(u, lambda: r1.update("UPDATE a SET name='y' WHERE id=:id", {"id": 1}))
+    test_sqls(
+        u,
+        tables,
+        [
+            "INSERT INTO a(id,name) VALUES (1,'x')",
+            "UPDATE a SET name='y' WHERE id=1",
+        ],
+    )
 
 
 def test_union_update_with_duplicate():
     conn = sqlite3.connect(":memory:")
     for t in ("a", "b"):
         conn.execute(f"CREATE TABLE {t}(id INTEGER PRIMARY KEY, name TEXT)")
-    r1, r2 = ReactiveTable(conn, "a"), ReactiveTable(conn, "b")
+    tables = Tables(conn)
+    r1, r2 = tables._get("a"), tables._get("b")
     u = Union(r1, r2)
-    events = []
-    u.listeners.append(events.append)
 
-    check_component(u, lambda: r1.insert("INSERT INTO a(id,name) VALUES (1,'x')", {}))
-    check_component(u, lambda: r2.insert("INSERT INTO b(id,name) VALUES (1,'x')", {}))
-    events.clear()
-    check_component(u, lambda: r1.update("UPDATE a SET name='y' WHERE id=:id", {"id": 1}))
+    test_sqls(
+        u,
+        tables,
+        [
+            "INSERT INTO a(id,name) VALUES (1,'x')",
+            "INSERT INTO b(id,name) VALUES (1,'x')",
+            "UPDATE a SET name='y' WHERE id=1",
+        ],
+    )
 
 
 def test_union_mismatched_columns():
@@ -533,155 +592,185 @@ def test_union_mismatched_columns():
 
 
 def test_join_basic():
-    conn, r1, r2, j, events = _make_join()
+    conn, tables, r1, r2, j = _make_join()
 
-    check_component(j, lambda: r1.insert("INSERT INTO a(id,name) VALUES (1,'x')", {}))
-    check_component(j, lambda: r2.insert("INSERT INTO b(id,a_id,title) VALUES (1,:a, 't')", {"a": 1}))
+    test_sqls(
+        j,
+        tables,
+        [
+            "INSERT INTO a(id,name) VALUES (1,'x')",
+            "INSERT INTO b(id,a_id,title) VALUES (1,1,'t')",
+        ],
+    )
 
 
 def test_join_update():
-    conn, r1, r2, j, events = _make_join()
+    conn, tables, r1, r2, j = _make_join()
 
-    check_component(j, lambda: r1.insert("INSERT INTO a(id,name) VALUES (1,'x')", {}))
-    check_component(j, lambda: r2.insert("INSERT INTO b(id,a_id,title) VALUES (1,:a, 't1')", {"a": 1}))
-    events.clear()
-
-    check_component(j, lambda: r2.update("UPDATE b SET title='t2' WHERE id=:id", {"id": 1}))
+    test_sqls(
+        j,
+        tables,
+        [
+            "INSERT INTO a(id,name) VALUES (1,'x')",
+            "INSERT INTO b(id,a_id,title) VALUES (1,1,'t1')",
+            "UPDATE b SET title='t2' WHERE id=1",
+        ],
+    )
 
 
 def test_join_update_no_change():
     conn = sqlite3.connect(":memory:")
     conn.execute("CREATE TABLE a(id INTEGER PRIMARY KEY, name TEXT)")
     conn.execute("CREATE TABLE b(id INTEGER PRIMARY KEY, a_id INTEGER, title TEXT)")
-    r1, r2 = ReactiveTable(conn, "a"), ReactiveTable(conn, "b")
+    tables = Tables(conn)
+    r1, r2 = tables._get("a"), tables._get("b")
     j = Join(r1, r2, "a.id = b.a_id")
-    events = []
-    j.listeners.append(events.append)
 
-    check_component(j, lambda: r1.insert("INSERT INTO a(id,name) VALUES (1,'x')", {}))
-    check_component(j, lambda: r2.insert("INSERT INTO b(id,a_id,title) VALUES (1,:a, 't1')", {"a": 1}))
-    events.clear()
-
-    check_component(j, lambda: r2.update("UPDATE b SET title='t1' WHERE id=:id", {"id": 1}))
+    test_sqls(
+        j,
+        tables,
+        [
+            "INSERT INTO a(id,name) VALUES (1,'x')",
+            "INSERT INTO b(id,a_id,title) VALUES (1,1,'t1')",
+            "UPDATE b SET title='t1' WHERE id=1",
+        ],
+    )
 
 
 def test_join_delete():
-    conn, r1, r2, j, events = _make_join()
+    conn, tables, r1, r2, j = _make_join()
 
-    check_component(j, lambda: r1.insert("INSERT INTO a(id,name) VALUES (1,'x')", {}))
-    check_component(j, lambda: r2.insert("INSERT INTO b(id,a_id,title) VALUES (1,:a, 't')", {"a": 1}))
-    events.clear()
-
-    check_component(j, lambda: r2.delete("DELETE FROM b WHERE id=:id", {"id": 1}))
-    events.clear()
-
-    check_component(j, lambda: r1.delete("DELETE FROM a WHERE id=:id", {"id": 1}))
+    test_sqls(
+        j,
+        tables,
+        [
+            "INSERT INTO a(id,name) VALUES (1,'x')",
+            "INSERT INTO b(id,a_id,title) VALUES (1,1,'t')",
+            "DELETE FROM b WHERE id=1",
+            "DELETE FROM a WHERE id=1",
+        ],
+    )
 
 
 def test_left_outer_join_basic():
-    conn, r1, r2, j, events = _make_join(left=True)
+    conn, tables, r1, r2, j = _make_join(left=True)
 
-    check_component(j, lambda: r1.insert("INSERT INTO a(id,name) VALUES (1,'x')", {}))
-    events.clear()
-
-    check_component(j, lambda: r2.insert("INSERT INTO b(id,a_id,title) VALUES (1,:a, 't')", {"a": 1}))
+    test_sqls(
+        j,
+        tables,
+        [
+            "INSERT INTO a(id,name) VALUES (1,'x')",
+            "INSERT INTO b(id,a_id,title) VALUES (1,1,'t')",
+        ],
+    )
 
 
 
 def test_left_outer_join_update_delete():
-    conn, r1, r2, j, events = _make_join(left=True)
+    conn, tables, r1, r2, j = _make_join(left=True)
 
-    check_component(j, lambda: r1.insert("INSERT INTO a(id,name) VALUES (1,'x')", {}))
-    check_component(j, lambda: r2.insert("INSERT INTO b(id,a_id,title) VALUES (1,:a, 't1')", {"a": 1}))
-    events.clear()
-
-    check_component(j, lambda: r2.update("UPDATE b SET title='t2' WHERE id=:id", {"id": 1}))
-    events.clear()
-
-    check_component(j, lambda: r2.delete("DELETE FROM b WHERE id=:id", {"id": 1}))
-    events.clear()
-
-    check_component(j, lambda: r1.delete("DELETE FROM a WHERE id=:id", {"id": 1}))
+    test_sqls(
+        j,
+        tables,
+        [
+            "INSERT INTO a(id,name) VALUES (1,'x')",
+            "INSERT INTO b(id,a_id,title) VALUES (1,1,'t1')",
+            "UPDATE b SET title='t2' WHERE id=1",
+            "DELETE FROM b WHERE id=1",
+            "DELETE FROM a WHERE id=1",
+        ],
+    )
 
 
 def test_right_outer_join_basic():
-    conn, r1, r2, j, events = _make_join(right=True)
+    conn, tables, r1, r2, j = _make_join(right=True)
 
-    check_component(j, lambda: r2.insert("INSERT INTO b(id,a_id,title) VALUES (1,1,'t')", {}))
-    events.clear()
-
-    check_component(j, lambda: r1.insert("INSERT INTO a(id, name) VALUES (1, 'x')", {}))
-    aid = 1
+    test_sqls(
+        j,
+        tables,
+        [
+            "INSERT INTO b(id,a_id,title) VALUES (1,1,'t')",
+            "INSERT INTO a(id, name) VALUES (1, 'x')",
+        ],
+    )
 
 
 def test_right_outer_join_update_delete():
-    conn, r1, r2, j, events = _make_join(right=True)
+    conn, tables, r1, r2, j = _make_join(right=True)
 
-    check_component(j, lambda: r2.insert("INSERT INTO b(id,a_id,title) VALUES (1,1,'t1')", {}))
-    check_component(j, lambda: r1.insert("INSERT INTO a(id, name) VALUES (1, 'x')", {}))
-    aid = 1
-    events.clear()
-
-    check_component(j, lambda: r1.update("UPDATE a SET name='y' WHERE id=1", {}))
-    events.clear()
-
-    check_component(j, lambda: r1.delete("DELETE FROM a WHERE id=1", {}))
-    events.clear()
-
-    check_component(j, lambda: r2.delete("DELETE FROM b WHERE id=:id", {"id": 1}))
+    test_sqls(
+        j,
+        tables,
+        [
+            "INSERT INTO b(id,a_id,title) VALUES (1,1,'t1')",
+            "INSERT INTO a(id, name) VALUES (1, 'x')",
+            "UPDATE a SET name='y' WHERE id=1",
+            "DELETE FROM a WHERE id=1",
+            "DELETE FROM b WHERE id=1",
+        ],
+    )
 
 
 def test_full_outer_join_left_then_right():
-    conn, r1, r2, j, events = _make_join(left=True, right=True)
+    conn, tables, r1, r2, j = _make_join(left=True, right=True)
 
-    check_component(j, lambda: r1.insert("INSERT INTO a(id,name) VALUES (1,'x')", {}))
-    events.clear()
-
-    check_component(j, lambda: r2.insert("INSERT INTO b(id,a_id,title) VALUES (1,:a, 't')", {"a": 1}))
+    test_sqls(
+        j,
+        tables,
+        [
+            "INSERT INTO a(id,name) VALUES (1,'x')",
+            "INSERT INTO b(id,a_id,title) VALUES (1,1,'t')",
+        ],
+    )
 
 
 def test_full_outer_join_right_then_left():
-    conn, r1, r2, j, events = _make_join(left=True, right=True)
+    conn, tables, r1, r2, j = _make_join(left=True, right=True)
 
-    check_component(j, lambda: r2.insert("INSERT INTO b(id,a_id,title) VALUES (1,1,'t1')", {}))
-    events.clear()
-
-    check_component(j, lambda: r1.insert("INSERT INTO a(id, name) VALUES (1, 'x')", {}))
-    aid = 1
+    test_sqls(
+        j,
+        tables,
+        [
+            "INSERT INTO b(id,a_id,title) VALUES (1,1,'t1')",
+            "INSERT INTO a(id, name) VALUES (1, 'x')",
+        ],
+    )
 
 
 def test_full_outer_join_update_delete():
-    conn, r1, r2, j, events = _make_join(left=True, right=True)
+    conn, tables, r1, r2, j = _make_join(left=True, right=True)
 
-    check_component(j, lambda: r2.insert("INSERT INTO b(id,a_id,title) VALUES (1,1,'t1')", {}))
-    events.clear()
-
-    check_component(j, lambda: r1.insert("INSERT INTO a(id, name) VALUES (1, 'x')", {}))
-    aid = 1
-    events.clear()
-
-    check_component(j, lambda: r2.update("UPDATE b SET title='t2' WHERE id=:id", {"id": 1}))
-    events.clear()
-
-    check_component(j, lambda: r1.delete("DELETE FROM a WHERE id=1", {}))
-    events.clear()
-
-    check_component(j, lambda: r2.delete("DELETE FROM b WHERE id=:id", {"id": 1}))
+    test_sqls(
+        j,
+        tables,
+        [
+            "INSERT INTO b(id,a_id,title) VALUES (1,1,'t1')",
+            "INSERT INTO a(id, name) VALUES (1, 'x')",
+            "UPDATE b SET title='t2' WHERE id=1",
+            "DELETE FROM a WHERE id=1",
+            "DELETE FROM b WHERE id=1",
+        ],
+    )
 
 
 def test_intersect_deduplication():
     conn = sqlite3.connect(":memory:")
     for t in ("a", "b"):
         conn.execute(f"CREATE TABLE {t}(id INTEGER PRIMARY KEY, name TEXT)")
-    r1, r2 = ReactiveTable(conn, "a"), ReactiveTable(conn, "b")
+    tables = Tables(conn)
+    r1, r2 = tables._get("a"), tables._get("b")
     s1, s2 = Select(r1, "name"), Select(r2, "name")
     inter = Intersect(s1, s2)
-    events = []
-    inter.listeners.append(events.append)
 
-    check_component(inter, lambda: r1.insert("INSERT INTO a(name) VALUES ('x')", {}))
-    check_component(inter, lambda: r1.insert("INSERT INTO a(name) VALUES ('x')", {}))  # duplicate in same table
-    check_component(inter, lambda: r2.insert("INSERT INTO b(name) VALUES ('x')", {}))
+    test_sqls(
+        inter,
+        tables,
+        [
+            "INSERT INTO a(name) VALUES ('x')",
+            "INSERT INTO a(name) VALUES ('x')",
+            "INSERT INTO b(name) VALUES ('x')",
+        ],
+    )
 
 
 def test_intersect_update_with_remaining_duplicate():
@@ -689,18 +778,21 @@ def test_intersect_update_with_remaining_duplicate():
     conn = sqlite3.connect(":memory:")
     for t in ("a", "b"):
         conn.execute(f"CREATE TABLE {t}(id INTEGER PRIMARY KEY, name TEXT)")
-    r1, r2 = ReactiveTable(conn, "a"), ReactiveTable(conn, "b")
+    tables = Tables(conn)
+    r1, r2 = tables._get("a"), tables._get("b")
     inter = Intersect(Select(r1, "name"), Select(r2, "name"))
-    events = []
-    inter.listeners.append(events.append)
 
-    check_component(inter, lambda: r1.insert("INSERT INTO a(name) VALUES ('z')", {}))
-    check_component(inter, lambda: r2.insert("INSERT INTO b(name) VALUES ('x')", {}))
-    check_component(inter, lambda: r1.update("UPDATE a SET name='x' WHERE id=1", {}))
-    check_component(inter, lambda: r1.insert("INSERT INTO a(name) VALUES ('x')", {}))
-
-    events.clear()
-    check_component(inter, lambda: r1.update("UPDATE a SET name='z' WHERE id=1", {}))
+    test_sqls(
+        inter,
+        tables,
+        [
+            "INSERT INTO a(name) VALUES ('z')",
+            "INSERT INTO b(name) VALUES ('x')",
+            "UPDATE a SET name='x' WHERE id=1",
+            "INSERT INTO a(name) VALUES ('x')",
+            "UPDATE a SET name='z' WHERE id=1",
+        ],
+    )
 
     assert_eq(list(conn.execute(inter.sql).fetchall()), [("x",)])
 

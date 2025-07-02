@@ -14,7 +14,10 @@ def _db():
     conn = sqlite3.connect(":memory:")
     conn.execute("CREATE TABLE items(id INTEGER PRIMARY KEY, name TEXT)")
     # Populate with a bit of data so that result comparisons are meaningful
-    conn.executemany("INSERT INTO items(name) VALUES (?)", [("x",), ("y",)])
+    conn.executemany(
+        "INSERT INTO items(id,name) VALUES (?,?)",
+        [(1, "x"), (2, "y")],
+    )
     return conn
 
 
@@ -95,8 +98,8 @@ def test_parse_union_all():
     tables = Tables(conn)
     sql = "SELECT * FROM a UNION ALL SELECT * FROM b"
     # Add sample rows so result comparison is non-trivial
-    conn.execute("INSERT INTO a(name) VALUES ('a1')")
-    conn.execute("INSERT INTO b(name) VALUES ('b1')")
+    conn.execute("INSERT INTO a(id,name) VALUES (1,'a1')")
+    conn.execute("INSERT INTO b(id,name) VALUES (1,'b1')")
     expr = sqlglot.parse_one(sql, read="sqlite")
     comp = parse_reactive(expr, tables, {})
     assert isinstance(comp, UnionAll)
@@ -119,10 +122,9 @@ def test_parse_join():
 
     ta = tables._get("a")
     tb = tables._get("b")
-    ta.insert("INSERT INTO a(name) VALUES ('x')", {})
+    ta.insert("INSERT INTO a(id,name) VALUES (1,'x')", {})
     assert events == []
-    aid = conn.execute("SELECT id FROM a WHERE name='x'").fetchone()[0]
-    tb.insert("INSERT INTO b(a_id,title) VALUES (:a, 't')", {"a": aid})
+    tb.insert("INSERT INTO b(id,a_id,title) VALUES (1,:a, 't')", {"a": 1})
     assert events == [[1, ('x', 't')]]
     tb.delete("DELETE FROM b WHERE id=1", {})
     assert events[-1] == [2, ('x', 't')]
@@ -188,5 +190,5 @@ def test_parse_group_by_aggregate():
     events = []
     comp.listeners.append(events.append)
     rt = tables._get("nums")
-    rt.insert("INSERT INTO nums(grp,n) VALUES (1,10)", {})
+    rt.insert("INSERT INTO nums(id,grp,n) VALUES (1,1,10)", {})
     assert events[-1] == [1, (1, 1, 10)]

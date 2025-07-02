@@ -10,9 +10,8 @@ def assert_eq(a, b):
 def test_update_null_row_should_raise_custom_exception():
     conn = _db()
     rt = ReactiveTable(conn, "items")
-    check_component(rt, lambda: rt.insert("INSERT INTO items(name) VALUES (NULL)", {}))
-    rid = conn.execute("SELECT id FROM items WHERE name IS NULL").fetchone()[0]
-    check_component(rt, lambda: rt.update("UPDATE items SET name = 'z' WHERE id = :id", {"id": rid}))
+    check_component(rt, lambda: rt.insert("INSERT INTO items(id,name) VALUES (1,NULL)", {}))
+    check_component(rt, lambda: rt.update("UPDATE items SET name = 'z' WHERE id = :id", {"id": 1}))
 
 def test_where_delete_event_should_be_labeled_delete():
     """
@@ -25,9 +24,8 @@ def test_where_delete_event_should_be_labeled_delete():
     events = []
     w.listeners.append(events.append)
 
-    check_component(w, lambda: rt.insert("INSERT INTO items(name) VALUES ('x')", {}))
-    rid = conn.execute("SELECT id FROM items WHERE name = 'x'").fetchone()[0]
-    check_component(w, lambda: rt.delete("DELETE FROM items WHERE id = :id", {"id": rid}))
+    check_component(w, lambda: rt.insert("INSERT INTO items(id,name) VALUES (1,'x')", {}))
+    check_component(w, lambda: rt.delete("DELETE FROM items WHERE id = :id", {"id": 1}))
 
 
 def test_select_delete_event_should_be_labeled_delete():
@@ -41,9 +39,8 @@ def test_select_delete_event_should_be_labeled_delete():
     events = []
     sel.listeners.append(events.append)
 
-    check_component(sel, lambda: rt.insert("INSERT INTO items(name) VALUES ('x')", {}))
-    rid = conn.execute("SELECT id FROM items WHERE name = 'x'").fetchone()[0]
-    check_component(sel, lambda: rt.delete("DELETE FROM items WHERE id = :id", {"id": rid}))
+    check_component(sel, lambda: rt.insert("INSERT INTO items(id,name) VALUES (1,'x')", {}))
+    check_component(sel, lambda: rt.delete("DELETE FROM items WHERE id = :id", {"id": 1}))
 import sqlite3
 from pageql.reactive import (
     ReactiveTable,
@@ -135,14 +132,13 @@ def test_reactive_table_events():
     rt.listeners.append(events.append)
 
     # insert
-    check_component(rt, lambda: rt.insert("INSERT INTO items(name) VALUES (:n)", {"n": "a"}))
-    rid = conn.execute("SELECT id FROM items WHERE name='a'").fetchone()[0]
+    check_component(rt, lambda: rt.insert("INSERT INTO items(id,name) VALUES (:id,:n)", {"id": 1, "n": "a"}))
 
     # update
-    check_component(rt, lambda: rt.update("UPDATE items SET name = :n WHERE id = :id", {"n": "b", "id": rid}))
+    check_component(rt, lambda: rt.update("UPDATE items SET name = :n WHERE id = :id", {"n": "b", "id": 1}))
 
     # delete
-    check_component(rt, lambda: rt.delete("DELETE FROM items WHERE id = :id", {"id": rid}))
+    check_component(rt, lambda: rt.delete("DELETE FROM items WHERE id = :id", {"id": 1}))
 
 
 def test_reactive_table_delete_multiple_rows():
@@ -152,10 +148,9 @@ def test_reactive_table_delete_multiple_rows():
     rt.listeners.append(events.append)
 
     # insert two rows with the same name
-    check_component(rt, lambda: rt.insert("INSERT INTO items(name) VALUES ('x')", {}))
-    check_component(rt, lambda: rt.insert("INSERT INTO items(name) VALUES ('x')", {}))
+    check_component(rt, lambda: rt.insert("INSERT INTO items(id,name) VALUES (1,'x')", {}))
+    check_component(rt, lambda: rt.insert("INSERT INTO items(id,name) VALUES (2,'x')", {}))
 
-    ids = [r[0] for r in conn.execute("SELECT id FROM items WHERE name='x'").fetchall()]
     events.clear()
 
     # delete all rows matching the name predicate
@@ -171,7 +166,7 @@ def test_delete_propagates_renderresultexception():
     def boom(_):
         raise RenderResultException(RenderResult(status_code=302))
 
-    check_component(rt, lambda: rt.insert("INSERT INTO items(name) VALUES ('x')", {}))
+    check_component(rt, lambda: rt.insert("INSERT INTO items(id,name) VALUES (1,'x')", {}))
     rt.listeners.append(boom)
 
     with pytest.raises(RenderResultException):
@@ -185,7 +180,7 @@ def test_count_all():
     events = []
     cnt.listeners.append(events.append)
 
-    check_component(cnt, lambda: rt.insert("INSERT INTO items(name) VALUES ('x')", {}))
+    check_component(cnt, lambda: rt.insert("INSERT INTO items(id,name) VALUES (1,'x')", {}))
 
 
 def test_count_expression():
@@ -195,14 +190,13 @@ def test_count_expression():
     events = []
     cnt.listeners.append(events.append)
 
-    check_component(cnt, lambda: rt.insert("INSERT INTO items(name) VALUES ('x')", {}))
+    check_component(cnt, lambda: rt.insert("INSERT INTO items(id,name) VALUES (1,'x')", {}))
 
-    check_component(cnt, lambda: rt.insert("INSERT INTO items(name) VALUES (NULL)", {}))
+    check_component(cnt, lambda: rt.insert("INSERT INTO items(id,name) VALUES (2,NULL)", {}))
 
-    rid = conn.execute("SELECT id FROM items WHERE name IS NULL").fetchone()[0]
-    check_component(cnt, lambda: rt.update("UPDATE items SET name='y' WHERE id=:id", {"id": rid}))
+    check_component(cnt, lambda: rt.update("UPDATE items SET name='y' WHERE id=:id", {"id": 2}))
 
-    check_component(cnt, lambda: rt.update("UPDATE items SET name=NULL WHERE id=:id", {"id": rid}))
+    check_component(cnt, lambda: rt.update("UPDATE items SET name=NULL WHERE id=:id", {"id": 2}))
 
 
 def test_sum_expression():
@@ -213,14 +207,13 @@ def test_sum_expression():
     events = []
     sm.listeners.append(events.append)
 
-    check_component(sm, lambda: rt.insert("INSERT INTO nums(n) VALUES (1)", {}))
+    check_component(sm, lambda: rt.insert("INSERT INTO nums(id,n) VALUES (1,1)", {}))
 
-    check_component(sm, lambda: rt.insert("INSERT INTO nums(n) VALUES (2)", {}))
+    check_component(sm, lambda: rt.insert("INSERT INTO nums(id,n) VALUES (2,2)", {}))
 
-    rid = conn.execute("SELECT id FROM nums WHERE n=2").fetchone()[0]
-    check_component(sm, lambda: rt.update("UPDATE nums SET n=5 WHERE id=:id", {"id": rid}))
+    check_component(sm, lambda: rt.update("UPDATE nums SET n=5 WHERE id=:id", {"id": 2}))
 
-    check_component(sm, lambda: rt.delete("DELETE FROM nums WHERE id=:id", {"id": rid}))
+    check_component(sm, lambda: rt.delete("DELETE FROM nums WHERE id=:id", {"id": 2}))
 
 
 def test_avg_expression():
@@ -231,14 +224,13 @@ def test_avg_expression():
     events = []
     av.listeners.append(events.append)
 
-    check_component(av, lambda: rt.insert("INSERT INTO nums(n) VALUES (1)", {}))
+    check_component(av, lambda: rt.insert("INSERT INTO nums(id,n) VALUES (1,1)", {}))
 
-    check_component(av, lambda: rt.insert("INSERT INTO nums(n) VALUES (2)", {}))
+    check_component(av, lambda: rt.insert("INSERT INTO nums(id,n) VALUES (2,2)", {}))
 
-    rid = conn.execute("SELECT id FROM nums WHERE n=2").fetchone()[0]
-    check_component(av, lambda: rt.update("UPDATE nums SET n=5 WHERE id=:id", {"id": rid}))
+    check_component(av, lambda: rt.update("UPDATE nums SET n=5 WHERE id=:id", {"id": 2}))
 
-    check_component(av, lambda: rt.delete("DELETE FROM nums WHERE id=:id", {"id": rid}))
+    check_component(av, lambda: rt.delete("DELETE FROM nums WHERE id=:id", {"id": 2}))
 
 
 def test_min_max_expression():
@@ -251,30 +243,26 @@ def test_min_max_expression():
     mn.listeners.append(mn_events.append)
     mx.listeners.append(mx_events.append)
 
-    check_component(mn, lambda: rt.insert("INSERT INTO nums(n) VALUES (5)", {}))
+    check_component(mn, lambda: rt.insert("INSERT INTO nums(id,n) VALUES (1,5)", {}))
     assert_eq(mx.value, [5])
 
-    check_component(mn, lambda: rt.insert("INSERT INTO nums(n) VALUES (2)", {}))
+    check_component(mn, lambda: rt.insert("INSERT INTO nums(id,n) VALUES (2,2)", {}))
     assert_eq(mx.value, [5])
 
-    check_component(mn, lambda: rt.insert("INSERT INTO nums(n) VALUES (10)", {}))
+    check_component(mn, lambda: rt.insert("INSERT INTO nums(id,n) VALUES (3,10)", {}))
     assert_eq(mx.value, [10])
 
-    rid = conn.execute("SELECT id FROM nums WHERE n=2").fetchone()[0]
-    check_component(mn, lambda: rt.update("UPDATE nums SET n=7 WHERE id=:id", {"id": rid}))
+    check_component(mn, lambda: rt.update("UPDATE nums SET n=7 WHERE id=:id", {"id": 2}))
     assert_eq(mn.value, [5])
 
-    rid = conn.execute("SELECT id FROM nums WHERE n=10").fetchone()[0]
-    check_component(mn, lambda: rt.update("UPDATE nums SET n=1 WHERE id=:id", {"id": rid}))
+    check_component(mn, lambda: rt.update("UPDATE nums SET n=1 WHERE id=:id", {"id": 3}))
     assert_eq(mn.value, [1])
     assert_eq(mx.value, [7])
 
-    rid = conn.execute("SELECT id FROM nums WHERE n=7").fetchone()[0]
-    check_component(mn, lambda: rt.delete("DELETE FROM nums WHERE id=:id", {"id": rid}))
+    check_component(mn, lambda: rt.delete("DELETE FROM nums WHERE id=:id", {"id": 2}))
     assert_eq(mx.value, [5])
 
-    rid = conn.execute("SELECT id FROM nums WHERE n=1").fetchone()[0]
-    check_component(mn, lambda: rt.delete("DELETE FROM nums WHERE id=:id", {"id": rid}))
+    check_component(mn, lambda: rt.delete("DELETE FROM nums WHERE id=:id", {"id": 3}))
     assert_eq(mn.value, [5])
 
 
@@ -299,15 +287,13 @@ def test_aggregate_group_by():
     events = []
     ag.listeners.append(events.append)
 
-    check_component(ag, lambda: rt.insert("INSERT INTO nums(grp,n) VALUES (1,10)", {}))
+    check_component(ag, lambda: rt.insert("INSERT INTO nums(id,grp,n) VALUES (1,1,10)", {}))
 
-    check_component(ag, lambda: rt.insert("INSERT INTO nums(grp,n) VALUES (1,5)", {}))
+    check_component(ag, lambda: rt.insert("INSERT INTO nums(id,grp,n) VALUES (2,1,5)", {}))
 
-    rid = conn.execute("SELECT id FROM nums WHERE n=5").fetchone()[0]
-    check_component(ag, lambda: rt.update("UPDATE nums SET grp=2 WHERE id=:id", {"id": rid}))
+    check_component(ag, lambda: rt.update("UPDATE nums SET grp=2 WHERE id=:id", {"id": 2}))
 
-    rid = conn.execute("SELECT id FROM nums WHERE grp=1").fetchone()[0]
-    check_component(ag, lambda: rt.delete("DELETE FROM nums WHERE id=:id", {"id": rid}))
+    check_component(ag, lambda: rt.delete("DELETE FROM nums WHERE id=:id", {"id": 1}))
 
     check_component(ag, lambda: None)
 
@@ -337,11 +323,10 @@ def test_where():
     seen = []
     w.listeners.append(seen.append)
 
-    check_component(w, lambda: rt.insert("INSERT INTO items(name) VALUES ('x')", {}))
-    check_component(w, lambda: rt.insert("INSERT INTO items(name) VALUES ('y')", {}))
+    check_component(w, lambda: rt.insert("INSERT INTO items(id,name) VALUES (1,'x')", {}))
+    check_component(w, lambda: rt.insert("INSERT INTO items(id,name) VALUES (2,'y')", {}))
 
-    rid = conn.execute("SELECT id FROM items WHERE name='y'").fetchone()[0]
-    check_component(w, lambda: rt.update("UPDATE items SET name='x' WHERE id=:id", {"id": rid}))
+    check_component(w, lambda: rt.update("UPDATE items SET name='x' WHERE id=:id", {"id": 2}))
 
 
 def test_unionall():
@@ -364,10 +349,9 @@ def test_select():
     seen = []
     sel.listeners.append(seen.append)
 
-    check_component(sel, lambda: rt.insert("INSERT INTO items(name) VALUES ('x')", {}))
+    check_component(sel, lambda: rt.insert("INSERT INTO items(id,name) VALUES (1,'x')", {}))
 
-    rid = conn.execute("SELECT id FROM items WHERE name='x'").fetchone()[0]
-    check_component(sel, lambda: rt.update("UPDATE items SET name='y' WHERE id=:id", {"id": rid}))
+    check_component(sel, lambda: rt.update("UPDATE items SET name='y' WHERE id=:id", {"id": 1}))
 
 
 # Additional tests
@@ -379,13 +363,12 @@ def test_count_all_decrement():
     cnt.listeners.append(events.append)
 
     # insert two rows
-    check_component(cnt, lambda: rt.insert("INSERT INTO items(name) VALUES ('x')", {}))
-    check_component(cnt, lambda: rt.insert("INSERT INTO items(name) VALUES ('y')", {}))
+    check_component(cnt, lambda: rt.insert("INSERT INTO items(id,name) VALUES (1,'x')", {}))
+    check_component(cnt, lambda: rt.insert("INSERT INTO items(id,name) VALUES (2,'y')", {}))
     assert_eq(cnt.value, [2])
 
     # delete one row
-    rid = conn.execute("SELECT id FROM items WHERE name='x'").fetchone()[0]
-    check_component(cnt, lambda: rt.delete("DELETE FROM items WHERE id = :id", {"id": rid}))
+    check_component(cnt, lambda: rt.delete("DELETE FROM items WHERE id = :id", {"id": 1}))
     assert_eq(cnt.value, [1])
 
 
@@ -396,9 +379,9 @@ def test_countall_multiple_expressions():
     events = []
     cnt.listeners.append(events.append)
 
-    check_component(cnt, lambda: rt.insert("INSERT INTO items(name) VALUES ('x')", {}))
+    check_component(cnt, lambda: rt.insert("INSERT INTO items(id,name) VALUES (1,'x')", {}))
 
-    check_component(cnt, lambda: rt.insert("INSERT INTO items(name) VALUES (NULL)", {}))
+    check_component(cnt, lambda: rt.insert("INSERT INTO items(id,name) VALUES (2,NULL)", {}))
 
 
 def test_where_remove():
@@ -409,10 +392,9 @@ def test_where_remove():
     w.listeners.append(events.append)
 
     # insert a matching row
-    check_component(w, lambda: rt.insert("INSERT INTO items(name) VALUES ('x')", {}))
+    check_component(w, lambda: rt.insert("INSERT INTO items(id,name) VALUES (1,'x')", {}))
     # update it so it no longer matches the predicate
-    rid = conn.execute("SELECT id FROM items WHERE name='x'").fetchone()[0]
-    check_component(w, lambda: rt.update("UPDATE items SET name='y' WHERE id=:id", {"id": rid}))
+    check_component(w, lambda: rt.update("UPDATE items SET name='y' WHERE id=:id", {"id": 1}))
 
 
 def test_select_no_change_on_same_value_update():
@@ -426,8 +408,7 @@ def test_select_no_change_on_same_value_update():
     initial_event_count = len(events)
 
     # update without changing the selected value
-    rid = conn.execute("SELECT id FROM items WHERE name='x'").fetchone()[0]
-    check_component(sel, lambda: rt.update("UPDATE items SET name='x' WHERE id=:id", {"id": rid}))
+    check_component(sel, lambda: rt.update("UPDATE items SET name='x' WHERE id=:id", {"id": 1}))
 
 
 def test_where_no_event_on_same_value_update():
@@ -440,8 +421,7 @@ def test_where_no_event_on_same_value_update():
     check_component(w, lambda: rt.insert("INSERT INTO items(name) VALUES ('x')", {}))
     initial_len = len(events)
 
-    rid = conn.execute("SELECT id FROM items WHERE name='x'").fetchone()[0]
-    check_component(w, lambda: rt.update("UPDATE items SET name='x' WHERE id=:id", {"id": rid}))
+    check_component(w, lambda: rt.update("UPDATE items SET name='x' WHERE id=:id", {"id": 1}))
 
 
 def test_reactive_table_no_event_on_same_value_update():
@@ -450,11 +430,10 @@ def test_reactive_table_no_event_on_same_value_update():
     events = []
     rt.listeners.append(events.append)
 
-    check_component(rt, lambda: rt.insert("INSERT INTO items(name) VALUES ('x')", {}))
+    check_component(rt, lambda: rt.insert("INSERT INTO items(id,name) VALUES (1,'x')", {}))
     initial_len = len(events)
 
-    rid = conn.execute("SELECT id FROM items WHERE name='x'").fetchone()[0]
-    check_component(rt, lambda: rt.update("UPDATE items SET name='x' WHERE id=:id", {"id": rid}))
+    check_component(rt, lambda: rt.update("UPDATE items SET name='x' WHERE id=:id", {"id": 1}))
 
 
 def test_unionall_update():
@@ -466,9 +445,8 @@ def test_unionall_update():
     events = []
     u.listeners.append(events.append)
 
-    check_component(u, lambda: r1.insert("INSERT INTO a(name) VALUES ('x')", {}))
-    rid = conn.execute("SELECT id FROM a WHERE name='x'").fetchone()[0]
-    check_component(u, lambda: r1.update("UPDATE a SET name='y' WHERE id=:id", {"id": rid}))
+    check_component(u, lambda: r1.insert("INSERT INTO a(id,name) VALUES (1,'x')", {}))
+    check_component(u, lambda: r1.update("UPDATE a SET name='y' WHERE id=:id", {"id": 1}))
 
 
 def test_update_without_where_clause():
@@ -516,9 +494,8 @@ def test_union_update():
     events = []
     u.listeners.append(events.append)
 
-    check_component(u, lambda: r1.insert("INSERT INTO a(name) VALUES ('x')", {}))
-    rid = conn.execute("SELECT id FROM a WHERE name='x'").fetchone()[0]
-    check_component(u, lambda: r1.update("UPDATE a SET name='y' WHERE id=:id", {"id": rid}))
+    check_component(u, lambda: r1.insert("INSERT INTO a(id,name) VALUES (1,'x')", {}))
+    check_component(u, lambda: r1.update("UPDATE a SET name='y' WHERE id=:id", {"id": 1}))
 
 
 def test_union_update_with_duplicate():
@@ -530,11 +507,10 @@ def test_union_update_with_duplicate():
     events = []
     u.listeners.append(events.append)
 
-    check_component(u, lambda: r1.insert("INSERT INTO a(name) VALUES ('x')", {}))
-    check_component(u, lambda: r2.insert("INSERT INTO b(name) VALUES ('x')", {}))
-    rid = conn.execute("SELECT id FROM a WHERE name='x'").fetchone()[0]
+    check_component(u, lambda: r1.insert("INSERT INTO a(id,name) VALUES (1,'x')", {}))
+    check_component(u, lambda: r2.insert("INSERT INTO b(id,name) VALUES (1,'x')", {}))
     events.clear()
-    check_component(u, lambda: r1.update("UPDATE a SET name='y' WHERE id=:id", {"id": rid}))
+    check_component(u, lambda: r1.update("UPDATE a SET name='y' WHERE id=:id", {"id": 1}))
 
 
 def test_union_mismatched_columns():
@@ -553,22 +529,18 @@ def test_union_mismatched_columns():
 def test_join_basic():
     conn, r1, r2, j, events = _make_join()
 
-    check_component(j, lambda: r1.insert("INSERT INTO a(name) VALUES ('x')", {}))
-    aid = conn.execute("SELECT id FROM a WHERE name='x'").fetchone()[0]
-    check_component(j, lambda: r2.insert("INSERT INTO b(a_id, title) VALUES (:a, 't')", {"a": aid}))
-    bid = conn.execute("SELECT id FROM b WHERE a_id=:a", {"a": aid}).fetchone()[0]
+    check_component(j, lambda: r1.insert("INSERT INTO a(id,name) VALUES (1,'x')", {}))
+    check_component(j, lambda: r2.insert("INSERT INTO b(id,a_id,title) VALUES (1,:a, 't')", {"a": 1}))
 
 
 def test_join_update():
     conn, r1, r2, j, events = _make_join()
 
-    check_component(j, lambda: r1.insert("INSERT INTO a(name) VALUES ('x')", {}))
-    aid = conn.execute("SELECT id FROM a WHERE name='x'").fetchone()[0]
-    check_component(j, lambda: r2.insert("INSERT INTO b(a_id, title) VALUES (:a, 't1')", {"a": aid}))
-    bid = conn.execute("SELECT id FROM b WHERE title='t1'").fetchone()[0]
+    check_component(j, lambda: r1.insert("INSERT INTO a(id,name) VALUES (1,'x')", {}))
+    check_component(j, lambda: r2.insert("INSERT INTO b(id,a_id,title) VALUES (1,:a, 't1')", {"a": 1}))
     events.clear()
 
-    check_component(j, lambda: r2.update("UPDATE b SET title='t2' WHERE id=:id", {"id": bid}))
+    check_component(j, lambda: r2.update("UPDATE b SET title='t2' WHERE id=:id", {"id": 1}))
 
 
 def test_join_update_no_change():
@@ -580,65 +552,56 @@ def test_join_update_no_change():
     events = []
     j.listeners.append(events.append)
 
-    check_component(j, lambda: r1.insert("INSERT INTO a(name) VALUES ('x')", {}))
-    aid = conn.execute("SELECT id FROM a WHERE name='x'").fetchone()[0]
-    check_component(j, lambda: r2.insert("INSERT INTO b(a_id, title) VALUES (:a, 't1')", {"a": aid}))
-    bid = conn.execute("SELECT id FROM b WHERE title='t1'").fetchone()[0]
+    check_component(j, lambda: r1.insert("INSERT INTO a(id,name) VALUES (1,'x')", {}))
+    check_component(j, lambda: r2.insert("INSERT INTO b(id,a_id,title) VALUES (1,:a, 't1')", {"a": 1}))
     events.clear()
 
-    check_component(j, lambda: r2.update("UPDATE b SET title='t1' WHERE id=:id", {"id": bid}))
+    check_component(j, lambda: r2.update("UPDATE b SET title='t1' WHERE id=:id", {"id": 1}))
 
 
 def test_join_delete():
     conn, r1, r2, j, events = _make_join()
 
-    check_component(j, lambda: r1.insert("INSERT INTO a(name) VALUES ('x')", {}))
-    aid = conn.execute("SELECT id FROM a WHERE name='x'").fetchone()[0]
-    check_component(j, lambda: r2.insert("INSERT INTO b(a_id, title) VALUES (:a, 't')", {"a": aid}))
-    bid = conn.execute("SELECT id FROM b WHERE a_id=:a", {"a": aid}).fetchone()[0]
+    check_component(j, lambda: r1.insert("INSERT INTO a(id,name) VALUES (1,'x')", {}))
+    check_component(j, lambda: r2.insert("INSERT INTO b(id,a_id,title) VALUES (1,:a, 't')", {"a": 1}))
     events.clear()
 
-    check_component(j, lambda: r2.delete("DELETE FROM b WHERE id=:id", {"id": bid}))
+    check_component(j, lambda: r2.delete("DELETE FROM b WHERE id=:id", {"id": 1}))
     events.clear()
 
-    check_component(j, lambda: r1.delete("DELETE FROM a WHERE id=:id", {"id": aid}))
+    check_component(j, lambda: r1.delete("DELETE FROM a WHERE id=:id", {"id": 1}))
 
 
 def test_left_outer_join_basic():
     conn, r1, r2, j, events = _make_join(left=True)
 
-    check_component(j, lambda: r1.insert("INSERT INTO a(name) VALUES ('x')", {}))
-    aid = conn.execute("SELECT id FROM a WHERE name='x'").fetchone()[0]
+    check_component(j, lambda: r1.insert("INSERT INTO a(id,name) VALUES (1,'x')", {}))
     events.clear()
 
-    check_component(j, lambda: r2.insert("INSERT INTO b(a_id, title) VALUES (:a, 't')", {"a": aid}))
-    bid = conn.execute("SELECT id FROM b WHERE a_id=:a", {"a": aid}).fetchone()[0]
+    check_component(j, lambda: r2.insert("INSERT INTO b(id,a_id,title) VALUES (1,:a, 't')", {"a": 1}))
 
 
 
 def test_left_outer_join_update_delete():
     conn, r1, r2, j, events = _make_join(left=True)
 
-    check_component(j, lambda: r1.insert("INSERT INTO a(name) VALUES ('x')", {}))
-    aid = conn.execute("SELECT id FROM a WHERE name='x'").fetchone()[0]
-    check_component(j, lambda: r2.insert("INSERT INTO b(a_id, title) VALUES (:a, 't1')", {"a": aid}))
-    bid = conn.execute("SELECT id FROM b WHERE title='t1'").fetchone()[0]
+    check_component(j, lambda: r1.insert("INSERT INTO a(id,name) VALUES (1,'x')", {}))
+    check_component(j, lambda: r2.insert("INSERT INTO b(id,a_id,title) VALUES (1,:a, 't1')", {"a": 1}))
     events.clear()
 
-    check_component(j, lambda: r2.update("UPDATE b SET title='t2' WHERE id=:id", {"id": bid}))
+    check_component(j, lambda: r2.update("UPDATE b SET title='t2' WHERE id=:id", {"id": 1}))
     events.clear()
 
-    check_component(j, lambda: r2.delete("DELETE FROM b WHERE id=:id", {"id": bid}))
+    check_component(j, lambda: r2.delete("DELETE FROM b WHERE id=:id", {"id": 1}))
     events.clear()
 
-    check_component(j, lambda: r1.delete("DELETE FROM a WHERE id=:id", {"id": aid}))
+    check_component(j, lambda: r1.delete("DELETE FROM a WHERE id=:id", {"id": 1}))
 
 
 def test_right_outer_join_basic():
     conn, r1, r2, j, events = _make_join(right=True)
 
-    check_component(j, lambda: r2.insert("INSERT INTO b(a_id, title) VALUES (1, 't')", {}))
-    bid = conn.execute("SELECT id FROM b WHERE title='t'").fetchone()[0]
+    check_component(j, lambda: r2.insert("INSERT INTO b(id,a_id,title) VALUES (1,1,'t')", {}))
     events.clear()
 
     check_component(j, lambda: r1.insert("INSERT INTO a(id, name) VALUES (1, 'x')", {}))
@@ -648,8 +611,7 @@ def test_right_outer_join_basic():
 def test_right_outer_join_update_delete():
     conn, r1, r2, j, events = _make_join(right=True)
 
-    check_component(j, lambda: r2.insert("INSERT INTO b(a_id, title) VALUES (1, 't1')", {}))
-    bid = conn.execute("SELECT id FROM b WHERE title='t1'").fetchone()[0]
+    check_component(j, lambda: r2.insert("INSERT INTO b(id,a_id,title) VALUES (1,1,'t1')", {}))
     check_component(j, lambda: r1.insert("INSERT INTO a(id, name) VALUES (1, 'x')", {}))
     aid = 1
     events.clear()
@@ -660,25 +622,22 @@ def test_right_outer_join_update_delete():
     check_component(j, lambda: r1.delete("DELETE FROM a WHERE id=1", {}))
     events.clear()
 
-    check_component(j, lambda: r2.delete("DELETE FROM b WHERE id=:id", {"id": bid}))
+    check_component(j, lambda: r2.delete("DELETE FROM b WHERE id=:id", {"id": 1}))
 
 
 def test_full_outer_join_left_then_right():
     conn, r1, r2, j, events = _make_join(left=True, right=True)
 
-    check_component(j, lambda: r1.insert("INSERT INTO a(name) VALUES ('x')", {}))
-    aid = conn.execute("SELECT id FROM a WHERE name='x'").fetchone()[0]
+    check_component(j, lambda: r1.insert("INSERT INTO a(id,name) VALUES (1,'x')", {}))
     events.clear()
 
-    check_component(j, lambda: r2.insert("INSERT INTO b(a_id, title) VALUES (:a, 't')", {"a": aid}))
-    bid = conn.execute("SELECT id FROM b WHERE a_id=:a", {"a": aid}).fetchone()[0]
+    check_component(j, lambda: r2.insert("INSERT INTO b(id,a_id,title) VALUES (1,:a, 't')", {"a": 1}))
 
 
 def test_full_outer_join_right_then_left():
     conn, r1, r2, j, events = _make_join(left=True, right=True)
 
-    check_component(j, lambda: r2.insert("INSERT INTO b(a_id, title) VALUES (1, 't1')", {}))
-    bid = conn.execute("SELECT id FROM b WHERE title='t1'").fetchone()[0]
+    check_component(j, lambda: r2.insert("INSERT INTO b(id,a_id,title) VALUES (1,1,'t1')", {}))
     events.clear()
 
     check_component(j, lambda: r1.insert("INSERT INTO a(id, name) VALUES (1, 'x')", {}))
@@ -688,21 +647,20 @@ def test_full_outer_join_right_then_left():
 def test_full_outer_join_update_delete():
     conn, r1, r2, j, events = _make_join(left=True, right=True)
 
-    check_component(j, lambda: r2.insert("INSERT INTO b(a_id, title) VALUES (1, 't1')", {}))
-    bid = conn.execute("SELECT id FROM b WHERE title='t1'").fetchone()[0]
+    check_component(j, lambda: r2.insert("INSERT INTO b(id,a_id,title) VALUES (1,1,'t1')", {}))
     events.clear()
 
     check_component(j, lambda: r1.insert("INSERT INTO a(id, name) VALUES (1, 'x')", {}))
     aid = 1
     events.clear()
 
-    check_component(j, lambda: r2.update("UPDATE b SET title='t2' WHERE id=:id", {"id": bid}))
+    check_component(j, lambda: r2.update("UPDATE b SET title='t2' WHERE id=:id", {"id": 1}))
     events.clear()
 
     check_component(j, lambda: r1.delete("DELETE FROM a WHERE id=1", {}))
     events.clear()
 
-    check_component(j, lambda: r2.delete("DELETE FROM b WHERE id=:id", {"id": bid}))
+    check_component(j, lambda: r2.delete("DELETE FROM b WHERE id=:id", {"id": 1}))
 
 
 def test_intersect_deduplication():
@@ -801,8 +759,7 @@ def test_one_value_reset():
     assert_eq(dv.value, "x")
     assert_eq(seen[-1], "x")
 
-    rid = conn.execute("SELECT id FROM items WHERE name='x'").fetchone()[0]
-    check_component(dv, lambda: rt.update("UPDATE items SET name='y' WHERE id=:id", {"id": rid}))
+    check_component(dv, lambda: rt.update("UPDATE items SET name='y' WHERE id=:id", {"id": 1}))
     assert_eq(dv.value, "y")
     assert_eq(seen[-1], "y")
 
@@ -923,10 +880,9 @@ def test_check_component_reactive_table():
     conn = _db()
     rt = ReactiveTable(conn, "items")
 
-    check_component(rt, lambda: rt.insert("INSERT INTO items(name) VALUES ('x')", {}))
-    rid = conn.execute("SELECT id FROM items WHERE name='x'").fetchone()[0]
-    check_component(rt, lambda: rt.update("UPDATE items SET name='y' WHERE id=:id", {"id": rid}))
-    check_component(rt, lambda: rt.delete("DELETE FROM items WHERE id=:id", {"id": rid}))
+    check_component(rt, lambda: rt.insert("INSERT INTO items(id,name) VALUES (1,'x')", {}))
+    check_component(rt, lambda: rt.update("UPDATE items SET name='y' WHERE id=:id", {"id": 1}))
+    check_component(rt, lambda: rt.delete("DELETE FROM items WHERE id=:id", {"id": 1}))
 
 
 def test_check_component_where():
@@ -934,9 +890,8 @@ def test_check_component_where():
     rt = ReactiveTable(conn, "items")
     w = Where(rt, "name = 'x'")
 
-    check_component(w, lambda: rt.insert("INSERT INTO items(name) VALUES ('x')", {}))
-    rid = conn.execute("SELECT id FROM items WHERE name='x'").fetchone()[0]
-    check_component(w, lambda: rt.update("UPDATE items SET name='z' WHERE id=:id", {"id": rid}))
+    check_component(w, lambda: rt.insert("INSERT INTO items(id,name) VALUES (1,'x')", {}))
+    check_component(w, lambda: rt.update("UPDATE items SET name='z' WHERE id=:id", {"id": 1}))
 
 
 def test_get_dependencies_simple():

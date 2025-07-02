@@ -1,8 +1,6 @@
 import sqlite3
 from pathlib import Path
-import types, sys
-sys.modules.setdefault("watchfiles", types.ModuleType("watchfiles"))
-sys.modules["watchfiles"].awatch = lambda *args, **kwargs: None
+import sys
 sys.path.insert(0, "src")
 
 import asyncio

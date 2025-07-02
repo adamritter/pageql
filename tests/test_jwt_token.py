@@ -1,9 +1,6 @@
 import sys
-import types
 import json
 
-sys.modules.setdefault("watchfiles", types.ModuleType("watchfiles"))
-sys.modules["watchfiles"].awatch = lambda *args, **kwargs: None
 sys.path.insert(0, "src")
 
 from pageql.pageql import PageQL

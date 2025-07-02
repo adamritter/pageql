@@ -1,7 +1,6 @@
 import sys
 import tempfile
 import asyncio
-import types
 from pathlib import Path
 import pytest
 
@@ -9,13 +8,8 @@ pytestmark = pytest.mark.anyio
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-sys.modules.setdefault("watchfiles", types.ModuleType("watchfiles"))
 
-async def _awatch_stub(*args, **kwargs):
-    if False:
-        yield None
 
-sys.modules["watchfiles"].awatch = _awatch_stub
 
 from pageql.pageqlapp import PageQLApp
 from playwright_helpers import _load_page_async, run_server_in_task

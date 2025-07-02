@@ -2,9 +2,6 @@ import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-import types
-sys.modules.setdefault("watchfiles", types.ModuleType("watchfiles"))
-sys.modules["watchfiles"].awatch = lambda *args, **kwargs: None
 
 from pageql.pageql import PageQL, RenderContext, _row_hash
 from pageql.reactive import DerivedSignal

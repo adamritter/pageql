@@ -1,6 +1,4 @@
-import sys, types
-sys.modules.setdefault("watchfiles", types.ModuleType("watchfiles"))
-sys.modules["watchfiles"].awatch = lambda *a, **k: None
+import sys
 sys.path.insert(0, "src")
 
 import pytest

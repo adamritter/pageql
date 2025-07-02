@@ -1,4 +1,4 @@
-import sys, types, gc, tracemalloc
+import sys, gc, tracemalloc
 from pathlib import Path
 import pytest
 
@@ -10,9 +10,6 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))
 sys.path.insert(0, str(ROOT))
 
-# Stub watchfiles so it doesn't require optional dependency
-sys.modules.setdefault("watchfiles", types.ModuleType("watchfiles"))
-sys.modules["watchfiles"].awatch = lambda *args, **kwargs: None
 
 from pageql.pageql import PageQL
 from benchmarks.benchmark_pageql import MODULES, SCENARIOS, bench_factory, reset_items, PARAMS

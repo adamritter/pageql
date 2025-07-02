@@ -1,9 +1,7 @@
-import sys, types
+import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
-sys.modules.setdefault("watchfiles", types.ModuleType("watchfiles"))
-sys.modules["watchfiles"].awatch = lambda *a, **k: None
 
 from pageql.pageql import PageQL
 

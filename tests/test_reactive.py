@@ -140,121 +140,261 @@ def _make_join(*, left=False, right=False):
     return conn, tables, r1, r2, j
 
 
-def test_reactive_table_events():
+def _items_rt():
     conn = _db()
     tables = Tables(conn)
-    rt = tables._get("items")
-
-    test_sqls(
-        rt,
-        tables,
-        [
-            "INSERT INTO items(id,name) VALUES (1,'a')",
-            "UPDATE items SET name='b' WHERE id=1",
-            "DELETE FROM items WHERE id=1",
-        ],
-    )
+    return tables._get("items"), tables
 
 
-def test_reactive_table_delete_multiple_rows():
-    conn = _db()
-    tables = Tables(conn)
-    rt = tables._get("items")
-
-    test_sqls(
-        rt,
-        tables,
-        [
-            "INSERT INTO items(id,name) VALUES (1,'x')",
-            "INSERT INTO items(id,name) VALUES (2,'x')",
-            "DELETE FROM items WHERE name='x'",
-        ],
-    )
-
-
-def test_delete_propagates_renderresultexception():
-    conn = _db()
-    rt = ReactiveTable(conn, "items")
-
-    from pageql.pageql import RenderResult, RenderResultException
-
-    def boom(_):
-        raise RenderResultException(RenderResult(status_code=302))
-
-    check_component(rt, lambda: rt.insert("INSERT INTO items(id,name) VALUES (1,'x')", {}))
-    rt.listeners.append(boom)
-
-    with pytest.raises(RenderResultException):
-        rt.delete("DELETE FROM items", {})
-
-
-def test_count_all():
-    conn = _db()
-    tables = Tables(conn)
-    rt = tables._get("items")
-    cnt = Aggregate(rt)
-
-    test_sqls(
-        cnt,
-        tables,
-        ["INSERT INTO items(id,name) VALUES (1,'x')"],
-    )
-
-
-def test_count_expression():
-    conn = _db()
-    tables = Tables(conn)
-    rt = tables._get("items")
-    cnt = Aggregate(rt, ("COUNT(name)",))
-
-    test_sqls(
-        cnt,
-        tables,
-        [
-            "INSERT INTO items(id,name) VALUES (1,'x')",
-            "INSERT INTO items(id,name) VALUES (2,NULL)",
-            "UPDATE items SET name='y' WHERE id=2",
-            "UPDATE items SET name=NULL WHERE id=2",
-        ],
-    )
-
-
-def test_sum_expression():
+def _nums_rt():
     conn = sqlite3.connect(":memory:")
     conn.execute("CREATE TABLE nums(id INTEGER PRIMARY KEY, n INTEGER)")
     tables = Tables(conn)
-    rt = tables._get("nums")
-    sm = Aggregate(rt, ("SUM(n)",))
-
-    test_sqls(
-        sm,
-        tables,
-        [
-            "INSERT INTO nums(id,n) VALUES (1,1)",
-            "INSERT INTO nums(id,n) VALUES (2,2)",
-            "UPDATE nums SET n=5 WHERE id=2",
-            "DELETE FROM nums WHERE id=2",
-        ],
-    )
+    return tables._get("nums"), tables
 
 
-def test_avg_expression():
+def _nums_grp_rt():
     conn = sqlite3.connect(":memory:")
-    conn.execute("CREATE TABLE nums(id INTEGER PRIMARY KEY, n INTEGER)")
+    conn.execute("CREATE TABLE nums(id INTEGER PRIMARY KEY, grp INTEGER, n INTEGER)")
     tables = Tables(conn)
-    rt = tables._get("nums")
-    av = Aggregate(rt, ("AVG(n)",))
+    return tables._get("nums"), tables
 
-    test_sqls(
-        av,
-        tables,
-        [
-            "INSERT INTO nums(id,n) VALUES (1,1)",
-            "INSERT INTO nums(id,n) VALUES (2,2)",
-            "UPDATE nums SET n=5 WHERE id=2",
-            "DELETE FROM nums WHERE id=2",
-        ],
-    )
+
+def _select_comp():
+    rt, tables = _items_rt()
+    return Select(rt, "name"), tables
+
+
+def _where_comp():
+    rt, tables = _items_rt()
+    return Where(rt, "name = 'x'"), tables
+
+
+def _agg_count_all():
+    rt, tables = _items_rt()
+    return Aggregate(rt), tables
+
+
+def _agg_count_name():
+    rt, tables = _items_rt()
+    return Aggregate(rt, ("COUNT(name)",)), tables
+
+
+def _agg_sum():
+    rt, tables = _nums_rt()
+    return Aggregate(rt, ("SUM(n)",)), tables
+
+
+def _agg_avg():
+    rt, tables = _nums_rt()
+    return Aggregate(rt, ("AVG(n)",)), tables
+
+
+def _agg_group_by():
+    rt, tables = _nums_grp_rt()
+    return Aggregate(rt, ("COUNT(*)", "SUM(n)"), group_by="grp"), tables
+
+
+def _agg_countall_multi():
+    rt, tables = _items_rt()
+    return Aggregate(rt, ("COUNT(*)", "COUNT(name)")), tables
+
+
+def _unionall_comp():
+    conn = sqlite3.connect(":memory:")
+    for t in ("a", "b"):
+        conn.execute(f"CREATE TABLE {t}(id INTEGER PRIMARY KEY, name TEXT)")
+    tables = Tables(conn)
+    r1, r2 = tables._get("a"), tables._get("b")
+    return UnionAll(r1, r2), tables
+
+
+def _union_comp():
+    conn = sqlite3.connect(":memory:")
+    for t in ("a", "b"):
+        conn.execute(f"CREATE TABLE {t}(id INTEGER PRIMARY KEY, name TEXT)")
+    tables = Tables(conn)
+    r1, r2 = tables._get("a"), tables._get("b")
+    return Union(r1, r2), tables
+
+
+def _intersect_comp():
+    conn = sqlite3.connect(":memory:")
+    for t in ("a", "b"):
+        conn.execute(f"CREATE TABLE {t}(id INTEGER PRIMARY KEY, name TEXT)")
+    tables = Tables(conn)
+    r1, r2 = tables._get("a"), tables._get("b")
+    return Intersect(Select(r1, "name"), Select(r2, "name")), tables
+
+
+def _join_comp(left=False, right=False):
+    def _inner():
+        _, tables, _, _, j = _make_join(left=left, right=right)
+        return j, tables
+    return _inner
+
+
+def _join_no_change():
+    conn = sqlite3.connect(":memory:")
+    conn.execute("CREATE TABLE a(id INTEGER PRIMARY KEY, name TEXT)")
+    conn.execute("CREATE TABLE b(id INTEGER PRIMARY KEY, a_id INTEGER, title TEXT)")
+    tables = Tables(conn)
+    r1, r2 = tables._get("a"), tables._get("b")
+    return Join(r1, r2, "a.id = b.a_id"), tables
+
+
+_SQL_CASES = [
+    ("reactive_table_events", _items_rt, [
+        "INSERT INTO items(id,name) VALUES (1,'a')",
+        "UPDATE items SET name='b' WHERE id=1",
+        "DELETE FROM items WHERE id=1",
+    ]),
+    ("reactive_table_delete_multiple_rows", _items_rt, [
+        "INSERT INTO items(id,name) VALUES (1,'x')",
+        "INSERT INTO items(id,name) VALUES (2,'x')",
+        "DELETE FROM items WHERE name='x'",
+    ]),
+    ("count_all", _agg_count_all, ["INSERT INTO items(id,name) VALUES (1,'x')"]),
+    ("count_expression", _agg_count_name, [
+        "INSERT INTO items(id,name) VALUES (1,'x')",
+        "INSERT INTO items(id,name) VALUES (2,NULL)",
+        "UPDATE items SET name='y' WHERE id=2",
+        "UPDATE items SET name=NULL WHERE id=2",
+    ]),
+    ("sum_expression", _agg_sum, [
+        "INSERT INTO nums(id,n) VALUES (1,1)",
+        "INSERT INTO nums(id,n) VALUES (2,2)",
+        "UPDATE nums SET n=5 WHERE id=2",
+        "DELETE FROM nums WHERE id=2",
+    ]),
+    ("avg_expression", _agg_avg, [
+        "INSERT INTO nums(id,n) VALUES (1,1)",
+        "INSERT INTO nums(id,n) VALUES (2,2)",
+        "UPDATE nums SET n=5 WHERE id=2",
+        "DELETE FROM nums WHERE id=2",
+    ]),
+    ("aggregate_group_by", _agg_group_by, [
+        "INSERT INTO nums(id,grp,n) VALUES (1,1,10)",
+        "INSERT INTO nums(id,grp,n) VALUES (2,1,5)",
+        "UPDATE nums SET grp=2 WHERE id=2",
+        "DELETE FROM nums WHERE id=1",
+        "SELECT 1",
+    ]),
+    ("select", _select_comp, [
+        "INSERT INTO items(id,name) VALUES (1,'x')",
+        "UPDATE items SET name='y' WHERE id=1",
+    ]),
+    ("countall_multiple_expressions", _agg_countall_multi, [
+        "INSERT INTO items(id,name) VALUES (1,'x')",
+        "INSERT INTO items(id,name) VALUES (2,NULL)",
+    ]),
+    ("where_remove", _where_comp, [
+        "INSERT INTO items(id,name) VALUES (1,'x')",
+        "UPDATE items SET name='y' WHERE id=1",
+    ]),
+    ("select_no_change_on_same_value_update", _select_comp, [
+        "INSERT INTO items(name) VALUES ('x')",
+        "UPDATE items SET name='x' WHERE id=1",
+    ]),
+    ("where_no_event_on_same_value_update", _where_comp, [
+        "INSERT INTO items(name) VALUES ('x')",
+        "UPDATE items SET name='x' WHERE id=1",
+    ]),
+    ("reactive_table_no_event_on_same_value_update", _items_rt, [
+        "INSERT INTO items(id,name) VALUES (1,'x')",
+        "UPDATE items SET name='x' WHERE id=1",
+    ]),
+    ("unionall", _unionall_comp, [
+        "INSERT INTO a(name) VALUES ('x')",
+        "INSERT INTO b(name) VALUES ('y')",
+    ]),
+    ("unionall_update", _unionall_comp, [
+        "INSERT INTO a(id,name) VALUES (1,'x')",
+        "UPDATE a SET name='y' WHERE id=1",
+    ]),
+    ("union", _union_comp, [
+        "INSERT INTO a(name) VALUES ('x')",
+        "INSERT INTO b(name) VALUES ('x')",
+        "INSERT INTO b(name) VALUES ('y')",
+    ]),
+    ("union_update", _union_comp, [
+        "INSERT INTO a(id,name) VALUES (1,'x')",
+        "UPDATE a SET name='y' WHERE id=1",
+    ]),
+    ("union_update_with_duplicate", _union_comp, [
+        "INSERT INTO a(id,name) VALUES (1,'x')",
+        "INSERT INTO b(id,name) VALUES (1,'x')",
+        "UPDATE a SET name='y' WHERE id=1",
+    ]),
+    ("join_basic", _join_comp(), [
+        "INSERT INTO a(id,name) VALUES (1,'x')",
+        "INSERT INTO b(id,a_id,title) VALUES (1,1,'t')",
+    ]),
+    ("join_update", _join_comp(), [
+        "INSERT INTO a(id,name) VALUES (1,'x')",
+        "INSERT INTO b(id,a_id,title) VALUES (1,1,'t1')",
+        "UPDATE b SET title='t2' WHERE id=1",
+    ]),
+    ("join_update_no_change", _join_no_change, [
+        "INSERT INTO a(id,name) VALUES (1,'x')",
+        "INSERT INTO b(id,a_id,title) VALUES (1,1,'t1')",
+        "UPDATE b SET title='t1' WHERE id=1",
+    ]),
+    ("join_delete", _join_comp(), [
+        "INSERT INTO a(id,name) VALUES (1,'x')",
+        "INSERT INTO b(id,a_id,title) VALUES (1,1,'t')",
+        "DELETE FROM b WHERE id=1",
+        "DELETE FROM a WHERE id=1",
+    ]),
+    ("left_outer_join_basic", _join_comp(left=True), [
+        "INSERT INTO a(id,name) VALUES (1,'x')",
+        "INSERT INTO b(id,a_id,title) VALUES (1,1,'t')",
+    ]),
+    ("left_outer_join_update_delete", _join_comp(left=True), [
+        "INSERT INTO a(id,name) VALUES (1,'x')",
+        "INSERT INTO b(id,a_id,title) VALUES (1,1,'t1')",
+        "UPDATE b SET title='t2' WHERE id=1",
+        "DELETE FROM b WHERE id=1",
+        "DELETE FROM a WHERE id=1",
+    ]),
+    ("right_outer_join_basic", _join_comp(right=True), [
+        "INSERT INTO b(id,a_id,title) VALUES (1,1,'t')",
+        "INSERT INTO a(id, name) VALUES (1, 'x')",
+    ]),
+    ("right_outer_join_update_delete", _join_comp(right=True), [
+        "INSERT INTO b(id,a_id,title) VALUES (1,1,'t1')",
+        "INSERT INTO a(id, name) VALUES (1, 'x')",
+        "UPDATE a SET name='y' WHERE id=1",
+        "DELETE FROM a WHERE id=1",
+        "DELETE FROM b WHERE id=1",
+    ]),
+    ("full_outer_join_left_then_right", _join_comp(left=True, right=True), [
+        "INSERT INTO a(id,name) VALUES (1,'x')",
+        "INSERT INTO b(id,a_id,title) VALUES (1,1,'t')",
+    ]),
+    ("full_outer_join_right_then_left", _join_comp(left=True, right=True), [
+        "INSERT INTO b(id,a_id,title) VALUES (1,1,'t1')",
+        "INSERT INTO a(id, name) VALUES (1, 'x')",
+    ]),
+    ("full_outer_join_update_delete", _join_comp(left=True, right=True), [
+        "INSERT INTO b(id,a_id,title) VALUES (1,1,'t1')",
+        "INSERT INTO a(id, name) VALUES (1, 'x')",
+        "UPDATE b SET title='t2' WHERE id=1",
+        "DELETE FROM a WHERE id=1",
+        "DELETE FROM b WHERE id=1",
+    ]),
+    ("intersect_deduplication", _intersect_comp, [
+        "INSERT INTO a(name) VALUES ('x')",
+        "INSERT INTO a(name) VALUES ('x')",
+        "INSERT INTO b(name) VALUES ('x')",
+    ]),
+]
+
+
+@pytest.mark.parametrize("factory,sqls", [(f, s) for _, f, s in _SQL_CASES], ids=[n for n, _, _ in _SQL_CASES])
+def test_component_sqls(factory, sqls):
+    comp, tables = factory()
+    test_sqls(comp, tables, sqls)
 
 
 def test_min_max_expression():
@@ -299,92 +439,6 @@ def test_aggregate_constant_expression():
     assert_eq(ag.value, [1, 42])
 
 
-def test_aggregate_group_by():
-    conn = sqlite3.connect(":memory:")
-    conn.execute("CREATE TABLE nums(id INTEGER PRIMARY KEY, grp INTEGER, n INTEGER)")
-    tables = Tables(conn)
-    rt = tables._get("nums")
-    ag = Aggregate(rt, ("COUNT(*)", "SUM(n)"), group_by="grp")
-
-    test_sqls(
-        ag,
-        tables,
-        [
-            "INSERT INTO nums(id,grp,n) VALUES (1,1,10)",
-            "INSERT INTO nums(id,grp,n) VALUES (2,1,5)",
-            "UPDATE nums SET grp=2 WHERE id=2",
-            "DELETE FROM nums WHERE id=1",
-            "SELECT 1",  # trigger check_component with no-op
-        ],
-    )
-
-
-def test_signal_and_derived():
-    a_val = [1]
-    b_val = [2]
-    a = DerivedSignal(lambda: a_val[0], [])
-    b = DerivedSignal(lambda: b_val[0], [])
-    d = DerivedSignal(lambda: a.value + b.value, [a, b])
-    seen = []
-    d.listeners.append(seen.append)
-    a_val[0] = 2
-    a.update()
-    assert_eq(d.value, 4)
-    assert_eq(seen[-1], 4)
-    a_val[0] = 2  # no change
-    a.update()
-    assert_eq(seen[-1], 4)
-    assert len(seen) == 1
-
-
-def test_where():
-    conn = _db()
-    rt = ReactiveTable(conn, "items")
-    w = Where(rt, "name = 'x'")
-    seen = []
-    w.listeners.append(seen.append)
-
-    check_component(w, lambda: rt.insert("INSERT INTO items(id,name) VALUES (1,'x')", {}))
-    check_component(w, lambda: rt.insert("INSERT INTO items(id,name) VALUES (2,'y')", {}))
-
-    check_component(w, lambda: rt.update("UPDATE items SET name='x' WHERE id=:id", {"id": 2}))
-
-
-def test_unionall():
-    conn = sqlite3.connect(":memory:")
-    for t in ("a", "b"):
-        conn.execute(f"CREATE TABLE {t}(id INTEGER PRIMARY KEY, name TEXT)")
-    tables = Tables(conn)
-    r1, r2 = tables._get("a"), tables._get("b")
-    u = UnionAll(r1, r2)
-
-    test_sqls(
-        u,
-        tables,
-        [
-            "INSERT INTO a(name) VALUES ('x')",
-            "INSERT INTO b(name) VALUES ('y')",
-        ],
-    )
-
-
-def test_select():
-    conn, rt = _db(), None
-    tables = Tables(conn)
-    rt = tables._get("items")
-    sel = Select(rt, "name")
-
-    test_sqls(
-        sel,
-        tables,
-        [
-            "INSERT INTO items(id,name) VALUES (1,'x')",
-            "UPDATE items SET name='y' WHERE id=1",
-        ],
-    )
-
-
-# Additional tests
 def test_count_all_decrement():
     conn = _db()
     tables = Tables(conn)
@@ -401,103 +455,6 @@ def test_count_all_decrement():
         ],
     )
     assert_eq(cnt.value, [1])
-
-
-def test_countall_multiple_expressions():
-    conn = _db()
-    tables = Tables(conn)
-    rt = tables._get("items")
-    cnt = Aggregate(rt, ("COUNT(*)", "COUNT(name)"))
-
-    test_sqls(
-        cnt,
-        tables,
-        [
-            "INSERT INTO items(id,name) VALUES (1,'x')",
-            "INSERT INTO items(id,name) VALUES (2,NULL)",
-        ],
-    )
-
-
-def test_where_remove():
-    conn = _db()
-    tables = Tables(conn)
-    rt = tables._get("items")
-    w = Where(rt, "name = 'x'")
-
-    test_sqls(
-        w,
-        tables,
-        [
-            "INSERT INTO items(id,name) VALUES (1,'x')",
-            "UPDATE items SET name='y' WHERE id=1",
-        ],
-    )
-
-
-def test_select_no_change_on_same_value_update():
-    conn = _db()
-    tables = Tables(conn)
-    rt = tables._get("items")
-    sel = Select(rt, "name")
-
-    test_sqls(
-        sel,
-        tables,
-        [
-            "INSERT INTO items(name) VALUES ('x')",
-            "UPDATE items SET name='x' WHERE id=1",
-        ],
-    )
-
-
-def test_where_no_event_on_same_value_update():
-    conn = _db()
-    tables = Tables(conn)
-    rt = tables._get("items")
-    w = Where(rt, "name = 'x'")
-
-    test_sqls(
-        w,
-        tables,
-        [
-            "INSERT INTO items(name) VALUES ('x')",
-            "UPDATE items SET name='x' WHERE id=1",
-        ],
-    )
-
-
-def test_reactive_table_no_event_on_same_value_update():
-    conn = _db()
-    tables = Tables(conn)
-    rt = tables._get("items")
-
-    test_sqls(
-        rt,
-        tables,
-        [
-            "INSERT INTO items(id,name) VALUES (1,'x')",
-            "UPDATE items SET name='x' WHERE id=1",
-        ],
-    )
-
-
-def test_unionall_update():
-    conn = sqlite3.connect(":memory:")
-    for t in ("a", "b"):
-        conn.execute(f"CREATE TABLE {t}(id INTEGER PRIMARY KEY, name TEXT)")
-    tables = Tables(conn)
-    r1, r2 = tables._get("a"), tables._get("b")
-    u = UnionAll(r1, r2)
-
-    test_sqls(
-        u,
-        tables,
-        [
-            "INSERT INTO a(id,name) VALUES (1,'x')",
-            "UPDATE a SET name='y' WHERE id=1",
-        ],
-    )
 
 
 def test_update_without_where_clause():
@@ -522,62 +479,6 @@ def test_unionall_mismatched_columns():
         assert False, "expected ValueError when columns mismatch"
 
 
-def test_union():
-    conn = sqlite3.connect(":memory:")
-    for t in ("a", "b"):
-        conn.execute(f"CREATE TABLE {t}(id INTEGER PRIMARY KEY, name TEXT)")
-    tables = Tables(conn)
-    r1, r2 = tables._get("a"), tables._get("b")
-    u = Union(r1, r2)
-
-    test_sqls(
-        u,
-        tables,
-        [
-            "INSERT INTO a(name) VALUES ('x')",
-            "INSERT INTO b(name) VALUES ('x')",
-            "INSERT INTO b(name) VALUES ('y')",
-        ],
-    )
-
-
-def test_union_update():
-    conn = sqlite3.connect(":memory:")
-    for t in ("a", "b"):
-        conn.execute(f"CREATE TABLE {t}(id INTEGER PRIMARY KEY, name TEXT)")
-    tables = Tables(conn)
-    r1, r2 = tables._get("a"), tables._get("b")
-    u = Union(r1, r2)
-
-    test_sqls(
-        u,
-        tables,
-        [
-            "INSERT INTO a(id,name) VALUES (1,'x')",
-            "UPDATE a SET name='y' WHERE id=1",
-        ],
-    )
-
-
-def test_union_update_with_duplicate():
-    conn = sqlite3.connect(":memory:")
-    for t in ("a", "b"):
-        conn.execute(f"CREATE TABLE {t}(id INTEGER PRIMARY KEY, name TEXT)")
-    tables = Tables(conn)
-    r1, r2 = tables._get("a"), tables._get("b")
-    u = Union(r1, r2)
-
-    test_sqls(
-        u,
-        tables,
-        [
-            "INSERT INTO a(id,name) VALUES (1,'x')",
-            "INSERT INTO b(id,name) VALUES (1,'x')",
-            "UPDATE a SET name='y' WHERE id=1",
-        ],
-    )
-
-
 def test_union_mismatched_columns():
     conn = sqlite3.connect(":memory:")
     conn.execute("CREATE TABLE a(id INTEGER PRIMARY KEY, name TEXT)")
@@ -591,186 +492,41 @@ def test_union_mismatched_columns():
         assert False, "expected ValueError when columns mismatch"
 
 
-def test_join_basic():
-    conn, tables, r1, r2, j = _make_join()
-
-    test_sqls(
-        j,
-        tables,
-        [
-            "INSERT INTO a(id,name) VALUES (1,'x')",
-            "INSERT INTO b(id,a_id,title) VALUES (1,1,'t')",
-        ],
-    )
-
-
-def test_join_update():
-    conn, tables, r1, r2, j = _make_join()
-
-    test_sqls(
-        j,
-        tables,
-        [
-            "INSERT INTO a(id,name) VALUES (1,'x')",
-            "INSERT INTO b(id,a_id,title) VALUES (1,1,'t1')",
-            "UPDATE b SET title='t2' WHERE id=1",
-        ],
-    )
-
-
-def test_join_update_no_change():
-    conn = sqlite3.connect(":memory:")
-    conn.execute("CREATE TABLE a(id INTEGER PRIMARY KEY, name TEXT)")
-    conn.execute("CREATE TABLE b(id INTEGER PRIMARY KEY, a_id INTEGER, title TEXT)")
-    tables = Tables(conn)
-    r1, r2 = tables._get("a"), tables._get("b")
-    j = Join(r1, r2, "a.id = b.a_id")
-
-    test_sqls(
-        j,
-        tables,
-        [
-            "INSERT INTO a(id,name) VALUES (1,'x')",
-            "INSERT INTO b(id,a_id,title) VALUES (1,1,'t1')",
-            "UPDATE b SET title='t1' WHERE id=1",
-        ],
-    )
-
-
-def test_join_delete():
-    conn, tables, r1, r2, j = _make_join()
-
-    test_sqls(
-        j,
-        tables,
-        [
-            "INSERT INTO a(id,name) VALUES (1,'x')",
-            "INSERT INTO b(id,a_id,title) VALUES (1,1,'t')",
-            "DELETE FROM b WHERE id=1",
-            "DELETE FROM a WHERE id=1",
-        ],
-    )
-
-
-def test_left_outer_join_basic():
-    conn, tables, r1, r2, j = _make_join(left=True)
-
-    test_sqls(
-        j,
-        tables,
-        [
-            "INSERT INTO a(id,name) VALUES (1,'x')",
-            "INSERT INTO b(id,a_id,title) VALUES (1,1,'t')",
-        ],
-    )
+def test_signal_and_derived():
+    a_val = [1]
+    b_val = [2]
+    a = DerivedSignal(lambda: a_val[0], [])
+    b = DerivedSignal(lambda: b_val[0], [])
+    d = DerivedSignal(lambda: a.value + b.value, [a, b])
+    seen = []
+    d.listeners.append(seen.append)
+    a_val[0] = 2
+    a.update()
+    assert_eq(d.value, 4)
+    assert_eq(seen[-1], 4)
+    a_val[0] = 2  # no change
+    a.update()
+    assert_eq(seen[-1], 4)
+    assert len(seen) == 1
 
 
 
-def test_left_outer_join_update_delete():
-    conn, tables, r1, r2, j = _make_join(left=True)
+def test_delete_propagates_renderresultexception():
+    conn = _db()
+    rt = ReactiveTable(conn, "items")
 
-    test_sqls(
-        j,
-        tables,
-        [
-            "INSERT INTO a(id,name) VALUES (1,'x')",
-            "INSERT INTO b(id,a_id,title) VALUES (1,1,'t1')",
-            "UPDATE b SET title='t2' WHERE id=1",
-            "DELETE FROM b WHERE id=1",
-            "DELETE FROM a WHERE id=1",
-        ],
-    )
+    from pageql.pageql import RenderResult, RenderResultException
 
+    def boom(_):
+        raise RenderResultException(RenderResult(status_code=302))
 
-def test_right_outer_join_basic():
-    conn, tables, r1, r2, j = _make_join(right=True)
+    check_component(rt, lambda: rt.insert("INSERT INTO items(id,name) VALUES (1,'x')", {}))
+    rt.listeners.append(boom)
 
-    test_sqls(
-        j,
-        tables,
-        [
-            "INSERT INTO b(id,a_id,title) VALUES (1,1,'t')",
-            "INSERT INTO a(id, name) VALUES (1, 'x')",
-        ],
-    )
+    with pytest.raises(RenderResultException):
+        rt.delete("DELETE FROM items", {})
 
 
-def test_right_outer_join_update_delete():
-    conn, tables, r1, r2, j = _make_join(right=True)
-
-    test_sqls(
-        j,
-        tables,
-        [
-            "INSERT INTO b(id,a_id,title) VALUES (1,1,'t1')",
-            "INSERT INTO a(id, name) VALUES (1, 'x')",
-            "UPDATE a SET name='y' WHERE id=1",
-            "DELETE FROM a WHERE id=1",
-            "DELETE FROM b WHERE id=1",
-        ],
-    )
-
-
-def test_full_outer_join_left_then_right():
-    conn, tables, r1, r2, j = _make_join(left=True, right=True)
-
-    test_sqls(
-        j,
-        tables,
-        [
-            "INSERT INTO a(id,name) VALUES (1,'x')",
-            "INSERT INTO b(id,a_id,title) VALUES (1,1,'t')",
-        ],
-    )
-
-
-def test_full_outer_join_right_then_left():
-    conn, tables, r1, r2, j = _make_join(left=True, right=True)
-
-    test_sqls(
-        j,
-        tables,
-        [
-            "INSERT INTO b(id,a_id,title) VALUES (1,1,'t1')",
-            "INSERT INTO a(id, name) VALUES (1, 'x')",
-        ],
-    )
-
-
-def test_full_outer_join_update_delete():
-    conn, tables, r1, r2, j = _make_join(left=True, right=True)
-
-    test_sqls(
-        j,
-        tables,
-        [
-            "INSERT INTO b(id,a_id,title) VALUES (1,1,'t1')",
-            "INSERT INTO a(id, name) VALUES (1, 'x')",
-            "UPDATE b SET title='t2' WHERE id=1",
-            "DELETE FROM a WHERE id=1",
-            "DELETE FROM b WHERE id=1",
-        ],
-    )
-
-
-def test_intersect_deduplication():
-    conn = sqlite3.connect(":memory:")
-    for t in ("a", "b"):
-        conn.execute(f"CREATE TABLE {t}(id INTEGER PRIMARY KEY, name TEXT)")
-    tables = Tables(conn)
-    r1, r2 = tables._get("a"), tables._get("b")
-    s1, s2 = Select(r1, "name"), Select(r2, "name")
-    inter = Intersect(s1, s2)
-
-    test_sqls(
-        inter,
-        tables,
-        [
-            "INSERT INTO a(name) VALUES ('x')",
-            "INSERT INTO a(name) VALUES ('x')",
-            "INSERT INTO b(name) VALUES ('x')",
-        ],
-    )
 
 
 def test_intersect_update_with_remaining_duplicate():

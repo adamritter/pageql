@@ -246,6 +246,18 @@ _RELATION_SEQUENCE = [
     "UPDATE b SET name='z' WHERE id=3",
     "DELETE FROM b WHERE id=3",
     "DELETE FROM a WHERE id=2",
+    "INSERT INTO a(id,name) VALUES (3,'y')",
+    "UPDATE b SET a_id=3 WHERE id=1",
+    "UPDATE b SET a_id=3 WHERE id=1",
+    "INSERT INTO b(id,a_id,name,title) VALUES (4,3,'x','t5')",
+    "UPDATE a SET name='z3' WHERE id=3",
+    "UPDATE b SET name='y' WHERE id=4",
+    "DELETE FROM b WHERE id=1",
+    "DELETE FROM a WHERE id=3",
+    "DELETE FROM b WHERE id=4",
+    "INSERT INTO b(id,a_id,name,title) VALUES (5,NULL,'n','t6')",
+    "UPDATE b SET a_id=NULL WHERE id=5",
+    "DELETE FROM b WHERE id=5",
 ]
 
 _SQL_CASE_GROUPS = [

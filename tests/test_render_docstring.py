@@ -1,13 +1,10 @@
 import sys
 from pathlib import Path
-import types
 import pytest
 
 # Originally disabled due to intermittent failures; reenable the doctest now
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
-sys.modules.setdefault("watchfiles", types.ModuleType("watchfiles"))
-sys.modules["watchfiles"].awatch = lambda *args, **kwargs: None
 
 __doc__ = """
 >>> from pageql.pageql import PageQL

@@ -1,13 +1,9 @@
 import sqlite3
 from pathlib import Path
-import types
 import sys
 import sqlglot
 
-# Ensure import path and stub watchfiles
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
-sys.modules.setdefault("watchfiles", types.ModuleType("watchfiles"))
-sys.modules["watchfiles"].awatch = lambda *args, **kwargs: None
 
 from pageql.reactive import Tables, ReactiveTable, Select, Where, Aggregate, UnionAll, Join
 from pageql.reactive_sql import parse_reactive, FallbackReactive

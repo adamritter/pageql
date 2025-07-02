@@ -1,6 +1,4 @@
-import sys, types
-sys.modules.setdefault("watchfiles", types.ModuleType("watchfiles"))
-sys.modules["watchfiles"].awatch = lambda *args, **kwargs: None
+import sys
 sys.path.insert(0, "src")
 
 from pathlib import Path

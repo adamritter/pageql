@@ -1,8 +1,5 @@
 import sys
-import types
 from pathlib import Path
-sys.modules.setdefault("watchfiles", types.ModuleType("watchfiles"))
-sys.modules["watchfiles"].awatch = lambda *args, **kwargs: None
 sys.path.insert(0, "src")
 
 from pageql import jws_serialize_compact, jws_deserialize_compact

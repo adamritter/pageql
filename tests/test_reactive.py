@@ -105,8 +105,8 @@ def check_component(comp, callback):
             expected[idx] = new
         else:
             raise Exception(f"unknown event type {ev[0]}")
-    expected.sort()
-    final = sorted(conn.execute(comp.sql).fetchall())
+    expected.sort(key=repr)
+    final = sorted(conn.execute(comp.sql).fetchall(), key=repr)
     assert_eq(expected, final)
 
 

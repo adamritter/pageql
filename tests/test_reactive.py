@@ -120,6 +120,12 @@ def check_component(comp, callback):
     assert_eq(expected, final)
 
 
+def test_sqls(comp, tables, sqls):
+    for s in sqls:
+        check_component(comp, lambda q=s: tables.executeone(q, {}))
+test_sqls.__test__ = False
+
+
 def _make_join(*, left=False, right=False):
     conn = sqlite3.connect(":memory:")
     conn.execute("CREATE TABLE a(id INTEGER PRIMARY KEY, name TEXT)")
@@ -1222,3 +1228,5 @@ def test_order_on_readonly_array():
     assert isinstance(comp, ReadOnly)
     ordered = Order(comp, "n")
     assert ordered.value == [(1,), (2,)]
+
+

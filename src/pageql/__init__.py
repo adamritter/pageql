@@ -11,7 +11,7 @@ from .reactive_sql import parse_reactive
 from .jws_utils import jws_serialize_compact, jws_deserialize_compact
 from .highlighter import highlight, highlight_block
 # Define the version
-__version__ = "0.1.0"
+__version__ = "0.2.2"
 
 # Make these classes available directly from the package
 __all__ = [

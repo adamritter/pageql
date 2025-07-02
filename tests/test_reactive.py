@@ -38,6 +38,7 @@ def test_select_delete_event_should_be_labeled_delete():
     """Deleting a parent row should emit a delete event for the projection."""
     _delete_event_should_be_labeled_delete(lambda rt: Select(rt, "name"))
 import sqlite3
+from functools import partial
 from pageql.reactive import (
     ReactiveTable,
     Aggregate,
@@ -116,14 +117,6 @@ def test_sqls(comp, tables, sqls):
 test_sqls.__test__ = False
 
 
-def _make_join(*, left=False, right=False):
-    conn = sqlite3.connect(":memory:")
-    conn.execute("CREATE TABLE a(id INTEGER PRIMARY KEY, name TEXT)")
-    conn.execute("CREATE TABLE b(id INTEGER PRIMARY KEY, a_id INTEGER, title TEXT)")
-    tables = Tables(conn)
-    r1, r2 = tables._get("a"), tables._get("b")
-    j = Join(r1, r2, "a.id = b.a_id", left_outer=left, right_outer=right)
-    return conn, tables, r1, r2, j
 
 
 def _items_rt():
@@ -186,47 +179,23 @@ def _agg_countall_multi():
     return Aggregate(rt, ("COUNT(*)", "COUNT(name)")), tables
 
 
-def _unionall_comp():
-    conn = sqlite3.connect(":memory:")
-    for t in ("a", "b"):
-        conn.execute(f"CREATE TABLE {t}(id INTEGER PRIMARY KEY, name TEXT)")
-    tables = Tables(conn)
-    r1, r2 = tables._get("a"), tables._get("b")
-    return UnionAll(r1, r2), tables
 
 
-def _union_comp():
-    conn = sqlite3.connect(":memory:")
-    for t in ("a", "b"):
-        conn.execute(f"CREATE TABLE {t}(id INTEGER PRIMARY KEY, name TEXT)")
-    tables = Tables(conn)
-    r1, r2 = tables._get("a"), tables._get("b")
-    return Union(r1, r2), tables
-
-
-def _intersect_comp():
-    conn = sqlite3.connect(":memory:")
-    for t in ("a", "b"):
-        conn.execute(f"CREATE TABLE {t}(id INTEGER PRIMARY KEY, name TEXT)")
-    tables = Tables(conn)
-    r1, r2 = tables._get("a"), tables._get("b")
-    return Intersect(Select(r1, "name"), Select(r2, "name")), tables
-
-
-def _join_comp(left=False, right=False):
-    def _inner():
-        _, tables, _, _, j = _make_join(left=left, right=right)
-        return j, tables
-    return _inner
-
-
-def _join_no_change():
+def _two_relations_comp(cls, *, left=False, right=False):
     conn = sqlite3.connect(":memory:")
     conn.execute("CREATE TABLE a(id INTEGER PRIMARY KEY, name TEXT)")
-    conn.execute("CREATE TABLE b(id INTEGER PRIMARY KEY, a_id INTEGER, title TEXT)")
+    conn.execute(
+        "CREATE TABLE b(id INTEGER PRIMARY KEY, a_id INTEGER, name TEXT, title TEXT)"
+    )
     tables = Tables(conn)
     r1, r2 = tables._get("a"), tables._get("b")
-    return Join(r1, r2, "a.id = b.a_id"), tables
+    if cls is Join:
+        comp = Join(r1, r2, "a.id = b.a_id", left_outer=left, right_outer=right)
+    elif cls is Intersect:
+        comp = Intersect(Select(r1, "name"), Select(r2, "name"))
+    else:
+        comp = cls(Select(r1, "id, name"), Select(r2, "id, name"))
+    return comp, tables
 
 
 _ITEMS_SEQUENCE = [
@@ -262,37 +231,28 @@ _GROUP_SEQUENCE = [
     "SELECT 1",
 ]
 
-_UNION_SEQUENCE = [
+_RELATION_SEQUENCE = [
     "INSERT INTO a(id,name) VALUES (1,'x')",
-    "INSERT INTO b(id,name) VALUES (1,'x')",
-    "INSERT INTO b(id,name) VALUES (2,'y')",
+    "INSERT INTO b(id,a_id,name,title) VALUES (1,1,'x','t1')",
+    "INSERT INTO b(id,a_id,name,title) VALUES (2,1,'y','t2')",
+    "INSERT INTO a(id,name) VALUES (2,'x')",
+    "UPDATE b SET title='t3' WHERE id=1",
+    "UPDATE b SET title='t3' WHERE id=1",
     "UPDATE a SET name='z' WHERE id=1",
-    "DELETE FROM b WHERE id=2",
-]
-
-_JOIN_SEQUENCE = [
-    "INSERT INTO a(id,name) VALUES (1,'x')",
-    "INSERT INTO b(id,a_id,title) VALUES (1,1,'t1')",
-    "INSERT INTO b(id,a_id,title) VALUES (2,1,'t2')",
-    "UPDATE b SET title='t3' WHERE id=1",
-    "UPDATE b SET title='t3' WHERE id=1",
+    "UPDATE b SET name='x' WHERE id=2",
+    "INSERT INTO b(id,a_id,name,title) VALUES (3,2,'x','t4')",
     "DELETE FROM b WHERE id=2",
     "DELETE FROM a WHERE id=1",
+    "UPDATE b SET name='z' WHERE id=3",
+    "DELETE FROM b WHERE id=3",
+    "DELETE FROM a WHERE id=2",
 ]
-
-_INTERSECT_SEQUENCE = [
-    "INSERT INTO a(name) VALUES ('x')",
-    "INSERT INTO a(name) VALUES ('x')",
-    "INSERT INTO b(name) VALUES ('y')",
-    "UPDATE b SET name='x' WHERE name='y'",
-    "INSERT INTO b(name) VALUES ('x')",
-]
-
-_AB_SEQUENCE = _UNION_SEQUENCE + _INTERSECT_SEQUENCE
 
 _SQL_CASE_GROUPS = [
     (_ITEMS_SEQUENCE, _items_rt, [
-        "reactive_table_events", "reactive_table_delete_multiple_rows", "reactive_table_no_event_on_same_value_update"
+        "reactive_table_events",
+        "reactive_table_delete_multiple_rows",
+        "reactive_table_no_event_on_same_value_update",
     ]),
     (_ITEMS_SEQUENCE, _select_comp, ["select", "select_no_change_on_same_value_update"]),
     (_ITEMS_SEQUENCE, _where_comp, ["where_remove", "where_no_event_on_same_value_update"]),
@@ -302,16 +262,21 @@ _SQL_CASE_GROUPS = [
     (_NUMS_SEQUENCE, _agg_sum, ["sum_expression"]),
     (_NUMS_SEQUENCE, _agg_avg, ["avg_expression"]),
     (_GROUP_SEQUENCE, _agg_group_by, ["aggregate_group_by"]),
-    (_AB_SEQUENCE, _unionall_comp, ["unionall", "unionall_update"]),
-    (_AB_SEQUENCE, _union_comp, ["union", "union_update", "union_update_with_duplicate"]),
-    (_JOIN_SEQUENCE, _join_comp(), ["join_basic", "join_update", "join_delete"]),
-    (_JOIN_SEQUENCE, _join_no_change, ["join_update_no_change"]),
-    (_JOIN_SEQUENCE, _join_comp(left=True), ["left_outer_join_basic", "left_outer_join_update_delete"]),
-    (_JOIN_SEQUENCE, _join_comp(right=True), ["right_outer_join_basic", "right_outer_join_update_delete"]),
-    (_JOIN_SEQUENCE, _join_comp(left=True, right=True), [
-        "full_outer_join_left_then_right", "full_outer_join_right_then_left", "full_outer_join_update_delete"
-    ]),
-    (_AB_SEQUENCE, _intersect_comp, ["intersect_deduplication"]),
+    (_RELATION_SEQUENCE, partial(_two_relations_comp, UnionAll), ["unionall", "unionall_update"]),
+    (_RELATION_SEQUENCE, partial(_two_relations_comp, Union), ["union", "union_update", "union_update_with_duplicate"]),
+    (_RELATION_SEQUENCE, partial(_two_relations_comp, Join), ["join_basic", "join_update", "join_delete", "join_update_no_change"]),
+    (_RELATION_SEQUENCE, partial(_two_relations_comp, Join, left=True), ["left_outer_join_basic", "left_outer_join_update_delete"]),
+    (_RELATION_SEQUENCE, partial(_two_relations_comp, Join, right=True), ["right_outer_join_basic", "right_outer_join_update_delete"]),
+    (
+        _RELATION_SEQUENCE,
+        partial(_two_relations_comp, Join, left=True, right=True),
+        [
+            "full_outer_join_left_then_right",
+            "full_outer_join_right_then_left",
+            "full_outer_join_update_delete",
+        ],
+    ),
+    (_RELATION_SEQUENCE, partial(_two_relations_comp, Intersect), ["intersect_deduplication"]),
 ]
 
 _SQL_CASES = [
@@ -461,12 +426,7 @@ def test_delete_propagates_renderresultexception():
 
 def test_intersect_update_with_remaining_duplicate():
     """Updating one of several matching rows shouldn't emit a delete."""
-    conn = sqlite3.connect(":memory:")
-    for t in ("a", "b"):
-        conn.execute(f"CREATE TABLE {t}(id INTEGER PRIMARY KEY, name TEXT)")
-    tables = Tables(conn)
-    r1, r2 = tables._get("a"), tables._get("b")
-    inter = Intersect(Select(r1, "name"), Select(r2, "name"))
+    inter, tables = _two_relations_comp(Intersect)
 
     test_sqls(
         inter,
@@ -480,7 +440,7 @@ def test_intersect_update_with_remaining_duplicate():
         ],
     )
 
-    assert_eq(list(conn.execute(inter.sql).fetchall()), [("x",)])
+    assert_eq(list(tables.conn.execute(inter.sql).fetchall()), [("x",)])
 
 
 def test_derived_signal_multiple_updates():

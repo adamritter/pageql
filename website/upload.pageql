@@ -1,13 +1,15 @@
-{%create table if not exists uploads (
+{%
+create table if not exists uploads (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     filename TEXT,
     data BLOB
-)%}
+);
 
-{%partial post add%}
-  {%insert into uploads(filename, data) values (:file.filename, :file.body)%}
-  {%redirect '/upload'%}
-{%endpartial%}
+partial post add;
+  insert into uploads(filename, data) values (:file.filename, :file.body);
+  redirect '/upload';
+end partial;
+%}
 
 <form method="POST" action="/upload/add" enctype="multipart/form-data">
   <input type="file" name="file" required>
@@ -20,5 +22,5 @@
     {{filename}} - {{length(:data)}} bytes<br>
     <img src="data:image;base64,{{base64_encode(:data)}}" width="150"/>
   </li>
-{%endfrom%}
+{%end from%}
 </ul>

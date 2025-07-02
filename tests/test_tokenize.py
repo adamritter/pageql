@@ -44,3 +44,19 @@ def test_tokenize_joined_directives():
         ("#param", "a"),
         ("#param", "b"),
     ]
+
+
+def test_tokenize_end_space_directives():
+    assert tokenize("{%from items%}{%end from%}") == [
+        ("#from", "items"),
+        ("#endfrom", None),
+    ]
+    assert tokenize("{%partial x%}{%end partial%}") == [
+        ("#partial", "x"),
+        ("#endpartial", None),
+    ]
+    assert tokenize("{%if 1%}a{%end if%}") == [
+        ("#if", "1"),
+        ("text", "a"),
+        ("#endif", None),
+    ]

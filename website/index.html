@@ -334,15 +334,15 @@ pageql data.db templates --create</code></pre>
         <div class="card">
           <h2>Key Tags</h2>
           <ul>
-            <li><code>#from</code> - Query and loop over database data</li>
-            <li><code>#insert / #update / #delete</code> - SQL data manipulation commands</li>
-            <li><code>#let</code> - Set variables</li>
-            <li><code>#param</code> - Validate and bind request parameters</li>
-            <li><code>#import</code> - Import modules</li>
-            <li><code>#partial</code> - Create reusable template blocks</li>
-            <li><code>#render</code> - Render imported modules or partials with parameters</li>
-            <li><code>#if / #else / #ifdef / #ifndef</code> - Conditional rendering</li>
-            <li><code>#redirect</code> - HTTP redirects</li>
+            <li><code>from</code> - Query and loop over database data</li>
+            <li><code>insert / update / delete</code> - SQL data manipulation commands</li>
+            <li><code>let</code> - Set variables</li>
+            <li><code>param</code> - Validate and bind request parameters</li>
+            <li><code>import</code> - Import modules</li>
+            <li><code>partial</code> - Create reusable template blocks</li>
+            <li><code>render</code> - Render imported modules or partials with parameters</li>
+            <li><code>if / else / ifdef / ifndef</code> - Conditional rendering</li>
+            <li><code>redirect</code> - HTTP redirects</li>
           </ul>
         </div>
       </div>
@@ -360,99 +360,168 @@ pageql data.db templates --create</code></pre>
             </button>
           </div>
 <pre><code class="language-html">
-{%param edit_id optional%}
-{%param filter default='all' pattern="^(all|active|completed)$"%}
-
-{{!-- Ensure the table exists (harmless if already created) --}}
-{%create table if not exists todos (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    text TEXT NOT NULL,
-    completed INTEGER DEFAULT 0 CHECK(completed IN (0,1))
-)%}
-
-{%let active_count    = COUNT(*) from todos WHERE completed = 0%}
-{%let completed_count = COUNT(*) from todos WHERE completed = 1%}
-{%let total_count     = COUNT(*) from todos%}
-{%let all_complete    = (:active_count == 0 AND :total_count &gt; 0)%}
-
+{%
+  param filter default=&#x27;all&#x27; pattern=&quot;^(all|active|completed)$&quot;;
+  -- Ensure the table exists (harmless if already created)
+  create table if not exists todos (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      text TEXT NOT NULL,
+      completed INTEGER DEFAULT 0 CHECK(completed IN (0,1))
+  );
+  let active_count    = COUNT(*) from todos WHERE completed = 0;
+  let completed_count = COUNT(*) from todos WHERE completed = 1;
+  let total_count     = COUNT(*) from todos;
+  let all_complete    = (:active_count == 0 AND :total_count &gt; 0)
+%}
 
 &lt;!doctype html&gt;
-&lt;html lang="en"&gt;
+&lt;html lang=&quot;en&quot;&gt;
 &lt;head&gt;
-  &lt;meta charset="utf-8"&gt;
-  &lt;title&gt;Todos&lt;/title&gt;
+  &lt;meta charset=&quot;utf-8&quot;&gt;
+  &lt;title&gt;TODOMVC&lt;/title&gt;
+  &lt;style&gt;
+    body { font-family: Arial, sans-serif; margin: 2rem; }
+    ul { list-style: none; padding: 0; }
+    li { margin-bottom: 0.5rem; }
+    li.completed label { text-decoration: line-through; color: #777; }
+    .filters { margin-top: 1rem; }
+    .filters a { text-decoration: none; margin: 0 0.5rem; }
+    .filters a.selected { font-weight: bold; }
+    .back-link {
+      margin-bottom: 2rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid #ccc;
+      font-size: 1.8rem;
+      font-weight: bold;
+    }
+    .back-link a {
+      color: #be5028;
+      text-decoration: none;
+    }
+    .code-column {
+      overflow-x: auto;
+    }
+    
+    /* Mobile styles */
+    @media (max-width: 768px) {
+      body { 
+        margin: 0; 
+        padding: 0;
+      }
+      .back-link {
+        margin-bottom: 1rem;
+      }
+    }
+  &lt;/style&gt;
 &lt;/head&gt;
 &lt;body&gt;
-  &lt;h1&gt;Todos&lt;/h1&gt;
-  &lt;input name="text" placeholder="What needs to be done?" autofocus autocomplete="off"
-    hx-post="/todos/add" hx-trigger="keyup[key=='Enter']" hx-on:htmx:after-on-load="this.value=''"&gt;
-  &lt;ul&gt;
-{%from todos
-  WHERE (:filter == 'all')
-        OR (:filter == 'active'    AND completed = 0)
-        OR (:filter == 'completed' AND completed = 1)
-  ORDER BY id%}
-    &lt;li {%if completed%}class="completed"{%endif%}&gt;
-        &lt;input hx-post="/todos/{{id}}/toggle" class="toggle" type="checkbox" {%if completed%}checked{%endif%}&gt;
-        &lt;label
-          contenteditable="false"
-          onclick="this.contentEditable=true;this.focus();"
-          onblur="this.contentEditable=false;"
-          onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}"
-          hx-patch="/todos/{{id}}"
-          hx-trigger="blur"
-          hx-vals='js:{text: event.target.innerText}'
-          hx-swap="none"
-        &gt;{{text}}&lt;/label&gt;
-        &lt;button hx-delete="/todos/{{id}}" class="destroy" style="cursor:pointer; background:none; border:none; color:#ac4a1a;"&gt;✕&lt;/button&gt;
-    &lt;/li&gt;
-{%endfrom%}
-  &lt;/ul&gt;
+  &lt;div class=&quot;back-link&quot;&gt;&lt;a href=&quot;/&quot;&gt;&amp;larr; PageQL&lt;/a&gt; &lt;span style=&quot;font-size: 1.8rem; font-weight: bold; color:rgb(40, 170, 190);&quot;&gt;TODOMVC&lt;/span&gt;&lt;/div&gt;
+  &lt;div&gt;
+      {%if :total_count &lt; 20%}
+      &lt;input
+        name=&quot;text&quot;
+        placeholder=&quot;What needs to be done?&quot;
+        maxlength=&quot;100&quot;
+        autofocus
+        autocomplete=&quot;off&quot;
+        hx-post=&quot;/todos/add&quot;
+        hx-trigger=&quot;keyup[key==&#x27;Enter&#x27;]&quot;
+        hx-on:htmx:after-on-load=&quot;this.value=&#x27;&#x27;&quot;&gt;
+      {%end if%}
+      &lt;ul&gt;
+        {%from todos
+          WHERE (:filter == &#x27;all&#x27;)
+                OR (:filter == &#x27;active&#x27;    AND completed = 0)
+                OR (:filter == &#x27;completed&#x27; AND completed = 1)
+          %}
+            &lt;li {%if completed%}class=&quot;completed&quot;{%end if%}&gt;
+                &lt;input
+                  hx-post=&quot;/todos/{{id}}/toggle&quot;
+                  class=&quot;toggle&quot;
+                  type=&quot;checkbox&quot;
+                  {%if completed%}checked{%end if%}&gt;
+                &lt;label
+                  contenteditable=&quot;false&quot;
+                  onclick=&quot;this.contentEditable=true;this.focus();&quot;
+                  onblur=&quot;this.contentEditable=false;&quot;
+                  onkeydown=&quot;if(event.key===&#x27;Enter&#x27;){event.preventDefault();this.blur();}&quot;
+                  oninput=&quot;if(this.innerText.length&gt;100){this.innerText=this.innerText.slice(0,100);}&quot;
+                  hx-patch=&quot;/todos/{{id}}&quot;
+                  hx-trigger=&quot;blur&quot;
+                  hx-vals=&#x27;js:{text: event.target.innerText.slice(0, 100)}&#x27;
+                  hx-swap=&quot;none&quot;
+                &gt;{{text}}&lt;/label&gt;
 
-  &lt;input id="toggle-all" class="toggle-all" type="checkbox" {%if all_complete%}checked{%endif%} hx-post="/todos/toggle_all"&gt;
-  &lt;label for="toggle-all"&gt;Mark all as complete&lt;/label&gt;
+                &lt;button
+                  hx-delete=&quot;/todos/{{id}}&quot;
+                  class=&quot;destroy&quot;
+                  style=&quot;cursor:pointer; background:none; border:none; color:#ac4a1a;&quot;&gt;✕&lt;/button&gt;
+            &lt;/li&gt;
+        {%end from%}
+      &lt;/ul&gt;
 
-&lt;span class="todo-count"&gt;
+  &lt;input
+    id=&quot;toggle-all&quot;
+    class=&quot;toggle-all&quot;
+    type=&quot;checkbox&quot;
+    {%if all_complete%}checked{%end if%}
+    hx-post=&quot;/todos/toggle_all&quot;&gt;
+  &lt;label for=&quot;toggle-all&quot;&gt;Mark all as complete&lt;/label&gt;
+
+&lt;span class=&quot;todo-count&quot;&gt;
   &lt;strong&gt;{{active_count}}&lt;/strong&gt;
-  item{%if :active_count != 1%}s{%endif%} left
+  item{%if :active_count != 1%}s{%end if%} left
 &lt;/span&gt;
 
 
 {%if :completed_count &gt; 0%}
-  &lt;button class="clear-completed" hx-post="/todos/clear_completed"&gt;Clear completed&lt;/button&gt;
-{%endif%}
-&lt;div class="filters"&gt;
-  &lt;a {%if :filter == 'all'%}class="selected"{%endif%} href="/todos?filter=all"&gt;All&lt;/a&gt; |
-  &lt;a {%if :filter == 'active'%}class="selected"{%endif%} href="/todos?filter=active"&gt;Active&lt;/a&gt; |
-  &lt;a {%if :filter == 'completed'%}class="selected"{%endif%} href="/todos?filter=completed"&gt;Completed&lt;/a&gt;
-  &lt;/div&gt;
-  &lt;/body&gt;
-  &lt;/html&gt;
+  &lt;button
+    class=&quot;clear-completed&quot;
+    hx-post=&quot;/todos/clear_completed&quot;&gt;Clear completed&lt;/button&gt;
+{%end if%}
+&lt;div class=&quot;filters&quot;&gt;
+  &lt;a {%if :filter == &#x27;all&#x27;%}class=&quot;selected&quot;{%end if%} href=&quot;/todos?filter=all&quot;&gt;All&lt;/a&gt; |
+  &lt;a {%if :filter == &#x27;active&#x27;%}class=&quot;selected&quot;{%end if%} href=&quot;/todos?filter=active&quot;&gt;Active&lt;/a&gt; |
+  &lt;a {%if :filter == &#x27;completed&#x27;%}class=&quot;selected&quot;{%end if%} href=&quot;/todos?filter=completed&quot;&gt;Completed&lt;/a&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+  &lt;h2 style=&quot;color:rgb(50, 56, 86); margin-top: 2rem; margin-bottom: 0.5rem;&quot;&gt;Source code&lt;/h2&gt;
+{%showsource%}
+&lt;/body&gt;
+&lt;/html&gt;
+{%
+partial post add;
+   param text maxlength=100;
+   let current_total = COUNT(*) from todos;
+   if :current_total &lt; 20;
+     insert into todos(text) values (:text);
+   end if;
+end partial;
 
-{%partial post add%}
-  {%insert into todos(text) values (:text)%}
-{%endpartial%}
+partial post :id/toggle;
+  update todos set completed = 1 - completed WHERE id = :id;
+end partial;
 
-{%partial post :id/toggle%}
-  {%update todos set completed = 1 - completed WHERE id = :id%}
-{%endpartial%}
+partial patch :id;
+  param text maxlength=100;
+  -- Update todo text
+  update todos set text = :text WHERE id = :id;
+end partial;
 
-{%partial patch :id%}
-  {%update todos set text = :text WHERE id = :id%}
-{%endpartial%}
+partial post toggle_all;
+  let active_count = COUNT(*) from todos WHERE completed = 0;
+    -- Set all todos completed state based on active count
+    update todos set completed =  IIF(:active_count = 0, 0, 1);
+end partial;
 
-{%partial post toggle_all%}
-  {%let active_count = COUNT(*) from todos WHERE completed = 0%}
-  {%update todos set completed =  IIF(:active_count = 0, 0, 1)%}
-{%endpartial%}
+partial delete :id;
+  delete from todos WHERE id = :id;
+end partial;
 
-{%partial delete :id%}
-  {%delete from todos WHERE id = :id%}
-{%endpartial%}
-
-{%partial post clear_completed%}
-  {%delete from todos WHERE completed = 1%}
-{%endpartial%}
+partial post clear_completed;
+  delete from todos WHERE completed = 1;
+end partial
+%}
 </code></pre>
         </div>
       </div>

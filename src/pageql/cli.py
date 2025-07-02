@@ -46,6 +46,24 @@ def run_pageql_tests(templates_dir: str) -> bool:
     print(f"{passed}/{total} tests passed")
     return passed == total
 
+
+def run_pageql_parse(templates_dir: str) -> bool:
+    """Load ``.pageql`` files from *templates_dir* and check for parse errors."""
+
+    engine = PageQL(":memory:")
+
+    for root, _dirs, files in os.walk(templates_dir):
+        for name in files:
+            if not name.endswith(".pageql"):
+                continue
+            file_path = os.path.join(root, name)
+            module_name = os.path.splitext(os.path.relpath(file_path, templates_dir))[0]
+            module_name = module_name.replace(os.sep, "/")
+            with open(file_path, "r", encoding="utf-8") as f:
+                engine.load_module(module_name, f.read())
+
+    return not engine._parse_errors
+
 def main():
     """Entry point for the pageql command-line tool."""
     parser = argparse.ArgumentParser(description="Run the PageQL development server.")
@@ -61,6 +79,7 @@ def main():
     parser.add_argument('--fallback-url', help="Forward unknown routes to this base URL")
     parser.add_argument('--no-csrf', action='store_true', help="Disable CSRF protection")
     parser.add_argument('--static-html', action='store_true', help="Don't send client script for HTML files")
+    parser.add_argument('--parse', action='store_true', help="Check templates for parse errors and exit")
     parser.add_argument('--test', action='store_true', help="Run tests instead of serving")
     parser.add_argument(
         '--profile',
@@ -82,6 +101,10 @@ def main():
         sys.exit(1)
 
     args = parser.parse_args()
+
+    if args.parse:
+        success = run_pageql_parse(args.templates_dir)
+        sys.exit(0 if success else 1)
 
     if args.test:
         success = run_pageql_tests(args.templates_dir)

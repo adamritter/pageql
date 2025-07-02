@@ -338,11 +338,11 @@
 
   <div class="file-label">templates/todos.pageql</div>
   <pre class="terminal"><code class="language-html"><span style="color: #7f848e;">&#123;&#123;!-- Ensure the table exists (harmless if already created) --&#125;&#125;</span>
-<span style="color: #c586c0;">&#123;&#123;#create table if not exists</span> <span style="color: #e06c75;">todos</span> <span style="color: #c586c0;">(</span>
+<span style="color: #c586c0;">{%create table if not exists</span> <span style="color: #e06c75;">todos</span> <span style="color: #c586c0;">(</span>
     <span style="color: #e5c07b;">id</span> <span style="color: #569cd6;">INTEGER</span> <span style="color: #d7ba7d;">PRIMARY KEY AUTOINCREMENT</span>,
     <span style="color: #e5c07b;">text</span> <span style="color: #569cd6;">TEXT</span> <span style="color: #d7ba7d;">NOT NULL</span>,
     <span style="color: #e5c07b;">completed</span> <span style="color: #569cd6;">INTEGER</span> <span style="color: #d7ba7d;">DEFAULT</span> <span style="color: #b5cea8;">0</span> <span style="color: #d7ba7d;">CHECK</span>(<span style="color: #e5c07b;">completed</span> <span style="color: #d7ba7d;">IN</span> (<span style="color: #b5cea8;">0</span>,<span style="color: #b5cea8;">1</span>))
-<span style="color: #c586c0;">)&#125;&#125;</span>
+<span style="color: #c586c0;">)%}</span>
 
 <span style="color: #61afef;">&lt;!doctype</span> <span style="color: #e5c07b;">html</span><span style="color: #61afef;">&gt;</span>
 <span style="color: #61afef;">&lt;html</span> <span style="color: #e5c07b;">lang</span>=<span style="color: #98c379;">"en"</span><span style="color: #61afef;">&gt;</span>
@@ -354,9 +354,9 @@
   <span style="color: #61afef;">&lt;h1&gt;</span>Todos<span style="color: #61afef;">&lt;/h1&gt;</span>
   <span style="color: #61afef;">&lt;ul&gt;</span>
     <span style="color: #7f848e;">&#123;&#123;!-- 🚀  Query & loop in one tag --&#125;&#125;</span>
-    <span style="color: #c586c0;">&#123;&#123;#from</span> <span style="color: #e06c75;">todos</span> <span style="color: #d7ba7d;">ORDER BY</span> <span style="color: #e5c07b;">id</span><span style="color: #c586c0;">&#125;&#125;</span>
+    <span style="color: #c586c0;">{%from</span> <span style="color: #e06c75;">todos</span> <span style="color: #d7ba7d;">ORDER BY</span> <span style="color: #e5c07b;">id</span>%}
       <span style="color: #61afef;">&lt;li&gt;</span><span style="color: #c586c0;">&#123;&#123;</span><span style="color: #e06c75;">text</span><span style="color: #c586c0;">&#125;&#125;</span><span style="color: #61afef;">&lt;/li&gt;</span>
-    <span style="color: #c586c0;">&#123;&#123;/from&#125;&#125;</span>
+    <span style="color: #c586c0;">{%end from%}</span>
   <span style="color: #61afef;">&lt;/ul&gt;</span>
 
   <span style="color: #61afef;">&lt;p&gt;</span><span style="color: #61afef;">&lt;em&gt;</span>This page is read‑only—for now!<span style="color: #61afef;">&lt;/em&gt;</span><span style="color: #61afef;">&lt;/p&gt;</span>
@@ -374,11 +374,11 @@
     </thead>
     <tbody>
       <tr>
-        <td><code><a href="https://www.sqlite.org/lang_createtable.html" target="_blank" rel="noopener" style="color: var(--code-text);">#create table</a></code></td>
+        <td><code><a href="https://www.sqlite.org/lang_createtable.html" target="_blank" rel="noopener" style="color: var(--code-text);">create table</a></code></td>
         <td>One‑off schema bootstrap—safe to run every request.</td>
       </tr>
       <tr>
-        <td><code><a href="https://www.sqlite.org/lang_select.html" target="_blank" rel="noopener" style="color: var(--code-text);">#from</a></code></td>
+        <td><code><a href="https://www.sqlite.org/lang_select.html" target="_blank" rel="noopener" style="color: var(--code-text);">from</a></code></td>
         <td>Runs a <code><a href="https://www.sqlite.org/lang_select.html" target="_blank" rel="noopener" style="color: var(--code-text);">SELECT</a></code> and <strong>streams each row</strong> into the surrounding HTML.</td>
       </tr>
       <tr>

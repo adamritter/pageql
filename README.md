@@ -4,7 +4,7 @@ It was inspired by ColdFusion language that allows embedding SQL and Handlebars 
 
 PageQL is **reactive-first**: rendered HTML automatically updates when the underlying database data changes.
 
-Usage: ```pageql templates <database> [--create] [--test]```
+Usage: ```pageql templates <database> [--create] [--test] [--parse]```
 
 Install: pip install pageql  # uvicorn[standard] is installed automatically
 
@@ -76,6 +76,7 @@ pageql ./templates path/to/your/database.sqlite
 *   `--no-csrf`: (Optional) Disable CSRF protection. Useful for local testing but not recommended in production.
 *   `--static-html`: (Optional) Serve HTML files without injecting the client script.
 *   `--test`: (Optional) Run template tests and exit instead of serving.
+*   `--parse`: (Optional) Check templates for parse errors and exit.
 *   `--http-disconnect-cleanup-timeout <seconds>`: (Optional) Delay before cleaning up HTTP disconnect contexts.
 *   `--profile`: (Optional) Profile the server using `cProfile` and print statistics when it stops.
 *   `--host <address>`: (Optional) Host interface to bind.

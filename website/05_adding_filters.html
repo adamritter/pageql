@@ -389,7 +389,7 @@
 
   <h1>Adding Filters <small>(All • Active • Completed)</small></h1>
 
-  <p><strong>Goal:</strong> Finish our TodoMVC by letting users slice the list between <strong>All</strong>, <strong>Active</strong>, and <strong>Completed</strong> items. You'll declare one more query‑parameter, adjust the <code>#from</code> query, and add a footer navigation that highlights the selected filter.</p>
+  <p><strong>Goal:</strong> Finish our TodoMVC by letting users slice the list between <strong>All</strong>, <strong>Active</strong>, and <strong>Completed</strong> items. You'll declare one more query‑parameter, adjust the <code>from</code> query, and add a footer navigation that highlights the selected filter.</p>
 
   <blockquote><p><em>Estimated time: 10 minutes.</em></p></blockquote>
 
@@ -400,8 +400,8 @@
   <table>
     <thead><tr><th>Concept</th><th>Purpose</th></tr></thead>
     <tbody>
-      <tr><td><code>#param … pattern="…" default</code></td><td>Declare and validate a query parameter (<code>filter</code>) in GET requests.</td></tr>
-      <tr><td>Context‑aware <code>#if</code></td><td>Dynamically add the <code>selected</code> CSS class to the active link.</td></tr>
+      <tr><td><code>param … pattern="…" default</code></td><td>Declare and validate a query parameter (<code>filter</code>) in GET requests.</td></tr>
+      <tr><td>Context‑aware <code>if</code></td><td>Dynamically add the <code>selected</code> CSS class to the active link.</td></tr>
       <tr><td>SQL condition using bound params</td><td>Show only the rows that match the chosen filter.</td></tr>
     </tbody>
   </table>
@@ -409,34 +409,34 @@
   <!-- 2 -->
   <h2>2 Declare the <code>filter</code> parameter</h2>
 
-  <p>Near the top of <strong>templates/todos.pageql</strong>, right after any existing <code>#let</code> or <code>#create</code> tags, insert:</p>
+  <p>Near the top of <strong>templates/todos.pageql</strong>, right after any existing <code>let</code> or <code>create</code> tags, insert:</p>
 
   <pre class="code-block"><code class="language-html">
-&#123;&#123;<span class="keyword">#param</span> <span class="variable">filter</span> <span class="attribute">default</span>=<span class="string">'all'</span> <span class="attribute">pattern</span>=<span class="string">"^(all|active|completed)$"</span> <span class="attribute">optional</span>&#125;&#125;
+&#123;&#123;<span class="keyword">param</span> <span class="variable">filter</span> <span class="attribute">default</span>=<span class="string">'all'</span> <span class="attribute">pattern</span>=<span class="string">"^(all|active|completed)$"</span> <span class="attribute">optional</span>&#125;&#125;
 </code><div class="clean-code">{%param filter default='all' pattern="^(all|active|completed)$" optional%}</div></pre>
 
   <p><em><code>optional</code> means the page also works without the query string.</em></p>
 
   <!-- 3 -->
-  <h2>3 Update the <code>#from</code> loop</h2>
+  <h2>3 Update the <code>from</code> loop</h2>
 
   <p>Replace the simple query with a conditional one:</p>
 
   <pre class="code-block"><code class="language-html">
-&#123;&#123;<span class="keyword">#from</span> todos
-  <span class="keyword">WHERE</span> (:<span class="variable">filter</span> == <span class="string">'all'</span>)
-        <span class="keyword">OR</span> (:<span class="variable">filter</span> == <span class="string">'active'</span>     <span class="keyword">AND</span> completed = 0)
-        <span class="keyword">OR</span> (:<span class="variable">filter</span> == <span class="string">'completed'</span>  <span class="keyword">AND</span> completed = 1)
-  <span class="keyword">ORDER BY</span> id&#125;&#125;
+{%from todos
+  WHERE (:filter == 'all')
+        OR (:filter == 'active'     AND completed = 0)
+        OR (:filter == 'completed'  AND completed = 1)
+  ORDER BY id%}
   … list‑item markup …
-&#123;&#123;/<span class="keyword">from</span>&#125;&#125;
+{%end from%}
 </code><div class="clean-code">{%from todos
   WHERE (:filter == 'all')
         OR (:filter == 'active'     AND completed = 0)
         OR (:filter == 'completed'  AND completed = 1)
   ORDER BY id%}
   … list‑item markup …
-{%endfrom%}</div></pre>
+{%end from%}</div></pre>
 
   <p>The entire boolean expression is <strong>sent to SQLite</strong>; <code>:filter</code> is safely bound.</p>
 
@@ -447,14 +447,14 @@
 
   <pre class="code-block"><code class="language-html">
 &lt;<span class="keyword">div</span> <span class="attribute">class</span>=<span class="string">"filters"</span>&gt;
-  &lt;<span class="keyword">a</span> &#123;&#123;<span class="keyword">#if</span> :<span class="variable">filter</span> == <span class="string">'all'</span>&#125;&#125;<span class="attribute">class</span>=<span class="string">"selected"</span>&#123;&#123;/<span class="keyword">if</span>&#125;&#125; <span class="attribute">href</span>=<span class="string">"/todos?filter=all"</span>&gt;All&lt;/<span class="keyword">a</span>&gt; |
-  &lt;<span class="keyword">a</span> &#123;&#123;<span class="keyword">#if</span> :<span class="variable">filter</span> == <span class="string">'active'</span>&#125;&#125;<span class="attribute">class</span>=<span class="string">"selected"</span>&#123;&#123;/<span class="keyword">if</span>&#125;&#125; <span class="attribute">href</span>=<span class="string">"/todos?filter=active"</span>&gt;Active&lt;/<span class="keyword">a</span>&gt; |
-  &lt;<span class="keyword">a</span> &#123;&#123;<span class="keyword">#if</span> :<span class="variable">filter</span> == <span class="string">'completed'</span>&#125;&#125;<span class="attribute">class</span>=<span class="string">"selected"</span>&#123;&#123;/<span class="keyword">if</span>&#125;&#125; <span class="attribute">href</span>=<span class="string">"/todos?filter=completed"</span>&gt;Completed&lt;/<span class="keyword">a</span>&gt;
+  &lt;<span class="keyword">a</span> {%if :filter == 'all'%}class="selected"{%end if%} <span class="attribute">href</span>=<span class="string">"/todos?filter=all"</span>&gt;All&lt;/<span class="keyword">a</span>&gt; |
+  &lt;<span class="keyword">a</span> {%if :filter == 'active'%}class="selected"{%end if%} <span class="attribute">href</span>=<span class="string">"/todos?filter=active"</span>&gt;Active&lt;/<span class="keyword">a</span>&gt; |
+  &lt;<span class="keyword">a</span> {%if :filter == 'completed'%}class="selected"{%end if%} <span class="attribute">href</span>=<span class="string">"/todos?filter=completed"</span>&gt;Completed&lt;/<span class="keyword">a</span>&gt;
 &lt;/<span class="keyword">div</span>&gt;
 </code><div class="clean-code">&lt;div class="filters"&gt;
-  &lt;a {%if :filter == 'all'%}class="selected"{%endif%} href="/todos?filter=all"&gt;All&lt;/a&gt; |
-  &lt;a {%if :filter == 'active'%}class="selected"{%endif%} href="/todos?filter=active"&gt;Active&lt;/a&gt; |
-  &lt;a {%if :filter == 'completed'%}class="selected"{%endif%} href="/todos?filter=completed"&gt;Completed&lt;/a&gt;
+  &lt;a {%if :filter == 'all'%}class="selected"{%end if%} href="/todos?filter=all"&gt;All&lt;/a&gt; |
+  &lt;a {%if :filter == 'active'%}class="selected"{%end if%} href="/todos?filter=active"&gt;Active&lt;/a&gt; |
+  &lt;a {%if :filter == 'completed'%}class="selected"{%end if%} href="/todos?filter=completed"&gt;Completed&lt;/a&gt;
 &lt;/div&gt;</div></pre>
 
   <p>The CSS from TodoMVC highlights the link that carries <code>class="selected"</code>.</p>
@@ -473,9 +473,9 @@
   <h2>6 How it works</h2>
 
   <ul>
-    <li><code>#param</code> <strong>validates early</strong>—before any SQL—so you never build an unsafe query.</li>
+    <li><code>param</code> <strong>validates early</strong>—before any SQL—so you never build an unsafe query.</li>
     <li>The three‑way <code>WHERE</code> clause is still a single index‑friendly query.</li>
-    <li>Highlighting uses a tiny <code>#if</code>—no loops or enums required.</li>
+    <li>Highlighting uses a tiny <code>if</code>—no loops or enums required.</li>
   </ul>
 
   <!-- 6 -->
@@ -493,7 +493,7 @@
   <p>PageQL let us ship a reactive, database‑driven TodoMVC in <strong>≈120 lines of HTML+SQL</strong>. From here you can explore:</p>
 
   <ul>
-    <li><strong>Component extraction</strong> (<code>#import</code>, <code>#render</code>) to DRY up markup.</li>
+    <li><strong>Component extraction</strong> (<code>import</code>, <code>render</code>) to DRY up markup.</li>
     <li><strong>Deployment</strong> — serve with any WSGI host or container.</li>
   </ul>
 

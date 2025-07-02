@@ -1,8 +1,10 @@
 {%showsource%}
 
 {%partial numbers/:f%}
-{%param f type=integer%}
-{%if :f < 1000%}
+{%
+param f type=integer;
+if :f < 1000;
+%}
 <span
   hx-get="/infinite_scroll/numbers/{{:f+100}}"
   hx-trigger="revealed"
@@ -16,12 +18,16 @@
     ) SELECT n FROM numbers
   ) limit :f,100%}
     {{n}}<br>
-  {%endfrom%}
+  {%end from%}
 </span>
-{%endif%}
-{%endpartial%}
+{%
+end if;
+end partial;
+%}
 
 <div id="list">
-{%let f = 100%}
-{%render numbers/:f%}
+{%
+let f = 100;
+render numbers/:f;
+%}
 </div>

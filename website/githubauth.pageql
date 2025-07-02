@@ -1,27 +1,34 @@
-{%let payload json_set('{}', '$.ongoing', 1, '$.path', :path)%}
-{%let state jws_serialize_compact(:payload)%}
-{%let client_id = env.GITHUB_CLIENT_ID%}
+{%
+let payload json_set('{}', '$.ongoing', 1, '$.path', :path);
+let state jws_serialize_compact(:payload);
+let client_id = env.GITHUB_CLIENT_ID;
+%}
 <a href="https://github.com/login/oauth/authorize?client_id={{client_id}}&state={{state}}">
   <button>Login with GitHub</button>
 </a>
 
 
 {%partial GET callback%}
-  {%param code required%}
-  {%param state required%}
-  {%let payload jws_deserialize_compact(:state)%}
-  {%let payload_path = json_extract(:payload, '$.path')%}
+{%
+  param code required;
+  param state required;
+  let payload jws_deserialize_compact(:state);
+  let payload_path = json_extract(:payload, '$.path');
+%}
   <p>Payload: {{:payload}}</p>
   <p>Payload path: {{:payload_path}}</p>
-  {%let client_id = env.GITHUB_CLIENT_ID%}
-
-  {%let client_secret = env.GITHUB_CLIENT_SECRET%}
+{%
+  let client_id = env.GITHUB_CLIENT_ID;
+  let client_secret = env.GITHUB_CLIENT_SECRET;
+%}
   {%fetch async token from 'https://github.com/login/oauth/access_token?client_id='||:client_id||'&client_secret='||:client_secret||'&code='||:code||'&state='||:state%}
     {%if :token.status_code == 200%}
       {%let access_token = query_param(:token.body, 'access_token')%}
       <p>Extracted access token: {{access_token}}</p>
-      {%let header = 'Authorization: Bearer '||:access_token%}
-      {%let user_agent_header = 'User-Agent: PageQL'%}
+      {%
+        let header = 'Authorization: Bearer '||:access_token;
+        let user_agent_header = 'User-Agent: PageQL';
+      %}
       {%fetch async user from 'https://api.github.com/user' header=:header header=:user_agent_header%}
         {%if :user.status_code == 200%}
           {{user.body}}
@@ -29,10 +36,10 @@
           <p>Error: {{:user.status_code}} {{:user.body}}</p>
         {%else%}
           <p>Loading user...</p>
-        {%endif%}
+        {%end if%}
       {{/fetch}}
     {%else%}
       <p>Loading token...</p>
-    {%endif%}
+    {%end if%}
   {{/fetch}}
-{%endpartial%}
+{%end partial%}

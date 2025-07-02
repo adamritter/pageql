@@ -5,9 +5,9 @@
         Fetched twice
       {%else%}
         Loading inner... {{inner__body}}
-      {%endif%}
+      {%end if%}
     {{/fetch}}
   {%else%}
     Loading outer... {{outer__body}}
-  {%endif%}
+  {%end if%}
 {{/fetch}}

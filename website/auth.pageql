@@ -1,0 +1,125 @@
+{%
+create table if not exists users (
+    id INTEGER PRIMARY KEY,
+    username TEXT UNIQUE,
+    password TEXT
+);
+create table if not exists sessions (
+    token TEXT PRIMARY KEY,
+    user_id INTEGER
+);
+insert or ignore into users(id, username, password) values (1, 'alice', 'password');
+insert or ignore into users(id, username, password) values (2, 'bob', 'pass');
+let payload json_set('{}', '$.ongoing', 1, '$.path', :path);
+let state jws_serialize_compact(:payload);
+let client_id = env.GITHUB_CLIENT_ID;
+%}
+
+{%
+-- Helper to load the logged in user from session cookie
+param session optional;
+let user_id = user_id from sessions where token=:session;
+let username = username from users where id=:user_id;
+%}
+
+{%if username%}
+<p>Logged in as {{username}}. <a href="/auth/profile">Profile</a> <a href="/auth/logout">Logout</a></p>
+{%else%}
+<p>You are not logged in. <a href="/auth/login">Login</a></p>
+<a href="https://github.com/login/oauth/authorize?client_id={{client_id}}&state={{state}}">
+  <button>Login with GitHub</button>
+</a>
+{%end if%}
+
+{%partial POST login%}
+{%
+  param username required;
+  param password required;
+  param session optional;
+  delete from sessions where token=:session;
+  let uid = id from users where username=:username and password=:password;
+%}
+  {%if uid%}
+    {%let token = lower(hex(randomblob(16)))%}
+    {%insert into sessions(token, user_id) values(:token, :uid)%}
+    {%cookie session :token path='/' httponly%}
+    {%redirect '/auth'%}
+  {%else%}
+    <p>Invalid credentials</p>
+  {%end if%}
+{%end partial%}
+
+{%partial GET login%}
+{%
+  param session optional;
+  let user_id = user_id from sessions where token=:session;
+  let username = username from users where id=:user_id;
+%}
+
+  <h1>Login</h1>
+  <form method="POST" action="/auth/login">
+    <input name="username" placeholder="Username">
+    <input name="password" type="password" placeholder="Password">
+    <button type="submit">Login</button>
+  </form>
+{%end partial%}
+
+{%partial GET profile%}
+{%
+  param session optional;
+  let user_id = user_id from sessions where token=:session;
+  let username = username from users where id=:user_id;
+%}
+
+  {%if username%}
+    <h1>Hello {{username}}</h1>
+    <p><a href="/auth/logout">Logout</a></p>
+  {%else%}
+    {%redirect '/auth/login'%}
+  {%end if%}
+{%end partial%}
+
+{%partial public logout%}
+{%
+  param session optional;
+  delete from sessions where token=:session;
+  cookie session '' path='/' expires='Thu, 01 Jan 1970 00:00:00 GMT';
+  redirect '/auth';
+%}
+{%end partial%}
+
+{%partial GET callback%}
+{%
+  param code required;
+  param state required;
+  let payload jws_deserialize_compact(:state);
+  let payload_path = json_extract(:payload, '$.path');
+%}
+  <p>Payload: {{:payload}}</p>
+  <p>Payload path: {{:payload_path}}</p>
+{%
+  let client_id = env.GITHUB_CLIENT_ID;
+  let client_secret = env.GITHUB_CLIENT_SECRET;
+%}
+  {%fetch async token from 'https://github.com/login/oauth/access_token?client_id='||:client_id||'&client_secret='||:client_secret||'&code='||:code||'&state='||:state%}
+    {%if :token.status_code == 200%}
+      {%let access_token = query_param(:token.body, 'access_token')%}
+      <p>Extracted access token: {{access_token}}</p>
+      {%
+        let header = 'Authorization: Bearer '||:access_token;
+        let user_agent_header = 'User-Agent: PageQL';
+      %}
+      {%fetch async user from 'https://api.github.com/user' header=:header header=:user_agent_header%}
+        {%if :user.status_code == 200%}
+          {{user.body}}
+        {%elif :user.status_code IS NOT NULL%}
+          <p>Error: {{:user.status_code}} {{:user.body}}</p>
+        {%else%}
+          <p>Loading user...</p>
+        {%end if%}
+      {{/fetch}}
+    {%else%}
+      <p>Loading token...</p>
+    {%end if%}
+  {{/fetch}}
+{%end partial%}

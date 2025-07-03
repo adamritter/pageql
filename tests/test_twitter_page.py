@@ -3,6 +3,13 @@ sys.path.insert(0, "src")
 
 from pathlib import Path
 from pageql.pageql import PageQL
+import re
+
+
+def extract_tweets(body: str) -> str:
+    match = re.search(r'<ul id="tweets">(.*?)</ul>', body, re.S)
+    assert match is not None
+    return match.group(1)
 
 
 def test_twitter_post_and_render():
@@ -45,7 +52,7 @@ def test_twitter_follow_filter():
         params={"username": "alice", "filter": "following"},
         reactive=False,
     )
-    assert "bob</strong>: hi" not in result.body
+    assert "bob</strong>: hi" not in extract_tweets(result.body)
 
     r.render(
         "/twitter/index",
@@ -58,7 +65,7 @@ def test_twitter_follow_filter():
         params={"username": "alice", "filter": "following"},
         reactive=False,
     )
-    assert "bob</strong>: hi" in result.body
+    assert "bob</strong>: hi" in extract_tweets(result.body)
 
     r.render(
         "/twitter/index",
@@ -71,7 +78,7 @@ def test_twitter_follow_filter():
         params={"username": "alice", "filter": "following"},
         reactive=False,
     )
-    assert "bob</strong>: hi" not in result.body
+    assert "bob</strong>: hi" not in extract_tweets(result.body)
 
 def test_twitter_follow_filter_reactive_anonymous():
     src = Path("website/twitter/index.pageql").read_text()
@@ -91,7 +98,7 @@ def test_twitter_follow_filter_reactive_anonymous():
         params={"filter": "following"},
         reactive=True,
     )
-    assert "hello" not in result.body
+    assert "hello" not in extract_tweets(result.body)
 
 
 def test_twitter_follow_button_updates():

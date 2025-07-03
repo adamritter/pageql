@@ -83,7 +83,7 @@ let current_id = select (select id from users where username=:username);
       {%end from%}
     </ul>
   </div>
-  </div>
+</div>
   {%dump tweets %}
   {%dump following%}
 </body>

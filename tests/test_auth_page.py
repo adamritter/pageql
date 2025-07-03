@@ -68,7 +68,7 @@ def test_auth_github_callback_fetch(monkeypatch):
                 server, task, port = await run_server_in_task(tmpdir)
                 state = jws_serialize_compact('{"ongoing":1,"path":"/auth"}')
                 status, _headers, body = await _http_get(
-                    f"http://127.0.0.1:{port}/auth/callback?code=abc&state={state}"
+                    f"http://127.0.0.1:{port}/auth/githubcallback?code=abc&state={state}"
                 )
                 server.should_exit = True
                 await task

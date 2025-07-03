@@ -12,7 +12,7 @@
 
 {%render nav%}
 
-{%partial people;
+{%partial GET people;
 render nav;
 attach database 'file:/opt/imdb.db?mode=ro' as imdb;
 param offset type=integer default=0;
@@ -29,7 +29,7 @@ let has_more = exists(select 1 from imdb.people limit :offset + 50, 1) %}
 </span>
 {%end partial%}
 
-{%partial titles;
+{%partial GET titles;
 render nav;
 attach database 'file:/opt/imdb.db?mode=ro' as imdb;
 param offset type=integer default=0;
@@ -46,7 +46,7 @@ let has_more = exists(select 1 from imdb.titles limit :offset + 50, 1) %}
 </span>
 {%end partial%}
 
-{%partial episodes;
+{%partial GET episodes;
 render nav;
 attach database 'file:/opt/imdb.db?mode=ro' as imdb;
 param offset type=integer default=0;
@@ -64,7 +64,7 @@ let has_more = exists(select 1 from imdb.episodes limit :offset + 50, 1) %}
 {%end partial%}
 
 {%
-  partial ratings;
+  partial GET ratings;
   render nav;
   attach database 'file:/opt/imdb.db?mode=ro' as imdb;
   param offset type=integer default=0;

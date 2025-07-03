@@ -22,3 +22,16 @@ def test_reactive_table_unique_columns():
 
     o = Order(rt, "id")
     assert o.unique_columns == {"id", "email", "phone"}
+
+
+def test_order_stops_after_unique_column():
+    conn = sqlite3.connect(":memory:")
+    conn.execute(
+        "CREATE TABLE items(id INTEGER PRIMARY KEY, email TEXT UNIQUE, name TEXT)"
+    )
+    rt = ReactiveTable(conn, "items")
+    order = Order(rt, "email")
+    assert order._full_order_sql == "email"
+
+    order2 = Order(rt, "name")
+    assert order2._full_order_sql == "name, id"

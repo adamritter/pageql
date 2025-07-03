@@ -48,8 +48,9 @@ def test_twitter_follow_filter():
     assert "bob</strong>: hi" not in result.body
 
     r.render(
-        "/twitter/index",
-        params={"username": "alice", "filter": "all", "follow": bob_id},
+        f"/twitter/index/follow/{bob_id}",
+        params={"username": "alice"},
+        http_verb="POST",
         reactive=False,
     )
 
@@ -61,8 +62,9 @@ def test_twitter_follow_filter():
     assert "bob</strong>: hi" in result.body
 
     r.render(
-        "/twitter/index",
-        params={"username": "alice", "filter": "all", "unfollow": bob_id},
+        f"/twitter/index/follow/{bob_id}",
+        params={"username": "alice"},
+        http_verb="DELETE",
         reactive=False,
     )
 
@@ -108,11 +110,18 @@ def test_twitter_follow_button_updates():
     )
     bob_id = r.db.execute("select id from users where username='bob'").fetchone()[0]
 
-    result = r.render(
-        "/twitter/index",
-        params={"username": "alice", "follow": bob_id},
+    r.render(
+        f"/twitter/index/follow/{bob_id}",
+        params={"username": "alice"},
+        http_verb="POST",
         reactive=False,
     )
 
-    assert "unfollow=" in result.body
+    result = r.render(
+        "/twitter/index",
+        params={"username": "alice"},
+        reactive=False,
+    )
+
+    assert 'hx-delete="/twitter/index/follow/' in result.body
     assert ">Unfollow</button>" in result.body

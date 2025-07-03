@@ -1,8 +1,6 @@
 {%
 param filter default='all' pattern="^(all|following)$";
 param username default='';
-param follow type=integer optional;
-param unfollow type=integer optional;
 -- Ensure tables exist
 create table if not exists users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -19,17 +17,6 @@ create table if not exists following (
     following_id INTEGER,
     primary key(follower_id, following_id)
 );
-if :follow is not null;
-  insert or ignore into users(username) values (:username);
-  let uid = select (select id from users where username=:username);
-  insert or ignore into following(follower_id, following_id) values(:uid, :follow);
-end if;
-if :unfollow is not null;
-  let uid_unfollow = select (select id from users where username=:username);
-  if :uid_unfollow is not null;
-    delete from following where follower_id=:uid_unfollow and following_id=:unfollow;
-  end if;
-end if;
 let current_id = select (select id from users where username=:username);
 %}
 
@@ -75,9 +62,9 @@ let current_id = select (select id from users where username=:username);
         <li>
           {{username}}
           {%if :is_following == 0%}
-            <button hx-get="/twitter/index?username={{:username}}&follow={{id}}&filter={{:filter}}">Follow</button>
+            <button hx-post="/twitter/index/follow/{{id}}" hx-include="[name=username]" hx-swap="none">Follow</button>
           {%else%}
-            <button hx-get="/twitter/index?username={{:username}}&unfollow={{id}}&filter={{:filter}}">Unfollow</button>
+            <button hx-delete="/twitter/index/follow/{{id}}" hx-include="[name=username]" hx-swap="none">Unfollow</button>
           {%end if%}
         </li>
       {%end from%}
@@ -99,6 +86,21 @@ partial post tweet;
   end if;
   let uid = id from users where username=:username;
   insert into tweets(user_id, text) values (:uid, :text);
-end partial
+end partial;
+
+partial post follow/:id;
+  param username maxlength=32;
+  insert or ignore into users(username) values (:username);
+  let uid = select (select id from users where username=:username);
+  insert or ignore into following(follower_id, following_id) values(:uid, :id);
+end partial;
+
+partial delete follow/:id;
+  param username maxlength=32;
+  let uid_unfollow = select (select id from users where username=:username);
+  if :uid_unfollow is not null;
+    delete from following where follower_id=:uid_unfollow and following_id=:id;
+  end if;
+end partial;
 
 %}

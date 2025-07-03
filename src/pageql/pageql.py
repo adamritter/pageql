@@ -951,8 +951,17 @@ class PageQL:
                 comp = parse_reactive(expr, self.tables, params)
                 if cache_allowed:
                     self._from_cache[cache_key] = comp
-            if infinite and not isinstance(comp, Order):
-                comp = Order(comp, "", limit=100)
+            if infinite:
+                if isinstance(comp, Order):
+                    limit = comp.limit if comp.limit is not None else 50
+                    comp = Order(
+                        comp.parent,
+                        comp.order_sql,
+                        limit=limit,
+                        offset=getattr(comp, "offset", 0),
+                    )
+                else:
+                    comp = Order(comp, "", limit=100)
             if comp.sql is not None:
                 try:
                     cursor = self.db.execute(comp.sql, converted_params)

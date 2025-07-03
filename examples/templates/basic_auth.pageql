@@ -1,21 +1,21 @@
-{%create table if not exists users (
+{%create table if not exists auth_users (
     id INTEGER PRIMARY KEY,
     username TEXT UNIQUE,
     password TEXT
 )%}
 
-{%create table if not exists sessions (
+{%create table if not exists auth_sessions (
     token TEXT PRIMARY KEY,
     user_id INTEGER
 )%}
 
-{%insert or ignore into users(id, username, password) values (1, 'alice', 'password')%}
-{%insert or ignore into users(id, username, password) values (2, 'bob', 'pass')%}
+{%insert or ignore into auth_users(id, username, password) values (1, 'alice', 'password')%}
+{%insert or ignore into auth_users(id, username, password) values (2, 'bob', 'pass')%}
 
 {{!-- Helper to load the logged in user from session cookie --}}
 {%param session optional%}
-{%let user_id = user_id from sessions where token=:session%}
-{%let username = username from users where id=:user_id%}
+{%let user_id = user_id from auth_sessions where token=:session%}
+{%let username = username from auth_users where id=:user_id%}
 
 {%if username%}
 <p>Logged in as {{username}}. <a href="/basic_auth/profile">Profile</a> <a href="/basic_auth/logout">Logout</a></p>
@@ -27,11 +27,11 @@
   {%param username required%}
   {%param password required%}
   {%param session optional%}
-  {%delete from sessions where token=:session%}
-  {%let uid = id from users where username=:username and password=:password%}
+  {%delete from auth_sessions where token=:session%}
+  {%let uid = id from auth_users where username=:username and password=:password%}
   {%if uid%}
     {%let token = lower(hex(randomblob(16)))%}
-    {%insert into sessions(token, user_id) values(:token, :uid)%}
+    {%insert into auth_sessions(token, user_id) values(:token, :uid)%}
     {%cookie session :token path='/' httponly%}
     {%redirect '/basic_auth'%}
   {%else%}
@@ -41,8 +41,8 @@
 
 {%partial GET login%}
   {%param session optional%}
-  {%let user_id = user_id from sessions where token=:session%}
-  {%let username = username from users where id=:user_id%}
+  {%let user_id = user_id from auth_sessions where token=:session%}
+  {%let username = username from auth_users where id=:user_id%}
 
   <h1>Login</h1>
   <form method="POST" action="/basic_auth/login">
@@ -54,8 +54,8 @@
 
 {%partial GET profile%}
   {%param session optional%}
-  {%let user_id = user_id from sessions where token=:session%}
-  {%let username = username from users where id=:user_id%}
+  {%let user_id = user_id from auth_sessions where token=:session%}
+  {%let username = username from auth_users where id=:user_id%}
 
   {%if username%}
     <h1>Hello {{username}}</h1>
@@ -67,7 +67,7 @@
 
 {%partial public logout%}
   {%param session optional%}
-  {%delete from sessions where token=:session%}
+  {%delete from auth_sessions where token=:session%}
   {%cookie session '' path='/' expires='Thu, 01 Jan 1970 00:00:00 GMT'%}
   {%redirect '/basic_auth'%}
 {%endpartial%}

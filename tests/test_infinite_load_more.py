@@ -30,6 +30,27 @@ def test_infinite_from_adds_order_to_context():
     assert order.limit == 1
 
 
+def test_order_infinite_sets_default_limit():
+    page = """
+    {%create table items(id INTEGER)%}
+    {%insert into items(id) values (1)%}
+    {%insert into items(id) values (2)%}
+    <div>
+    {%from items order by id infinite%}
+      {{id}}
+    {%endfrom%}
+    </div>
+    """
+    r = PageQL(":memory:")
+    r.load_module("test2", page)
+    result = r.render("/test2")
+    ctx = result.context
+    assert len(ctx.infinites) == 1
+    order = list(ctx.infinites.values())[0]
+    assert isinstance(order, Order)
+    assert order.limit == 50
+
+
 def test_pageqlapp_handles_infinite_load_more(tmp_path):
     app = pageql.pageqlapp.PageQLApp(":memory:", tmp_path, create_db=True, should_reload=False)
 

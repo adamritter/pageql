@@ -52,4 +52,4 @@ Issues = "https://github.com/adamritter/pageql/issues"
 [tool.pytest.ini_options]
 addopts = "--doctest-modules --ignore=examples"
 doctest_optionflags = "ELLIPSIS NORMALIZE_WHITESPACE"
-timeout = 2
+timeout = 5

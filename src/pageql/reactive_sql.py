@@ -174,6 +174,8 @@ def build_reactive(expr, tables: Tables):
 
         joins = expr.args.get("joins") or []
         alias_map = None
+        if not joins and isinstance(from_expr.this, exp.Table) and from_expr.this.alias:
+            alias_map = {from_expr.this.alias_or_name}
         if joins:
             if len(joins) > 1:
                 raise NotImplementedError("multiple joins not supported")
@@ -195,7 +197,11 @@ def build_reactive(expr, tables: Tables):
             alias_map = {left_alias, right_alias}
 
         if expr.args.get("where"):
-            parent = Where(parent, expr.args["where"].this.sql(dialect=tables.dialect))
+            where_sql = expr.args["where"].this.sql(dialect=tables.dialect)
+            if alias_map:
+                for a in alias_map:
+                    where_sql = where_sql.replace(f"{a}.", "")
+            parent = Where(parent, where_sql)
 
         group_sql = None
         group = expr.args.get("group")
@@ -258,7 +264,11 @@ def build_reactive(expr, tables: Tables):
                 cols.append(f"{c.this.name} AS {c.alias_or_name}")
                 alias_repl[f"{c.this.table}.{c.this.name}"] = c.alias_or_name
             else:
-                cols.append(c.sql(dialect=tables.dialect))
+                col_sql = c.sql(dialect=tables.dialect)
+                if alias_map:
+                    for a in alias_map:
+                        col_sql = col_sql.replace(f"{a}.", "")
+                cols.append(col_sql)
         select_sql = ", ".join(cols)
         node = Select(parent, select_sql)
         return _apply_order_limit_offset(node, expr, tables, alias_map, alias_repl or None)

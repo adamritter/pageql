@@ -92,3 +92,27 @@ def test_twitter_follow_filter_reactive_anonymous():
         reactive=True,
     )
     assert "hello" not in result.body
+
+
+def test_twitter_follow_button_updates():
+    src = Path("website/twitter/index.pageql").read_text()
+    r = PageQL(":memory:")
+    r.load_module("twitter/index", src)
+    r.render("/twitter/index", reactive=False)
+
+    r.render(
+        "/twitter/index",
+        params={"username": "bob", "text": "hi"},
+        partial="tweet",
+        http_verb="POST",
+    )
+    bob_id = r.db.execute("select id from users where username='bob'").fetchone()[0]
+
+    result = r.render(
+        "/twitter/index",
+        params={"username": "alice", "follow": bob_id},
+        reactive=False,
+    )
+
+    assert "unfollow=" in result.body
+    assert ">Unfollow</button>" in result.body

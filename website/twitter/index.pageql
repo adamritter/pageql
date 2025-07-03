@@ -19,23 +19,18 @@ create table if not exists following (
     following_id INTEGER,
     primary key(follower_id, following_id)
 );
-let current_id = select (select id from users where username=:username);
 if :follow is not null;
-  let uid_temp = select (select id from users where username=:username);
-  if :uid_temp is null;
-    insert into users(username) values (:username);
-    let uid last_insert_rowid();
-  else;
-    let uid :uid_temp;
-  end if;
+  insert or ignore into users(username) values (:username);
+  let uid = select (select id from users where username=:username);
   insert or ignore into following(follower_id, following_id) values(:uid, :follow);
 end if;
 if :unfollow is not null;
-  let uid = select (select id from users where username=:username);
-  if :uid is not null;
-    delete from following where follower_id=:uid and following_id=:unfollow;
+  let uid_unfollow = select (select id from users where username=:username);
+  if :uid_unfollow is not null;
+    delete from following where follower_id=:uid_unfollow and following_id=:unfollow;
   end if;
 end if;
+let current_id = select (select id from users where username=:username);
 %}
 
 <!doctype html>

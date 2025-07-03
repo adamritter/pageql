@@ -12,7 +12,7 @@ def test_imdb_attach_parsed():
     src = Path("website/imdb.pageql").read_text()
     tokens = tokenize(src)
     body, _ = build_ast(tokens, dialect="sqlite")
-    assert ("#attach", "database '/opt/imdb.db' as imdb") in body
+    assert ("#attach", "database 'file:/opt/imdb.db?mode=ro' as imdb") in body
 
 
 def test_imdb_people_listing(tmp_path):

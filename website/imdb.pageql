@@ -1,7 +1,7 @@
-{%attach database '/opt/imdb.db' as imdb%}
+{%attach database 'file:/opt/imdb.db?mode=ro' as imdb%}
 
 {%partial people/:offset%}
-{%attach database '/opt/imdb.db' as imdb%}
+{%attach database 'file:/opt/imdb.db?mode=ro' as imdb%}
 {%param offset type=integer%}
 {%let has_more = exists(select 1 from imdb.people limit :offset + 50, 1)%}
 <span
@@ -17,7 +17,7 @@
 {%end partial%}
 
 {%partial titles/:offset%}
-{%attach database '/opt/imdb.db' as imdb%}
+{%attach database 'file:/opt/imdb.db?mode=ro' as imdb%}
 {%param offset type=integer%}
 {%let has_more = exists(select 1 from imdb.titles limit :offset + 50, 1)%}
 <span
@@ -33,7 +33,7 @@
 {%end partial%}
 
 {%partial akas/:offset%}
-{%attach database '/opt/imdb.db' as imdb%}
+{%attach database 'file:/opt/imdb.db?mode=ro' as imdb%}
 {%param offset type=integer%}
 {%let has_more = exists(select 1 from imdb.akas limit :offset + 50, 1)%}
 <span
@@ -49,7 +49,7 @@
 {%end partial%}
 
 {%partial crew/:offset%}
-{%attach database '/opt/imdb.db' as imdb%}
+{%attach database 'file:/opt/imdb.db?mode=ro' as imdb%}
 {%param offset type=integer%}
 {%let has_more = exists(select 1 from imdb.crew limit :offset + 50, 1)%}
 <span
@@ -65,7 +65,7 @@
 {%end partial%}
 
 {%partial episodes/:offset%}
-{%attach database '/opt/imdb.db' as imdb%}
+{%attach database 'file:/opt/imdb.db?mode=ro' as imdb%}
 {%param offset type=integer%}
 {%let has_more = exists(select 1 from imdb.episodes limit :offset + 50, 1)%}
 <span
@@ -81,7 +81,7 @@
 {%end partial%}
 
 {%partial ratings/:offset%}
-{%attach database '/opt/imdb.db' as imdb%}
+{%attach database 'file:/opt/imdb.db?mode=ro' as imdb%}
 {%param offset type=integer%}
 {%let has_more = exists(select 1 from imdb.ratings limit :offset + 50, 1)%}
 <span

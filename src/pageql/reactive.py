@@ -3,8 +3,15 @@ from collections import Counter
 from difflib import SequenceMatcher
 import sqlglot
 import time
+_LOG_LEVELS: dict[int, str] = {}
 
-def execute(conn, sql, params, log_level: str = "info"):
+def set_log_level(conn, log_level: str) -> None:
+    """Associate *log_level* with *conn* for SQL execution."""
+    _LOG_LEVELS[id(conn)] = log_level
+
+def execute(conn, sql, params, log_level: str | None = None):
+    if log_level is None:
+        log_level = _LOG_LEVELS.get(id(conn), "info")
     if log_level == "debug":
         print(f"SQL: {sql} {params}")
     start = time.perf_counter()

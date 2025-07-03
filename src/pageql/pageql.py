@@ -35,6 +35,7 @@ from pageql.reactive import (
     ReadOnly,
     _convert_dot_sql,
     Order,
+    set_log_level,
 )
 from pageql.render_context import (
     RenderContext,
@@ -199,6 +200,7 @@ class PageQL:
         if sqlite_file is not None:
             new_db = sqlite_file == ":memory:" or not os.path.exists(sqlite_file)
         self.db, self.dialect = connect_database(db_path)
+        set_log_level(self.db, "info")
         if isinstance(self.db, sqlite3.Connection) and new_db:
             # Configure SQLite for web server usage
             with self.db:

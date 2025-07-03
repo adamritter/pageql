@@ -5,7 +5,7 @@ import sqlite3
 # Ensure the package can be imported without optional dependencies
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from pageql.reactive import ReactiveTable
+from pageql.reactive import ReactiveTable, Where, Order
 
 
 def test_reactive_table_unique_columns():
@@ -16,3 +16,9 @@ def test_reactive_table_unique_columns():
     )
     rt = ReactiveTable(conn, "items")
     assert rt.unique_columns == {"id", "email", "phone"}
+
+    w = Where(rt, "email IS NOT NULL")
+    assert w.unique_columns == {"id", "email", "phone"}
+
+    o = Order(rt, "id")
+    assert o.unique_columns == {"id", "email", "phone"}

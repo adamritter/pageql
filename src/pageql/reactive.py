@@ -4,10 +4,8 @@ from difflib import SequenceMatcher
 import sqlglot
 import time
 
-LOG_LEVEL = "info"
-
-def execute(conn, sql, params):
-    if LOG_LEVEL == "debug":
+def execute(conn, sql, params, log_level: str = "info"):
+    if log_level == "debug":
         print(f"SQL: {sql} {params}")
     start = time.perf_counter()
     try:

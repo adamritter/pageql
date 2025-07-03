@@ -16,14 +16,18 @@ def test_imdb_attach_parsed():
 
 
 def test_imdb_people_listing(tmp_path):
-    db_path = "/opt/imdb.db"
+    db_path = tmp_path / "imdb.db"
     conn = sqlite3.connect(db_path)
-    conn.execute("CREATE TABLE IF NOT EXISTS people (person_id TEXT PRIMARY KEY, name TEXT, born INTEGER, died INTEGER)")
-    conn.execute("INSERT OR REPLACE INTO people(person_id,name,born,died) VALUES ('p1','Alice',1980,NULL)")
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS people (person_id TEXT PRIMARY KEY, name TEXT, born INTEGER, died INTEGER)"
+    )
+    conn.execute(
+        "INSERT OR REPLACE INTO people(person_id,name,born,died) VALUES ('p1','Alice',1980,NULL)"
+    )
     conn.commit()
     conn.close()
 
-    src = Path("website/imdb.pageql").read_text()
+    src = Path("website/imdb.pageql").read_text().replace("/opt/imdb.db", str(db_path))
     r = PageQL(":memory:")
     r.load_module("imdb", src)
     result = r.render("/imdb/people", http_verb="GET", reactive=False)

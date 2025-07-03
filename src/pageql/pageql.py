@@ -208,6 +208,7 @@ class PageQL:
                 self.db.execute("PRAGMA cache_size=10000")
         self.tables = Tables(self.db, self.dialect)
         self._from_cache = {}
+        self._attached = {}
 
     def load_module(self, name, source):
         """
@@ -646,12 +647,32 @@ class PageQL:
 
     def _process_attach_directive(self, node_content, params, path, includes,
                                   http_verb, reactive, ctx):
+        m = re.search(r"\bas\s+(\w+)\s*$", node_content)
+        if not m:
+            raise ValueError(f"Invalid attach directive: {node_content}")
+        alias = m.group(1)
+        db_expr = node_content[: m.start()].strip()
+        if db_expr.lower().startswith("database"):
+            db_expr = db_expr[8:].strip()
+        db_path = evalone(self.db, db_expr, params, reactive, self.tables)
+        if isinstance(db_path, Signal):
+            db_path = db_path.value
+
+        current = self._attached.get(alias)
+        if current == db_path:
+            return reactive
+
+        if current is not None:
+            self.db.execute(f"DETACH DATABASE {alias}")
+            self._attached.pop(alias, None)
+
         _run_sql(
             lambda sql, p: db_execute_dot(self.db, sql, p),
             "#attach",
             node_content,
             params,
         )
+        self._attached[alias] = db_path
         return reactive
 
     def _process_import_directive(self, node_content, params, path, includes,

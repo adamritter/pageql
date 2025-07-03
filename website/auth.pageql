@@ -88,7 +88,7 @@ let username = username from users where id=:user_id;
 %}
 {%end partial%}
 
-{%partial GET callback%}
+{%partial GET githubcallback%}
 {%
   param code required;
   param state required;

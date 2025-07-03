@@ -885,10 +885,28 @@ class Order(Signal):
 
         if hasattr(self.parent, "conn"):
             self.conn = self.parent.conn
-            cols_order = ", ".join(self.parent.columns)
-            self._full_order_sql = (
-                f"{order_sql}, {cols_order}" if order_sql else cols_order
-            )
+            auto_cols = []
+            unique_found = False
+            if self.order_sql:
+                order_parts = [d.strip() for d in self.order_sql.split(",") if d.strip()]
+            else:
+                order_parts = []
+            for directive in order_parts:
+                col = directive.split()[0]
+                if hasattr(self, "unique_columns") and col in self.unique_columns:
+                    auto_cols.append(directive)
+                    unique_found = True
+                    break
+                auto_cols.append(directive)
+
+            if not unique_found:
+                for c in self.parent.columns:
+                    auto_cols.append(c)
+                    if hasattr(self, "unique_columns") and c in self.unique_columns:
+                        unique_found = True
+                        break
+
+            self._full_order_sql = ", ".join(auto_cols)
             self._all_sql = f"SELECT * FROM ({self.parent.sql}) ORDER BY {self._full_order_sql}"
             self.sql = self._all_sql
             if self.limit is not None:

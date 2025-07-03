@@ -300,6 +300,8 @@ class Where(Signal):
         self.parent = parent
         self.where_sql = where_sql
         self.columns = self.parent.columns
+        if hasattr(self.parent, "unique_columns"):
+            self.unique_columns = set(self.parent.unique_columns)
         self.conn = self.parent.conn
         self.filter_sql = f"SELECT {', '.join([f'? as {col}' for col in self.columns])} WHERE {self.where_sql}"
         self.sql = f"SELECT * FROM ({self.parent.sql}) WHERE {self.where_sql}"
@@ -874,6 +876,9 @@ class Order(Signal):
         self.order_sql = order_sql
         self.limit = limit
         self.offset = offset
+
+        if hasattr(self.parent, "unique_columns"):
+            self.unique_columns = set(self.parent.unique_columns)
 
         self.deps = [self.parent]
         self.update = self.onevent

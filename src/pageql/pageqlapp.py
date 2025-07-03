@@ -17,6 +17,7 @@ from typing import Callable, Awaitable, Dict, List, Optional
 # Assuming pageql.py is in the same directory or Python path
 from . import pageql
 from .pageql import PageQL
+from .reactive import set_log_level
 from .http_utils import (
     _http_get,
     _read_chunked_body,
@@ -739,6 +740,7 @@ class PageQLApp:
         try:
             self.pageql_engine = PageQL(db_path)
             self.conn = self.pageql_engine.db
+            set_log_level(self.conn, self.log_level)
             try:
                 self.conn.create_function(
                     "base64_encode", 1,

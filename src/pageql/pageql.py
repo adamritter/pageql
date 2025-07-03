@@ -1194,6 +1194,7 @@ class PageQL:
         in_render_directive=False,
         reactive=True,
         ctx=None,
+        update_params: bool = False,
     ):
         """Render a module synchronously."""
         return self._render_impl(
@@ -1204,6 +1205,7 @@ class PageQL:
             in_render_directive,
             reactive,
             ctx,
+            update_params,
         )
 
     def _render_impl(
@@ -1215,6 +1217,7 @@ class PageQL:
         in_render_directive=False,
         reactive=True,
         ctx=None,
+        update_params: bool = False,
     ):
         """
         Renders a module using its parsed AST.
@@ -1233,6 +1236,7 @@ class PageQL:
         Additional examples are provided in tests/test_render_docstring.py.
         """
         module_name = path.strip('/')
+        orig_params = params
         params = flatten_params(params)
         if reactive:
             for k, v in list(params.items()):
@@ -1342,6 +1346,9 @@ class PageQL:
             return e.render_result
         self.db.commit()
         _ONEVENT_CACHE.clear()
+        if update_params:
+            orig_params.clear()
+            orig_params.update(params)
         return result
 
 # Example of how to run the examples if this file is executed

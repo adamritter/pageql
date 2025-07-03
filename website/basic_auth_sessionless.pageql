@@ -1,11 +1,11 @@
 {%
-create table if not exists users (
+create table if not exists auth_users (
     id INTEGER PRIMARY KEY,
     username TEXT UNIQUE,
     password TEXT
 );
-insert or ignore into users(id, username, password) values (1, 'alice', 'password');
-insert or ignore into users(id, username, password) values (2, 'bob', 'pass');
+insert or ignore into auth_users(id, username, password) values (1, 'alice', 'password');
+insert or ignore into auth_users(id, username, password) values (2, 'bob', 'pass');
 %}
 
 {%
@@ -15,7 +15,7 @@ let payload = jws_deserialize_compact(:cookies.session);
 let uid = cast(json_extract(:payload, '$.uid') as integer);
 let expiry = cast(json_extract(:payload, '$.exp') as integer);
 let jwt_valid = (:expiry > cast(strftime('%s','now') as integer));
-let sess_username = username from users where id=:uid;
+let sess_username = username from auth_users where id=:uid;
 %}
 
 {%if :uid and :jwt_valid%}
@@ -28,7 +28,7 @@ let sess_username = username from users where id=:uid;
 {%
   param username required;
   param password required;
-  let uid id from users where username=:username and password=:password;
+  let uid id from auth_users where username=:username and password=:password;
 %}
   {%if uid%}
     {%let expiry (cast(strftime('%s','now') as integer) + 3600)%}
@@ -55,12 +55,12 @@ let sess_username = username from users where id=:uid;
 {%
   param username required;
   param password required;
-  let existing id from users where username=:username;
+  let existing id from auth_users where username=:username;
 %}
   {%if existing%}
     <p>User already exists</p>
   {%else%}
-    {%insert into users(username, password) values(:username, :password)%}
+    {%insert into auth_users(username, password) values(:username, :password)%}
     {%let uid last_insert_rowid()%}
     {%let expiry (cast(strftime('%s','now') as integer) + 3600)%}
     {%let payload json_set('{"role":"member"}', '$.exp', :expiry, '$.uid', :uid)%}
@@ -87,7 +87,7 @@ let sess_username = username from users where id=:uid;
   let uid cast(json_extract(:payload, '$.uid') as integer);
   let expiry cast(json_extract(:payload, '$.exp') as integer);
   let jwt_valid (:expiry > cast(strftime('%s','now') as integer));
-  let sess_username username from users where id=:uid;
+  let sess_username username from auth_users where id=:uid;
 %}
 
   {%if :uid and :jwt_valid%}

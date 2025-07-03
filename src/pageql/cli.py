@@ -94,6 +94,11 @@ def main():
         help='Delay before cleaning up HTTP disconnects.',
     )
     parser.add_argument('--log-level', default='info', help="Log level")
+    parser.add_argument(
+        '--debug',
+        action='store_true',
+        help='Shortcut for --log-level debug',
+    )
 
     # If no arguments were provided (only the script name), print help and exit.
     if len(sys.argv) == 1:
@@ -101,6 +106,9 @@ def main():
         sys.exit(1)
 
     args = parser.parse_args()
+
+    if args.debug:
+        args.log_level = "debug"
 
     if args.parse:
         success = run_pageql_parse(args.templates_dir)

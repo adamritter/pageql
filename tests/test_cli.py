@@ -158,3 +158,20 @@ def test_cli_parse_website(monkeypatch):
     assert exc.value.code == 0
 
 
+def test_cli_debug_alias(monkeypatch, tmp_path):
+    created = {}
+
+    class DummyApp:
+        def __init__(self, db_file, templates_dir, **kwargs):
+            created["instance"] = self
+            self.log_level = None
+
+    monkeypatch.setattr(cli, "PageQLApp", DummyApp)
+    monkeypatch.setattr(cli.uvicorn, "run", lambda *a, **kw: None)
+
+    argv = ["pageql", str(tmp_path), "db", "--debug"]
+    monkeypatch.setattr(sys, "argv", argv)
+    cli.main()
+    assert created["instance"].log_level == "debug"
+
+

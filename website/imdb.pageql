@@ -96,8 +96,7 @@
 </span>
 {%end partial%}
 
-{%partial GET people%}
-<h1>People</h1>
+{%partial nav%}
 <nav>
   <a href="/imdb/people">People</a>
   <a href="/imdb/titles">Titles</a>
@@ -106,6 +105,11 @@
   <a href="/imdb/episodes">Episodes</a>
   <a href="/imdb/ratings">Ratings</a>
 </nav>
+{%end partial%}
+
+{%partial GET people%}
+<h1>People</h1>
+{%render nav%}
 <div id="list">
 {%let offset = 0; render people/:offset;%}
 </div>
@@ -113,14 +117,7 @@
 
 {%partial GET titles%}
 <h1>Titles</h1>
-<nav>
-  <a href="/imdb/people">People</a>
-  <a href="/imdb/titles">Titles</a>
-  <a href="/imdb/akas">Akas</a>
-  <a href="/imdb/crew">Crew</a>
-  <a href="/imdb/episodes">Episodes</a>
-  <a href="/imdb/ratings">Ratings</a>
-</nav>
+{%render nav%}
 <div id="list">
 {%let offset = 0; render titles/:offset;%}
 </div>
@@ -128,14 +125,7 @@
 
 {%partial GET akas%}
 <h1>Akas</h1>
-<nav>
-  <a href="/imdb/people">People</a>
-  <a href="/imdb/titles">Titles</a>
-  <a href="/imdb/akas">Akas</a>
-  <a href="/imdb/crew">Crew</a>
-  <a href="/imdb/episodes">Episodes</a>
-  <a href="/imdb/ratings">Ratings</a>
-</nav>
+{%render nav%}
 <div id="list">
 {%let offset = 0; render akas/:offset;%}
 </div>
@@ -143,14 +133,7 @@
 
 {%partial GET crew%}
 <h1>Crew</h1>
-<nav>
-  <a href="/imdb/people">People</a>
-  <a href="/imdb/titles">Titles</a>
-  <a href="/imdb/akas">Akas</a>
-  <a href="/imdb/crew">Crew</a>
-  <a href="/imdb/episodes">Episodes</a>
-  <a href="/imdb/ratings">Ratings</a>
-</nav>
+{%render nav%}
 <div id="list">
 {%let offset = 0; render crew/:offset;%}
 </div>
@@ -158,14 +141,7 @@
 
 {%partial GET episodes%}
 <h1>Episodes</h1>
-<nav>
-  <a href="/imdb/people">People</a>
-  <a href="/imdb/titles">Titles</a>
-  <a href="/imdb/akas">Akas</a>
-  <a href="/imdb/crew">Crew</a>
-  <a href="/imdb/episodes">Episodes</a>
-  <a href="/imdb/ratings">Ratings</a>
-</nav>
+{%render nav%}
 <div id="list">
 {%let offset = 0; render episodes/:offset;%}
 </div>
@@ -173,14 +149,7 @@
 
 {%partial GET ratings%}
 <h1>Ratings</h1>
-<nav>
-  <a href="/imdb/people">People</a>
-  <a href="/imdb/titles">Titles</a>
-  <a href="/imdb/akas">Akas</a>
-  <a href="/imdb/crew">Crew</a>
-  <a href="/imdb/episodes">Episodes</a>
-  <a href="/imdb/ratings">Ratings</a>
-</nav>
+{%render nav%}
 <div id="list">
 {%let offset = 0; render ratings/:offset;%}
 </div>

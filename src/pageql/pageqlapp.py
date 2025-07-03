@@ -234,6 +234,17 @@ class PageQLApp:
             self.before_all_hooks.append(async_wrapper)
         return func
 
+    def _collect_before_modules(self, module_path: str) -> list[str]:
+        """Return list of _before modules for *module_path* from root to deepest directory."""
+        parts = module_path.split('/')[:-1]
+        before_modules = []
+        for i in range(len(parts) + 1):
+            prefix = '/'.join(parts[:i])
+            name = f"{prefix}/_before" if prefix else "_before"
+            if name in self.pageql_engine._modules:
+                before_modules.append(name)
+        return before_modules
+
 
     def load(self, template_dir, filename):
         filepath = os.path.join(template_dir, filename)
@@ -491,16 +502,20 @@ class PageQLApp:
             params = _expand_array_params(params)
             path = parsed_path.path
             self._log(f"Rendering {path} with client_id {client_id} as {path_cleaned} with params: {params}")
-            before_result = None
-            if '_before' in self.pageql_engine._modules:
+            before_headers = []
+            before_cookies = []
+            for bmod in self._collect_before_modules(path_cleaned):
                 before_result = self.pageql_engine.render(
-                    '_before',
+                    bmod,
                     params,
                     None,
                     method,
                     reactive=self.reactive_default,
+                    update_params=True,
                 )
                 run_tasks(self.log_level)
+                before_headers.extend(before_result.headers)
+                before_cookies.extend(before_result.cookies)
                 if before_result.status_code != 200:
                     await self._send_render_result(before_result, include_scripts, client_id, send)
                     return client_id
@@ -541,9 +556,9 @@ class PageQLApp:
             self._log(f"{method} {path_cleaned} Params: {params} ({(time.time() - t) * 1000:.2f} ms)")
             self._log(f"Result: {result.status_code} {result.redirect_to} {result.headers}")
 
-            if before_result is not None:
-                result.headers = before_result.headers + result.headers
-                result.cookies = before_result.cookies + result.cookies
+            if before_headers or before_cookies:
+                result.headers = before_headers + result.headers
+                result.cookies = before_cookies + result.cookies
 
             await self._send_render_result(result, include_scripts, client_id, send)
 

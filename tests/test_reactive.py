@@ -179,6 +179,36 @@ def _agg_countall_multi():
     return Aggregate(rt, ("COUNT(*)", "COUNT(name)")), tables
 
 
+def _relation_join_order_comp():
+    conn = sqlite3.connect(":memory:")
+    conn.execute("CREATE TABLE a(id INTEGER PRIMARY KEY, name TEXT)")
+    conn.execute("CREATE TABLE b(id INTEGER PRIMARY KEY, a_id INTEGER, name TEXT, title TEXT)")
+    tables = Tables(conn)
+    sql = (
+        "SELECT b.id, b.title, a.name "
+        "FROM b JOIN a ON b.a_id=a.id "
+        "ORDER BY b.id DESC"
+    )
+    expr = sqlglot.parse_one(sql, read="sqlite")
+    comp = parse_reactive(expr, tables, {})
+    return comp, tables
+
+
+def _relation_join_alias_comp():
+    conn = sqlite3.connect(":memory:")
+    conn.execute("CREATE TABLE a(id INTEGER PRIMARY KEY, name TEXT)")
+    conn.execute("CREATE TABLE b(id INTEGER PRIMARY KEY, a_id INTEGER, name TEXT, title TEXT)")
+    tables = Tables(conn)
+    sql = (
+        "SELECT t.id AS tid, t.title AS ttitle, u.name AS uname "
+        "FROM b t JOIN a u ON t.a_id=u.id "
+        "ORDER BY t.id DESC"
+    )
+    expr = sqlglot.parse_one(sql, read="sqlite")
+    comp = parse_reactive(expr, tables, {})
+    return comp, tables
+
+
 
 
 def _two_relations_comp(cls, *, left=False, right=False):
@@ -260,6 +290,7 @@ _RELATION_SEQUENCE = [
     "DELETE FROM b WHERE id=5",
 ]
 
+
 _SQL_CASE_GROUPS = [
     (_ITEMS_SEQUENCE, _items_rt, [
         "reactive_table_events",
@@ -289,6 +320,8 @@ _SQL_CASE_GROUPS = [
         ],
     ),
     (_RELATION_SEQUENCE, partial(_two_relations_comp, Intersect), ["intersect_deduplication"]),
+    (_RELATION_SEQUENCE, _relation_join_order_comp, ["relation_join_order"]),
+    (_RELATION_SEQUENCE, _relation_join_alias_comp, ["relation_join_order_alias"]),
 ]
 
 _SQL_CASES = [

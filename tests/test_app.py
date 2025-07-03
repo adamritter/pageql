@@ -291,3 +291,21 @@ def test_before_template_stops_render_on_error(tmp_path):
     status, body = asyncio.run(run_test())
     assert status == 401
     assert "no" in body
+
+
+def test_nested_before_template_runs(tmp_path):
+    sub = tmp_path / "a"
+    sub.mkdir()
+    (sub / "_before.pageql").write_text("{% let before = 'before' %}")
+    (sub / "index.pageql").write_text("OK, before ran? {{before}}")
+
+    async def run_test():
+        server, task, port = await run_server_in_task(str(tmp_path))
+        status, _headers, body = await _http_get(f"http://127.0.0.1:{port}/a")
+        server.should_exit = True
+        await task
+        return status, body.decode()
+
+    status, body = asyncio.run(run_test())
+    assert status == 200
+    assert "before ran? before" in body

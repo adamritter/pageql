@@ -72,3 +72,23 @@ def test_twitter_follow_filter():
         reactive=False,
     )
     assert "bob</strong>: hi" not in result.body
+
+def test_twitter_follow_filter_reactive_anonymous():
+    src = Path("website/twitter/index.pageql").read_text()
+    r = PageQL(":memory:")
+    r.load_module("twitter/index", src)
+    r.render("/twitter/index", reactive=False)
+
+    r.render(
+        "/twitter/index",
+        params={"username": "alice", "text": "hello"},
+        partial="tweet",
+        http_verb="POST",
+    )
+
+    result = r.render(
+        "/twitter/index",
+        params={"filter": "following"},
+        reactive=True,
+    )
+    assert "hello" not in result.body

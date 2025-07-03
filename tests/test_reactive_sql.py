@@ -5,7 +5,7 @@ import sqlglot
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from pageql.reactive import Tables, ReactiveTable, Select, Where, Aggregate, UnionAll, Join
+from pageql.reactive import Tables, ReactiveTable, Select, Where, Aggregate, UnionAll, Join, Order
 from pageql.reactive_sql import parse_reactive, FallbackReactive
 from pageql.reactive import ReadOnly
 
@@ -128,6 +128,19 @@ def test_parse_join():
     assert events == [[1, ('x', 't')]]
     tb.delete("DELETE FROM b WHERE id=1", {})
     assert events[-1] == [2, ('x', 't')]
+
+
+def test_parse_join_order():
+    conn = sqlite3.connect(":memory:")
+    conn.execute("CREATE TABLE tweets(id INTEGER PRIMARY KEY, user_id INTEGER, text TEXT)")
+    conn.execute("CREATE TABLE users(id INTEGER PRIMARY KEY, username TEXT)")
+    tables = Tables(conn)
+    sql = "SELECT * FROM tweets JOIN users ON tweets.user_id=users.id ORDER BY tweets.id DESC"
+    expr = sqlglot.parse_one(sql, read="sqlite")
+    comp = parse_reactive(expr, tables, {})
+    assert isinstance(comp, Order)
+    assert isinstance(comp.parent, Join)
+    assert_sql_equivalent(conn, sql, comp.sql)
 
 
 def test_parse_select_with_params():

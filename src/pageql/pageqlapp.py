@@ -26,6 +26,7 @@ from .http_utils import (
 from .jws_utils import jws_serialize_compact, jws_deserialize_compact
 from .client_script import client_script
 from .database import flatten_params
+from . import reactive as reactive_mod
 
 scripts_by_send: defaultdict = defaultdict(list)
 _idle_task: Optional[asyncio.Task] = None
@@ -168,6 +169,8 @@ class PageQLApp:
         self._body_waiters = {}
         self.template_dir = template_dir
         self.quiet = quiet
+        self._log_level = log_level
+        reactive_mod.LOG_LEVEL = log_level
         self.log_level = log_level
         self.fallback_app = fallback_app
         self.fallback_url = fallback_url
@@ -176,6 +179,15 @@ class PageQLApp:
         self.static_html = static_html
         self.load_builtin_static()
         self.prepare_server(db_path, template_dir, create_db)
+
+    @property
+    def log_level(self) -> str:
+        return self._log_level
+
+    @log_level.setter
+    def log_level(self, value: str) -> None:
+        self._log_level = value
+        reactive_mod.LOG_LEVEL = value
 
     def _log(self, msg):
         if not self.quiet:

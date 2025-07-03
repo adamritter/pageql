@@ -4,7 +4,11 @@ from difflib import SequenceMatcher
 import sqlglot
 import time
 
+LOG_LEVEL = "info"
+
 def execute(conn, sql, params):
+    if LOG_LEVEL == "debug":
+        print(f"SQL: {sql} {params}")
     start = time.perf_counter()
     try:
         cursor = conn.execute(sql, params)

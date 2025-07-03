@@ -627,6 +627,20 @@ class PageQLApp:
             await self._serve_static_file(file_to_serve, include_scripts, client_id, send)
             return
 
+        if (
+            path_cleaned not in self.pageql_engine._modules
+            and path_cleaned not in self.static_files
+        ):
+            index_module = f"{path_cleaned}/index"
+            index_html = f"{path_cleaned}/index.html"
+            index_md = f"{path_cleaned}/index.md"
+            if index_module in self.pageql_engine._modules:
+                path_cleaned = index_module
+            elif index_html in self.static_files or index_md in self.static_files:
+                file_to_serve = index_html if index_html in self.static_files else index_md
+                await self._serve_static_file(file_to_serve, include_scripts, client_id, send)
+                return
+
         if await self._serve_static_file(path_cleaned, include_scripts, client_id, send):
             return
 

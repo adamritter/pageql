@@ -18,6 +18,15 @@ def test_twitter_post_and_render():
     assert "alice" in body
     assert "hello" in body
 
+def test_twitter_filter_links_present():
+    src = Path("website/twitter/index.pageql").read_text()
+    r = PageQL(":memory:")
+    r.load_module("twitter/index", src)
+    result = r.render("/twitter/index", reactive=False)
+    body = result.body
+    assert 'hx-get="/twitter/index?filter=all"' in body
+    assert 'hx-get="/twitter/index?filter=following"' in body
+
 
 def test_twitter_follow_filter():
     src = Path("website/twitter/index.pageql").read_text()

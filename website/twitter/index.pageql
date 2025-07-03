@@ -31,10 +31,9 @@ let current_id = select (select id from users where username=:username);
   <div style="display:flex; gap:2rem; align-items:flex-start;">
     <div style="flex:1;">
       <input name="username" placeholder="Username" value="{{:username}}" autocomplete="off">
-      <select name="filter" hx-get="/twitter/index" hx-target="#tweets" hx-include="[name=username]">
-        <option value="all" {%if :filter=='all'%}selected{%end if%}>All</option>
-        <option value="following" {%if :filter=='following'%}selected{%end if%}>Following</option>
-      </select>
+      <a hx-get="/twitter/index?filter=all" hx-target="#tweets" hx-include="[name=username]" {%if :filter=='all'%}style="font-weight:bold"{%end if%}>All</a>
+      /
+      <a hx-get="/twitter/index?filter=following" hx-target="#tweets" hx-include="[name=username]" {%if :filter=='following'%}style="font-weight:bold"{%end if%}>Following</a>
       <input name="text" placeholder="What's happening?" maxlength="280"
              hx-post="/twitter/index/tweet"
              hx-trigger="keyup[key=='Enter']"

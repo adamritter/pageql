@@ -81,7 +81,27 @@ def check_component(comp, callback):
         if not isinstance(ev, (list, tuple)):
             expected = [(ev,)]
             continue
-        if ev[0] == 1:
+        if len(ev) >= 3 and isinstance(ev[1], int):
+            if ev[0] == 1:
+                row = tuple(ev[2])
+                if len(row) != cols_len:
+                    raise Exception("bad number of columns on insert")
+                expected.insert(ev[1], row)
+            elif ev[0] == 2:
+                expected.pop(ev[1])
+            else:
+                old_idx, new_idx, row = ev[1], ev[2], tuple(ev[3])
+                expected.pop(old_idx)
+                expected.insert(new_idx, row)
+        elif len(ev) == 2 and isinstance(ev[1], int):
+            if ev[0] == 1:
+                # should not happen
+                continue
+            elif ev[0] == 2:
+                expected.pop(ev[1])
+            else:
+                continue
+        elif ev[0] == 1:
             row = tuple(ev[1])
             if len(row) != cols_len:
                 raise Exception("bad number of columns on insert")

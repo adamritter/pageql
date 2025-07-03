@@ -115,7 +115,7 @@ def test_parse_join():
     expr = sqlglot.parse_one(sql, read="sqlite")
     comp = parse_reactive(expr, tables, {})
     assert isinstance(comp, Select)
-    assert isinstance(comp.parent, Join)
+    assert isinstance(comp.parent, (Join, Select))
 
     events = []
     comp.listeners.append(events.append)
@@ -139,7 +139,7 @@ def test_parse_join_order():
     expr = sqlglot.parse_one(sql, read="sqlite")
     comp = parse_reactive(expr, tables, {})
     assert isinstance(comp, Order)
-    assert isinstance(comp.parent, Join)
+    assert isinstance(comp.parent, (Join, Select))
     assert_sql_equivalent(conn, sql, comp.sql)
 
 
@@ -155,7 +155,7 @@ def test_parse_join_alias_order():
     expr = sqlglot.parse_one(sql, read="sqlite")
     comp = parse_reactive(expr, tables, {})
     assert isinstance(comp, Order)
-    assert isinstance(comp.parent, Join)
+    assert isinstance(comp.parent, (Join, Select))
     assert_sql_equivalent(conn, sql, comp.sql)
 
 

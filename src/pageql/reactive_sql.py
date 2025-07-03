@@ -52,7 +52,9 @@ def _replace_placeholders(
         ph.replace(lit)
 
 
-def _apply_order_limit_offset(node, expr, tables: Tables, alias_map: set[str] | None = None):
+def _apply_order_limit_offset(
+    node, expr, tables: Tables, alias_map: set[str] | None = None, alias_repl: dict[str, str] | None = None
+):
     """Attach an :class:`Order` component if needed."""
 
     order = expr.args.get("order")
@@ -65,7 +67,10 @@ def _apply_order_limit_offset(node, expr, tables: Tables, alias_map: set[str] | 
     order_sql = ""
     if order is not None:
         order_sql = order.sql(dialect=tables.dialect)[len("ORDER BY ") :]
-        if alias_map:
+        if alias_repl:
+            for k, v in alias_repl.items():
+                order_sql = order_sql.replace(k, v)
+        elif alias_map:
             for a in alias_map:
                 order_sql = order_sql.replace(f"{a}.", "")
 
@@ -179,8 +184,10 @@ def build_reactive(expr, tables: Tables):
             left_alias = from_expr.this.alias_or_name
             right_alias = j.this.alias_or_name
             on_sql = j.args["on"].sql(dialect=tables.dialect)
-            on_sql = on_sql.replace(f"{left_alias}.", "a.")
-            on_sql = on_sql.replace(f"{right_alias}.", "b.")
+            on_sql = on_sql.replace(f"{left_alias}.", "__LEFT__.")
+            on_sql = on_sql.replace(f"{right_alias}.", "__RIGHT__.")
+            on_sql = on_sql.replace("__LEFT__.", "a.")
+            on_sql = on_sql.replace("__RIGHT__.", "b.")
             side = j.args.get("side")
             left_outer = side in ("LEFT", "FULL")
             right_outer = side in ("RIGHT", "FULL")
@@ -242,14 +249,19 @@ def build_reactive(expr, tables: Tables):
                 return _apply_order_limit_offset(node, expr, tables, alias_map)
 
         cols = []
+        alias_repl = {}
         for c in select_list:
             if alias_map and isinstance(c, exp.Column) and c.table in alias_map:
                 cols.append(c.name)
+                alias_repl[f"{c.table}.{c.name}"] = c.name
+            elif alias_map and isinstance(c, exp.Alias) and isinstance(c.this, exp.Column) and c.this.table in alias_map:
+                cols.append(f"{c.this.name} AS {c.alias_or_name}")
+                alias_repl[f"{c.this.table}.{c.this.name}"] = c.alias_or_name
             else:
                 cols.append(c.sql(dialect=tables.dialect))
         select_sql = ", ".join(cols)
         node = Select(parent, select_sql)
-        return _apply_order_limit_offset(node, expr, tables, alias_map)
+        return _apply_order_limit_offset(node, expr, tables, alias_map, alias_repl or None)
     if isinstance(expr, exp.Table):
         return tables._get(expr.name)
     raise NotImplementedError(f"Unsupported expression type: {type(expr)}")

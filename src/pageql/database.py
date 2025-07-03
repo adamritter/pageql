@@ -70,7 +70,12 @@ def connect_database(db_path: str):
                 )
     if db_path.startswith("sqlite://"):
         db_path = db_path.split("://", 1)[1]
-    return sqlite3.connect(db_path), "sqlite"
+    conn = sqlite3.connect(db_path)
+    try:
+        conn.execute("PRAGMA foreign_keys=ON")
+    except sqlite3.Error:
+        pass
+    return conn, "sqlite"
 
 
 def flatten_params(params):

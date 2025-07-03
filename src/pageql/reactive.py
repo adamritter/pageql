@@ -2,12 +2,17 @@ import re
 from collections import Counter
 from difflib import SequenceMatcher
 import sqlglot
+import time
 
 def execute(conn, sql, params):
+    start = time.perf_counter()
     try:
         cursor = conn.execute(sql, params)
     except Exception as e:
         raise Exception(f"Execute failed for query: {sql} with params: {params} with error: {e}")
+    duration_ms = (time.perf_counter() - start) * 1000
+    if duration_ms >= 10:
+        print(f"warning, slow query took {duration_ms:.2f}ms: {sql}")
     return cursor
 
 

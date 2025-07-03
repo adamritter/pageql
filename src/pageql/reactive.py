@@ -208,7 +208,14 @@ class ReactiveTable(Signal):
         self.conn = conn
         self.table_name = table_name
         cur = execute(self.conn, f"PRAGMA table_info({self.table_name})", [])
-        self.columns = [col[1] for col in cur]
+        cols_info = list(cur)
+        self.columns = [col[1] for col in cols_info]
+        self.unique_columns = {col[1] for col in cols_info if col[5]}
+        cur = execute(self.conn, f"PRAGMA index_list({self.table_name})", [])
+        for idx in cur:
+            if idx[2]:
+                for col in execute(self.conn, f"PRAGMA index_info({idx[1]})", []):
+                    self.unique_columns.add(col[2])
         self.sql = f"SELECT * FROM {self.table_name}"
 
     def remove_listener(self, listener):

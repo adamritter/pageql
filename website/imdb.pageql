@@ -1,0 +1,157 @@
+{%attach database '/opt/imdb.db' as imdb%}
+
+{%partial people/:offset%}
+{%attach database '/opt/imdb.db' as imdb%}
+{%param offset type=integer%}
+{%let has_more = exists(select 1 from imdb.people limit :offset + 50, 1)%}
+<span
+  {%if :has_more%}hx-get="/imdb/people/{{:offset+50}}"{%end if%}
+  hx-trigger="revealed"
+  hx-swap="beforeend"
+  hx-target="#list"
+>
+{%from imdb.people limit :offset,50%}
+  {{person_id}} - {{name}}{%if born%} ({{born}}){%end if%}<br>
+{%end from%}
+</span>
+{%end partial%}
+
+{%partial titles/:offset%}
+{%attach database '/opt/imdb.db' as imdb%}
+{%param offset type=integer%}
+{%let has_more = exists(select 1 from imdb.titles limit :offset + 50, 1)%}
+<span
+  {%if :has_more%}hx-get="/imdb/titles/{{:offset+50}}"{%end if%}
+  hx-trigger="revealed"
+  hx-swap="beforeend"
+  hx-target="#list"
+>
+{%from imdb.titles limit :offset,50%}
+  {{title_id}} - {{primary_title}}<br>
+{%end from%}
+</span>
+{%end partial%}
+
+{%partial akas/:offset%}
+{%attach database '/opt/imdb.db' as imdb%}
+{%param offset type=integer%}
+{%let has_more = exists(select 1 from imdb.akas limit :offset + 50, 1)%}
+<span
+  {%if :has_more%}hx-get="/imdb/akas/{{:offset+50}}"{%end if%}
+  hx-trigger="revealed"
+  hx-swap="beforeend"
+  hx-target="#list"
+>
+{%from imdb.akas limit :offset,50%}
+  {{title_id}} - {{title}} - {{region}}<br>
+{%end from%}
+</span>
+{%end partial%}
+
+{%partial crew/:offset%}
+{%attach database '/opt/imdb.db' as imdb%}
+{%param offset type=integer%}
+{%let has_more = exists(select 1 from imdb.crew limit :offset + 50, 1)%}
+<span
+  {%if :has_more%}hx-get="/imdb/crew/{{:offset+50}}"{%end if%}
+  hx-trigger="revealed"
+  hx-swap="beforeend"
+  hx-target="#list"
+>
+{%from imdb.crew limit :offset,50%}
+  {{title_id}} - {{person_id}} - {{category}}<br>
+{%end from%}
+</span>
+{%end partial%}
+
+{%partial episodes/:offset%}
+{%attach database '/opt/imdb.db' as imdb%}
+{%param offset type=integer%}
+{%let has_more = exists(select 1 from imdb.episodes limit :offset + 50, 1)%}
+<span
+  {%if :has_more%}hx-get="/imdb/episodes/{{:offset+50}}"{%end if%}
+  hx-trigger="revealed"
+  hx-swap="beforeend"
+  hx-target="#list"
+>
+{%from imdb.episodes limit :offset,50%}
+  {{episode_title_id}} - {{show_title_id}} - {{season_number}}x{{episode_number}}<br>
+{%end from%}
+</span>
+{%end partial%}
+
+{%partial ratings/:offset%}
+{%attach database '/opt/imdb.db' as imdb%}
+{%param offset type=integer%}
+{%let has_more = exists(select 1 from imdb.ratings limit :offset + 50, 1)%}
+<span
+  {%if :has_more%}hx-get="/imdb/ratings/{{:offset+50}}"{%end if%}
+  hx-trigger="revealed"
+  hx-swap="beforeend"
+  hx-target="#list"
+>
+{%from imdb.ratings limit :offset,50%}
+  {{title_id}} - {{rating}} ({{votes}} votes)<br>
+{%end from%}
+</span>
+{%end partial%}
+
+{%partial nav%}
+<nav>
+  <a href="/imdb/people">People</a>
+  <a href="/imdb/titles">Titles</a>
+  <a href="/imdb/akas">Akas</a>
+  <a href="/imdb/crew">Crew</a>
+  <a href="/imdb/episodes">Episodes</a>
+  <a href="/imdb/ratings">Ratings</a>
+</nav>
+{%end partial%}
+
+{%partial GET people%}
+<h1>People</h1>
+{%render nav%}
+<div id="list">
+{%let offset = 0; render people/:offset;%}
+</div>
+{%end partial%}
+
+{%partial GET titles%}
+<h1>Titles</h1>
+{%render nav%}
+<div id="list">
+{%let offset = 0; render titles/:offset;%}
+</div>
+{%end partial%}
+
+{%partial GET akas%}
+<h1>Akas</h1>
+{%render nav%}
+<div id="list">
+{%let offset = 0; render akas/:offset;%}
+</div>
+{%end partial%}
+
+{%partial GET crew%}
+<h1>Crew</h1>
+{%render nav%}
+<div id="list">
+{%let offset = 0; render crew/:offset;%}
+</div>
+{%end partial%}
+
+{%partial GET episodes%}
+<h1>Episodes</h1>
+{%render nav%}
+<div id="list">
+{%let offset = 0; render episodes/:offset;%}
+</div>
+{%end partial%}
+
+{%partial GET ratings%}
+<h1>Ratings</h1>
+{%render nav%}
+<div id="list">
+{%let offset = 0; render ratings/:offset;%}
+</div>
+{%end partial%}
+

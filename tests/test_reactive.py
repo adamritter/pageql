@@ -107,11 +107,19 @@ def check_component(comp, callback):
                 raise Exception("bad number of columns on insert")
             expected.append(row)
         elif ev[0] == 2:
-            row = tuple(ev[1])
-            if row not in expected:
-                raise Exception("deleting nonexistent row")
-            expected.remove(row)
+            if len(ev) == 2 and isinstance(ev[1], int):
+                del expected[ev[1]]
+            else:
+                row = tuple(ev[1])
+                if row not in expected:
+                    raise Exception("deleting nonexistent row")
+                expected.remove(row)
         elif ev[0] == 3:
+            if len(ev) == 4:
+                old_idx, new_idx, row = ev[1], ev[2], tuple(ev[3])
+                expected.pop(old_idx)
+                expected.insert(new_idx, row)
+                continue
             old, new = tuple(ev[1]), tuple(ev[2])
             if old not in expected:
                 alt_old = tuple(0 if v is None else v for v in old)

@@ -17,16 +17,9 @@ render nav;
 attach database 'file:/opt/imdb.db?mode=ro' as imdb;
 param offset type=integer default=0;
 let has_more = exists(select 1 from imdb.people limit :offset + 50, 1) %}
-<span
-  {%if :has_more%}hx-get="/imdb/people/{{:offset+50}}"{%end if%}
-  hx-trigger="revealed"
-  hx-swap="beforeend"
-  hx-target="#list"
->
-{%from imdb.people limit :offset,50%}
+{%from imdb.people order by person_id infinite %}
   {{person_id}} - {{name}}{%if born%} ({{born}}){%end if%}<br>
 {%end from%}
-</span>
 {%end partial%}
 
 {%partial GET titles;

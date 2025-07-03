@@ -1,0 +1,50 @@
+{%
+-- Ensure tables exist
+create table if not exists users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT UNIQUE
+);
+create table if not exists tweets (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER,
+    text TEXT NOT NULL,
+    created_at TEXT DEFAULT (strftime('%Y-%m-%d %H:%M:%S','now'))
+);
+%}
+
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Mini Twitter</title>
+</head>
+<body>
+  <h1>Mini Twitter</h1>
+  <input name="username" placeholder="Username" autocomplete="off">
+  <input name="text" placeholder="What's happening?" maxlength="280"
+         hx-post="/twitter/index/tweet"
+         hx-trigger="keyup[key=='Enter']"
+         hx-include="[name=username]"
+         hx-on:htmx:after-on-load="this.value=''" autofocus>
+  <ul id="tweets">
+  {%from tweets join users on tweets.user_id=users.id order by tweets.id desc%}
+    <li><strong>{{username}}</strong>: {{text}}</li>
+  {%end from%}
+  </ul>
+</body>
+</html>
+
+{%
+partial post tweet;
+  param username maxlength=32;
+  param text maxlength=280;
+  let uid_temp = id from users where username=:username;
+  if :uid_temp is null;
+    insert into users(username) values (:username);
+    let uid last_insert_rowid();
+  else;
+    let uid :uid_temp;
+  end if;
+  insert into tweets(user_id, text) values (:uid, :text);
+end partial
+%}

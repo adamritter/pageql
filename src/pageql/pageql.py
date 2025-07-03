@@ -701,19 +701,73 @@ class PageQL:
 
     def _process_dump_directive(self, node_content, params, path, includes,
                                 http_verb, reactive, ctx):
-        cursor = db_execute_dot(self.db, "select * from " + node_content, params)
-        t = time.time()
-        rows_all = cursor.fetchall()
-        end_time = time.time()
+        query = "select * from " + node_content
+        if reactive:
+            converted_params = {
+                k: (v.value if isinstance(v, Signal) else v)
+                for k, v in params.items()
+            }
+            expr = sqlglot.parse_one(query, read=self.dialect)
+            _replace_placeholders(expr, converted_params, self.dialect)
+            comp = parse_reactive(expr, self.tables, params)
+            t = time.time()
+            if comp.sql is not None:
+                cursor = self.db.execute(comp.sql, converted_params)
+                rows_all = cursor.fetchall()
+                col_names = [c[0] for c in cursor.description]
+            else:
+                rows_all = list(comp.value)
+                col_names = comp.columns if not isinstance(comp.columns, str) else [comp.columns]
+            end_time = time.time()
+        else:
+            t = time.time()
+            cursor = db_execute_dot(self.db, query, params)
+            rows_all = cursor.fetchall()
+            col_names = [col[0] for col in cursor.description]
+            end_time = time.time()
+
         ctx.out.append("<table>")
-        for col in cursor.description:
-            ctx.out.append("<th>" + col[0] + "</th>")
+        for col in col_names:
+            ctx.out.append("<th>" + col + "</th>")
         ctx.out.append("</tr>")
-        for row in rows_all:
-            ctx.out.append("<tr>")
-            for cell in row:
-                ctx.out.append("<td>" + str(cell) + "</td>")
-            ctx.out.append("</tr>")
+
+        if reactive and ctx:
+            mid = ctx.marker_id()
+            ctx.append_script(f"pstart({mid})")
+            for row in rows_all:
+                row_id = f"{mid}_{_row_hash(row)}"
+                ctx.append_script(f"pstart('{row_id}')")
+                ctx.out.append("<tr>")
+                for cell in row:
+                    ctx.out.append("<td>" + str(cell) + "</td>")
+                ctx.out.append("</tr>")
+                ctx.append_script(f"pend('{row_id}')")
+            ctx.append_script(f"pend({mid})")
+
+            def on_event(ev, *, mid=mid, ctx=ctx):
+                if ev[0] == 2:
+                    rid = f"{mid}_{_row_hash(ev[1])}"
+                    ctx.append_script(f"pdelete('{rid}')")
+                elif ev[0] == 1:
+                    rid = f"{mid}_{_row_hash(ev[1])}"
+                    row_content = '<tr>' + ''.join(f'<td>{c}</td>' for c in ev[1]) + '</tr>'
+                    safe_json = embed_html_in_js(row_content)
+                    ctx.append_script(f"pinsert('{rid}',{safe_json})")
+                elif ev[0] == 3:
+                    old_id = f"{mid}_{_row_hash(ev[1])}"
+                    new_id = f"{mid}_{_row_hash(ev[2])}"
+                    row_content = '<tr>' + ''.join(f'<td>{c}</td>' for c in ev[2]) + '</tr>'
+                    safe_json = embed_html_in_js(row_content)
+                    ctx.append_script(f"pupdate('{old_id}','{new_id}',{safe_json})")
+
+            ctx.add_listener(comp, on_event)
+        else:
+            for row in rows_all:
+                ctx.out.append("<tr>")
+                for cell in row:
+                    ctx.out.append("<td>" + str(cell) + "</td>")
+                ctx.out.append("</tr>")
+
         ctx.out.append("</table>")
         ctx.out.append(f"<p>Dumping {node_content} took {(end_time - t)*1000:.2f} ms</p>")
         return reactive

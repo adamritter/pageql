@@ -9,7 +9,7 @@ def execute(conn, sql, params):
     try:
         cursor = conn.execute(sql, params)
     except Exception as e:
-        raise Exception(f"Execute failed for query: {sql} with params: {params} with error: {e}")
+        raise Exception(f"Execute failed for query: {sql} with error: {e}")
     duration_ms = (time.perf_counter() - start) * 1000
     if duration_ms >= 10:
         print(f"warning, slow query took {duration_ms:.2f}ms: {sql}")
@@ -240,7 +240,7 @@ class ReactiveTable(Signal):
             if isinstance(e, RenderResultException):
                 raise
             raise Exception(
-                f"Insert into table {self.table_name} failed for query: {query} with params: {params} with error: {e}"
+                f"Insert into table {self.table_name} failed for query: {query} with error: {e}"
             )
         if row is None:
             # insert .. or ignore may not return a row when it affects nothing
@@ -268,7 +268,7 @@ class ReactiveTable(Signal):
             if isinstance(e, RenderResultException):
                 raise
             raise Exception(
-                f"Delete from table {self.table_name} failed for query: {query} with params: {params} with error: {e}"
+                f"Delete from table {self.table_name} failed for query: {query} with error: {e}"
             )
 
     def update(self, sql, params):
@@ -294,7 +294,7 @@ class ReactiveTable(Signal):
             cursor = execute(self.conn, _convert_dot_sql(update_sql), params)
             new_row = cursor.fetchone()
             if new_row is None:
-                raise Exception(f"Update on table {self.table_name} failed for query: {update_sql} with params: {params}")
+                raise Exception(f"Update on table {self.table_name} failed for query: {update_sql}")
             if new_row == row:
                 continue
             for listener in self.listeners:

@@ -35,3 +35,23 @@ def test_order_stops_after_unique_column():
 
     order2 = Order(rt, "name")
     assert order2._full_order_sql == "name, id"
+
+
+def test_unique_columns_with_composite_index():
+    conn = sqlite3.connect(":memory:")
+    conn.execute(
+        "CREATE TABLE items(item_id INTEGER, tag TEXT, value TEXT, "
+        "PRIMARY KEY(item_id, tag))"
+    )
+    conn.execute("CREATE UNIQUE INDEX idx_tag_value ON items(tag, value)")
+    rt = ReactiveTable(conn, "items")
+    assert ("item_id", "tag") in rt.unique_columns
+    assert ("tag", "value") in rt.unique_columns
+
+    w = Where(rt, "tag IS NOT NULL")
+    assert ("item_id", "tag") in w.unique_columns
+    assert ("tag", "value") in w.unique_columns
+
+    o = Order(rt, "tag")
+    assert ("item_id", "tag") in o.unique_columns
+    assert ("tag", "value") in o.unique_columns

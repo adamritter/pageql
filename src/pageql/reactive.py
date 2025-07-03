@@ -211,11 +211,17 @@ class ReactiveTable(Signal):
         cols_info = list(cur)
         self.columns = [col[1] for col in cols_info]
         self.unique_columns = {col[1] for col in cols_info if col[5]}
+        pk_cols = [c[1] for c in cols_info if c[5]]
+        if len(pk_cols) > 1:
+            self.unique_columns.add(tuple(pk_cols))
         cur = execute(self.conn, f"PRAGMA index_list({self.table_name})", [])
         for idx in cur:
             if idx[2]:
-                for col in execute(self.conn, f"PRAGMA index_info({idx[1]})", []):
-                    self.unique_columns.add(col[2])
+                cols = [c[2] for c in execute(self.conn, f"PRAGMA index_info({idx[1]})", [])]
+                for col in cols:
+                    self.unique_columns.add(col)
+                if len(cols) > 1:
+                    self.unique_columns.add(tuple(cols))
         self.sql = f"SELECT * FROM {self.table_name}"
 
     def remove_listener(self, listener):

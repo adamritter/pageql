@@ -1,4 +1,5 @@
-PageQL is a template / application language / micro python web framework that allows embedding SQL inside HTML directly.
+PageQL is a template / application language / micro python web framework that allows embedding
+reactive/live SQL inside HTML directly.
 
 It was inspired by ColdFusion language that allows embedding SQL and Handlebars / Mustache logic-less templates and also HTMX that simplifies web development
 

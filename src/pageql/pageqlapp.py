@@ -501,7 +501,7 @@ class PageQLApp:
             t = time.time()
             params = _expand_array_params(params)
             path = parsed_path.path
-            self._log(f"Rendering {path} with client_id {client_id} as {path_cleaned} with params: {params}")
+            self._log(f"Rendering {path} with client_id {client_id} as {path_cleaned}")
             before_headers = []
             before_cookies = []
             for bmod in self._collect_before_modules(path_cleaned):
@@ -553,7 +553,7 @@ class PageQLApp:
                         queue_ws_script(send, sc, self.log_level)
 
                     result.context.send_script = sender
-            self._log(f"{method} {path_cleaned} Params: {params} ({(time.time() - t) * 1000:.2f} ms)")
+            self._log(f"{method} {path_cleaned} ({(time.time() - t) * 1000:.2f} ms)")
             self._log(f"Result: {result.status_code} {result.redirect_to} {result.headers}")
 
             if before_headers or before_cookies:

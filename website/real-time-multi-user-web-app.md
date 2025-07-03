@@ -168,7 +168,8 @@ GraphQL web service and
 
   - electricsql: sync all data to frontend. Amazing for offline first apps, but terrible for normal
     web sites with larger databases for the first sync (especially when that data is wiped out by
-    web browsers periodically)
+    web browsers periodically). Also with its current HTTP based sync solution real-time chat is not advised.
+     
 - server side reactive sql, keeping a minimal client state on server side, but must be done smartly:
   for example joins shouldn't be stored on server side. If a table changes, another should be looked up
   in the same 

@@ -1,13 +1,11 @@
+First I need more examples:
+- imdb search with favourites support on log in (optional authentication)
+- _before.pageql, index.pageql support
 
 
-- "Reactive" Aspect:
-UI updates are now implemented. The reactive query model updates the browser automatically whenever the underlying data changes.
-- PageQL defaults to `#reactive on`. Use `#reactive off` to disable live updates.
 
 Later:
 - Code completion (language server) / VS code pluigin
-
-- #each (or similar looping): Needed for iterating over data structures passed as parameters, not just database results from #from.
 
 - View Definition (#view): While mentioned, it's unclear if #view is fully implemented for defining reusable SQL views within the templates.
 

@@ -141,3 +141,14 @@ def test_twitter_follow_button_updates():
 
     assert 'hx-delete="/twitter/index/follow/' in result.body
     assert ">Unfollow</button>" in result.body
+
+
+def test_twitter_username_selector_present():
+    src = Path("website/twitter/index.pageql").read_text()
+    r = PageQL(":memory:")
+    r.load_module("twitter/index", src)
+    result = r.render("/twitter/index", reactive=False)
+    body = result.body
+    assert '<input name="username"' in body
+    assert 'list="usernames"' in body
+    assert '<datalist id="usernames">' in body

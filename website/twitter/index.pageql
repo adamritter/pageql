@@ -30,7 +30,12 @@ let current_id = select (select id from users where username=:username);
   <h1>Mini Twitter</h1>
   <div style="display:flex; gap:2rem; align-items:flex-start;">
     <div style="flex:1;">
-      <input name="username" placeholder="Username" value="{{:username}}" autocomplete="off">
+      <input name="username" placeholder="Username" value="{{:username}}" autocomplete="off" list="usernames">
+      <datalist id="usernames">
+      {%from users order by username%}
+        <option value="{{username}}">
+      {%end from%}
+      </datalist>
       <a hx-get="/twitter/index?filter=all" hx-target="#tweets" hx-include="[name=username]" {%if :filter=='all'%}style="font-weight:bold"{%end if%}>All</a>
       /
       <a hx-get="/twitter/index?filter=following" hx-target="#tweets" hx-include="[name=username]" {%if :filter=='following'%}style="font-weight:bold"{%end if%}>Following</a>

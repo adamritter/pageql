@@ -137,7 +137,7 @@ def db_execute_dot(db, exp, params):
         return db.execute(converted_exp, converted_params)
     except sqlite3.Error as e:
         raise ValueError(
-            f"Error executing SQL `{converted_exp}` with params {converted_params}: {e}"
+            f"Error executing SQL `{converted_exp}`: {e}"
         )
 
 
@@ -214,11 +214,11 @@ def evalone(db, exp, params, reactive=False, tables=None, expr=None):
         r = db_execute_dot(db, exp, params).fetchone()
         if len(r) != 1:
             raise ValueError(
-                f"SQL expression `{exp}` with params `{params}` returned {len(r)} rows, expected 1"
+                f"SQL expression `{exp}` returned {len(r)} rows, expected 1"
             )
         return r[0]
     except sqlite3.Error as e:
         raise ValueError(
-            f"Error evaluating SQL expression `{exp}` with params `{params}`: {e}"
+            f"Error evaluating SQL expression `{exp}`: {e}"
         )
 

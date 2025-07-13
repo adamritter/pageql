@@ -143,7 +143,7 @@ def _run_sql(exec_func, node_type, content, params):
         exec_func(node_type[1:] + " " + content, params)
     except sqlite3.Error as e:
         raise ValueError(
-            f"Error executing {node_type[1:]} {content} with params {params}: {e}"
+            f"Error executing {node_type[1:]} {content}: {e}"
         )
 
 
@@ -969,7 +969,7 @@ class PageQL:
                     cursor = self.db.execute(comp.sql, converted_params)
                 except sqlite3.Error as e:
                     raise ValueError(
-                        f"Error executing SQL `{comp.sql}` with params {converted_params}: {e}"
+                        f"Error executing SQL `{comp.sql}`: {e}"
                     )
                 rows = cursor.fetchall()
             else:

@@ -338,10 +338,15 @@ def parse_reactive(
         comp.columns = [d[0] for d in cur.description]
         return comp
 
-    try:
-        comp = build_reactive(expr, tables)
-    except NotImplementedError:
+    subqueries = list(expr.find_all(exp.Subquery))
+    inner_subquery = any(s is not expr for s in subqueries)
+    if inner_subquery:
         comp = FallbackReactive(tables, sql, expr)
+    else:
+        try:
+            comp = build_reactive(expr, tables)
+        except NotImplementedError:
+            comp = FallbackReactive(tables, sql, expr)
 
     if one_value:
         comp = OneValue(comp)

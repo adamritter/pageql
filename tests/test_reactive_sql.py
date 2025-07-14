@@ -207,6 +207,17 @@ def test_parse_recursive_cte_with_table_deps():
     assert {d.table_name for d in comp.deps} == {"items"}
 
 
+def test_parse_select_subselect_fallback():
+    conn = _db()
+    conn.execute("CREATE TABLE nums(id INTEGER PRIMARY KEY)")
+    tables = Tables(conn)
+    sql = "SELECT name FROM items WHERE id IN (SELECT id FROM nums)"
+    expr = sqlglot.parse_one(sql, read="sqlite")
+    comp = parse_reactive(expr, tables, {})
+    assert isinstance(comp, FallbackReactive)
+    assert_sql_equivalent(conn, sql, comp.sql)
+
+
 def test_parse_group_by_aggregate():
     conn = sqlite3.connect(":memory:")
     conn.execute("CREATE TABLE nums(id INTEGER PRIMARY KEY, grp INTEGER, n INTEGER)")

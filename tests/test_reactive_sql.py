@@ -221,3 +221,51 @@ def test_parse_group_by_aggregate():
     rt = tables._get("nums")
     rt.insert("INSERT INTO nums(id,grp,n) VALUES (1,1,10)", {})
     assert events[-1] == [1, (1, 1, 10)]
+
+
+def test_parse_left_join_group_by_count():
+    conn = sqlite3.connect(":memory:")
+    conn.execute("CREATE TABLE users(id INTEGER PRIMARY KEY, username TEXT)")
+    conn.execute(
+        "CREATE TABLE following(follower_id INTEGER, following_id INTEGER)"
+    )
+    tables = Tables(conn)
+    sql = (
+        "SELECT u.id, u.username, COUNT(f.following_id) AS is_following "
+        "FROM users AS u "
+        "LEFT JOIN following AS f "
+        "       ON f.follower_id = :current_id "
+        "      AND f.following_id = u.id "
+        "WHERE u.username <> :username "
+        "GROUP BY u.id, u.username "
+        "ORDER BY u.username"
+    )
+    expr = sqlglot.parse_one(sql, read="sqlite")
+    params = {"current_id": 1, "username": "alice"}
+    comp = parse_reactive(expr, tables, params)
+    assert isinstance(comp, Order)
+    assert isinstance(comp.parent, Aggregate)
+    expected_sql = (
+        "SELECT u.id, u.username, COUNT(f.following_id) AS is_following "
+        "FROM users AS u "
+        "LEFT JOIN following AS f "
+        "       ON f.follower_id = 1 "
+        "      AND f.following_id = u.id "
+        "WHERE u.username <> 'alice' "
+        "GROUP BY u.id, u.username "
+        "ORDER BY u.username"
+    )
+    assert_sql_equivalent(conn, expected_sql, comp.sql)
+
+    events = []
+    comp.listeners.append(events.append)
+    rt_users = tables._get("users")
+    rt_follow = tables._get("following")
+    rt_users.insert("INSERT INTO users(id, username) VALUES (1, 'alice')", {})
+    rt_users.insert("INSERT INTO users(id, username) VALUES (2, 'bob')", {})
+    assert events[-1] == [1, 0, (2, "bob", 0)]
+    rt_follow.insert(
+        "INSERT INTO following(follower_id, following_id) VALUES (1, 2)",
+        {},
+    )
+    assert events[-1] == [3, 0, 0, (2, "bob", 1)]

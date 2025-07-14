@@ -34,11 +34,9 @@ def _replace_placeholders(
     placeholders = list(expr.find_all(exp.Placeholder))
     missing = [ph.this for ph in placeholders if ph.this not in params]
     if missing:
-        avail = ", ".join(sorted(params.keys()))
         names = ", ".join(missing)
         raise ValueError(
-            f"Missing parameter(s) {names} for SQL expression `{expr.sql()}`. "
-            f"Available parameters: {avail}"
+            f"Missing parameter(s) {names} for SQL expression `{expr.sql()}`."
         )
 
     for ph in placeholders:

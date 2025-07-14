@@ -29,7 +29,7 @@ def test_missing_param_error():
         r.render("/m", reactive=False)
     msg = str(exc.value).lower()
     assert "missing parameter 'non_existent'" in msg
-    assert "available parameters" in msg
+    assert "available parameters" not in msg
 
 
 
@@ -46,5 +46,5 @@ def test_missing_param_error_reactive():
         r.render("/m", reactive=True)
     msg = str(exc.value).lower()
     assert "missing parameter(s) c" in msg
-    assert "available parameters" in msg
+    assert "available parameters" not in msg
 

@@ -124,10 +124,9 @@ def db_execute_dot(db, exp, params):
     ]
     missing = [n for n in param_names if n not in params]
     if missing:
-        avail = ", ".join(sorted(params.keys()))
         raise ValueError(
             f"Missing parameter(s) {', '.join(m.replace('__', '.') for m in missing)} "
-            f"for SQL expression `{exp}`. Available parameters: {avail}"
+            f"for SQL expression `{exp}`."
         )
 
     converted_params = {}
@@ -161,8 +160,7 @@ def evalone(db, exp, params, reactive=False, tables=None, expr=None):
                 return signal
             return val.value if isinstance(val, Signal) else val
         raise ValueError(
-            f"Missing parameter '{original}' for expression `{exp}`. "
-            f"Available parameters: {', '.join(sorted(params.keys()))}"
+            f"Missing parameter '{original}' for expression `{exp}`."
         )
 
     if not re.match(r"(?i)^\s*(select|\(select)", exp):
@@ -175,10 +173,9 @@ def evalone(db, exp, params, reactive=False, tables=None, expr=None):
         dep_names = [name.replace(".", "__") for name in get_dependencies(sql)]
         missing = [n for n in dep_names if n not in params]
         if missing:
-            avail = ", ".join(sorted(params.keys()))
             raise ValueError(
                 f"Missing parameter(s) {', '.join(m.replace('__', '.') for m in missing)} "
-                f"for SQL expression `{exp}`. Available parameters: {avail}"
+                f"for SQL expression `{exp}`."
             )
         for name in dep_names:
             val = params.get(name)

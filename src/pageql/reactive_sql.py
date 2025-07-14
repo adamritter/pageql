@@ -301,6 +301,7 @@ def parse_reactive(
     *,
     cache: bool = True,
     one_value: bool = False,
+    force_reactive: bool = False,
 ):
     """Parse a SQL ``Expression`` into reactive components.
 
@@ -322,11 +323,11 @@ def parse_reactive(
             return comp
 
     # If the expression references no tables (ignoring CTEs) the result is
-    # constant, so return a simple ReadOnly wrapper instead of a reactive
-    # component.
+    # constant. Unless *force_reactive* is True, return a simple ReadOnly
+    # wrapper instead of a reactive component.
     cte_names = {c.alias_or_name for c in expr.find_all(exp.CTE)}
     table_refs = [t for t in expr.find_all(exp.Table) if t.name not in cte_names]
-    if not table_refs:
+    if not table_refs and not force_reactive:
         cur = execute(tables.conn, sql, [])
         if one_value:
             row = cur.fetchone()

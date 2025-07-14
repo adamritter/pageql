@@ -191,6 +191,37 @@ statically, and `#reactive on` to re-enable live updates. The mode
 persists from the point it is toggled until the opposite directive is
 encountered.
 
+### Subselects vs. Joins
+
+PageQL tracks dependencies at the table level. When a query includes a subselect in the `SELECT` list the engine does not rewrite it into a join. Any update to a table used by that subquery therefore causes the whole outer query to be rerendered. For large result sets this is expensive, so rewriting subselects as joins is recommended.
+
+```sql
+select u.id, u.username,
+       (select count(*) from following f where f.follower_id=:current_id and f.following_id=u.id) as is_following
+from users u
+where u.username != :username
+order by u.username
+```
+
+can be rewritten to
+
+```sql
+SELECT
+    u.id,
+    u.username,
+    COUNT(f.following_id) AS is_following          -- 0 if no row, 1 if a match exists
+FROM users AS u
+LEFT JOIN following AS f
+       ON f.follower_id = :current_id              -- “who’s doing the following”
+      AND f.following_id = u.id                    -- “who’s being followed”
+WHERE u.username <> :username                      -- don’t list the current user
+GROUP BY u.id, u.username                          -- needed because of COUNT()
+ORDER BY u.username;
+```
+
+The join version allows PageQL to track `users` and `following` separately, producing smaller reactive updates.
+
+
 ## Parameter Binding & Output
 
 PageQL uses a unified namespace for variables originating from different sources:

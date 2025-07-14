@@ -2,6 +2,7 @@ import sqlite3
 from pathlib import Path
 import sys
 import sqlglot
+import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
@@ -221,3 +222,36 @@ def test_parse_group_by_aggregate():
     rt = tables._get("nums")
     rt.insert("INSERT INTO nums(id,grp,n) VALUES (1,1,10)", {})
     assert events[-1] == [1, (1, 1, 10)]
+
+
+@pytest.mark.xfail(reason="subquery dependencies are not tracked")
+def test_select_subquery_dependency():
+    conn = sqlite3.connect(":memory:")
+    conn.execute("CREATE TABLE users(id INTEGER PRIMARY KEY, username TEXT)")
+    conn.execute(
+        "CREATE TABLE following(follower_id INTEGER, following_id INTEGER)"
+    )
+    tables = Tables(conn)
+    sql = (
+        "select u.id, u.username, "
+        "(select count(*) from following f "
+        "where f.follower_id=:current_id and f.following_id=u.id) as is_following "
+        "from users u "
+        "where u.username != :username "
+        "order by u.username"
+    )
+    expr = sqlglot.parse_one(sql, read="sqlite")
+    comp = parse_reactive(expr, tables, {"current_id": 1, "username": "alice"})
+
+    users = tables._get("users")
+    following = tables._get("following")
+
+    users.insert("INSERT INTO users(id,username) VALUES (1,'alice')", {})
+    users.insert("INSERT INTO users(id,username) VALUES (2,'bob')", {})
+    assert comp.value == [(2, "bob", 0)]
+
+    following.insert(
+        "INSERT INTO following(follower_id,following_id) VALUES (1,2)",
+        {},
+    )
+    assert comp.value == [(2, "bob", 1)]

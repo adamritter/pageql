@@ -17,6 +17,10 @@ create table if not exists following (
     following_id INTEGER,
     primary key(follower_id, following_id)
 );
+
+if :username is not null and :username != '' and :username not in (select username from users);
+  insert into users(username) values (:username);
+end if;
 let current_id = select (select id from users where username=:username);
 %}
 
@@ -30,20 +34,25 @@ let current_id = select (select id from users where username=:username);
   <h1>Mini Twitter</h1>
   <div style="display:flex; gap:2rem; align-items:flex-start;">
     <div style="flex:1;">
-      <input name="username" placeholder="Username" value="{{:username}}" autocomplete="off" list="usernames">
-      <datalist id="usernames">
-      {%from users order by username%}
-        <option value="{{username}}">
-      {%end from%}
-      </datalist>
-      <a hx-get="/twitter/index?filter=all" hx-target="#tweets" hx-include="[name=username]" {%if :filter=='all'%}style="font-weight:bold"{%end if%}>All</a>
-      /
-      <a hx-get="/twitter/index?filter=following" hx-target="#tweets" hx-include="[name=username]" {%if :filter=='following'%}style="font-weight:bold"{%end if%}>Following</a>
+      <form get="/twitter">
+        <input name="username" placeholder="Username" value="{{:username}}" autocomplete="off" list="usernames"
+         onchange="this.form.submit()">
+        <datalist id="usernames">
+        {%from users order by username%}
+          <option value="{{username}}">
+        {%end from%}
+        </datalist>
+      </form>
       <input name="text" placeholder="What's happening?" maxlength="280"
              hx-post="/twitter/index/tweet"
              hx-trigger="keyup[key=='Enter']"
              hx-include="[name=username]"
              hx-on:htmx:after-on-load="this.value=''" autofocus>
+             <br><br>
+             <a {%if :filter<>'all'%}href="/twitter/index?filter=all&username={{:username}}"{%else%}style="font-weight:bold"{%endif%}>All</a>
+      /
+      <a {%if :filter<>'following'%}href="/twitter/index?filter=following&username={{:username}}"{%else%}style="font-weight:bold"{%endif%}>Following</a>
+      
       <ul id="tweets">
       {%from tweets join users on tweets.user_id=users.id
              where (:filter='all') or
@@ -57,11 +66,17 @@ let current_id = select (select id from users where username=:username);
       <h2>Users</h2>
       <ul id="users">
       {%from (
-        select u.id, u.username,
-               (select count(*) from following f where f.follower_id=:current_id and f.following_id=u.id) as is_following
-        from users u
-        where u.username != :username
-        order by u.username
+        SELECT
+    u.id,
+    u.username,
+    COUNT(f.following_id) AS is_following          -- 0 if no row, 1 if a match exists
+FROM users AS u
+LEFT JOIN following AS f
+       ON f.follower_id = :current_id              -- “who’s doing the following”
+      AND f.following_id = u.id                    -- “who’s being followed”
+WHERE u.username <> :username                      -- don’t list the current user
+GROUP BY u.id, u.username                          -- needed because of COUNT()
+ORDER BY u.username
       )%}
         <li>
           {{username}}
@@ -75,8 +90,12 @@ let current_id = select (select id from users where username=:username);
     </ul>
   </div>
 </div>
+<h2>Tweets</h2>
   {%dump tweets %}
+  <h2>Following</h2>
   {%dump following%}
+  <h2>Users</h2>
+  {%dump users%}
 </body>
 </html>
 

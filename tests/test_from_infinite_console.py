@@ -1,7 +1,8 @@
 import sys
 sys.path.insert(0, "src")
 
-from pageql.pageql import PageQL, _row_hash
+from pageql.pageql import PageQL
+from pageql.reactive import Order
 
 
 def test_infinite_from_logs_mid_after_pend():
@@ -14,3 +15,14 @@ def test_infinite_from_logs_mid_after_pend():
         "<script>pend(0)</script><script>maybe_load_more(document.body, 0)</script>"
     )
     assert result.body == expected
+
+
+def test_infinite_from_constant_adds_order():
+    r = PageQL(":memory:")
+    r.load_module("m", "{{#from (select 1 as id) infinite}}{{id}}{{/from}}")
+    result = r.render("/m")
+    ctx = result.context
+    assert len(ctx.infinites) == 1
+    order = list(ctx.infinites.values())[0]
+    assert isinstance(order, Order)
+    assert order.limit == 100

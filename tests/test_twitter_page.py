@@ -33,7 +33,6 @@ def test_twitter_filter_links_present():
     body = result.body
     assert 'href="/twitter/index?filter=following' in body
 
-
 def test_twitter_follow_filter():
     src = Path("website/twitter/index.pageql").read_text()
     r = PageQL(":memory:")

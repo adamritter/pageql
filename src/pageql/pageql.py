@@ -728,6 +728,7 @@ class PageQL:
             col_names = [col[0] for col in cursor.description]
             end_time = time.time()
 
+        ctx.out.append(f"<h2>{node_content}</h2>")
         ctx.out.append("<table>")
         for col in col_names:
             ctx.out.append("<th>" + col + "</th>")
@@ -771,7 +772,9 @@ class PageQL:
                 ctx.out.append("</tr>")
 
         ctx.out.append("</table>")
-        ctx.out.append(f"<p>Dumping {node_content} took {(end_time - t)*1000:.2f} ms</p>")
+        ctx.out.append(
+            f"<p>Dumping {node_content} took {(end_time - t)*1000:.2f} ms</p>"
+        )
         return reactive
 
     def _process_showsource_directive(self, node_content, params, path, includes,

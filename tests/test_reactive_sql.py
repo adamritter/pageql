@@ -160,6 +160,55 @@ def test_parse_join_alias_order():
     assert_sql_equivalent(conn, sql, comp.sql)
 
 
+@pytest.mark.xfail(reason="subquery dependencies are not tracked")
+def test_parse_join_where_order_with_params():
+    conn = sqlite3.connect(":memory:")
+    conn.execute("CREATE TABLE tweets(id INTEGER PRIMARY KEY, user_id INTEGER, text TEXT)")
+    conn.execute("CREATE TABLE users(id INTEGER PRIMARY KEY, username TEXT)")
+    conn.execute("CREATE TABLE following(follower_id INTEGER, following_id INTEGER)")
+    tables = Tables(conn)
+    sql = (
+        "select * from tweets join users on tweets.user_id=users.id "
+        "where (:filter='all') or "
+        "(:filter='following' and :current_id is not null and exists("
+        "select 1 from following where follower_id=:current_id and following_id=tweets.user_id)) "
+        "order by tweets.id desc"
+    )
+    expr = sqlglot.parse_one(sql, read="sqlite")
+    params = {"filter": "following", "current_id": 1}
+    comp = parse_reactive(expr, tables, params)
+    assert isinstance(comp, Order)
+    assert isinstance(comp.parent, Where)
+    assert isinstance(comp.parent.parent, (Join, Select))
+    expected_sql = sql.replace(":filter", "'following'").replace(":current_id", "1")
+    assert_sql_equivalent(conn, expected_sql, comp.sql)
+
+    tweets = tables._get("tweets")
+    users = tables._get("users")
+    following = tables._get("following")
+
+    users.insert("INSERT INTO users(id,username) VALUES (1,'alice')", {})
+    users.insert("INSERT INTO users(id,username) VALUES (2,'bob')", {})
+
+    tweets.insert("INSERT INTO tweets(id,user_id,text) VALUES (1,2,'hi')", {})
+    assert comp.value == []
+
+    following.insert("INSERT INTO following(follower_id,following_id) VALUES (1,2)", {})
+    assert comp.value == [(
+        1,
+        2,
+        'hi',
+        2,
+        'bob',
+    )]
+
+    following.delete(
+        "DELETE FROM following WHERE follower_id=1 AND following_id=2",
+        {},
+    )
+    assert comp.value == []
+
+
 def test_parse_select_with_params():
     conn = _db()
     tables = Tables(conn)

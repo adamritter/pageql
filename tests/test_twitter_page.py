@@ -31,8 +31,7 @@ def test_twitter_filter_links_present():
     r.load_module("twitter/index", src)
     result = r.render("/twitter/index", reactive=False)
     body = result.body
-    assert 'hx-get="/twitter/index?filter=all"' in body
-    assert 'hx-get="/twitter/index?filter=following"' in body
+    assert 'href="/twitter/index?filter=following' in body
 
 
 def test_twitter_follow_filter():

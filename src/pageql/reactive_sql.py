@@ -340,6 +340,16 @@ def parse_reactive(
 
     subqueries = list(expr.find_all(exp.Subquery))
     inner_subquery = any(s is not expr for s in subqueries)
+    if not inner_subquery:
+        for sel in expr.find_all(exp.Select):
+            if sel is expr:
+                continue
+            parent = sel.parent
+            if isinstance(parent, (exp.Union, exp.Subquery)) and parent is expr:
+                continue
+            if not isinstance(parent, exp.Union):
+                inner_subquery = True
+                break
     if inner_subquery:
         comp = FallbackReactive(tables, sql, expr)
     else:

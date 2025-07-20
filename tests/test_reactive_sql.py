@@ -160,7 +160,6 @@ def test_parse_join_alias_order():
     assert_sql_equivalent(conn, sql, comp.sql)
 
 
-@pytest.mark.xfail(reason="subquery dependencies are not tracked")
 def test_parse_join_where_order_with_params():
     conn = sqlite3.connect(":memory:")
     conn.execute("CREATE TABLE tweets(id INTEGER PRIMARY KEY, user_id INTEGER, text TEXT)")
@@ -177,9 +176,7 @@ def test_parse_join_where_order_with_params():
     expr = sqlglot.parse_one(sql, read="sqlite")
     params = {"filter": "following", "current_id": 1}
     comp = parse_reactive(expr, tables, params)
-    assert isinstance(comp, Order)
-    assert isinstance(comp.parent, Where)
-    assert isinstance(comp.parent.parent, (Join, Select))
+    assert isinstance(comp, FallbackReactive)
     expected_sql = sql.replace(":filter", "'following'").replace(":current_id", "1")
     assert_sql_equivalent(conn, expected_sql, comp.sql)
 
@@ -191,10 +188,10 @@ def test_parse_join_where_order_with_params():
     users.insert("INSERT INTO users(id,username) VALUES (2,'bob')", {})
 
     tweets.insert("INSERT INTO tweets(id,user_id,text) VALUES (1,2,'hi')", {})
-    assert comp.value == []
+    assert comp.rows == []
 
     following.insert("INSERT INTO following(follower_id,following_id) VALUES (1,2)", {})
-    assert comp.value == [(
+    assert comp.rows == [(
         1,
         2,
         'hi',
@@ -206,7 +203,7 @@ def test_parse_join_where_order_with_params():
         "DELETE FROM following WHERE follower_id=1 AND following_id=2",
         {},
     )
-    assert comp.value == []
+    assert comp.rows == []
 
 
 def test_parse_select_with_params():

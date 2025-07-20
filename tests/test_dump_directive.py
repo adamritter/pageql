@@ -19,6 +19,7 @@ def test_dump_directive_reactive_inserts():
     h1 = _row_hash((1, 'a'))
     h2 = _row_hash((2, 'b'))
     expected = (
+        '<h2>items</h2>'
         '<table>'
         '<th>id</th><th>name</th></tr>'
         f"<script>pstart(0)</script>"
@@ -28,6 +29,7 @@ def test_dump_directive_reactive_inserts():
         '</table>'
     )
     assert result.body.startswith(expected)
+    assert '<p>Dumping items took' in result.body
 
     r.tables.executeone("INSERT INTO items(name) VALUES ('c')", {})
     assert any('pinsert' in s for s in ctx.scripts)

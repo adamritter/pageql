@@ -150,3 +150,16 @@ def test_twitter_username_selector_present():
     assert '<input name="username"' in body
     assert 'list="usernames"' in body
     assert '<datalist id="usernames">' in body
+
+def test_twitter_dump_headings_not_repeated():
+    src = Path("website/twitter/index.pageql").read_text()
+    r = PageQL(":memory:")
+    r.load_module("twitter/index", src)
+    r.render("/twitter/index", reactive=False)
+    body = r.render("/twitter/index", reactive=False).body
+    assert "<h2>Tweets</h2>" not in body
+    assert "<h2>Following</h2>" not in body
+    assert body.count("<h2>Users</h2>") == 1
+    assert body.count("<h2>tweets</h2>") == 1
+    assert body.count("<h2>following</h2>") == 1
+    assert body.count("<h2>users</h2>") == 1

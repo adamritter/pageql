@@ -181,7 +181,7 @@ def test_twitter_like_button_updates():
     )
 
     assert f'hx-delete="/twitter/index/like/{tid}"' in result.body
-    assert ">Unlike (1)</button>" in result.body
+    assert '>♥</button> 1' in result.body
 
     r.render(
         f"/twitter/index/like/{tid}",
@@ -197,7 +197,7 @@ def test_twitter_like_button_updates():
     )
 
     assert f'hx-post="/twitter/index/like/{tid}"' in result.body
-    assert ">Like (0)</button>" in result.body
+    assert '>♡</button> 0' in result.body
 
 
 def test_twitter_dump_headers_not_duplicated():

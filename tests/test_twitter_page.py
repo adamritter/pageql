@@ -198,3 +198,19 @@ def test_twitter_like_button_updates():
 
     assert f'hx-post="/twitter/index/like/{tid}"' in result.body
     assert ">Like (0)</button>" in result.body
+
+
+def test_twitter_dump_headers_not_duplicated():
+    src = Path("website/twitter/index.pageql").read_text()
+    r = PageQL(":memory:")
+    r.load_module("twitter/index", src)
+    result = r.render("/twitter/index", reactive=False)
+    body = result.body
+
+    assert "<h2>Tweets</h2>" not in body
+    assert "<h2>Following</h2>" not in body
+    assert body.count("<h2>Users</h2>") == 1
+
+    assert "<h2>tweets</h2>" in body
+    assert "<h2>following</h2>" in body
+    assert "<h2>users</h2>" in body

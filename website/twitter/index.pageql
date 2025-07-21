@@ -107,12 +107,9 @@ ORDER BY u.username
     </ul>
   </div>
 </div>
-<h2>Tweets</h2>
-  {%dump tweets %}
-  <h2>Following</h2>
-  {%dump following%}
-  <h2>Users</h2>
-  {%dump users%}
+{%dump tweets %}
+{%dump following%}
+{%dump users%}
 </body>
 </html>
 

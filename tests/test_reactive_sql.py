@@ -264,6 +264,20 @@ def test_parse_select_subselect_fallback():
     assert_sql_equivalent(conn, sql, comp.sql)
 
 
+def test_parse_exists_subquery_fallback():
+    conn = _db()
+    conn.execute("CREATE TABLE tags(item_id INTEGER)")
+    tables = Tables(conn)
+    sql = (
+        "SELECT id FROM items WHERE EXISTS("
+        "SELECT 1 FROM tags WHERE tags.item_id = items.id)"
+    )
+    expr = sqlglot.parse_one(sql, read="sqlite")
+    comp = parse_reactive(expr, tables, {})
+    assert isinstance(comp, FallbackReactive)
+    assert_sql_equivalent(conn, sql, comp.sql)
+
+
 def test_parse_group_by_aggregate():
     conn = sqlite3.connect(":memory:")
     conn.execute("CREATE TABLE nums(id INTEGER PRIMARY KEY, grp INTEGER, n INTEGER)")

@@ -17,6 +17,11 @@ create table if not exists following (
     following_id INTEGER,
     primary key(follower_id, following_id)
 );
+create table if not exists likes (
+    user_id INTEGER,
+    tweet_id INTEGER,
+    primary key(user_id, tweet_id)
+);
 
 if :username is not null and :username != '' and :username not in (select username from users);
   insert into users(username) values (:username);
@@ -54,11 +59,23 @@ let current_id = select (select id from users where username=:username);
       <a {%if :filter<>'following'%}href="/twitter/index?filter=following&username={{:username}}"{%else%}style="font-weight:bold"{%endif%}>Following</a>
       
       <ul id="tweets">
-      {%from tweets join users on tweets.user_id=users.id
-             where (:filter='all') or
-                   (:filter='following' and :current_id is not null and exists(select 1 from following where follower_id=:current_id and following_id=tweets.user_id))
-             order by tweets.id desc%}
-        <li><strong>{{username}}</strong>: {{text}}</li>
+      {%from (
+        SELECT t.id, u.username, t.text,
+               (SELECT COUNT(*) FROM likes l WHERE l.tweet_id=t.id) AS likes_count,
+               (SELECT COUNT(*) FROM likes l WHERE l.tweet_id=t.id AND l.user_id=:current_id) AS liked
+        FROM tweets t
+        JOIN users u ON t.user_id=u.id
+        WHERE (:filter='all') OR
+              (:filter='following' AND :current_id is not null AND EXISTS(SELECT 1 FROM following f WHERE f.follower_id=:current_id AND f.following_id=t.user_id))
+        ORDER BY t.id DESC
+      )%}
+        <li><strong>{{username}}</strong>: {{text}}
+          {%if :liked == 0%}
+            <button hx-post="/twitter/index/like/{{id}}" hx-include="[name=username]" hx-swap="none">Like ({{likes_count}})</button>
+          {%else%}
+            <button hx-delete="/twitter/index/like/{{id}}" hx-include="[name=username]" hx-swap="none">Unlike ({{likes_count}})</button>
+          {%end if%}
+        </li>
       {%end from%}
       </ul>
     </div>
@@ -124,6 +141,19 @@ partial delete follow/:id;
   if :uid_unfollow is not null;
     delete from following where follower_id=:uid_unfollow and following_id=:id;
   end if;
+end partial;
+
+partial post like/:id;
+  param username maxlength=32;
+  insert or ignore into users(username) values (:username);
+  let uid = select (select id from users where username=:username);
+  insert or ignore into likes(user_id, tweet_id) values(:uid, :id);
+end partial;
+
+partial delete like/:id;
+  param username maxlength=32;
+  let uid = select (select id from users where username=:username);
+  delete from likes where user_id=:uid and tweet_id=:id;
 end partial;
 
 %}

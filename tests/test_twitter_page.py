@@ -150,3 +150,51 @@ def test_twitter_username_selector_present():
     assert '<input name="username"' in body
     assert 'list="usernames"' in body
     assert '<datalist id="usernames">' in body
+
+
+def test_twitter_like_button_updates():
+    src = Path("website/twitter/index.pageql").read_text()
+    r = PageQL(":memory:")
+    r.load_module("twitter/index", src)
+    r.render("/twitter/index", reactive=False)
+
+    r.render(
+        "/twitter/index",
+        params={"username": "alice", "text": "hello"},
+        partial="tweet",
+        http_verb="POST",
+    )
+
+    tid = r.db.execute("select id from tweets where text='hello'").fetchone()[0]
+
+    r.render(
+        f"/twitter/index/like/{tid}",
+        params={"username": "bob"},
+        http_verb="POST",
+        reactive=False,
+    )
+
+    result = r.render(
+        "/twitter/index",
+        params={"username": "bob"},
+        reactive=False,
+    )
+
+    assert f'hx-delete="/twitter/index/like/{tid}"' in result.body
+    assert ">Unlike (1)</button>" in result.body
+
+    r.render(
+        f"/twitter/index/like/{tid}",
+        params={"username": "bob"},
+        http_verb="DELETE",
+        reactive=False,
+    )
+
+    result = r.render(
+        "/twitter/index",
+        params={"username": "bob"},
+        reactive=False,
+    )
+
+    assert f'hx-post="/twitter/index/like/{tid}"' in result.body
+    assert ">Like (0)</button>" in result.body

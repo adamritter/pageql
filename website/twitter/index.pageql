@@ -71,9 +71,9 @@ let current_id = select (select id from users where username=:username);
       )%}
         <li><strong>{{username}}</strong>: {{text}}
           {%if :liked == 0%}
-            <button hx-post="/twitter/index/like/{{id}}" hx-include="[name=username]" hx-swap="none">Like ({{likes_count}})</button>
+            <button hx-post="/twitter/index/like/{{id}}" hx-include="[name=username]" hx-swap="none">♡</button> {{likes_count}}
           {%else%}
-            <button hx-delete="/twitter/index/like/{{id}}" hx-include="[name=username]" hx-swap="none">Unlike ({{likes_count}})</button>
+            <button hx-delete="/twitter/index/like/{{id}}" hx-include="[name=username]" hx-swap="none">♥</button> {{likes_count}}
           {%end if%}
         </li>
       {%end from%}

@@ -291,7 +291,28 @@ def build_from(expr, tables: Tables):
     raise NotImplementedError(f"Unsupported FROM expression: {type(expr)}")
 
 
+
 _CACHE: dict[tuple[int, str], Signal] = {}
+
+
+def _has_subquery(expr: exp.Expression, root: exp.Expression) -> bool:
+    """Return ``True`` if *expr* contains a nested subquery."""
+
+    for child in expr.iter_expressions():
+        if isinstance(child, exp.Subquery) and child is not root:
+            return True
+
+        if isinstance(child, exp.Select) and child is not root:
+            parent = child.parent
+            if isinstance(parent, (exp.Union, exp.Subquery)) and parent is root:
+                pass
+            elif not isinstance(parent, exp.Union):
+                return True
+
+        if _has_subquery(child, root):
+            return True
+
+    return False
 
 
 def parse_reactive(
@@ -338,19 +359,7 @@ def parse_reactive(
         comp.columns = [d[0] for d in cur.description]
         return comp
 
-    subqueries = list(expr.find_all(exp.Subquery))
-    inner_subquery = any(s is not expr for s in subqueries)
-    if not inner_subquery:
-        for sel in expr.find_all(exp.Select):
-            if sel is expr:
-                continue
-            parent = sel.parent
-            if isinstance(parent, (exp.Union, exp.Subquery)) and parent is expr:
-                continue
-            if not isinstance(parent, exp.Union):
-                inner_subquery = True
-                break
-    if inner_subquery:
+    if _has_subquery(expr, expr):
         comp = FallbackReactive(tables, sql, expr)
     else:
         try:
